@@ -1,5 +1,24 @@
 import type { NextConfig } from 'next';
-import withPWA from '@ducanh2912/next-pwa';
+import withPWAInit from '@ducanh2912/next-pwa';
+
+const withPWA = withPWAInit({
+  dest: 'public',
+  cacheOnFrontEndNav: true,
+  aggressiveFrontEndNavCaching: true,
+  reloadOnOnline: true,
+  swcMinify: true,
+  // Completely disable PWA in development to avoid workbox logs
+  disable: process.env.NODE_ENV === 'development',
+  workboxOptions: {
+    // Suppress all workbox logging
+    disableDevLogs: true,
+    // Additional log suppression
+    skipWaiting: true,
+    clientsClaim: true,
+  },
+  // Suppress build-time logs
+  buildExcludes: [/app-build-manifest\.json$/],
+});
 
 const nextConfig: NextConfig = {
   /* config options here */
@@ -8,14 +27,4 @@ const nextConfig: NextConfig = {
   turbopack: {},
 };
 
-export default withPWA({
-  dest: 'public',
-  cacheOnFrontEndNav: true,
-  aggressiveFrontEndNavCaching: true,
-  reloadOnOnline: true,
-  swcMinify: true,
-  disable: process.env.NODE_ENV === 'development',
-  workboxOptions: {
-    disableDevLogs: true,
-  },
-})(nextConfig);
+export default withPWA(nextConfig);

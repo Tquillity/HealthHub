@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,10 +39,10 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
     cookTime: recipe?.cookTime?.toString() || '',
     servings: recipe?.servings?.toString() || '',
     category: recipe?.category || '',
-    tags: recipe?.tags.join(', ') || '',
+    tags: recipe?.tags?.join(', ') || '',
     difficulty: recipe?.difficulty || '',
     cuisine: recipe?.cuisine || '',
-    dietaryTags: recipe?.dietaryTags.join(', ') || '',
+    dietaryTags: recipe?.dietaryTags?.join(', ') || '',
     calories: recipe?.calories?.toString() || '',
     protein: recipe?.protein?.toString() || '',
     carbs: recipe?.carbs?.toString() || '',
@@ -53,26 +53,96 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
   });
 
   const [imagePreview, setImagePreview] = useState<string | null>(recipe?.imageUrl || null);
+  const [additionalImages, setAdditionalImages] = useState<string[]>(
+    (recipe as any)?.imageUrls || []
+  );
   const [isUploading, setIsUploading] = useState(false);
+  const [isUploadingAdditional, setIsUploadingAdditional] = useState(false);
 
   const [ingredients, setIngredients] = useState<Ingredient[]>(
-    recipe?.ingredients.map((ing) => ({
-      name: ing.name,
-      quantity: ing.quantity,
-      unit: ing.unit,
-      notes: ing.notes || undefined,
-    })) || [{ name: '', quantity: 0, unit: '', notes: '' }]
+    recipe?.ingredients && recipe.ingredients.length > 0
+      ? recipe.ingredients.map((ing) => ({
+          name: ing.name,
+          quantity: ing.quantity,
+          unit: ing.unit,
+          notes: ing.notes || undefined,
+        }))
+      : [{ name: '', quantity: 0, unit: '', notes: '' }]
   );
 
   const [instructions, setInstructions] = useState<Instruction[]>(
-    recipe?.instructions.map((inst) => ({
-      stepNumber: inst.stepNumber,
-      text: inst.text,
-    })) || [{ stepNumber: 1, text: '' }]
+    recipe?.instructions && recipe.instructions.length > 0
+      ? recipe.instructions.map((inst) => ({
+          stepNumber: inst.stepNumber,
+          text: inst.text,
+        }))
+      : [{ stepNumber: 1, text: '' }]
   );
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Update form data when recipe prop changes (important for editing)
+  // Use recipe.id as dependency to ensure it runs when editing a different recipe
+  useEffect(() => {
+    if (recipe) {
+      // Update form data
+      setFormData({
+        name: recipe.name || '',
+        description: recipe.description || '',
+        imageUrl: recipe.imageUrl || '',
+        prepTime: recipe.prepTime?.toString() || '',
+        cookTime: recipe.cookTime?.toString() || '',
+        servings: recipe.servings?.toString() || '',
+        category: recipe.category || '',
+        tags: recipe.tags?.join(', ') || '',
+        difficulty: recipe.difficulty || '',
+        cuisine: recipe.cuisine || '',
+        dietaryTags: recipe.dietaryTags?.join(', ') || '',
+        calories: recipe.calories != null ? recipe.calories.toString() : '',
+        protein: recipe.protein != null ? recipe.protein.toString() : '',
+        carbs: recipe.carbs != null ? recipe.carbs.toString() : '',
+        fat: recipe.fat != null ? recipe.fat.toString() : '',
+        fiber: recipe.fiber != null ? recipe.fiber.toString() : '',
+        sugar: recipe.sugar != null ? recipe.sugar.toString() : '',
+        sodium: recipe.sodium != null ? recipe.sodium.toString() : '',
+      });
+
+      // Update image preview
+      setImagePreview(recipe.imageUrl || null);
+      setAdditionalImages((recipe as any)?.imageUrls || []);
+
+      // Update ingredients - always update when recipe changes
+      // Ensure we always have at least one row, even if recipe has no ingredients
+      if (recipe.ingredients && recipe.ingredients.length > 0) {
+        setIngredients(
+          recipe.ingredients.map((ing) => ({
+            name: ing.name || '',
+            quantity: ing.quantity || 0,
+            unit: (ing.unit || '').trim(),
+            notes: ing.notes?.trim() || undefined,
+          }))
+        );
+      } else {
+        // If no ingredients, ensure we have at least one empty row
+        setIngredients([{ name: '', quantity: 0, unit: '', notes: '' }]);
+      }
+
+      // Update instructions - always update when recipe changes
+      // Ensure we always have at least one row, even if recipe has no instructions
+      if (recipe.instructions && recipe.instructions.length > 0) {
+        setInstructions(
+          recipe.instructions.map((inst) => ({
+            stepNumber: inst.stepNumber,
+            text: inst.text,
+          }))
+        );
+      } else {
+        // If no instructions, ensure we have at least one empty row
+        setInstructions([{ stepNumber: 1, text: '' }]);
+      }
+    }
+  }, [recipe?.id, recipe]); // Use both recipe.id and recipe to detect changes
 
   const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -122,9 +192,71 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
     }
   };
 
+  const handleAddAdditionalImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setErrors({ ...errors, additionalImages: 'Please select an image file' });
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setErrors({ ...errors, additionalImages: 'Image size must be less than 5MB' });
+      return;
+    }
+
+    setIsUploadingAdditional(true);
+    const uploadFormData = new FormData();
+    uploadFormData.append('file', file);
+
+    const result = await uploadImage(uploadFormData);
+    setIsUploadingAdditional(false);
+
+    if (result.success && result.url) {
+      setAdditionalImages([...additionalImages, result.url]);
+      setErrors({ ...errors, additionalImages: '' });
+    } else {
+      setErrors({ ...errors, additionalImages: result.error || 'Failed to upload image' });
+    }
+
+    // Reset file input
+    if (e.target) {
+      e.target.value = '';
+    }
+  };
+
+  const handleRemoveAdditionalImage = (index: number) => {
+    setAdditionalImages(additionalImages.filter((_, i) => i !== index));
+  };
+
+  const handleSetAsMainImage = (imageUrl: string, index: number) => {
+    // If there's already a main image, move it to additional images
+    if (imagePreview) {
+      setAdditionalImages([...additionalImages.filter((_, i) => i !== index), imagePreview]);
+    }
+    // Set the selected image as main
+    setFormData({ ...formData, imageUrl });
+    setImagePreview(imageUrl);
+    // Remove from additional images
+    setAdditionalImages(additionalImages.filter((_, i) => i !== index));
+  };
+
+  const handleMoveToAdditional = () => {
+    if (imagePreview) {
+      setAdditionalImages([...additionalImages, imagePreview]);
+      setFormData({ ...formData, imageUrl: '' });
+      setImagePreview(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
   const categories = ['Breakfast', 'Lunch', 'Dinner', 'Snack', 'Dessert', 'Beverage'];
   const difficulties = ['easy', 'medium', 'hard'];
-  const units = ['cup', 'tbsp', 'tsp', 'oz', 'lb', 'g', 'kg', 'ml', 'l', 'piece', 'slice', 'clove', 'bunch'];
+  // Include both English and Swedish units to support existing recipes
+  const units = ['cup', 'tbsp', 'tsp', 'oz', 'lb', 'g', 'kg', 'ml', 'l', 'piece', 'slice', 'clove', 'bunch', 'msk', 'tsk', 'dl', 'nypa', 'st'];
   const commonCuisines = ['Italian', 'Mexican', 'Asian', 'Mediterranean', 'American', 'Indian', 'French', 'Thai', 'Chinese', 'Japanese', 'Middle Eastern'];
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -154,6 +286,7 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
       name: formData.name,
       description: formData.description || undefined,
       imageUrl: formData.imageUrl || undefined,
+      imageUrls: additionalImages.length > 0 ? additionalImages : undefined,
       prepTime: formData.prepTime ? parseInt(formData.prepTime) : undefined,
       cookTime: formData.cookTime ? parseInt(formData.cookTime) : undefined,
       servings: formData.servings ? parseInt(formData.servings) : undefined,
@@ -268,51 +401,137 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
             <div className="space-y-2">
               {imagePreview && (
                 <div className="relative inline-block">
+                  <div className="mb-1 text-xs font-medium text-gray-500">Main Image (Card)</div>
                   <img
                     src={imagePreview}
                     alt="Preview"
-                    className="h-32 w-32 rounded-lg object-cover border border-gray-200"
+                    className="h-32 w-32 rounded-lg object-cover border-2 border-primary-500 border-dashed"
                   />
-                  <button
-                    type="button"
-                    onClick={handleRemoveImage}
-                    className="absolute -top-2 -right-2 rounded-full bg-red-500 p-1 text-white hover:bg-red-600"
+                  <div className="absolute -top-2 -right-2 flex gap-1">
+                    <button
+                      type="button"
+                      onClick={handleMoveToAdditional}
+                      className="cursor-pointer rounded-full bg-blue-500 p-1 text-white hover:bg-blue-600"
+                      title="Move to Additional Images"
+                    >
+                      <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16l-4-4m0 0l4-4m-4 4h18" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleRemoveImage}
+                      className="cursor-pointer rounded-full bg-red-500 p-1 text-white hover:bg-red-600"
+                      title="Remove Image"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                </div>
+              )}
+              <div className="flex flex-col gap-2">
+                <div className="flex gap-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageSelect}
+                    className="hidden"
+                    id="image-upload"
+                  />
+                  <label
+                    htmlFor="image-upload"
+                    className="flex cursor-pointer items-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
                   >
-                    <X className="h-4 w-4" />
-                  </button>
+                    <Upload className="h-4 w-4" />
+                    {isUploading ? 'Uploading...' : imagePreview ? 'Change Image' : 'Upload Image'}
+                  </label>
+                </div>
+                {/* Only show URL input if no image is uploaded, or as an alternative option */}
+                {!imagePreview && (
+                  <div>
+                    <p className="mb-1 text-xs text-gray-500">Or enter an image URL:</p>
+                    <Input
+                      id="image-url"
+                      name="image-url"
+                      type="url"
+                      value={formData.imageUrl}
+                      onChange={(e) => {
+                        setFormData({ ...formData, imageUrl: e.target.value });
+                        setImagePreview(e.target.value || null);
+                      }}
+                      placeholder="https://example.com/image.jpg"
+                      className="w-full"
+                    />
+                  </div>
+                )}
+              </div>
+              {errors.image && (
+                <p className="text-sm text-red-600">{errors.image}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Additional Images */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Additional Images
+            </label>
+            <div className="space-y-2">
+              {additionalImages.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {additionalImages.map((url, index) => (
+                    <div key={index} className="relative inline-block">
+                      <img
+                        src={url}
+                        alt={`Additional ${index + 1}`}
+                        className="h-24 w-24 rounded-lg object-cover border border-gray-200"
+                      />
+                      <div className="absolute -top-2 -right-2 flex gap-1">
+                        <button
+                          type="button"
+                          onClick={() => handleSetAsMainImage(url, index)}
+                          className="cursor-pointer rounded-full bg-green-500 p-1 text-white hover:bg-green-600"
+                          title="Set as Main Image"
+                        >
+                          <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveAdditionalImage(index)}
+                          className="cursor-pointer rounded-full bg-red-500 p-1 text-white hover:bg-red-600"
+                          title="Remove Image"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
               <div className="flex gap-2">
                 <input
-                  ref={fileInputRef}
                   type="file"
                   accept="image/*"
-                  onChange={handleImageSelect}
+                  onChange={handleAddAdditionalImage}
                   className="hidden"
-                  id="image-upload"
+                  id="additional-image-upload"
+                  disabled={isUploadingAdditional}
                 />
                 <label
-                  htmlFor="image-upload"
-                  className="flex cursor-pointer items-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  htmlFor="additional-image-upload"
+                  className={`flex cursor-pointer items-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 ${
+                    isUploadingAdditional ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
                 >
                   <Upload className="h-4 w-4" />
-                  {isUploading ? 'Uploading...' : imagePreview ? 'Change Image' : 'Upload Image'}
+                  {isUploadingAdditional ? 'Uploading...' : 'Add Additional Image'}
                 </label>
-                <Input
-                  id="image-url"
-                  name="image-url"
-                  type="url"
-                  value={formData.imageUrl}
-                  onChange={(e) => {
-                    setFormData({ ...formData, imageUrl: e.target.value });
-                    setImagePreview(e.target.value || null);
-                  }}
-                  placeholder="Or enter image URL"
-                  className="flex-1"
-                />
               </div>
-              {errors.image && (
-                <p className="text-sm text-red-600">{errors.image}</p>
+              {errors.additionalImages && (
+                <p className="text-sm text-red-600">{errors.additionalImages}</p>
               )}
             </div>
           </div>
@@ -575,7 +794,7 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
                   name={`ingredient-quantity-${index}`}
                   type="number"
                   min="0"
-                  step="0.1"
+                  step="any"
                   placeholder="Qty"
                   value={ingredient.quantity || ''}
                   onChange={(e) => updateIngredient(index, 'quantity', parseFloat(e.target.value) || 0)}
@@ -589,7 +808,7 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
                 <select
                   id={`ingredient-unit-${index}`}
                   name={`ingredient-unit-${index}`}
-                  value={ingredient.unit}
+                  value={ingredient.unit || ''}
                   onChange={(e) => updateIngredient(index, 'unit', e.target.value)}
                   className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
                   required
@@ -600,6 +819,10 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
                       {unit}
                     </option>
                   ))}
+                  {/* If unit is not in the list, add it as an option */}
+                  {ingredient.unit && !units.includes(ingredient.unit) && (
+                    <option value={ingredient.unit}>{ingredient.unit}</option>
+                  )}
                 </select>
               </div>
               <div className="col-span-2">

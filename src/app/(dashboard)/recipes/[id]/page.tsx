@@ -97,7 +97,7 @@ export default async function RecipeDetailPage({
       <div className="grid grid-cols-1 gap-12 lg:grid-cols-3">
         {/* Left Column: Details & Instructions */}
         <div className="lg:col-span-2">
-          {/* Recipe Image */}
+          {/* Recipe Images */}
           {recipe.imageUrl && (
             <div className="mb-8 aspect-video w-full overflow-hidden rounded-lg bg-gray-100 relative">
               <Image
@@ -108,6 +108,30 @@ export default async function RecipeDetailPage({
                 loading="lazy"
                 sizes="(max-width: 768px) 100vw, 66vw"
               />
+            </div>
+          )}
+
+          {/* Additional Images Gallery */}
+          {recipe.imageUrls && recipe.imageUrls.length > 0 && (
+            <div className="mb-8">
+              <h3 className="mb-4 text-lg font-semibold text-gray-900">Additional Images</h3>
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+                {recipe.imageUrls.map((imageUrl, index) => (
+                  <div
+                    key={index}
+                    className="aspect-square w-full overflow-hidden rounded-lg bg-gray-100 relative"
+                  >
+                    <Image
+                      src={imageUrl}
+                      alt={`${recipe.name} - Image ${index + 1}`}
+                      fill
+                      className="object-cover"
+                      loading="lazy"
+                      sizes="(max-width: 768px) 50vw, 33vw"
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 

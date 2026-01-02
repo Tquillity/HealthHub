@@ -106,7 +106,7 @@ export function RoutineCard({
                       e.stopPropagation();
                       onEdit(routine);
                     }}
-                    className="rounded-full bg-white p-1.5 shadow-sm transition-colors hover:bg-gray-100"
+                    className="cursor-pointer rounded-full bg-white p-1.5 shadow-sm transition-colors hover:bg-gray-100"
                     title="Edit routine"
                   >
                     <Edit className="h-4 w-4 text-blue-600" />
@@ -117,7 +117,7 @@ export function RoutineCard({
                     e.stopPropagation();
                     setShowDeleteModal(true);
                   }}
-                  className="rounded-full bg-white p-1.5 shadow-sm transition-colors hover:bg-gray-100"
+                  className="cursor-pointer rounded-full bg-white p-1.5 shadow-sm transition-colors hover:bg-gray-100"
                   title="Delete routine"
                 >
                   <Trash2 className="h-4 w-4 text-red-600" />

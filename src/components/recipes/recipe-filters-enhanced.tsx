@@ -146,7 +146,7 @@ export function RecipeFiltersEnhanced({ categories }: RecipeFiltersEnhancedProps
                         setDietaryTags([...current, tag]);
                       }
                     }}
-                    className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                    className={`rounded-full px-3 py-1 text-xs font-medium transition-colors cursor-pointer ${
                       isSelected
                         ? 'bg-primary-600 text-white'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'

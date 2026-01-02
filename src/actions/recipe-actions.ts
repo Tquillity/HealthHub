@@ -265,7 +265,18 @@ export async function getRecipeFilterOptions() {
 const CreateRecipeSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   description: z.string().optional(),
-  imageUrl: z.string().url().optional().or(z.literal('')),
+  imageUrl: z.preprocess(
+    (val) => (val === '' || val === null || val === undefined ? undefined : val),
+    z.string().optional() // Allow local paths like /uploads/recipes/... and full URLs
+  ),
+  imageUrls: z.preprocess(
+    (val) => {
+      if (!val || !Array.isArray(val)) return undefined;
+      const filtered = val.filter((url) => url && url !== '' && typeof url === 'string');
+      return filtered.length > 0 ? filtered : undefined;
+    },
+    z.array(z.string()).optional() // Allow local paths like /uploads/recipes/... and full URLs
+  ),
   prepTime: z.number().int().min(0).optional(),
   cookTime: z.number().int().min(0).optional(),
   servings: z.number().int().min(1).optional(),
@@ -336,8 +347,25 @@ export async function createRecipe(data: z.infer<typeof CreateRecipeSchema>) {
       return { success: false, error: 'No household found' };
     }
 
+    // Preprocess data: filter out empty strings from imageUrls and handle empty imageUrl
+    const processedData: any = {
+      ...data,
+      imageUrl: data.imageUrl && typeof data.imageUrl === 'string' && data.imageUrl.trim() !== '' ? data.imageUrl : undefined,
+      imageUrls: Array.isArray(data.imageUrls) 
+        ? data.imageUrls.filter((url: any) => url && typeof url === 'string' && url.trim() !== '')
+        : undefined,
+    };
+    
+    // Remove imageUrl/imageUrls if they're empty or invalid
+    if (processedData.imageUrl === '' || !processedData.imageUrl) {
+      delete processedData.imageUrl;
+    }
+    if (!processedData.imageUrls || processedData.imageUrls.length === 0) {
+      delete processedData.imageUrls;
+    }
+
     // Validate input
-    const validated = CreateRecipeSchema.parse(data);
+    const validated = CreateRecipeSchema.parse(processedData);
 
     // Create recipe with ingredients and instructions
     const recipe = await prisma.$transaction(async (tx) => {
@@ -345,7 +373,10 @@ export async function createRecipe(data: z.infer<typeof CreateRecipeSchema>) {
         data: {
           name: validated.name,
           description: validated.description || null,
-          imageUrl: validated.imageUrl || null,
+          imageUrl: validated.imageUrl && validated.imageUrl.trim() !== '' ? validated.imageUrl : null,
+          imageUrls: validated.imageUrls && validated.imageUrls.length > 0 
+            ? validated.imageUrls.filter((url: string) => url && url.trim() !== '')
+            : [],
           prepTime: validated.prepTime || null,
           cookTime: validated.cookTime || null,
           servings: validated.servings || null,
@@ -392,10 +423,15 @@ export async function createRecipe(data: z.infer<typeof CreateRecipeSchema>) {
     revalidatePath('/recipes');
     return { success: true, data: recipe };
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return { success: false, error: error.errors[0]?.message || 'Validation failed' };
-    }
     console.error('Error creating recipe:', error);
+    if (error instanceof z.ZodError) {
+      const firstError = error.errors && Array.isArray(error.errors) && error.errors.length > 0 ? error.errors[0] : null;
+      return { success: false, error: firstError?.message || 'Validation failed' };
+    }
+    // Handle other error types
+    if (error instanceof Error) {
+      return { success: false, error: error.message || 'Failed to create recipe' };
+    }
     return { success: false, error: 'Failed to create recipe' };
   }
 }
@@ -428,8 +464,25 @@ export async function updateRecipe(data: z.infer<typeof UpdateRecipeSchema>) {
       return { success: false, error: 'Forbidden: Admin access required' };
     }
 
+    // Preprocess data: filter out empty strings from imageUrls and handle empty imageUrl
+    const processedData: any = {
+      ...data,
+      imageUrl: data.imageUrl && typeof data.imageUrl === 'string' && data.imageUrl.trim() !== '' ? data.imageUrl : undefined,
+      imageUrls: Array.isArray(data.imageUrls) 
+        ? data.imageUrls.filter((url: any) => url && typeof url === 'string' && url.trim() !== '')
+        : undefined,
+    };
+    
+    // Remove imageUrl/imageUrls if they're empty or invalid
+    if (processedData.imageUrl === '' || !processedData.imageUrl) {
+      delete processedData.imageUrl;
+    }
+    if (!processedData.imageUrls || processedData.imageUrls.length === 0) {
+      delete processedData.imageUrls;
+    }
+
     // Validate input
-    const validated = UpdateRecipeSchema.parse(data);
+    const validated = UpdateRecipeSchema.parse(processedData);
     const { id, ingredients, instructions, ...recipeData } = validated;
 
     // Check if recipe exists and belongs to user's organization
@@ -455,8 +508,15 @@ export async function updateRecipe(data: z.infer<typeof UpdateRecipeSchema>) {
       }
     }
 
+    // Allow admins to edit system recipes (to add images, update descriptions, etc.)
+    // But prevent changing the isSystem flag itself
     if (existingRecipe.isSystem) {
-      return { success: false, error: 'Cannot edit system recipes' };
+      // Prevent changing isSystem flag on system recipes
+      if (recipeData.isSystem !== undefined && recipeData.isSystem !== existingRecipe.isSystem) {
+        return { success: false, error: 'Cannot change isSystem flag on system recipes' };
+      }
+      // Remove isSystem from update data to prevent accidental changes
+      delete recipeData.isSystem;
     }
 
     // Update recipe
@@ -465,7 +525,10 @@ export async function updateRecipe(data: z.infer<typeof UpdateRecipeSchema>) {
         where: { id },
         data: {
           ...recipeData,
-          imageUrl: recipeData.imageUrl || null,
+          imageUrl: recipeData.imageUrl && recipeData.imageUrl.trim() !== '' ? recipeData.imageUrl : null,
+          imageUrls: recipeData.imageUrls && recipeData.imageUrls.length > 0 
+            ? recipeData.imageUrls.filter((url: string) => url && url.trim() !== '')
+            : [],
         },
       });
 
@@ -502,10 +565,15 @@ export async function updateRecipe(data: z.infer<typeof UpdateRecipeSchema>) {
     revalidatePath(`/recipes/${id}`);
     return { success: true, data: recipe };
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return { success: false, error: error.errors[0]?.message || 'Validation failed' };
-    }
     console.error('Error updating recipe:', error);
+    if (error instanceof z.ZodError) {
+      const firstError = error.errors && Array.isArray(error.errors) && error.errors.length > 0 ? error.errors[0] : null;
+      return { success: false, error: firstError?.message || 'Validation failed' };
+    }
+    // Handle other error types
+    if (error instanceof Error) {
+      return { success: false, error: error.message || 'Failed to update recipe' };
+    }
     return { success: false, error: 'Failed to update recipe' };
   }
 }

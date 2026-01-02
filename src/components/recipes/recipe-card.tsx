@@ -61,7 +61,10 @@ export function RecipeCard({ recipe }: RecipeCardProps) {
       </div>
 
       <div className="flex flex-1 flex-col p-4">
-        <h3 className="line-clamp-1 text-lg font-semibold text-gray-900 group-hover:text-blue-600">
+        <h3 
+          className="line-clamp-1 text-lg font-semibold text-gray-900 group-hover:text-blue-600"
+          title={recipe.name}
+        >
           {recipe.name}
         </h3>
 

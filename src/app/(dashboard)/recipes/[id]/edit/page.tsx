@@ -39,10 +39,8 @@ export default async function EditRecipePage({
 
   const recipe = result.data;
 
-  // Check if recipe is editable (not system recipe)
-  if (recipe.isSystem) {
-    redirect('/recipes');
-  }
+  // Allow admins to edit system recipes
+  // System recipes can be edited by admins to add images, update descriptions, etc.
 
   return (
     <div className="container mx-auto max-w-4xl p-6">
@@ -61,7 +59,7 @@ export default async function EditRecipePage({
         </p>
       </div>
 
-      <RecipeForm recipe={recipe} />
+      <RecipeForm key={recipe.id} recipe={recipe} />
     </div>
   );
 }

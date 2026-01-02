@@ -136,11 +136,17 @@ export function RecipeListView({
                     className="transition-colors hover:bg-gray-50"
                   >
                     <td className="whitespace-nowrap px-6 py-4">
-                      <div className="text-sm font-medium text-gray-900">
+                      <div 
+                        className="text-sm font-medium text-gray-900 truncate max-w-xs" 
+                        title={recipe.name}
+                      >
                         {recipe.name}
                       </div>
                       {recipe.description && (
-                        <div className="mt-1 max-w-xs truncate text-xs text-gray-500">
+                        <div 
+                          className="mt-1 max-w-xs truncate text-xs text-gray-500"
+                          title={recipe.description}
+                        >
                           {recipe.description}
                         </div>
                       )}

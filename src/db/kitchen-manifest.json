@@ -2238,6 +2238,8 @@
     {
       "name": "Lafa – Glutenfritt tunnbröd på fullkornsris och quinoa",
       "description": "Ett mjukt och elastiskt tunnbröd inspirerat av mellanösterns Lafa. Baserat på blötlagda hela korn av runda fullkornsris och vit quinoa. Naturligt glutenfritt och proteinrikt.",
+      "imageUrl": "/uploads/recipes/lafa-1.jpg",
+      "imageUrls": ["/uploads/recipes/lafa-2.jpg"],
       "prepTime": 730,
       "cookTime": 15,
       "servings": 8,

@@ -139,7 +139,8 @@ model Recipe {
   id          String   @id @default(cuid())
   name        String
   description String?
-  imageUrl    String?
+  imageUrl    String? // Primary/main image
+  imageUrls   String[] @default([]) // Additional images (array support)
   videoUrl    String? // YouTube or other video tutorial URL
   prepTime    Int? // Minutes
   cookTime    Int? // Minutes

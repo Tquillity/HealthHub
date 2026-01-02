@@ -98,6 +98,7 @@ function DaySlot({
           <span className="block truncate font-medium">{item.recipe.name}</span>
           {!isPastDay && (
             <button
+              className="cursor-pointer"
               onClick={() => removeMealFromPlan(item.id)}
               className="absolute right-1 top-1 opacity-0 transition-opacity group-hover:opacity-100"
               aria-label="Remove meal"
