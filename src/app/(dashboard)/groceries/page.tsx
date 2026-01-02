@@ -41,6 +41,13 @@ export default async function GroceriesPage({
 
   return (
     <div className="container mx-auto max-w-4xl p-6">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-gray-900">Grocery List</h1>
+        <p className="mt-1 text-gray-500">
+          Your shopping list for the week
+        </p>
+      </div>
+
       {items.length === 0 ? (
         <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-12 text-center">
           <Calendar className="mx-auto h-12 w-12 text-gray-300" />

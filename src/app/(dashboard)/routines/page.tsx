@@ -57,16 +57,17 @@ export default async function RoutinesPage() {
         <RoutineFilters />
       </div>
 
-      <RoutinesClient routines={routines} />
-
       {routines.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-12 text-center">
-          <Sparkles className="mx-auto h-12 w-12 text-gray-300" />
-          <h3 className="mt-4 text-lg font-medium text-gray-900">No routines yet</h3>
-          <p className="mt-2 text-sm text-gray-500">
-            Create your first routine to get started.
-          </p>
-        </div>
+        <>
+          <RoutinesClient routines={routines} />
+          <div className="mt-6 rounded-xl border border-dashed border-gray-300 bg-gray-50 p-12 text-center">
+            <Sparkles className="mx-auto h-12 w-12 text-gray-300" />
+            <h3 className="mt-4 text-lg font-medium text-gray-900">No routines yet</h3>
+            <p className="mt-2 text-sm text-gray-500">
+              Create your first routine to get started.
+            </p>
+          </div>
+        </>
       ) : (
         <RoutinesClient routines={routines} />
       )}

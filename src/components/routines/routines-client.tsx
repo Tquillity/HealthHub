@@ -9,6 +9,7 @@ import { createRoutine, drawLottery } from '@/actions/routine-actions';
 import { Plus, Sparkles, X } from 'lucide-react';
 import type { Routine } from '@prisma/client';
 import { RoutineCard } from './routine-card';
+import { RoutinesGrid } from './routines-grid';
 
 interface RoutinesClientProps {
   routines: Routine[];
@@ -134,7 +135,7 @@ export function RoutinesClient({ routines: initialRoutines }: RoutinesClientProp
 
   return (
     <>
-      <div className="flex gap-2">
+      <div className="mb-6 flex gap-2">
         <Button
           variant="outline"
           onClick={() => setShowLotteryDialog(true)}
@@ -148,6 +149,18 @@ export function RoutinesClient({ routines: initialRoutines }: RoutinesClientProp
           Add Routine
         </Button>
       </div>
+
+      {filteredRoutines.length > 0 ? (
+        <RoutinesGrid routines={filteredRoutines} />
+      ) : (
+        <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-12 text-center">
+          <Sparkles className="mx-auto h-12 w-12 text-gray-300" />
+          <h3 className="mt-4 text-lg font-medium text-gray-900">No routines found</h3>
+          <p className="mt-2 text-sm text-gray-500">
+            Try adjusting your filters or create a new routine.
+          </p>
+        </div>
+      )}
 
       {/* Create/Edit Routine Dialog */}
       {showCreateDialog && (
