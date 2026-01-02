@@ -2,6 +2,7 @@
 
 import { Button } from '@/components/ui/button';
 import { SafeDeleteModal } from '@/components/ui/safe-delete-modal';
+import { deleteJournalEntry } from '@/actions/journal-actions';
 import { Edit, Trash2, X } from 'lucide-react';
 import { format } from 'date-fns';
 import type { JournalEntry } from '@prisma/client';
@@ -35,10 +36,17 @@ export function JournalEntryDetail({ entry, onClose, onEdit }: JournalEntryDetai
   };
 
   const handleDelete = async () => {
-    // Delete will be handled by parent component
-    setShowDeleteModal(false);
-    onClose();
-    router.refresh();
+    if (entry) {
+      const dateStr = entry.date.toISOString().split('T')[0];
+      const result = await deleteJournalEntry(dateStr);
+      if (result.success) {
+        setShowDeleteModal(false);
+        onClose();
+        router.refresh();
+      } else {
+        alert(result.error || 'Failed to delete entry');
+      }
+    }
   };
 
   return (
@@ -129,10 +137,10 @@ export function JournalEntryDetail({ entry, onClose, onEdit }: JournalEntryDetai
             )}
 
             {/* Notes */}
-            {entry.content && (
+            {entry.notes && (
               <div className="bg-gray-50 rounded-lg p-4">
                 <h3 className="text-lg font-semibold text-gray-900 mb-3">Notes</h3>
-                <p className="text-sm text-gray-800 whitespace-pre-wrap">{entry.content}</p>
+                <p className="text-sm text-gray-800 whitespace-pre-wrap">{entry.notes}</p>
               </div>
             )}
 

@@ -22,11 +22,18 @@ export default async function RecipesPage({ searchParams }: PageProps) {
 
   // Parse params
   const query = typeof params.q === 'string' ? params.q : undefined;
-  const category = typeof params.category === 'string' ? params.category : undefined;
+  const category = typeof params.category === 'string' && params.category !== 'all' ? params.category : undefined;
+  const difficulty = typeof params.difficulty === 'string' ? params.difficulty : undefined;
+  const cuisine = typeof params.cuisine === 'string' ? params.cuisine : undefined;
+  const dietaryTags = Array.isArray(params.dietaryTags)
+    ? params.dietaryTags
+    : typeof params.dietaryTags === 'string'
+    ? [params.dietaryTags]
+    : undefined;
 
   // Parallel data fetching
   const [recipesResult, categories, roleResult] = await Promise.all([
-    getRecipes({ query, category }),
+    getRecipes({ query, category, difficulty, cuisine, dietaryTags }),
     getRecipeCategories(),
     getUserRole(),
   ]);

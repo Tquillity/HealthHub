@@ -43,8 +43,7 @@ export default function SignInPage() {
   };
 
   const handleXLogin = () => {
-    // X/Twitter OAuth - will need custom implementation
-    alert('X (Twitter) login is not yet implemented. Please use email/password or Google.');
+    window.location.href = '/api/auth/sign-in/social/x';
   };
 
   return (

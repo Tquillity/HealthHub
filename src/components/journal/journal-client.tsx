@@ -1,23 +1,51 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { logJournalEntry } from '@/actions/journal-actions';
+import { logJournalEntry, getJournalEntryByDate } from '@/actions/journal-actions';
 import { Plus, X } from 'lucide-react';
 import { format } from 'date-fns';
 
-export function JournalClient() {
+interface JournalClientProps {
+  initialDate?: string;
+  onEntrySaved?: () => void;
+}
+
+export function JournalClient({ initialDate, onEntrySaved }: JournalClientProps) {
+  const router = useRouter();
   const [showDialog, setShowDialog] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
-    date: format(new Date(), 'yyyy-MM-dd'),
+    date: initialDate || format(new Date(), 'yyyy-MM-dd'),
     mood: '',
     energy: '',
     sleepHours: '',
     notes: '',
     tags: '',
   });
+
+  useEffect(() => {
+    if (initialDate) {
+      setFormData((prev) => ({ ...prev, date: initialDate }));
+      loadExistingEntry(initialDate);
+    }
+  }, [initialDate]);
+
+  const loadExistingEntry = async (date: string) => {
+    const result = await getJournalEntryByDate(date);
+    if (result.success && result.data) {
+      setFormData({
+        date,
+        mood: result.data.mood?.toString() || '',
+        energy: result.data.energy?.toString() || '',
+        sleepHours: result.data.sleepHours?.toString() || '',
+        notes: result.data.content || '',
+        tags: result.data.tags.join(', ') || '',
+      });
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,8 +76,8 @@ export function JournalClient() {
         notes: '',
         tags: '',
       });
-      // Refresh the page to show new entry
-      window.location.reload();
+      onEntrySaved?.();
+      router.refresh();
     } else {
       alert(result.error || 'Failed to log entry');
     }

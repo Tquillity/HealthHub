@@ -12,14 +12,45 @@ interface RoutinesClientProps {
 }
 
 export function RoutinesClient({ routines: initialRoutines }: RoutinesClientProps) {
+  const router = useRouter();
   const [routines, setRoutines] = useState(initialRoutines);
+
+  // Get filter params from URL
+  const [query] = useQueryState('q', parseAsString.withDefault(''));
+  const [category] = useQueryState('category', parseAsString);
+  const [energyLevel] = useQueryState('energy', parseAsString);
+  const [context] = useQueryState('context', parseAsString);
+  const [difficulty] = useQueryState('difficulty', parseAsString);
+  const [duration] = useQueryState('duration', parseAsString);
+
+  // Filter routines client-side
+  const filteredRoutines = useMemo(() => {
+    return routines.filter((routine) => {
+      if (query && !routine.name.toLowerCase().includes(query.toLowerCase()) && 
+          !routine.description?.toLowerCase().includes(query.toLowerCase())) {
+        return false;
+      }
+      if (category && routine.category !== category) return false;
+      if (energyLevel && routine.energyLevel !== energyLevel) return false;
+      if (context && routine.context !== context) return false;
+      if (difficulty && routine.difficulty !== difficulty) return false;
+      if (duration && routine.duration !== duration) return false;
+      return true;
+    });
+  }, [routines, query, category, energyLevel, context, difficulty, duration]);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showLotteryDialog, setShowLotteryDialog] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [lotteryResult, setLotteryResult] = useState<Routine | null>(null);
+  const [lotteryResults, setLotteryResults] = useState<Routine[]>([]);
   const [lotterySpinning, setLotterySpinning] = useState(false);
   const [lotteryEnergy, setLotteryEnergy] = useState<'low' | 'medium' | 'high'>('medium');
   const [lotteryMaxTime, setLotteryMaxTime] = useState(30);
+  const [lotteryCount, setLotteryCount] = useState(1);
+  const [lotteryContext, setLotteryContext] = useState<string>('');
+  const [lotteryDuration, setLotteryDuration] = useState<string>('');
+  const [lotteryDifficulty, setLotteryDifficulty] = useState<string>('');
+  const [editingRoutine, setEditingRoutine] = useState<Routine | null>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -35,11 +66,18 @@ export function RoutinesClient({ routines: initialRoutines }: RoutinesClientProp
     e.preventDefault();
     setIsSubmitting(true);
 
-    const result = await createRoutine(formData);
+    const result = editingRoutine
+      ? await updateRoutine({ id: editingRoutine.id, ...formData })
+      : await createRoutine(formData);
 
     if (result.success && result.data) {
-      setRoutines([result.data, ...routines]);
+      if (editingRoutine) {
+        setRoutines(routines.map((r) => (r.id === editingRoutine.id ? result.data! : r)));
+      } else {
+        setRoutines([result.data, ...routines]);
+      }
       setShowCreateDialog(false);
+      setEditingRoutine(null);
       setFormData({
         name: '',
         description: '',
@@ -48,13 +86,19 @@ export function RoutinesClient({ routines: initialRoutines }: RoutinesClientProp
         energyLevel: 'medium',
         estimatedTime: 15,
       });
+      router.refresh();
     } else {
-      alert(result.error || 'Failed to create routine');
+      alert(result.error || 'Failed to save routine');
     }
 
     setIsSubmitting(false);
   };
 
+
+  const [lotteryCount, setLotteryCount] = useState(1);
+  const [lotteryContext, setLotteryContext] = useState<string>('');
+  const [lotteryDuration, setLotteryDuration] = useState<string>('');
+  const [lotteryDifficulty, setLotteryDifficulty] = useState<string>('');
 
   const handleDrawLottery = async () => {
     setLotterySpinning(true);
@@ -63,18 +107,35 @@ export function RoutinesClient({ routines: initialRoutines }: RoutinesClientProp
     // Simulate spinning animation
     await new Promise((resolve) => setTimeout(resolve, 1500));
 
-    const result = await drawLottery(lotteryEnergy, lotteryMaxTime);
+    const result = await drawLottery({
+      energy: lotteryEnergy,
+      maxTime: lotteryMaxTime,
+      count: lotteryCount,
+      context: lotteryContext || undefined,
+      duration: lotteryDuration || undefined,
+      difficulty: lotteryDifficulty || undefined,
+    });
 
     if (result.success && result.data) {
-      setLotteryResult(result.data);
-    } else if (result.success && !result.data) {
-      alert('No routines match your criteria. Try adjusting energy level or time.');
+      if (Array.isArray(result.data) && result.data.length > 0) {
+        setLotteryResult(result.data[0]); // Show first result
+        if (result.data.length > 1) {
+          // Store all results for display
+          setLotteryResults(result.data);
+        }
+      } else {
+        alert('No routines match your criteria. Try adjusting filters.');
+      }
+    } else if (result.success && (!result.data || (Array.isArray(result.data) && result.data.length === 0))) {
+      alert('No routines match your criteria. Try adjusting filters.');
     } else {
       alert(result.error || 'Failed to draw lottery');
     }
 
     setLotterySpinning(false);
   };
+
+  const [lotteryResults, setLotteryResults] = useState<Routine[]>([]);
 
   return (
     <>
@@ -93,14 +154,72 @@ export function RoutinesClient({ routines: initialRoutines }: RoutinesClientProp
         </Button>
       </div>
 
-      {/* Create Routine Dialog */}
+      {/* Create/Edit Routine Dialog */}
       {showCreateDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-4xl max-h-[90vh] rounded-lg bg-white shadow-xl overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h2 className="text-xl font-bold text-gray-900">
+                {editingRoutine ? 'Edit Routine' : 'Create Routine'}
+              </h2>
+              <button
+                onClick={() => {
+                  setShowCreateDialog(false);
+                  setEditingRoutine(null);
+                  setFormData({
+                    name: '',
+                    description: '',
+                    category: '',
+                    frequency: '',
+                    energyLevel: 'medium',
+                    estimatedTime: 15,
+                  });
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto flex-1">
+              <RoutineRichForm
+                routine={editingRoutine || undefined}
+                onSuccess={() => {
+                  setShowCreateDialog(false);
+                  setEditingRoutine(null);
+                  router.refresh();
+                }}
+                onCancel={() => {
+                  setShowCreateDialog(false);
+                  setEditingRoutine(null);
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Old Simple Form (kept for reference, but replaced by RoutineRichForm) */}
+      {false && showCreateDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-900">Create Routine</h2>
+              <h2 className="text-xl font-bold text-gray-900">
+                {editingRoutine ? 'Edit Routine' : 'Create Routine'}
+              </h2>
               <button
-                onClick={() => setShowCreateDialog(false)}
+                onClick={() => {
+                  setShowCreateDialog(false);
+                  setEditingRoutine(null);
+                  setFormData({
+                    name: '',
+                    description: '',
+                    category: '',
+                    frequency: '',
+                    energyLevel: 'medium',
+                    estimatedTime: 15,
+                  });
+                }}
                 className="text-gray-400 hover:text-gray-600"
               >
                 <X className="h-5 w-5" />
@@ -269,6 +388,70 @@ export function RoutinesClient({ routines: initialRoutines }: RoutinesClientProp
                 />
               </div>
 
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Number of Routines
+                </label>
+                <select
+                  value={lotteryCount}
+                  onChange={(e) => setLotteryCount(parseInt(e.target.value))}
+                  className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                >
+                  <option value={1}>1 Routine</option>
+                  <option value={2}>2 Routines</option>
+                  <option value={3}>3 Routines</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Context (Optional)
+                </label>
+                <select
+                  value={lotteryContext}
+                  onChange={(e) => setLotteryContext(e.target.value)}
+                  className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                >
+                  <option value="">Any Time</option>
+                  <option value="morning">Morning</option>
+                  <option value="evening">Evening</option>
+                  <option value="anytime">Anytime</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Duration (Optional)
+                </label>
+                <select
+                  value={lotteryDuration}
+                  onChange={(e) => setLotteryDuration(e.target.value)}
+                  className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                >
+                  <option value="">Any Duration</option>
+                  <option value="5min">5 minutes</option>
+                  <option value="15min">15 minutes</option>
+                  <option value="30min">30 minutes</option>
+                  <option value="60min">60 minutes</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Difficulty (Optional)
+                </label>
+                <select
+                  value={lotteryDifficulty}
+                  onChange={(e) => setLotteryDifficulty(e.target.value)}
+                  className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                >
+                  <option value="">Any Difficulty</option>
+                  <option value="beginner">Beginner</option>
+                  <option value="intermediate">Intermediate</option>
+                  <option value="advanced">Advanced</option>
+                </select>
+              </div>
+
               <Button
                 onClick={handleDrawLottery}
                 disabled={lotterySpinning}
@@ -278,22 +461,34 @@ export function RoutinesClient({ routines: initialRoutines }: RoutinesClientProp
                 {lotterySpinning ? 'Spinning...' : 'Spin the Wheel'}
               </Button>
 
-              {lotteryResult && (
-                <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4">
-                  <p className="text-sm font-medium text-blue-900">Your pick:</p>
-                  <p className="mt-1 text-lg font-bold text-blue-700">
-                    {lotteryResult.name}
+              {lotteryResults.length > 0 && (
+                <div className="mt-4 space-y-3">
+                  <p className="text-sm font-medium text-blue-900">
+                    Your pick{lotteryResults.length > 1 ? 's' : ''}:
                   </p>
-                  {lotteryResult.description && (
-                    <p className="mt-1 text-sm text-blue-600">
-                      {lotteryResult.description}
-                    </p>
-                  )}
-                  <div className="mt-2 flex gap-2">
-                    <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
-                      {lotteryResult.estimatedTime} min
-                    </span>
-                  </div>
+                  {lotteryResults.map((routine) => (
+                    <div key={routine.id} className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+                      <p className="text-lg font-bold text-blue-700">{routine.name}</p>
+                      {routine.description && (
+                        <p className="mt-1 text-sm text-blue-600">{routine.description}</p>
+                      )}
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
+                          {routine.estimatedTime} min
+                        </span>
+                        {routine.context && (
+                          <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 capitalize">
+                            {routine.context}
+                          </span>
+                        )}
+                        {routine.difficulty && (
+                          <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 capitalize">
+                            {routine.difficulty}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>

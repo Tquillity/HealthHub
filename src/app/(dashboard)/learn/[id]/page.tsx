@@ -1,8 +1,9 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { getResource } from '@/actions/education-actions';
-import { ChevronLeft, Clock, Star } from 'lucide-react';
+import { getResourceById, toggleResourceLike } from '@/actions/education-actions';
+import { ChevronLeft, Clock, Star, Heart, Eye } from 'lucide-react';
 import { format } from 'date-fns';
+import { LearnDetailClient } from '@/components/learn/learn-detail-client';
 
 export default async function LearnDetailPage({
   params,
@@ -10,7 +11,7 @@ export default async function LearnDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const result = await getResource(id);
+  const result = await getResourceById(id);
 
   if (!result.success || !result.data) {
     notFound();
@@ -72,6 +73,18 @@ export default async function LearnDetailPage({
             {resource.difficulty && (
               <span className="capitalize">Difficulty: {resource.difficulty}</span>
             )}
+            {resource.viewCount !== undefined && (
+              <div className="flex items-center gap-1">
+                <Eye className="h-4 w-4" />
+                <span>{resource.viewCount} views</span>
+              </div>
+            )}
+            {resource.likes !== undefined && (
+              <div className="flex items-center gap-1">
+                <Heart className="h-4 w-4" />
+                <span>{resource.likes} likes</span>
+              </div>
+            )}
             {resource.createdAt && (
               <span>{format(new Date(resource.createdAt), 'MMM d, yyyy')}</span>
             )}
@@ -102,6 +115,19 @@ export default async function LearnDetailPage({
           </div>
         )}
 
+        {/* Video */}
+        {resource.videoUrl && (
+          <div className="mb-8 aspect-video w-full overflow-hidden rounded-lg bg-gray-100">
+            <iframe
+              src={resource.videoUrl}
+              title={resource.title}
+              className="h-full w-full"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          </div>
+        )}
+
         {/* Content */}
         <div className="prose prose-blue max-w-none">
           <div
@@ -109,6 +135,9 @@ export default async function LearnDetailPage({
             dangerouslySetInnerHTML={{ __html: resource.content }}
           />
         </div>
+
+        {/* Like Button */}
+        <LearnDetailClient resourceId={resource.id} initialLikes={resource.likes || 0} />
       </article>
     </div>
   );

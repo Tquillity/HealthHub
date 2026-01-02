@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
 import { auth } from '@/lib/auth';
-import Link from 'next/link';
+import { NavLink } from '@/components/layout/nav-link';
+import { Footer } from '@/components/layout/footer';
 import {
   UtensilsCrossed,
   BookOpen,
@@ -50,14 +51,9 @@ export default async function DashboardLayout({
 
         <nav className="flex-1 space-y-1">
           {navItems.map((item) => (
-            <Link
-              key={item.name}
-              href={item.href}
-              className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-blue-50 hover:text-blue-600"
-            >
-              <item.icon className="h-4 w-4" />
+            <NavLink key={item.name} href={item.href} icon={item.icon}>
               {item.name}
-            </Link>
+            </NavLink>
           ))}
         </nav>
 
@@ -81,7 +77,9 @@ export default async function DashboardLayout({
           </div>
         </header>
 
-        <div className="p-8">{children}</div>
+        <div className="flex-1 p-8">{children}</div>
+        
+        <Footer />
       </main>
     </div>
   );

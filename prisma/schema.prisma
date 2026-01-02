@@ -12,25 +12,25 @@ datasource db {
 // =======================
 
 model User {
-  id            String       @id @default(cuid())
+  id            String  @id @default(cuid())
   name          String
-  email         String       @unique
+  email         String  @unique
   emailVerified Boolean
   image         String?
-  role          String       @default("user") // "user", "admin"
-  
+  role          String  @default("user") // "user", "admin"
+
   // Profile preferences (Sprint 4)
-  energyLevel         String?   // "low", "medium", "high"
-  dietaryRestrictions String[]  @default([])
-  healthGoals         String[]  @default([])
-  timezone            String?   @default("UTC")
-  
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
-  sessions      Session[]
-  accounts      Account[]
-  members       Member[]
-  invitations   Invitation[]
+  energyLevel         String? // "low", "medium", "high"
+  dietaryRestrictions String[] @default([])
+  healthGoals         String[] @default([])
+  timezone            String?  @default("UTC")
+
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  sessions       Session[]
+  accounts       Account[]
+  members        Member[]
+  invitations    Invitation[]
   journalEntries JournalEntry[] // Private journal entries
 
   @@index([role])
@@ -131,42 +131,59 @@ model Invitation {
 // =======================
 
 model Recipe {
-  id             String         @id @default(cuid())
-  name           String
-  description    String?
-  imageUrl       String?
-  prepTime       Int?           // Minutes
-  cookTime       Int?           // Minutes
-  servings       Int?
-  category       String?        // Breakfast, Lunch, Dinner, etc.
-  tags           String[]
-  
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  imageUrl    String?
+  prepTime    Int? // Minutes
+  cookTime    Int? // Minutes
+  servings    Int?
+  category    String? // Breakfast, Lunch, Dinner, etc.
+  tags        String[]
+
+  // Enhanced metadata (from old MERN stack)
+  difficulty  String? // "easy", "medium", "hard"
+  cuisine     String? // Italian, Mexican, Asian, etc.
+  dietaryTags String[] @default([]) // vegetarian, vegan, gluten-free, etc.
+
+  // Nutrition information
+  calories Float?
+  protein  Float? // grams
+  carbs    Float? // grams
+  fat      Float? // grams
+  fiber    Float? // grams
+  sugar    Float? // grams
+  sodium   Float? // milligrams
+
   // Relations
-  ingredients    Ingredient[]
-  instructions   Instruction[]
-  mealPlanItems  MealPlanItem[]
+  ingredients   Ingredient[]
+  instructions  Instruction[]
+  mealPlanItems MealPlanItem[]
 
   // Ownership / Visibility
-  isSystem       Boolean        @default(false) // True = Visible to everyone (Kitchen Manifest)
-  organizationId String?        // Null if System, ID if Custom
-  organization   Organization?  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  isSystem       Boolean       @default(false) // True = Visible to everyone (Kitchen Manifest)
+  organizationId String? // Null if System, ID if Custom
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([organizationId])
   @@index([isSystem])
+  @@index([difficulty])
+  @@index([cuisine])
+  @@index([dietaryTags])
   @@map("recipe")
 }
 
 model Ingredient {
-  id        String  @id @default(cuid())
-  recipeId  String
-  recipe    Recipe  @relation(fields: [recipeId], references: [id], onDelete: Cascade)
-  name      String
-  quantity  Float
-  unit      String
-  notes     String?
+  id       String  @id @default(cuid())
+  recipeId String
+  recipe   Recipe  @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  name     String
+  quantity Float
+  unit     String
+  notes    String?
 
   @@index([recipeId])
   @@map("ingredient")
@@ -194,9 +211,9 @@ model MealPlan {
   startDate      DateTime
   endDate        DateTime
   items          MealPlanItem[]
-  
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([organizationId])
   @@index([startDate, endDate])
@@ -210,9 +227,9 @@ model MealPlanItem {
   recipeId   String
   recipe     Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
   date       DateTime
-  mealType   String   // breakfast, lunch, dinner, snack
+  mealType   String // breakfast, lunch, dinner, snack
   servings   Float    @default(1)
-  createdAt  DateTime  @default(now())
+  createdAt  DateTime @default(now())
 
   @@index([mealPlanId])
   @@index([recipeId])
@@ -225,45 +242,61 @@ model MealPlanItem {
 // =======================
 
 model Routine {
-  id             String        @id @default(cuid())
-  name           String
-  description    String?
-  category       String?
-  frequency      String?
-  
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+  category    String? // breathwork, meditation, exercise, stretching, mindfulness, sleep, energy
+  frequency   String?
+  imageUrl    String?
+
   // Wellness Engine fields (Sprint 4)
-  energyLevel    String        @default("medium") // "low", "medium", "high"
-  estimatedTime  Int           @default(15)       // minutes
-  
+  energyLevel   String @default("medium") // "low", "medium", "high"
+  estimatedTime Int    @default(15) // minutes
+
+  // Rich metadata (from old MERN stack)
+  context    String? // "morning", "evening", "anytime"
+  duration   String? // "5min", "15min", "30min", "60min"
+  difficulty String? // "beginner", "intermediate", "advanced"
+  equipment  String[] @default([])
+  tags       String[] @default([])
+
+  // Instructions (rich content)
+  steps             Json? // Array of { step: number, title: string, description: string, duration?: number, imageUrl?: string }
+  tips              String[] @default([])
+  contraindications String[] @default([])
+
   // Ownership / Visibility
   isSystem       Boolean       @default(false)
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([organizationId])
   @@index([isSystem])
   @@index([energyLevel, estimatedTime]) // For lottery queries
+  @@index([context])
+  @@index([duration])
+  @@index([difficulty])
   @@map("routine")
 }
 
 model JournalEntry {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  date      DateTime  @db.Date // Store as date only (YYYY-MM-DD)
-  mood      Int?      // 1-10
-  energy    Int?      // 1-10 (Sprint 4)
-  sleepHours Float?   // Hours slept (Sprint 4)
-  tags      String[]
-  title     String?
-  content   String?   @db.Text
-  
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date       DateTime @db.Date // Store as date only (YYYY-MM-DD)
+  mood       Int? // 1-10
+  energy     Int? // 1-10 (Sprint 4)
+  sleepHours Float? // Hours slept (Sprint 4)
+  tags       String[]
+  title      String?
+  content    String?  @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([userId, date], name: "userId_date") // One entry per user per day
   @@index([userId, date])
@@ -275,17 +308,21 @@ model JournalEntry {
 // =======================
 
 model EducationalResource {
-  id        String   @id @default(cuid())
-  title     String
-  content   String   @db.Text
-  excerpt   String?
-  category  String?
-  tags      String[] @default([])
+  id         String   @id @default(cuid())
+  title      String
+  content    String   @db.Text
+  excerpt    String?
+  category   String?
+  tags       String[] @default([])
   difficulty String? // "beginner", "intermediate", "advanced"
-  readTime  Int?     // minutes
-  imageUrl  String?
-  featured  Boolean  @default(false)
-  
+  readTime   Int? // minutes
+  imageUrl   String?
+  videoUrl   String? // Video embed URL
+  featured   Boolean  @default(false)
+  author     String? // Author name
+  likes      Int      @default(0) // Like count
+  viewCount  Int      @default(0) // View count
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

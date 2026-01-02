@@ -17,8 +17,11 @@ export const auth = betterAuth({
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
       enabled: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
     },
-    // Note: Better-Auth doesn't have built-in X/Twitter support yet
-    // We'll need to use a custom provider or wait for official support
+    x: {
+      clientId: process.env.X_CLIENT_ID,
+      clientSecret: process.env.X_CLIENT_SECRET,
+      enabled: !!(process.env.X_CLIENT_ID && process.env.X_CLIENT_SECRET),
+    },
   },
   secret: process.env.BETTER_AUTH_SECRET!,
   baseURL: process.env.BETTER_AUTH_URL || 'http://localhost:3000',

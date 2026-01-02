@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { RecipeCard } from './recipe-card';
 import { RecipeListView } from './recipe-list-view';
-import { RecipeFilters } from './recipe-filters';
+import { RecipeFiltersEnhanced } from './recipe-filters-enhanced';
 import { SafeDeleteModal } from '@/components/ui/safe-delete-modal';
 import { deleteRecipe } from '@/actions/recipe-actions';
 import { useRouter } from 'next/navigation';
@@ -86,7 +86,7 @@ export function RecipesClient({
 
       {/* Filters */}
       <div className="mb-6">
-        <RecipeFilters categories={categories} />
+        <RecipeFiltersEnhanced categories={categories} />
       </div>
 
       {/* Results Count */}

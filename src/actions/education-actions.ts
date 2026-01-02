@@ -1,61 +1,77 @@
 'use server';
 
-import { z } from 'zod';
 import { prisma } from '@/lib/db';
+import { auth } from '@/lib/auth';
+import { headers } from 'next/headers';
+import { revalidatePath } from 'next/cache';
 
-const GetResourcesSchema = z.object({
-  category: z.string().optional(),
-  tag: z.string().optional(),
-  featured: z.boolean().optional(),
-  search: z.string().optional(),
-});
+interface GetEducationalResourcesParams {
+  query?: string;
+  category?: string;
+  featured?: boolean;
+  difficulty?: string;
+}
 
-export async function getResources(filter: z.infer<typeof GetResourcesSchema> = {}) {
+export async function getEducationalResources({
+  query,
+  category,
+  featured,
+  difficulty,
+}: GetEducationalResourcesParams = {}) {
   try {
-    const validated = GetResourcesSchema.parse(filter);
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+
+    if (!session) {
+      return { success: false, error: 'Unauthorized', data: [] };
+    }
 
     const where: any = {};
 
-    if (validated.category) {
-      where.category = validated.category;
-    }
-
-    if (validated.tag) {
-      where.tags = { has: validated.tag };
-    }
-
-    if (validated.featured !== undefined) {
-      where.featured = validated.featured;
-    }
-
-    if (validated.search) {
+    if (query) {
       where.OR = [
-        { title: { contains: validated.search, mode: 'insensitive' } },
-        { excerpt: { contains: validated.search, mode: 'insensitive' } },
-        { content: { contains: validated.search, mode: 'insensitive' } },
+        { title: { contains: query, mode: 'insensitive' } },
+        { content: { contains: query, mode: 'insensitive' } },
+        { excerpt: { contains: query, mode: 'insensitive' } },
+        { tags: { hasSome: [query] } },
       ];
+    }
+
+    if (category) {
+      where.category = category;
+    }
+
+    if (featured !== undefined) {
+      where.featured = featured;
+    }
+
+    if (difficulty) {
+      where.difficulty = difficulty;
     }
 
     const resources = await prisma.educationalResource.findMany({
       where,
-      orderBy: [
-        { featured: 'desc' },
-        { createdAt: 'desc' },
-      ],
+      orderBy: { createdAt: 'desc' },
     });
 
-    return { success: true, error: null, data: resources };
+    return { success: true, data: resources };
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return { success: false, error: error.errors[0]?.message || 'Validation failed', data: null };
-    }
-    console.error('Error fetching resources:', error);
-    return { success: false, error: 'Failed to fetch resources', data: null };
+    console.error('Error fetching educational resources:', error);
+    return { success: false, error: 'Failed to fetch resources', data: [] };
   }
 }
 
-export async function getResource(id: string) {
+export async function getResourceById(id: string) {
   try {
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+
+    if (!session) {
+      return { success: false, error: 'Unauthorized', data: null };
+    }
+
     const resource = await prisma.educationalResource.findUnique({
       where: { id },
     });
@@ -64,10 +80,48 @@ export async function getResource(id: string) {
       return { success: false, error: 'Resource not found', data: null };
     }
 
-    return { success: true, error: null, data: resource };
+    // Increment view count
+    await prisma.educationalResource.update({
+      where: { id },
+      data: { viewCount: { increment: 1 } },
+    });
+
+    return { success: true, data: resource };
   } catch (error) {
     console.error('Error fetching resource:', error);
     return { success: false, error: 'Failed to fetch resource', data: null };
   }
 }
 
+export async function toggleResourceLike(id: string) {
+  try {
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+
+    if (!session) {
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    const resource = await prisma.educationalResource.findUnique({
+      where: { id },
+    });
+
+    if (!resource) {
+      return { success: false, error: 'Resource not found' };
+    }
+
+    // Increment likes (simple implementation - in production you'd track per-user likes)
+    const updated = await prisma.educationalResource.update({
+      where: { id },
+      data: { likes: { increment: 1 } },
+    });
+
+    revalidatePath('/learn');
+    revalidatePath(`/learn/${id}`);
+    return { success: true, data: updated };
+  } catch (error) {
+    console.error('Error toggling like:', error);
+    return { success: false, error: 'Failed to toggle like' };
+  }
+}

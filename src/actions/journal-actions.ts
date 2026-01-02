@@ -48,7 +48,7 @@ export async function logJournalEntry(data: z.infer<typeof CreateJournalSchema>)
         mood: validated.mood ?? undefined,
         energy: validated.energy ?? undefined,
         sleepHours: validated.sleepHours ?? undefined,
-        content: validated.notes ?? undefined,
+        notes: validated.notes ?? undefined,
         tags: validated.tags,
       },
       create: {
@@ -57,7 +57,7 @@ export async function logJournalEntry(data: z.infer<typeof CreateJournalSchema>)
         mood: validated.mood ?? undefined,
         energy: validated.energy ?? undefined,
         sleepHours: validated.sleepHours ?? undefined,
-        content: validated.notes ?? undefined,
+        notes: validated.notes ?? undefined,
         tags: validated.tags,
       },
     });
