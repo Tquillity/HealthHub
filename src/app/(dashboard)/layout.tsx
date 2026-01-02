@@ -50,11 +50,15 @@ export default async function DashboardLayout({
         </div>
 
         <nav className="flex-1 space-y-1">
-          {navItems.map((item) => (
-            <NavLink key={item.name} href={item.href} icon={item.icon}>
-              {item.name}
-            </NavLink>
-          ))}
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <NavLink key={item.name} href={item.href}>
+                <Icon className="h-4 w-4" />
+                {item.name}
+              </NavLink>
+            );
+          })}
         </nav>
 
         <div className="mt-auto border-t border-gray-100 pt-4">

@@ -127,10 +127,19 @@ async function seed() {
     // Ensure default org + membership exist (safe on re-run)
     const defaultOrgId = `org_${adminUser.id}`;
     const defaultMemberId = `member_${adminUser.id}`;
+    const defaultSlug = `admin-household`;
 
-    const existingOrg = await prisma.organization.findUnique({
-      where: { id: defaultOrgId },
+    // Check by slug first (since slug has unique constraint)
+    let existingOrg = await prisma.organization.findUnique({
+      where: { slug: defaultSlug },
     });
+
+    // If not found by slug, check by id
+    if (!existingOrg) {
+      existingOrg = await prisma.organization.findUnique({
+        where: { id: defaultOrgId },
+      });
+    }
 
     const defaultOrg =
       existingOrg ??
@@ -138,7 +147,7 @@ async function seed() {
         data: {
           id: defaultOrgId,
           name: `${adminName}'s Household`,
-          slug: `admin-household`,
+          slug: defaultSlug,
           createdAt: new Date(),
         },
       }));
@@ -336,7 +345,7 @@ async function seed() {
                 <li>Mood changes or irritability</li>
               </ul>
             `,
-            excerpt: 'Learn how your body's internal clock affects sleep and discover practical strategies to align with your natural circadian rhythm for better rest.',
+            excerpt: "Learn how your body's internal clock affects sleep and discover practical strategies to align with your natural circadian rhythm for better rest.",
             category: 'sleep',
             tags: ['circadian rhythm', 'sleep hygiene', 'melatonin', 'sleep schedule'],
             difficulty: 'intermediate',
@@ -438,7 +447,7 @@ async function seed() {
                 <li>Celebrate small wins</li>
               </ul>
             `,
-            excerpt: 'Learn how to build a sustainable exercise routine that you'll actually stick to. Discover the 80/20 rule and progressive approach to fitness.',
+            excerpt: "Learn how to build a sustainable exercise routine that you'll actually stick to. Discover the 80/20 rule and progressive approach to fitness.",
             category: 'wellness',
             tags: ['fitness', 'routine', 'sustainability', 'motivation'],
             difficulty: 'beginner',

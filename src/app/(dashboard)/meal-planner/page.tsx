@@ -16,7 +16,7 @@ export default async function MealPlannerPage() {
           <p className="text-gray-500">Drag recipes onto your weekly schedule or generate a plan.</p>
         </div>
         <div className="flex gap-2">
-          <MealPlanGenerator onGenerate={() => {}} />
+          <MealPlanGenerator />
           <Link href="/groceries">
             <Button className="gap-2">
               <ShoppingCart className="h-4 w-4" />

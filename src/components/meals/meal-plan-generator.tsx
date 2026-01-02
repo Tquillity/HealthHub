@@ -1,16 +1,18 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { generateMealPlan } from '@/actions/meal-actions';
 import { Calendar, Sparkles } from 'lucide-react';
 
 interface MealPlanGeneratorProps {
-  onGenerate: () => void;
+  onGenerate?: () => void;
 }
 
 export function MealPlanGenerator({ onGenerate }: MealPlanGeneratorProps) {
+  const router = useRouter();
   const [showDialog, setShowDialog] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [formData, setFormData] = useState({
@@ -76,7 +78,10 @@ export function MealPlanGenerator({ onGenerate }: MealPlanGeneratorProps) {
 
     if (result.success) {
       setShowDialog(false);
-      onGenerate();
+      // Refresh the page to show the new meal plan
+      router.refresh();
+      // Call optional callback if provided
+      onGenerate?.();
     } else {
       alert(result.error || 'Failed to generate meal plan');
     }

@@ -7,22 +7,70 @@
       "cookTime": 15,
       "servings": 4,
       "category": "Breakfast",
-      "tags": ["breakfast", "pancakes", "quick"],
+      "tags": [
+        "breakfast",
+        "pancakes",
+        "quick"
+      ],
       "ingredients": [
-        { "name": "all-purpose flour", "quantity": 1.5, "unit": "cup" },
-        { "name": "baking powder", "quantity": 3.5, "unit": "teaspoon" },
-        { "name": "salt", "quantity": 1, "unit": "teaspoon" },
-        { "name": "white sugar", "quantity": 1, "unit": "tablespoon" },
-        { "name": "milk", "quantity": 1.25, "unit": "cup" },
-        { "name": "egg", "quantity": 1, "unit": "piece" },
-        { "name": "butter", "quantity": 3, "unit": "tablespoon", "melted": true }
+        {
+          "name": "all-purpose flour",
+          "quantity": 1.5,
+          "unit": "cup"
+        },
+        {
+          "name": "baking powder",
+          "quantity": 3.5,
+          "unit": "teaspoon"
+        },
+        {
+          "name": "salt",
+          "quantity": 1,
+          "unit": "teaspoon"
+        },
+        {
+          "name": "white sugar",
+          "quantity": 1,
+          "unit": "tablespoon"
+        },
+        {
+          "name": "milk",
+          "quantity": 1.25,
+          "unit": "cup"
+        },
+        {
+          "name": "egg",
+          "quantity": 1,
+          "unit": "piece"
+        },
+        {
+          "name": "butter",
+          "quantity": 3,
+          "unit": "tablespoon",
+          "melted": true
+        }
       ],
       "instructions": [
-        { "stepNumber": 1, "text": "In a large bowl, sift together the flour, baking powder, salt and sugar." },
-        { "stepNumber": 2, "text": "Make a well in the center and pour in the milk, egg and melted butter; mix until smooth." },
-        { "stepNumber": 3, "text": "Heat a lightly oiled griddle or frying pan over medium-high heat." },
-        { "stepNumber": 4, "text": "Pour or scoop the batter onto the griddle, using approximately 1/4 cup for each pancake." },
-        { "stepNumber": 5, "text": "Brown on both sides and serve hot." }
+        {
+          "stepNumber": 1,
+          "text": "In a large bowl, sift together the flour, baking powder, salt and sugar."
+        },
+        {
+          "stepNumber": 2,
+          "text": "Make a well in the center and pour in the milk, egg and melted butter; mix until smooth."
+        },
+        {
+          "stepNumber": 3,
+          "text": "Heat a lightly oiled griddle or frying pan over medium-high heat."
+        },
+        {
+          "stepNumber": 4,
+          "text": "Pour or scoop the batter onto the griddle, using approximately 1/4 cup for each pancake."
+        },
+        {
+          "stepNumber": 5,
+          "text": "Brown on both sides and serve hot."
+        }
       ]
     },
     {
@@ -32,25 +80,86 @@
       "cookTime": 20,
       "servings": 2,
       "category": "Lunch",
-      "tags": ["lunch", "salad", "healthy", "chicken"],
+      "tags": [
+        "lunch",
+        "salad",
+        "healthy",
+        "chicken"
+      ],
       "ingredients": [
-        { "name": "chicken breast", "quantity": 2, "unit": "piece" },
-        { "name": "mixed greens", "quantity": 4, "unit": "cup" },
-        { "name": "cherry tomatoes", "quantity": 1, "unit": "cup" },
-        { "name": "cucumber", "quantity": 1, "unit": "piece", "notes": "sliced" },
-        { "name": "red onion", "quantity": 0.25, "unit": "piece", "notes": "thinly sliced" },
-        { "name": "olive oil", "quantity": 2, "unit": "tablespoon" },
-        { "name": "lemon juice", "quantity": 1, "unit": "tablespoon" },
-        { "name": "salt", "quantity": 0.5, "unit": "teaspoon" },
-        { "name": "black pepper", "quantity": 0.25, "unit": "teaspoon" }
+        {
+          "name": "chicken breast",
+          "quantity": 2,
+          "unit": "piece"
+        },
+        {
+          "name": "mixed greens",
+          "quantity": 4,
+          "unit": "cup"
+        },
+        {
+          "name": "cherry tomatoes",
+          "quantity": 1,
+          "unit": "cup"
+        },
+        {
+          "name": "cucumber",
+          "quantity": 1,
+          "unit": "piece",
+          "notes": "sliced"
+        },
+        {
+          "name": "red onion",
+          "quantity": 0.25,
+          "unit": "piece",
+          "notes": "thinly sliced"
+        },
+        {
+          "name": "olive oil",
+          "quantity": 2,
+          "unit": "tablespoon"
+        },
+        {
+          "name": "lemon juice",
+          "quantity": 1,
+          "unit": "tablespoon"
+        },
+        {
+          "name": "salt",
+          "quantity": 0.5,
+          "unit": "teaspoon"
+        },
+        {
+          "name": "black pepper",
+          "quantity": 0.25,
+          "unit": "teaspoon"
+        }
       ],
       "instructions": [
-        { "stepNumber": 1, "text": "Season chicken breasts with salt and pepper." },
-        { "stepNumber": 2, "text": "Grill chicken for 6-7 minutes per side until cooked through." },
-        { "stepNumber": 3, "text": "Let chicken rest, then slice." },
-        { "stepNumber": 4, "text": "In a large bowl, combine mixed greens, tomatoes, cucumber, and red onion." },
-        { "stepNumber": 5, "text": "Whisk together olive oil, lemon juice, salt, and pepper for dressing." },
-        { "stepNumber": 6, "text": "Toss salad with dressing and top with sliced chicken." }
+        {
+          "stepNumber": 1,
+          "text": "Season chicken breasts with salt and pepper."
+        },
+        {
+          "stepNumber": 2,
+          "text": "Grill chicken for 6-7 minutes per side until cooked through."
+        },
+        {
+          "stepNumber": 3,
+          "text": "Let chicken rest, then slice."
+        },
+        {
+          "stepNumber": 4,
+          "text": "In a large bowl, combine mixed greens, tomatoes, cucumber, and red onion."
+        },
+        {
+          "stepNumber": 5,
+          "text": "Whisk together olive oil, lemon juice, salt, and pepper for dressing."
+        },
+        {
+          "stepNumber": 6,
+          "text": "Toss salad with dressing and top with sliced chicken."
+        }
       ]
     },
     {
@@ -60,24 +169,82 @@
       "cookTime": 20,
       "servings": 4,
       "category": "Dinner",
-      "tags": ["dinner", "pasta", "italian", "comfort food"],
+      "tags": [
+        "dinner",
+        "pasta",
+        "italian",
+        "comfort food"
+      ],
       "ingredients": [
-        { "name": "spaghetti", "quantity": 1, "unit": "pound" },
-        { "name": "bacon", "quantity": 8, "unit": "ounce", "notes": "diced" },
-        { "name": "egg", "quantity": 4, "unit": "piece" },
-        { "name": "parmesan cheese", "quantity": 1, "unit": "cup", "notes": "grated" },
-        { "name": "black pepper", "quantity": 1, "unit": "teaspoon", "notes": "freshly ground" },
-        { "name": "salt", "quantity": 1, "unit": "teaspoon" },
-        { "name": "garlic", "quantity": 2, "unit": "clove", "notes": "minced" }
+        {
+          "name": "spaghetti",
+          "quantity": 1,
+          "unit": "pound"
+        },
+        {
+          "name": "bacon",
+          "quantity": 8,
+          "unit": "ounce",
+          "notes": "diced"
+        },
+        {
+          "name": "egg",
+          "quantity": 4,
+          "unit": "piece"
+        },
+        {
+          "name": "parmesan cheese",
+          "quantity": 1,
+          "unit": "cup",
+          "notes": "grated"
+        },
+        {
+          "name": "black pepper",
+          "quantity": 1,
+          "unit": "teaspoon",
+          "notes": "freshly ground"
+        },
+        {
+          "name": "salt",
+          "quantity": 1,
+          "unit": "teaspoon"
+        },
+        {
+          "name": "garlic",
+          "quantity": 2,
+          "unit": "clove",
+          "notes": "minced"
+        }
       ],
       "instructions": [
-        { "stepNumber": 1, "text": "Bring a large pot of salted water to boil and cook spaghetti according to package directions." },
-        { "stepNumber": 2, "text": "While pasta cooks, fry bacon in a large pan until crispy." },
-        { "stepNumber": 3, "text": "In a bowl, whisk together eggs, parmesan, and black pepper." },
-        { "stepNumber": 4, "text": "Drain pasta, reserving 1 cup of pasta water." },
-        { "stepNumber": 5, "text": "Add hot pasta to the pan with bacon, remove from heat." },
-        { "stepNumber": 6, "text": "Quickly toss with egg mixture, adding pasta water as needed to create a creamy sauce." },
-        { "stepNumber": 7, "text": "Serve immediately with extra parmesan and pepper." }
+        {
+          "stepNumber": 1,
+          "text": "Bring a large pot of salted water to boil and cook spaghetti according to package directions."
+        },
+        {
+          "stepNumber": 2,
+          "text": "While pasta cooks, fry bacon in a large pan until crispy."
+        },
+        {
+          "stepNumber": 3,
+          "text": "In a bowl, whisk together eggs, parmesan, and black pepper."
+        },
+        {
+          "stepNumber": 4,
+          "text": "Drain pasta, reserving 1 cup of pasta water."
+        },
+        {
+          "stepNumber": 5,
+          "text": "Add hot pasta to the pan with bacon, remove from heat."
+        },
+        {
+          "stepNumber": 6,
+          "text": "Quickly toss with egg mixture, adding pasta water as needed to create a creamy sauce."
+        },
+        {
+          "stepNumber": 7,
+          "text": "Serve immediately with extra parmesan and pepper."
+        }
       ]
     },
     {
@@ -87,21 +254,67 @@
       "cookTime": 0,
       "servings": 1,
       "category": "Breakfast",
-      "tags": ["breakfast", "oats", "meal prep", "healthy"],
+      "tags": [
+        "breakfast",
+        "oats",
+        "meal prep",
+        "healthy"
+      ],
       "ingredients": [
-        { "name": "rolled oats", "quantity": 0.5, "unit": "cup" },
-        { "name": "milk", "quantity": 0.5, "unit": "cup" },
-        { "name": "greek yogurt", "quantity": 0.25, "unit": "cup" },
-        { "name": "honey", "quantity": 1, "unit": "tablespoon" },
-        { "name": "chia seeds", "quantity": 1, "unit": "tablespoon" },
-        { "name": "vanilla extract", "quantity": 0.5, "unit": "teaspoon" },
-        { "name": "berries", "quantity": 0.5, "unit": "cup", "notes": "fresh or frozen" }
+        {
+          "name": "rolled oats",
+          "quantity": 0.5,
+          "unit": "cup"
+        },
+        {
+          "name": "milk",
+          "quantity": 0.5,
+          "unit": "cup"
+        },
+        {
+          "name": "greek yogurt",
+          "quantity": 0.25,
+          "unit": "cup"
+        },
+        {
+          "name": "honey",
+          "quantity": 1,
+          "unit": "tablespoon"
+        },
+        {
+          "name": "chia seeds",
+          "quantity": 1,
+          "unit": "tablespoon"
+        },
+        {
+          "name": "vanilla extract",
+          "quantity": 0.5,
+          "unit": "teaspoon"
+        },
+        {
+          "name": "berries",
+          "quantity": 0.5,
+          "unit": "cup",
+          "notes": "fresh or frozen"
+        }
       ],
       "instructions": [
-        { "stepNumber": 1, "text": "In a jar or bowl, combine oats, milk, yogurt, honey, chia seeds, and vanilla." },
-        { "stepNumber": 2, "text": "Stir well until everything is combined." },
-        { "stepNumber": 3, "text": "Cover and refrigerate overnight (at least 6 hours)." },
-        { "stepNumber": 4, "text": "In the morning, top with berries and enjoy cold or at room temperature." }
+        {
+          "stepNumber": 1,
+          "text": "In a jar or bowl, combine oats, milk, yogurt, honey, chia seeds, and vanilla."
+        },
+        {
+          "stepNumber": 2,
+          "text": "Stir well until everything is combined."
+        },
+        {
+          "stepNumber": 3,
+          "text": "Cover and refrigerate overnight (at least 6 hours)."
+        },
+        {
+          "stepNumber": 4,
+          "text": "In the morning, top with berries and enjoy cold or at room temperature."
+        }
       ]
     },
     {
@@ -111,26 +324,1579 @@
       "cookTime": 10,
       "servings": 3,
       "category": "Dinner",
-      "tags": ["dinner", "vegetarian", "stir fry", "quick"],
+      "tags": [
+        "dinner",
+        "vegetarian",
+        "stir fry",
+        "quick"
+      ],
       "ingredients": [
-        { "name": "tofu", "quantity": 14, "unit": "ounce", "notes": "firm, cubed" },
-        { "name": "broccoli", "quantity": 2, "unit": "cup", "notes": "florets" },
-        { "name": "bell pepper", "quantity": 2, "unit": "piece", "notes": "sliced" },
-        { "name": "carrot", "quantity": 2, "unit": "piece", "notes": "sliced" },
-        { "name": "soy sauce", "quantity": 3, "unit": "tablespoon" },
-        { "name": "sesame oil", "quantity": 1, "unit": "tablespoon" },
-        { "name": "ginger", "quantity": 1, "unit": "tablespoon", "notes": "minced" },
-        { "name": "garlic", "quantity": 3, "unit": "clove", "notes": "minced" },
-        { "name": "cornstarch", "quantity": 1, "unit": "teaspoon" }
+        {
+          "name": "tofu",
+          "quantity": 14,
+          "unit": "ounce",
+          "notes": "firm, cubed"
+        },
+        {
+          "name": "broccoli",
+          "quantity": 2,
+          "unit": "cup",
+          "notes": "florets"
+        },
+        {
+          "name": "bell pepper",
+          "quantity": 2,
+          "unit": "piece",
+          "notes": "sliced"
+        },
+        {
+          "name": "carrot",
+          "quantity": 2,
+          "unit": "piece",
+          "notes": "sliced"
+        },
+        {
+          "name": "soy sauce",
+          "quantity": 3,
+          "unit": "tablespoon"
+        },
+        {
+          "name": "sesame oil",
+          "quantity": 1,
+          "unit": "tablespoon"
+        },
+        {
+          "name": "ginger",
+          "quantity": 1,
+          "unit": "tablespoon",
+          "notes": "minced"
+        },
+        {
+          "name": "garlic",
+          "quantity": 3,
+          "unit": "clove",
+          "notes": "minced"
+        },
+        {
+          "name": "cornstarch",
+          "quantity": 1,
+          "unit": "teaspoon"
+        }
       ],
       "instructions": [
-        { "stepNumber": 1, "text": "Press tofu to remove excess water, then cut into cubes." },
-        { "stepNumber": 2, "text": "Heat sesame oil in a large wok or pan over high heat." },
-        { "stepNumber": 3, "text": "Add tofu and cook until golden brown on all sides." },
-        { "stepNumber": 4, "text": "Add ginger and garlic, stir for 30 seconds." },
-        { "stepNumber": 5, "text": "Add all vegetables and stir fry for 3-4 minutes until crisp-tender." },
-        { "stepNumber": 6, "text": "Mix soy sauce with cornstarch and add to pan." },
-        { "stepNumber": 7, "text": "Cook for 1-2 minutes until sauce thickens. Serve hot over rice." }
+        {
+          "stepNumber": 1,
+          "text": "Press tofu to remove excess water, then cut into cubes."
+        },
+        {
+          "stepNumber": 2,
+          "text": "Heat sesame oil in a large wok or pan over high heat."
+        },
+        {
+          "stepNumber": 3,
+          "text": "Add tofu and cook until golden brown on all sides."
+        },
+        {
+          "stepNumber": 4,
+          "text": "Add ginger and garlic, stir for 30 seconds."
+        },
+        {
+          "stepNumber": 5,
+          "text": "Add all vegetables and stir fry for 3-4 minutes until crisp-tender."
+        },
+        {
+          "stepNumber": 6,
+          "text": "Mix soy sauce with cornstarch and add to pan."
+        },
+        {
+          "stepNumber": 7,
+          "text": "Cook for 1-2 minutes until sauce thickens. Serve hot over rice."
+        }
+      ]
+    },
+    {
+      "name": "Green Smoothie Bowl",
+      "description": "Nutritious and energizing smoothie bowl perfect for breakfast",
+      "prepTime": 5,
+      "cookTime": 0,
+      "servings": 1,
+      "category": "Breakfast",
+      "tags": [
+        "healthy",
+        "quick",
+        "vegetarian"
+      ],
+      "ingredients": [
+        {
+          "name": "Banana",
+          "quantity": 1.0,
+          "unit": "medium",
+          "notes": null
+        },
+        {
+          "name": "Spinach",
+          "quantity": 1.0,
+          "unit": "cup",
+          "notes": null
+        },
+        {
+          "name": "Almond milk",
+          "quantity": 1.0,
+          "unit": "cup",
+          "notes": null
+        },
+        {
+          "name": "Chia seeds",
+          "quantity": 1.0,
+          "unit": "tbsp",
+          "notes": null
+        },
+        {
+          "name": "Honey",
+          "quantity": 1.0,
+          "unit": "tsp",
+          "notes": null
+        }
+      ],
+      "instructions": [
+        {
+          "stepNumber": 1,
+          "text": "Add all ingredients to blender"
+        },
+        {
+          "stepNumber": 2,
+          "text": "Blend until smooth and creamy"
+        },
+        {
+          "stepNumber": 3,
+          "text": "Pour into bowl and add toppings"
+        },
+        {
+          "stepNumber": 4,
+          "text": "Serve immediately"
+        }
+      ]
+    },
+    {
+      "name": "Mediterranean Quinoa Bowl",
+      "description": "Protein-rich quinoa bowl with fresh vegetables and herbs",
+      "prepTime": 15,
+      "cookTime": 15,
+      "servings": 2,
+      "category": "Lunch",
+      "tags": [
+        "healthy",
+        "protein",
+        "vegetarian"
+      ],
+      "ingredients": [
+        {
+          "name": "Quinoa",
+          "quantity": 1.0,
+          "unit": "cup",
+          "notes": null
+        },
+        {
+          "name": "Cherry tomatoes",
+          "quantity": 1.0,
+          "unit": "cup",
+          "notes": null
+        },
+        {
+          "name": "Cucumber",
+          "quantity": 1.0,
+          "unit": "medium",
+          "notes": null
+        },
+        {
+          "name": "Red onion",
+          "quantity": 0.25,
+          "unit": "cup",
+          "notes": null
+        },
+        {
+          "name": "Feta cheese",
+          "quantity": 0.5,
+          "unit": "cup",
+          "notes": null
+        },
+        {
+          "name": "Olive oil",
+          "quantity": 2.0,
+          "unit": "tbsp",
+          "notes": null
+        },
+        {
+          "name": "Lemon juice",
+          "quantity": 1.0,
+          "unit": "tbsp",
+          "notes": null
+        }
+      ],
+      "instructions": [
+        {
+          "stepNumber": 1,
+          "text": "Cook quinoa according to package instructions"
+        },
+        {
+          "stepNumber": 2,
+          "text": "Dice cucumber and slice cherry tomatoes"
+        },
+        {
+          "stepNumber": 3,
+          "text": "Thinly slice red onion"
+        },
+        {
+          "stepNumber": 4,
+          "text": "Mix all vegetables with cooked quinoa"
+        },
+        {
+          "stepNumber": 5,
+          "text": "Drizzle with olive oil and lemon juice"
+        },
+        {
+          "stepNumber": 6,
+          "text": "Top with feta cheese and serve"
+        }
+      ]
+    },
+    {
+      "name": "Grilled Salmon with Roasted Vegetables",
+      "description": "Healthy and flavorful salmon with seasonal roasted vegetables",
+      "prepTime": 15,
+      "cookTime": 30,
+      "servings": 1,
+      "category": "Dinner",
+      "tags": [
+        "healthy",
+        "protein",
+        "omega-3"
+      ],
+      "ingredients": [
+        {
+          "name": "Salmon fillet",
+          "quantity": 4.0,
+          "unit": "oz",
+          "notes": null
+        },
+        {
+          "name": "Broccoli",
+          "quantity": 1.0,
+          "unit": "cup",
+          "notes": null
+        },
+        {
+          "name": "Sweet potato",
+          "quantity": 1.0,
+          "unit": "medium",
+          "notes": null
+        },
+        {
+          "name": "Olive oil",
+          "quantity": 2.0,
+          "unit": "tbsp",
+          "notes": null
+        },
+        {
+          "name": "Garlic",
+          "quantity": 2.0,
+          "unit": "clove",
+          "notes": null
+        },
+        {
+          "name": "Lemon",
+          "quantity": 0.5,
+          "unit": "piece",
+          "notes": null
+        },
+        {
+          "name": "Salt",
+          "quantity": 0.5,
+          "unit": "tsp",
+          "notes": null
+        },
+        {
+          "name": "Black pepper",
+          "quantity": 0.25,
+          "unit": "tsp",
+          "notes": null
+        }
+      ],
+      "instructions": [
+        {
+          "stepNumber": 1,
+          "text": "Preheat oven to 400°F (200°C)"
+        },
+        {
+          "stepNumber": 2,
+          "text": "Cut sweet potato into cubes and broccoli into florets"
+        },
+        {
+          "stepNumber": 3,
+          "text": "Toss vegetables with olive oil, garlic, salt, and pepper"
+        },
+        {
+          "stepNumber": 4,
+          "text": "Roast vegetables for 20-25 minutes until tender"
+        },
+        {
+          "stepNumber": 5,
+          "text": "Season salmon with salt, pepper, and lemon juice"
+        },
+        {
+          "stepNumber": 6,
+          "text": "Grill salmon for 4-5 minutes per side"
+        },
+        {
+          "stepNumber": 7,
+          "text": "Serve salmon over roasted vegetables"
+        }
+      ]
+    },
+    {
+      "name": "Greek Yogurt Parfait",
+      "description": "Layered parfait with Greek yogurt, granola, and fresh berries",
+      "prepTime": 5,
+      "cookTime": 0,
+      "servings": 1,
+      "category": "Snack",
+      "tags": [
+        "healthy",
+        "protein",
+        "quick"
+      ],
+      "ingredients": [
+        {
+          "name": "Greek yogurt",
+          "quantity": 1.0,
+          "unit": "cup",
+          "notes": null
+        },
+        {
+          "name": "Granola",
+          "quantity": 0.25,
+          "unit": "cup",
+          "notes": null
+        },
+        {
+          "name": "Mixed berries",
+          "quantity": 0.5,
+          "unit": "cup",
+          "notes": null
+        },
+        {
+          "name": "Honey",
+          "quantity": 1.0,
+          "unit": "tbsp",
+          "notes": null
+        },
+        {
+          "name": "Almonds",
+          "quantity": 1.0,
+          "unit": "tbsp",
+          "notes": null
+        },
+        {
+          "name": "Chia seeds",
+          "quantity": 1.0,
+          "unit": "tsp",
+          "notes": null
+        }
+      ],
+      "instructions": [
+        {
+          "stepNumber": 1,
+          "text": "Layer half the yogurt in a glass or bowl"
+        },
+        {
+          "stepNumber": 2,
+          "text": "Add half the berries and drizzle with honey"
+        },
+        {
+          "stepNumber": 3,
+          "text": "Sprinkle with half the granola and chia seeds"
+        },
+        {
+          "stepNumber": 4,
+          "text": "Repeat the layers"
+        },
+        {
+          "stepNumber": 5,
+          "text": "Top with almonds and serve immediately"
+        }
+      ]
+    },
+    {
+      "name": "Havrefrallor med russin (Batch)",
+      "description": "Glutenfria, mjuka frallor. Görs i stor batch för att säkra frukost/mellanmål (Infrastruktur). Måste svalna helt innan de skärs.",
+      "prepTime": 15,
+      "cookTime": 25,
+      "servings": 36,
+      "category": "Breakfast",
+      "tags": [
+        "gluten-free",
+        "batch-cooking",
+        "infrastructure",
+        "freezable"
+      ],
+      "ingredients": [
+        {
+          "name": "Jäst (eller torrjäst)",
+          "quantity": 75.0,
+          "unit": "g",
+          "notes": "Eller 2 tsk torrjäst"
+        },
+        {
+          "name": "Vatten",
+          "quantity": 2400.0,
+          "unit": "g",
+          "notes": "30-37°C"
+        },
+        {
+          "name": "Olja",
+          "quantity": 6.0,
+          "unit": "msk",
+          "notes": null
+        },
+        {
+          "name": "Havremjöl",
+          "quantity": 1050.0,
+          "unit": "g",
+          "notes": null
+        },
+        {
+          "name": "Fullkornsrismjöl",
+          "quantity": 600.0,
+          "unit": "g",
+          "notes": "Alt. bovete/durra"
+        },
+        {
+          "name": "Psylliumhusk",
+          "quantity": 120.0,
+          "unit": "g",
+          "notes": null
+        },
+        {
+          "name": "Salt",
+          "quantity": 6.0,
+          "unit": "tsk",
+          "notes": null
+        },
+        {
+          "name": "Russin",
+          "quantity": 375.0,
+          "unit": "g",
+          "notes": "Valfritt"
+        }
+      ],
+      "instructions": [
+        {
+          "stepNumber": 1,
+          "text": "Rör ut jästen i vattnet i en bunke (30-37°C). Tillsätt oljan."
+        },
+        {
+          "stepNumber": 2,
+          "text": "Mät upp och blanda alla torra ingredienser. Tillsätt till degvätskan och rör hastigt ihop till en slät smet. Blanda i russin."
+        },
+        {
+          "stepNumber": 3,
+          "text": "Vänta ca 10 min för att tillåta degen att svälla maximalt."
+        },
+        {
+          "stepNumber": 4,
+          "text": "Forma små bröd med fuktade händer eller klicka ut på plåt. Pudra med mjöl."
+        },
+        {
+          "stepNumber": 5,
+          "text": "Låt jäsa under bakduk 75-160 minuter (ska öka 30-40%)."
+        },
+        {
+          "stepNumber": 6,
+          "text": "Värm ugnen till 225°C och grädda i 20-25 min."
+        },
+        {
+          "stepNumber": 7,
+          "text": "VIKTIGT: Låt svalna helt på galler innan du äter dem (annars klibbar de)."
+        }
+      ]
+    },
+    {
+      "name": "Fröknäcke (Grundrecept)",
+      "description": "Glutenfritt, krispigt fröknäcke. Detta är bassatsen för en plåt. Håller mycket länge i skafferiet och är perfekt infrastruktur-mat.",
+      "prepTime": 10,
+      "cookTime": 60,
+      "servings": 10,
+      "category": "Snack",
+      "tags": [
+        "gluten-free",
+        "pantry-staple",
+        "infrastructure"
+      ],
+      "ingredients": [
+        {
+          "name": "Solrosfrön",
+          "quantity": 1.5,
+          "unit": "dl",
+          "notes": null
+        },
+        {
+          "name": "Pumpafrön",
+          "quantity": 1.5,
+          "unit": "dl",
+          "notes": null
+        },
+        {
+          "name": "Sesamfrön",
+          "quantity": 1.0,
+          "unit": "dl",
+          "notes": null
+        },
+        {
+          "name": "Linfrön",
+          "quantity": 1.0,
+          "unit": "dl",
+          "notes": null
+        },
+        {
+          "name": "Maizena",
+          "quantity": 1.0,
+          "unit": "dl",
+          "notes": null
+        },
+        {
+          "name": "Majsmjöl",
+          "quantity": 1.0,
+          "unit": "dl",
+          "notes": null
+        },
+        {
+          "name": "Salt",
+          "quantity": 0.5,
+          "unit": "tsk",
+          "notes": null
+        },
+        {
+          "name": "Rapsolja",
+          "quantity": 1.0,
+          "unit": "dl",
+          "notes": null
+        },
+        {
+          "name": "Kokande vatten",
+          "quantity": 2.0,
+          "unit": "dl",
+          "notes": null
+        },
+        {
+          "name": "Flingsalt",
+          "quantity": 1.0,
+          "unit": "nypa",
+          "notes": "Att strö ovanpå"
+        }
+      ],
+      "instructions": [
+        {
+          "stepNumber": 1,
+          "text": "Sätt ugnen på 160°C Varmluft."
+        },
+        {
+          "stepNumber": 2,
+          "text": "Blanda alla torra ingredienser (frön, maizena, majsmjöl, salt) i en bunke."
+        },
+        {
+          "stepNumber": 3,
+          "text": "Tillsätt rapsolja och det kokande vattnet. Rör om till en jämn smet."
+        },
+        {
+          "stepNumber": 4,
+          "text": "Häll ut smeten på en plåt klädd med bakplåtspapper."
+        },
+        {
+          "stepNumber": 5,
+          "text": "Tryck ut smeten tunt och jämnt över hela plåten (tips: lägg ett extra bakplåtspapper ovanpå och kavla/tryck ut för jämnhet)."
+        },
+        {
+          "stepNumber": 6,
+          "text": "Strö över flingsalt."
+        },
+        {
+          "stepNumber": 7,
+          "text": "Grädda i ca 1 timme. Låt svalna helt innan du bryter i bitar."
+        }
+      ]
+    },
+    {
+      "name": "Nuoc Cham (Vietnamesisk Dipsås)",
+      "description": "Klassisk vietnamesisk dipsås med syra, sötma och hetta. Perfekt till vårrullar, sallader eller grillat. En viktig ",
+      "prepTime": 10,
+      "cookTime": 0,
+      "servings": 8,
+      "category": "Sauce",
+      "tags": [
+        "gluten-free",
+        "dairy-free",
+        "condiment",
+        "no-cook"
+      ],
+      "ingredients": [
+        {
+          "name": "Röd chilifrukt",
+          "quantity": 1.0,
+          "unit": "st",
+          "notes": null
+        },
+        {
+          "name": "Vitlöksklyfta",
+          "quantity": 1.0,
+          "unit": "st",
+          "notes": null
+        },
+        {
+          "name": "Strösocker",
+          "quantity": 5.0,
+          "unit": "msk",
+          "notes": null
+        },
+        {
+          "name": "Vatten (kokande)",
+          "quantity": 0.5,
+          "unit": "dl",
+          "notes": null
+        },
+        {
+          "name": "Fisksås",
+          "quantity": 0.5,
+          "unit": "dl",
+          "notes": null
+        },
+        {
+          "name": "Limesaft",
+          "quantity": 1.0,
+          "unit": "dl",
+          "notes": "Ca 3 lime (färsk)"
+        }
+      ],
+      "instructions": [
+        {
+          "stepNumber": 1,
+          "text": "Kärna ur och strimla chilin fint."
+        },
+        {
+          "stepNumber": 2,
+          "text": "Pressa vitlöken."
+        },
+        {
+          "stepNumber": 3,
+          "text": "Blanda socker och chili/vitlök i en skål."
+        },
+        {
+          "stepNumber": 4,
+          "text": "Häll över det kokande vattnet och rör tills sockret löst sig helt."
+        },
+        {
+          "stepNumber": 5,
+          "text": "Tillsätt fisksås och limesaft."
+        },
+        {
+          "stepNumber": 6,
+          "text": "Låt stå i kylen minst 30 minuter innan servering för att smakerna ska gifta sig."
+        }
+      ]
+    },
+    {
+      "name": "Jordnötssås med Kokosmjölk",
+      "description": "Krämig jordnötssås med röd curry och kokosmjölk. Serveras varm eller kall.",
+      "prepTime": 15,
+      "cookTime": 5,
+      "servings": 4,
+      "category": "Sauce",
+      "tags": [
+        "vegetarian",
+        "condiment",
+        "peanut"
+      ],
+      "ingredients": [
+        {
+          "name": "Jordnötssmör (osötad, med bitar)",
+          "quantity": 0.5,
+          "unit": "dl",
+          "notes": null
+        },
+        {
+          "name": "Kokosmjölk",
+          "quantity": 100.0,
+          "unit": "ml",
+          "notes": null
+        },
+        {
+          "name": "Lök",
+          "quantity": 0.5,
+          "unit": "st",
+          "notes": null
+        },
+        {
+          "name": "Vitlöksklyfta",
+          "quantity": 1.0,
+          "unit": "st",
+          "notes": null
+        },
+        {
+          "name": "Ingefära (finhackad)",
+          "quantity": 1.0,
+          "unit": "tsk",
+          "notes": null
+        },
+        {
+          "name": "Röd chili",
+          "quantity": 1.0,
+          "unit": "st",
+          "notes": "Valfritt för hetta"
+        },
+        {
+          "name": "Röd curry eller Sambal Oelek",
+          "quantity": 1.0,
+          "unit": "tsk",
+          "notes": null
+        },
+        {
+          "name": "Palmsocker (eller råsocker/honung)",
+          "quantity": 2.0,
+          "unit": "tsk",
+          "notes": null
+        },
+        {
+          "name": "Soja",
+          "quantity": 2.0,
+          "unit": "tsk",
+          "notes": null
+        },
+        {
+          "name": "Salt",
+          "quantity": 1.0,
+          "unit": "krm",
+          "notes": "Efter smak"
+        },
+        {
+          "name": "Olja",
+          "quantity": 1.0,
+          "unit": "msk",
+          "notes": "Till stekning"
+        }
+      ],
+      "instructions": [
+        {
+          "stepNumber": 1,
+          "text": "Hacka lök, vitlök, ingefära och chili."
+        },
+        {
+          "stepNumber": 2,
+          "text": "Stek hacket i olja på medelvärme tills löken mjuknar."
+        },
+        {
+          "stepNumber": 3,
+          "text": "Tillsätt röd curry/sambal oelek och fräs några sekunder för att väcka smakerna."
+        },
+        {
+          "stepNumber": 4,
+          "text": "Sänk värmen och vänd i jordnötssmöret."
+        },
+        {
+          "stepNumber": 5,
+          "text": "Mixa samman allting med en stavmixer (eller i mixer)."
+        },
+        {
+          "stepNumber": 6,
+          "text": "Häll tillbaka i kastrullen och tillsätt kokosmjölk, socker och soja. Salta efter smak."
+        },
+        {
+          "stepNumber": 7,
+          "text": "Koka upp såsen och låt puttra i ca 3-5 minuter. Rör om ofta så det inte bränns."
+        },
+        {
+          "stepNumber": 8,
+          "text": "Om såsen känns för tjock, späd med mer kokosmjölk eller lite vatten."
+        },
+        {
+          "stepNumber": 9,
+          "text": "Servera kall eller varm."
+        }
+      ]
+    },
+    {
+      "name": "Sötpotatisrösti med Lingon",
+      "description": "Paleo/AIP-vänlig vardagsrätt. Riven sötpotatis stekt till raggmunkar, serverad med rårörda lingon. Enkel och näringsrik.",
+      "prepTime": 15,
+      "cookTime": 10,
+      "servings": 1,
+      "category": "Lunch",
+      "tags": [
+        "paleo",
+        "aip",
+        "vegetarian",
+        "gluten-free",
+        "dairy-free"
+      ],
+      "ingredients": [
+        {
+          "name": "Sötpotatis",
+          "quantity": 1.0,
+          "unit": "st",
+          "notes": null
+        },
+        {
+          "name": "Vitlöksklyfta",
+          "quantity": 1.0,
+          "unit": "st",
+          "notes": null
+        },
+        {
+          "name": "Havssalt",
+          "quantity": 1.0,
+          "unit": "nypa",
+          "notes": "Lite"
+        },
+        {
+          "name": "Färska kryddor (timjan eller persilja)",
+          "quantity": 1.0,
+          "unit": "knippe",
+          "notes": "Lite"
+        },
+        {
+          "name": "Lingon",
+          "quantity": 1.0,
+          "unit": "dl",
+          "notes": null
+        },
+        {
+          "name": "Honung",
+          "quantity": 1.0,
+          "unit": "tsk",
+          "notes": null
+        },
+        {
+          "name": "Kokosolja",
+          "quantity": 1.0,
+          "unit": "msk",
+          "notes": "Till stekning"
+        }
+      ],
+      "instructions": [
+        {
+          "stepNumber": 1,
+          "text": "Skala och riv sötpotatisen grovt. Krama ur vätskan ordentligt."
+        },
+        {
+          "stepNumber": 2,
+          "text": "Pressa i vitlök och blanda med salt och färska kryddor."
+        },
+        {
+          "stepNumber": 3,
+          "text": "Hetta upp kokosolja i en panna. Klicka ut smeten och platta till."
+        },
+        {
+          "stepNumber": 4,
+          "text": "Stek ca två minuter per sida tills de fått fin färg."
+        },
+        {
+          "stepNumber": 5,
+          "text": "Rårörda lingon: Tina frysta lingon (om de inte är färska) och blanda med honung."
+        },
+        {
+          "stepNumber": 6,
+          "text": "Servera röstin med lingonen."
+        }
+      ]
+    },
+    {
+      "name": "Pinklax-sås med Stekt Potatis",
+      "description": "Krämig laxsås smaksatt med kryddblandningen ",
+      "prepTime": 20,
+      "cookTime": 30,
+      "servings": 4,
+      "category": "Dinner",
+      "tags": [
+        "fish",
+        "creamy",
+        "comfort-food"
+      ],
+      "ingredients": [
+        {
+          "name": "Potatis (medelstora)",
+          "quantity": 18.0,
+          "unit": "st",
+          "notes": "15-20 st, kokta/kalla"
+        },
+        {
+          "name": "Pinklax (bitar)",
+          "quantity": 5.0,
+          "unit": "st",
+          "notes": "4-5 bitar"
+        },
+        {
+          "name": "Rödlök (liten)",
+          "quantity": 1.0,
+          "unit": "st",
+          "notes": null
+        },
+        {
+          "name": "Grädde (eller kokosgrädde)",
+          "quantity": 2.0,
+          "unit": "dl",
+          "notes": "1-2 dl"
+        },
+        {
+          "name": "Viltfond (alt. grönsaksfond)",
+          "quantity": 2.0,
+          "unit": "msk",
+          "notes": "Om grönsaksfond, tillsätt lite soja"
+        },
+        {
+          "name": "Salt",
+          "quantity": 2.5,
+          "unit": "tsk",
+          "notes": "2-3 tsk"
+        },
+        {
+          "name": "Krydda ",
+          "quantity": 1.5,
+          "unit": "tsk",
+          "notes": "1-2 tsk"
+        },
+        {
+          "name": "Citron",
+          "quantity": 1.5,
+          "unit": "msk",
+          "notes": "1-2 msk"
+        },
+        {
+          "name": "Smör/Olja",
+          "quantity": 2.0,
+          "unit": "msk",
+          "notes": "Till stekning"
+        },
+        {
+          "name": "Grönsaker (Ärtor/Majs/Paprika)",
+          "quantity": 3.0,
+          "unit": "dl",
+          "notes": "Ångkokta/kokta"
+        }
+      ],
+      "instructions": [
+        {
+          "stepNumber": 1,
+          "text": "Förberedelse: Använd kokt, kall potatis. Dela och stek dem i smör/olja ("
+        },
+        {
+          "stepNumber": 2,
+          "text": ")."
+        },
+        {
+          "stepNumber": 3,
+          "text": "Krydda fisken med ca 1 tsk salt och "
+        },
+        {
+          "stepNumber": 4,
+          "text": "."
+        },
+        {
+          "stepNumber": 5,
+          "text": "Stek fisken i smör så den får yta, dela den i små bitar ("
+        },
+        {
+          "stepNumber": 6,
+          "text": "-storlek). Ta ur pannan."
+        },
+        {
+          "stepNumber": 7,
+          "text": "Hacka rödlöken fint. Fräs den i pannan."
+        },
+        {
+          "stepNumber": 8,
+          "text": "Häll i grädden och citron. Låt stå och puttra."
+        },
+        {
+          "stepNumber": 9,
+          "text": "Tillsätt fond och vispa ur smakerna ur stekpannan om det behövs."
+        },
+        {
+          "stepNumber": 10,
+          "text": "Lägg tillbaka fisken i såsen så den blir genomvarm."
+        },
+        {
+          "stepNumber": 11,
+          "text": "Smaka av med salt och mer citron."
+        },
+        {
+          "stepNumber": 12,
+          "text": "Servera med den stekta potatisen och kokta grönsaker."
+        }
+      ]
+    },
+    {
+      "name": "Krämig Fisksoppa med Saffran (Mejerifri)",
+      "description": "Mustig fisksoppa med lax, torsk och räkor. Basen görs på rotfrukter, vitt vin och saffran. Rundas av med kokosgrädde för en fyllig, mejerifri soppa.",
+      "prepTime": 30,
+      "cookTime": 30,
+      "servings": 8,
+      "category": "Dinner",
+      "tags": [
+        "soup",
+        "seafood",
+        "batch-friendly",
+        "dairy-free",
+        "luxury-weekend"
+      ],
+      "ingredients": [
+        {
+          "name": "Gul lök",
+          "quantity": 2.0,
+          "unit": "st",
+          "notes": null
+        },
+        {
+          "name": "Vitlök",
+          "quantity": 6.0,
+          "unit": "st",
+          "notes": null
+        },
+        {
+          "name": "Purjolök",
+          "quantity": 1.0,
+          "unit": "st",
+          "notes": null
+        },
+        {
+          "name": "Potatis",
+          "quantity": 800.0,
+          "unit": "g",
+          "notes": null
+        },
+        {
+          "name": "Morötter",
+          "quantity": 600.0,
+          "unit": "g",
+          "notes": null
+        },
+        {
+          "name": "Fänkål färsk",
+          "quantity": 1.0,
+          "unit": "st",
+          "notes": null
+        },
+        {
+          "name": "Olivolja",
+          "quantity": 2.0,
+          "unit": "msk",
+          "notes": null
+        },
+        {
+          "name": "Mat & Bak Smör (eller Ghee)",
+          "quantity": 2.0,
+          "unit": "msk",
+          "notes": null
+        },
+        {
+          "name": "Saffran",
+          "quantity": 2.0,
+          "unit": "g",
+          "notes": null
+        },
+        {
+          "name": "Chiliflakes",
+          "quantity": 2.0,
+          "unit": "tsk",
+          "notes": null
+        },
+        {
+          "name": "Tomatpuré",
+          "quantity": 4.0,
+          "unit": "msk",
+          "notes": null
+        },
+        {
+          "name": "Vitt vin",
+          "quantity": 6.0,
+          "unit": "dl",
+          "notes": null
+        },
+        {
+          "name": "Vatten",
+          "quantity": 1.0,
+          "unit": "l",
+          "notes": null
+        },
+        {
+          "name": "Kokosgrädde",
+          "quantity": 6.0,
+          "unit": "dl",
+          "notes": "Ersätter vispgrädde"
+        },
+        {
+          "name": "Fiskfond (eller buljongtärning)",
+          "quantity": 4.0,
+          "unit": "msk",
+          "notes": null
+        },
+        {
+          "name": "Laxfilé (färsk)",
+          "quantity": 600.0,
+          "unit": "g",
+          "notes": null
+        },
+        {
+          "name": "Torskfilé",
+          "quantity": 600.0,
+          "unit": "g",
+          "notes": null
+        },
+        {
+          "name": "Handskalade räkor",
+          "quantity": 480.0,
+          "unit": "g",
+          "notes": null
+        },
+        {
+          "name": "Timjan (färsk)",
+          "quantity": 1.0,
+          "unit": "msk",
+          "notes": null
+        },
+        {
+          "name": "Citron",
+          "quantity": 1.0,
+          "unit": "st",
+          "notes": null
+        },
+        {
+          "name": "Salt",
+          "quantity": 1.0,
+          "unit": "krm",
+          "notes": "Smaka av"
+        },
+        {
+          "name": "Svartpeppar",
+          "quantity": 1.0,
+          "unit": "krm",
+          "notes": null
+        }
+      ],
+      "instructions": [
+        {
+          "stepNumber": 1,
+          "text": "Skala och finhacka lök och vitlök. Skölj och grovhacka purjolök. Skala och tärna potatis, morötter och skölj/grovhacka fänkål."
+        },
+        {
+          "stepNumber": 2,
+          "text": "Hetta upp olja och smör/ghee i en stor kastrull. Fräs lök, vitlök, purjolök, fänkål, potatis och morötter tills det mjuknar något. Tillsätt saffran och chiliflakes."
+        },
+        {
+          "stepNumber": 3,
+          "text": "Tillsätt tomatpuré och fräs i 30 sekunder under omrörning."
+        },
+        {
+          "stepNumber": 4,
+          "text": "Tillsätt vitt vin och låt puttra i ca 4-5 min."
+        },
+        {
+          "stepNumber": 5,
+          "text": "Tillsätt vatten, kokosgrädde och fond. Låt soppan sjuda under lock i ca 20 min (tills rotfrukterna är mjuka)."
+        },
+        {
+          "stepNumber": 6,
+          "text": "Tärna laxen och torsken. Lägg i soppan och låt sjuda i ca 5 min."
+        },
+        {
+          "stepNumber": 7,
+          "text": "Lägg ner räkor, timjan och smaka av med citronsaft, salt och peppar."
+        },
+        {
+          "stepNumber": 8,
+          "text": "Servera med ett gott bröd och ev. aioli."
+        }
+      ]
+    },
+    {
+      "name": "Bananpannkaka (Enkel)",
+      "description": "Snabba och nyttiga pannkakor gjorda på banan, ägg och mandelmjöl. Perfekt frukost eller mellanmål.",
+      "prepTime": 5,
+      "cookTime": 10,
+      "servings": 1,
+      "category": "Breakfast",
+      "tags": [
+        "gluten-free",
+        "dairy-free",
+        "paleo-friendly",
+        "quick"
+      ],
+      "ingredients": [
+        {
+          "name": "Banan",
+          "quantity": 0.5,
+          "unit": "st",
+          "notes": "Mogen"
+        },
+        {
+          "name": "Ägg",
+          "quantity": 2.0,
+          "unit": "st",
+          "notes": null
+        },
+        {
+          "name": "Mandelmjöl",
+          "quantity": 0.5,
+          "unit": "dl",
+          "notes": null
+        },
+        {
+          "name": "Vaniljpulver",
+          "quantity": 1.0,
+          "unit": "nypa",
+          "notes": null
+        },
+        {
+          "name": "Bakpulver",
+          "quantity": 1.0,
+          "unit": "krm",
+          "notes": "Valfritt"
+        },
+        {
+          "name": "Smör",
+          "quantity": 1.0,
+          "unit": "msk",
+          "notes": "Till stekning"
+        },
+        {
+          "name": "Bär & Honung",
+          "quantity": 1.0,
+          "unit": "portion",
+          "notes": "Till servering"
+        }
+      ],
+      "instructions": [
+        {
+          "stepNumber": 1,
+          "text": "Mosa bananen eller mixa den."
+        },
+        {
+          "stepNumber": 2,
+          "text": "Vispa ihop banan, ägg, mandelmjöl, vaniljpulver och eventuellt bakpulver."
+        },
+        {
+          "stepNumber": 3,
+          "text": "Hetta upp smör i en stekpanna."
+        },
+        {
+          "stepNumber": 4,
+          "text": "Stek på medelvärme. (Receptet ger ca två stora pannkakor eller flera små)."
+        },
+        {
+          "stepNumber": 5,
+          "text": "Servera med bär och lite smält honung."
+        }
+      ]
+    },
+    {
+      "name": "Chocolate Chip Cookies (Raw/No-Bake)",
+      "description": "Hälsosamma kakor baserade på cashewnötter och hemmagjorda chokladchips. Behöver ingen ugn, men chokladen ska stelna.",
+      "prepTime": 20,
+      "cookTime": 0,
+      "servings": 12,
+      "category": "Snack",
+      "tags": [
+        "raw",
+        "vegan",
+        "gluten-free",
+        "no-bake",
+        "treat"
+      ],
+      "ingredients": [
+        {
+          "name": "Cashewnötter",
+          "quantity": 3.0,
+          "unit": "dl",
+          "notes": "Eller hälften mandel/solrosfrön"
+        },
+        {
+          "name": "Agavenektar (eller honung)",
+          "quantity": 2.0,
+          "unit": "msk",
+          "notes": null
+        },
+        {
+          "name": "Vaniljpulver",
+          "quantity": 1.0,
+          "unit": "tsk",
+          "notes": null
+        },
+        {
+          "name": "Kokosfett (smält/mjukt)",
+          "quantity": 2.0,
+          "unit": "msk",
+          "notes": null
+        },
+        {
+          "name": "Havssalt",
+          "quantity": 1.0,
+          "unit": "nypa",
+          "notes": null
+        },
+        {
+          "name": "Rå kakao (till chips)",
+          "quantity": 0.5,
+          "unit": "dl",
+          "notes": null
+        },
+        {
+          "name": "Kokosolja (till chips)",
+          "quantity": 1.0,
+          "unit": "msk",
+          "notes": "Eller kakaosmör"
+        }
+      ],
+      "instructions": [
+        {
+          "stepNumber": 1,
+          "text": "Chokladchips: Blanda kakao och kokosolja/kakaosmör (ev sötning). Bred ut tunt på bakplåtspapper och frys tills det stelnat. Hacka i bitar."
+        },
+        {
+          "stepNumber": 2,
+          "text": "Mixa cashewnötterna till mjöl i en mixer."
+        },
+        {
+          "stepNumber": 3,
+          "text": "Blanda i en bunke: nötmjöl, sötning, vanilj, kokosfett och salt. Arbeta ihop till en deg."
+        },
+        {
+          "stepNumber": 4,
+          "text": "När chokladkrosset är kallt/stelnat, blanda ner det i degen."
+        },
+        {
+          "stepNumber": 5,
+          "text": "Rulla bollar och platta ut till kakor på en tallrik eller plåt."
+        },
+        {
+          "stepNumber": 6,
+          "text": "Ställ kallt en stund innan servering. (Kan ätas direkt men godare kalla)."
+        }
+      ]
+    },
+    {
+      "name": "Osannolikt God Raw Vegan Cheesecake",
+      "description": "En lyxig raw-fika från ",
+      "prepTime": 25,
+      "cookTime": 0,
+      "servings": 6,
+      "category": "Dessert",
+      "tags": [
+        "raw",
+        "vegan",
+        "gluten-free",
+        "luxury",
+        "party"
+      ],
+      "ingredients": [
+        {
+          "name": "Sötmandel",
+          "quantity": 100.0,
+          "unit": "g",
+          "notes": null
+        },
+        {
+          "name": "Dadlar",
+          "quantity": 75.0,
+          "unit": "g",
+          "notes": "Urkärnade"
+        },
+        {
+          "name": "Cashewnötter",
+          "quantity": 200.0,
+          "unit": "g",
+          "notes": null
+        },
+        {
+          "name": "Vatten",
+          "quantity": 3.0,
+          "unit": "msk",
+          "notes": null
+        },
+        {
+          "name": "Citronsaft (pressad)",
+          "quantity": 3.0,
+          "unit": "msk",
+          "notes": null
+        },
+        {
+          "name": "Honung (eller vaniljpulver)",
+          "quantity": 2.0,
+          "unit": "msk",
+          "notes": "Raw honung för strikt raw"
+        },
+        {
+          "name": "Vaniljpulver",
+          "quantity": 0.5,
+          "unit": "tsk",
+          "notes": null
+        },
+        {
+          "name": "Bär (valfria)",
+          "quantity": 1.5,
+          "unit": "dl",
+          "notes": "Att toppa med"
+        }
+      ],
+      "instructions": [
+        {
+          "stepNumber": 1,
+          "text": "Botten: Kör sötmandlar och dadlar i en mixer med S-blad till en deg."
+        },
+        {
+          "stepNumber": 2,
+          "text": "Klä en liten springform (16-17 cm) med gladpack. Tryck ut degen jämnt i formen."
+        },
+        {
+          "stepNumber": 3,
+          "text": "Fyllning ("
+        },
+        {
+          "stepNumber": 4,
+          "text": "): Kör cashewnötter till så fint mjöl som möjligt i blender/mixer."
+        },
+        {
+          "stepNumber": 5,
+          "text": "Tillsätt vatten, pressad citron, honung och vaniljpulver i mixern. Kör tills det blir en slät kräm/fyllning."
+        },
+        {
+          "stepNumber": 6,
+          "text": "Bred ut fyllningen över botten."
+        },
+        {
+          "stepNumber": 7,
+          "text": "Låt gärna kakan stå i kylen en timme eller två så blir den lättare att skära upp."
+        },
+        {
+          "stepNumber": 8,
+          "text": "Topping: Lägg på valfria bär när det är dags att servera."
+        }
+      ]
+    },
+    {
+      "name": "Citron- och Marängpaj",
+      "description": "Klassisk sötsyrlig paj med frasig botten, len citronkräm och fluffig maräng. En lyxig dessert som kräver lite tid men är värd besväret.",
+      "prepTime": 45,
+      "cookTime": 25,
+      "servings": 8,
+      "category": "Dessert",
+      "tags": [
+        "baking",
+        "citrus",
+        "party",
+        "classic"
+      ],
+      "ingredients": [
+        {
+          "name": "Vetemjöl",
+          "quantity": 3.0,
+          "unit": "dl",
+          "notes": "Till pajdeg"
+        },
+        {
+          "name": "Smör",
+          "quantity": 150.0,
+          "unit": "g",
+          "notes": "Till pajdeg"
+        },
+        {
+          "name": "Ägg",
+          "quantity": 1.0,
+          "unit": "st",
+          "notes": "Till pajdeg"
+        },
+        {
+          "name": "Vatten",
+          "quantity": 3.0,
+          "unit": "dl",
+          "notes": null
+        },
+        {
+          "name": "Strösocker",
+          "quantity": 1.5,
+          "unit": "dl",
+          "notes": "Till krämen"
+        },
+        {
+          "name": "Majsstärkelse (Maizena)",
+          "quantity": 4.0,
+          "unit": "msk",
+          "notes": null
+        },
+        {
+          "name": "Citroner",
+          "quantity": 2.0,
+          "unit": "st",
+          "notes": "Saft och skal"
+        },
+        {
+          "name": "Äggulor",
+          "quantity": 3.0,
+          "unit": "st",
+          "notes": null
+        },
+        {
+          "name": "Smör",
+          "quantity": 2.0,
+          "unit": "msk",
+          "notes": "Till krämen"
+        },
+        {
+          "name": "Äggvitor",
+          "quantity": 3.0,
+          "unit": "st",
+          "notes": null
+        },
+        {
+          "name": "Strösocker",
+          "quantity": 0.5,
+          "unit": "dl",
+          "notes": "Till marängen"
+        }
+      ],
+      "instructions": [
+        {
+          "stepNumber": 1,
+          "text": "PAJDEG: Hacka samman mjöl och smör till en grynig massa. Tillsätt ägget och arbeta snabbt ihop till en deg."
+        },
+        {
+          "stepNumber": 2,
+          "text": "Tryck ut degen i en rund form (ca 25 cm). Låt vila i kylen i 15 minuter."
+        },
+        {
+          "stepNumber": 3,
+          "text": "Nagga botten och förgrädda i mitten av ugnen i 225°C i ca 15 minuter. Låt svalna."
+        },
+        {
+          "stepNumber": 4,
+          "text": "CITRONKRÄM: Blanda vatten, socker, majsstärkelse och pressad citronsaft i en kastrull. Koka upp under omrörning."
+        },
+        {
+          "stepNumber": 5,
+          "text": "Dra av från plattan. Rör ner äggulorna. Sjud upp krämen igen under omrörning tills den tjocknar (får ej koka!)."
+        },
+        {
+          "stepNumber": 6,
+          "text": "Blanda i rivet citronskal och smör (2 msk). Låt krämen svalna något och häll den sedan i pajskalet."
+        },
+        {
+          "stepNumber": 7,
+          "text": "MARÄNG: Vispa äggvitorna till hårt skum. Tillsätt sockret och vispa tills smeten är styv."
+        },
+        {
+          "stepNumber": 8,
+          "text": "Bred marängen över citronkrämen (se till att den täcker ända ut till kanterna)."
+        },
+        {
+          "stepNumber": 9,
+          "text": "Grädda mitt i ugnen i 175°C i ca 10 minuter tills marängen fått fin färg."
+        }
       ]
     }
   ],

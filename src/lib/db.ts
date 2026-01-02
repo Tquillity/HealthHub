@@ -19,7 +19,8 @@ const createPrismaClient = () => {
     connectionString,
     max: 10, // Limit connections to prevent Neon exhaustion
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 2000,
+    connectionTimeoutMillis: 10000, // Increased timeout for Neon connections
+    statement_timeout: 30000, // 30 second statement timeout
   });
 
   const adapter = new PrismaPg(pool);

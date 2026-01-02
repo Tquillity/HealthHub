@@ -97,12 +97,6 @@ export function RoutinesClient({ routines: initialRoutines }: RoutinesClientProp
     setIsSubmitting(false);
   };
 
-
-  const [lotteryCount, setLotteryCount] = useState(1);
-  const [lotteryContext, setLotteryContext] = useState<string>('');
-  const [lotteryDuration, setLotteryDuration] = useState<string>('');
-  const [lotteryDifficulty, setLotteryDifficulty] = useState<string>('');
-
   const handleDrawLottery = async () => {
     setLotterySpinning(true);
     setLotteryResult(null);
@@ -137,8 +131,6 @@ export function RoutinesClient({ routines: initialRoutines }: RoutinesClientProp
 
     setLotterySpinning(false);
   };
-
-  const [lotteryResults, setLotteryResults] = useState<Routine[]>([]);
 
   return (
     <>

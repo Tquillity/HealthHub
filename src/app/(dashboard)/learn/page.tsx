@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
 import { auth } from '@/lib/auth';
-import { getResources } from '@/actions/education-actions';
+import { getEducationalResources } from '@/actions/education-actions';
 import { LearnClient } from '@/components/learn/learn-client';
 import { BookOpen } from 'lucide-react';
 
@@ -23,12 +23,16 @@ export default async function LearnPage({
   const tag = typeof params.tag === 'string' ? params.tag : undefined;
   const featured = params.featured === 'true' ? true : undefined;
   const search = typeof params.search === 'string' ? params.search : undefined;
+  const difficulty = typeof params.difficulty === 'string' ? params.difficulty : undefined;
 
-  const result = await getResources({
+  // Combine search and tag into query if needed
+  const query = search || tag;
+
+  const result = await getEducationalResources({
     category,
-    tag,
+    query,
     featured,
-    search,
+    difficulty,
   });
 
   const resources = result.data || [];
