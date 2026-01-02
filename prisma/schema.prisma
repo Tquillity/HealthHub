@@ -24,6 +24,10 @@ model User {
   dietaryRestrictions String[] @default([])
   healthGoals         String[] @default([])
   timezone            String?  @default("UTC")
+  
+  // Meal planner preferences
+  mealPlanDuration    String?  @default("1week") // "1week", "2weeks", "1month"
+  mealPlanStartDate   String?  // ISO date string, null means "today"
 
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt

@@ -12,6 +12,8 @@ const UpdateProfileSchema = z.object({
   dietaryRestrictions: z.array(z.string()).optional(),
   healthGoals: z.array(z.string()).optional(),
   timezone: z.string().optional(),
+  mealPlanDuration: z.enum(['1week', '2weeks', '1month']).optional(),
+  mealPlanStartDate: z.string().nullable().optional(), // ISO date string or null
 });
 
 export async function updateProfile(data: z.infer<typeof UpdateProfileSchema>) {
@@ -40,6 +42,10 @@ export async function updateProfile(data: z.infer<typeof UpdateProfileSchema>) {
           healthGoals: validated.healthGoals,
         }),
         ...(validated.timezone && { timezone: validated.timezone }),
+        ...(validated.mealPlanDuration && { mealPlanDuration: validated.mealPlanDuration }),
+        ...(validated.mealPlanStartDate !== undefined && {
+          mealPlanStartDate: validated.mealPlanStartDate,
+        }),
       },
     });
 
@@ -66,19 +72,27 @@ export async function getProfile() {
 
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        image: true,
-        energyLevel: true,
-        dietaryRestrictions: true,
-        healthGoals: true,
-        timezone: true,
-      },
     });
 
-    return { success: true, error: null, data: user };
+    if (!user) {
+      return { success: false, error: 'User not found', data: null };
+    }
+
+    // Return user data with type-safe access to new fields
+    const userData = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      image: user.image,
+      energyLevel: user.energyLevel,
+      dietaryRestrictions: user.dietaryRestrictions,
+      healthGoals: user.healthGoals,
+      timezone: user.timezone,
+      mealPlanDuration: (user as any).mealPlanDuration || null,
+      mealPlanStartDate: (user as any).mealPlanStartDate || null,
+    };
+
+    return { success: true, error: null, data: userData };
   } catch (error) {
     console.error('Error fetching profile:', error);
     return { success: false, error: 'Failed to fetch profile', data: null };

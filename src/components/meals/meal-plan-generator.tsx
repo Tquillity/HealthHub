@@ -15,6 +15,7 @@ export function MealPlanGenerator({ onGenerate }: MealPlanGeneratorProps) {
   const router = useRouter();
   const [showDialog, setShowDialog] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     weekStart: new Date().toISOString().split('T')[0],
     dietaryRestrictions: [] as string[],
@@ -65,6 +66,7 @@ export function MealPlanGenerator({ onGenerate }: MealPlanGeneratorProps) {
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsGenerating(true);
+    setError(null);
 
     const result = await generateMealPlan({
       weekStart: formData.weekStart,
@@ -78,18 +80,22 @@ export function MealPlanGenerator({ onGenerate }: MealPlanGeneratorProps) {
 
     if (result.success) {
       setShowDialog(false);
+      setError(null);
       // Refresh the page to show the new meal plan
       router.refresh();
       // Call optional callback if provided
       onGenerate?.();
     } else {
-      alert(result.error || 'Failed to generate meal plan');
+      setError(result.error || 'Failed to generate meal plan');
     }
   };
 
   return (
     <>
-      <Button onClick={() => setShowDialog(true)} className="gap-2" variant="outline">
+      <Button onClick={() => {
+        setShowDialog(true);
+        setError(null);
+      }} className="gap-2" variant="outline">
         <Sparkles className="h-4 w-4" />
         Generate Meal Plan
       </Button>
@@ -107,7 +113,7 @@ export function MealPlanGenerator({ onGenerate }: MealPlanGeneratorProps) {
             <form onSubmit={handleGenerate} className="space-y-6">
               {/* Week Start Date */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-3">
                   Week Start Date
                 </label>
                 <div className="relative">
@@ -124,10 +130,10 @@ export function MealPlanGenerator({ onGenerate }: MealPlanGeneratorProps) {
 
               {/* Dietary Restrictions */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-3">
                   Dietary Restrictions
                 </label>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-3">
                   {dietaryOptions.map((option) => (
                     <button
                       key={option}
@@ -153,10 +159,10 @@ export function MealPlanGenerator({ onGenerate }: MealPlanGeneratorProps) {
 
               {/* Health Goals */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-3">
                   Health Goals
                 </label>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-3">
                   {healthGoalOptions.map((goal) => (
                     <button
                       key={goal}
@@ -182,10 +188,10 @@ export function MealPlanGenerator({ onGenerate }: MealPlanGeneratorProps) {
 
               {/* Cuisine Preferences */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-3">
                   Cuisine Preferences
                 </label>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-3">
                   {cuisineOptions.map((cuisine) => (
                     <button
                       key={cuisine}
@@ -211,7 +217,7 @@ export function MealPlanGenerator({ onGenerate }: MealPlanGeneratorProps) {
 
               {/* Avoid Ingredients */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-3">
                   Avoid Ingredients (comma-separated)
                 </label>
                 <Input
@@ -221,7 +227,13 @@ export function MealPlanGenerator({ onGenerate }: MealPlanGeneratorProps) {
                 />
               </div>
 
-              <div className="flex justify-end gap-3 pt-4">
+              {error && (
+                <div className="rounded-lg bg-red-50 border border-red-200 p-4">
+                  <p className="text-sm text-red-800">{error}</p>
+                </div>
+              )}
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
                 <Button
                   type="button"
                   variant="outline"

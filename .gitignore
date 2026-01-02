@@ -26,6 +26,9 @@ node_modules/
 .next/lock
 .next/turbopack.lock
 
+# Turborepo cache and logs
+.turbo/
+
 # Production builds (some frameworks/Next export)
 /dist/
 

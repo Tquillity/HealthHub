@@ -6,12 +6,21 @@ import { headers } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { endOfWeek, startOfWeek, addDays, eachDayOfInterval } from 'date-fns';
 
-export async function getWeeklyPlan(date = new Date()) {
+export async function getWeeklyPlan(date?: Date) {
   const session = await auth.api.getSession({
     headers: await headers(),
   });
 
   if (!session) throw new Error('Unauthorized');
+
+  // Get user preferences (with fallback for fields that might not exist yet)
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+  });
+  
+  // Extract meal planner preferences (with type safety)
+  const mealPlanDuration = (user as any)?.mealPlanDuration || null;
+  const mealPlanStartDate = (user as any)?.mealPlanStartDate || null;
 
   const membership = await prisma.member.findFirst({
     where: { userId: session.user.id },
@@ -20,13 +29,58 @@ export async function getWeeklyPlan(date = new Date()) {
 
   if (!membership) throw new Error('No household found');
 
-  const start = startOfWeek(date, { weekStartsOn: 1 });
-  const end = endOfWeek(date, { weekStartsOn: 1 });
+  // Determine start date: use provided date, or user preference, or today
+  let startDate: Date;
+  if (date) {
+    startDate = date;
+  } else if (mealPlanStartDate) {
+    startDate = new Date(mealPlanStartDate);
+  } else {
+    startDate = new Date();
+    // If using default (today), start from today, not start of week
+    startDate.setHours(0, 0, 0, 0);
+  }
 
+  // Determine duration: use user preference or default to 1 week
+  const duration = mealPlanDuration || '1week';
+  
+  // Calculate end date based on duration
+  let endDate: Date;
+  let daysToShow: number;
+  
+  switch (duration) {
+    case '2weeks':
+      daysToShow = 14;
+      endDate = addDays(startDate, 13);
+      break;
+    case '1month':
+      daysToShow = 30;
+      endDate = addDays(startDate, 29);
+      break;
+    case '1week':
+    default:
+      daysToShow = 7;
+      endDate = addDays(startDate, 6);
+      break;
+  }
+
+  // If using default (today) and not a custom start date, adjust to show from today forward
+  const useDefaultStart = !mealPlanStartDate && !date;
+  if (useDefaultStart) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    // Only adjust if startDate is in the past
+    if (startDate < today) {
+      startDate = today;
+      endDate = addDays(startDate, daysToShow - 1);
+    }
+  }
+
+  // Find or create meal plan
   let plan = await prisma.mealPlan.findFirst({
     where: {
       organizationId: membership.organizationId,
-      startDate: start,
+      startDate: startDate,
     },
     include: {
       items: {
@@ -39,8 +93,8 @@ export async function getWeeklyPlan(date = new Date()) {
     plan = await prisma.mealPlan.create({
       data: {
         organizationId: membership.organizationId,
-        startDate: start,
-        endDate: end,
+        startDate: startDate,
+        endDate: endDate,
       },
       include: {
         items: { include: { recipe: true } },
@@ -48,7 +102,14 @@ export async function getWeeklyPlan(date = new Date()) {
     });
   }
 
-  return { plan, recipes: await getAvailableRecipes(membership.organizationId) };
+  return { 
+    plan, 
+    recipes: await getAvailableRecipes(membership.organizationId),
+    duration,
+    startDate,
+    endDate,
+    useDefaultStart,
+  };
 }
 
 async function getAvailableRecipes(orgId: string) {
@@ -202,14 +263,29 @@ export async function generateMealPlan(data: {
     });
 
     if (filteredRecipes.length === 0) {
+      // Provide more helpful error message
+      let errorMsg = 'No recipes match your preferences.';
+      if (allDietaryRestrictions.length > 0) {
+        errorMsg += ` No recipes found with dietary restrictions: ${allDietaryRestrictions.join(', ')}.`;
+      }
+      if (data.cuisinePreferences.length > 0) {
+        errorMsg += ` No recipes found for cuisines: ${data.cuisinePreferences.join(', ')}.`;
+      }
+      errorMsg += ' Try adjusting your filters or adding more recipes.';
       return {
         success: false,
-        error: 'No recipes match your preferences. Try adjusting your filters.',
+        error: errorMsg,
       };
     }
 
-    // Meal types for the week
-    const mealTypes = ['breakfast', 'lunch', 'dinner'];
+    // Meal types for the week - map to recipe categories
+    const mealTypes = ['breakfast', 'lunch', 'dinner'] as const;
+    const categoryMap: Record<string, string[]> = {
+      breakfast: ['Breakfast', 'breakfast', 'Snack'],
+      lunch: ['Lunch', 'lunch', 'Snack'],
+      dinner: ['Dinner', 'dinner', 'Main Course'],
+    };
+
     const mealPlanItems: Array<{
       mealPlanId: string;
       recipeId: string;
@@ -221,9 +297,30 @@ export async function generateMealPlan(data: {
     // Generate meals for each day
     for (const day of weekDays) {
       for (const mealType of mealTypes) {
-        // Randomly select a recipe (can be improved with better algorithm)
+        // Filter recipes by meal type (category)
+        const categoryOptions = categoryMap[mealType] || [];
+        const recipesForMeal = filteredRecipes.filter((recipe) => {
+          if (!recipe.category) return true; // If no category, include it
+          return categoryOptions.some(
+            (cat) => recipe.category?.toLowerCase() === cat.toLowerCase()
+          );
+        });
+
+        // If no recipes match the meal type, use all filtered recipes
+        const availableRecipes = recipesForMeal.length > 0 
+          ? recipesForMeal 
+          : filteredRecipes;
+
+        if (availableRecipes.length === 0) {
+          return {
+            success: false,
+            error: `No recipes available for ${mealType}. Please add recipes or adjust your filters.`,
+          };
+        }
+
+        // Randomly select a recipe
         const randomRecipe =
-          filteredRecipes[Math.floor(Math.random() * filteredRecipes.length)];
+          availableRecipes[Math.floor(Math.random() * availableRecipes.length)];
         mealPlanItems.push({
           mealPlanId: plan.id,
           recipeId: randomRecipe.id,
