@@ -22,8 +22,8 @@ interface Instruction {
 
 interface RecipeFormProps {
   recipe?: RecipeWithDetails;
-  onSuccess: () => void;
-  onCancel: () => void;
+  onSuccess?: () => void;
+  onCancel?: () => void;
 }
 
 export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
@@ -186,7 +186,7 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
         router.push('/recipes');
       }
       router.refresh();
-      onSuccess();
+      onSuccess?.();
     } else {
       setErrors({ submit: result.error || 'Failed to save recipe' });
       setIsSubmitting(false);
@@ -698,6 +698,7 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
             } else {
               router.push('/recipes');
             }
+            onCancel?.();
           }}
         >
           Cancel

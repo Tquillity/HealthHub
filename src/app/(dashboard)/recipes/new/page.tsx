@@ -42,10 +42,7 @@ export default async function NewRecipePage() {
         </p>
       </div>
 
-      <RecipeForm
-        onSuccess={() => {}}
-        onCancel={() => {}}
-      />
+      <RecipeForm />
     </div>
   );
 }

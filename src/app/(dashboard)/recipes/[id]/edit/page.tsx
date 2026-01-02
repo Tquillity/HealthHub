@@ -61,11 +61,7 @@ export default async function EditRecipePage({
         </p>
       </div>
 
-      <RecipeForm
-        recipe={recipe}
-        onSuccess={() => {}}
-        onCancel={() => {}}
-      />
+      <RecipeForm recipe={recipe} />
     </div>
   );
 }

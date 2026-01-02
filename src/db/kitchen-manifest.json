@@ -1898,6 +1898,202 @@
           "text": "Grädda mitt i ugnen i 175°C i ca 10 minuter tills marängen fått fin färg."
         }
       ]
+    },
+    {
+      "name": "Mejerifri zucchinilasagne",
+      "description": "En krämig och rund zucchinilasagne med kokosmjölk. Perfekt för Paleo, LCHF och glutenfria dieter. Min man tycker att det blir en så god och rund smak med kokos i, och det håller jag verkligen med om!",
+      "prepTime": 20,
+      "cookTime": 45,
+      "servings": 4,
+      "category": "Dinner",
+      "difficulty": "medium",
+      "tags": [
+        "LCHF",
+        "Paleo",
+        "Lasagne",
+        "Zucchini",
+        "gluten-free",
+        "dairy-free"
+      ],
+      "dietaryTags": [
+        "Glutenfri",
+        "Mejerifri",
+        "Paleo",
+        "LCHF"
+      ],
+      "ingredients": [
+        {
+          "name": "Gul eller röd lök",
+          "quantity": 2,
+          "unit": "st"
+        },
+        {
+          "name": "Vitlök",
+          "quantity": 0.5,
+          "unit": "st"
+        },
+        {
+          "name": "Nötfärs",
+          "quantity": 500,
+          "unit": "g"
+        },
+        {
+          "name": "Passerade tomater",
+          "quantity": 500,
+          "unit": "g"
+        },
+        {
+          "name": "Tomatpuré",
+          "quantity": 2,
+          "unit": "msk"
+        },
+        {
+          "name": "Herbamare",
+          "quantity": 1,
+          "unit": "tsk"
+        },
+        {
+          "name": "Äppelcidervinäger",
+          "quantity": 1,
+          "unit": "msk",
+          "notes": "Balsamvinäger borde funka också"
+        },
+        {
+          "name": "Kokosmjölk",
+          "quantity": 2,
+          "unit": "dl"
+        },
+        {
+          "name": "Zucchini",
+          "quantity": 500,
+          "unit": "g"
+        },
+        {
+          "name": "Kokosolja",
+          "quantity": 1,
+          "unit": "msk",
+          "notes": "Till stekning"
+        },
+        {
+          "name": "Peppar",
+          "quantity": 1,
+          "unit": "krm",
+          "notes": "Efter smak"
+        }
+      ],
+      "instructions": [
+        {
+          "stepNumber": 1,
+          "text": "Sätt ugnen på 175 grader. Skölj och skär zucchinin i smala skivor, cirka 3-5 mm tjocka."
+        },
+        {
+          "stepNumber": 2,
+          "text": "Salta zucchinin och lägg på en plåt (med olja eller bakplåtspapper). Ställ in i ugnen cirka 10 minuter för att svetta av vätskan. Detta gör att det blir ett krämigare resultat."
+        },
+        {
+          "stepNumber": 3,
+          "text": "Skala och hacka löken och vitlök. Bryn i kokosolja i en stekpanna."
+        },
+        {
+          "stepNumber": 4,
+          "text": "Lägg i färsen och stek den så den får fin färg."
+        },
+        {
+          "stepNumber": 5,
+          "text": "Ha kvar allt i stekpannan (på detta sätt försvinner vätskan och det blir krämigare). Tillsätt de passerade tomaterna, tomatpuré, herbamare, vinäger, kokosmjölk och peppar. Låt koka cirka 10 minuter på svag värme. Det ska inte koka helt torrt utan vara krämigt. De som menar att det blir en lös lasagne har utan tvekan låtit köttfärsen koka för kort tid, den ska vara fast inte rinna från skeden."
+        },
+        {
+          "stepNumber": 6,
+          "text": "Varva köttfärs (lägg i botten) och zucchini. Avsluta med köttfärs."
+        },
+        {
+          "stepNumber": 7,
+          "text": "Grädda i ugnen ca 15-20 minuter. Servera med en stor sallad."
+        }
+      ]
+    },
+    {
+      "name": "Krämig Potatispuré (Mästerklass)",
+      "description": "En tekniskt avancerad potatispuré som utnyttjar kemiska processer mellan pektin och kalcium för att skapa en perfekt konsistens som tål uppvärmning utan att bli klistrig.",
+      "prepTime": 20,
+      "cookTime": 60,
+      "servings": 4,
+      "category": "Tillbehör / Grundrecept",
+      "difficulty": "hard",
+      "tags": [
+        "Potatis",
+        "Vetenskap",
+        "Grundrecept",
+        "Mästerklass"
+      ],
+      "dietaryTags": [
+        "Vegetariskt",
+        "Glutenfri"
+      ],
+      "ingredients": [
+        {
+          "name": "Halvfast potatis (t.ex. Nicola)",
+          "quantity": 1.2,
+          "unit": "kg",
+          "notes": "Skalad vikt"
+        },
+        {
+          "name": "Smör (kallt)",
+          "quantity": 180,
+          "unit": "g",
+          "notes": "Motsvarar ca 15% av potatisvikten"
+        },
+        {
+          "name": "Mjölk eller kokvatten",
+          "quantity": 2,
+          "unit": "dl",
+          "notes": "Tillsätt efter behov för önskad konsistens"
+        },
+        {
+          "name": "Salt",
+          "quantity": 1,
+          "unit": "tsk",
+          "notes": "Till det andra kokvattnet"
+        }
+      ],
+      "instructions": [
+        {
+          "stepNumber": 1,
+          "text": "Skala potatisen och skär i ca 3 cm tjocka skivor. Skölj noga i kallt vatten för att få bort ytstärkelse."
+        },
+        {
+          "stepNumber": 2,
+          "text": "Värm upp rikligt med osaltat vatten till ca 80 grader."
+        },
+        {
+          "stepNumber": 3,
+          "text": "Lägg i potatisen och håll vattentemperaturen strikt mellan 65-70 grader i 30 minuter (detta stärker cellväggarna)."
+        },
+        {
+          "stepNumber": 4,
+          "text": "Ta ut potatisen och skölj under kallt vatten tills den är helt genomkall."
+        },
+        {
+          "stepNumber": 5,
+          "text": "Koka upp nytt vatten med lite salt. Lägg i potatisen och sjud tills den är mjuk men inte faller isär."
+        },
+        {
+          "stepNumber": 6,
+          "text": "Häll av vattnet (spara lite om du vill späda med det senare). Låt potatisen ånga av i kastrullen tills ytan är helt torr."
+        },
+        {
+          "stepNumber": 7,
+          "text": "Skiva det kalla smöret i en bunke. Pressa den varma potatisen direkt över smöret med en potatispress."
+        },
+        {
+          "stepNumber": 8,
+          "text": "Rör om tills smöret smält helt. Pressa sedan moset genom en finmaskig sil ner i en kastrull för en silkeslen puré."
+        },
+        {
+          "stepNumber": 9,
+          "text": "Värm upp purén under omrörning och tillsätt mjölk eller kokvatten till önskad konsistens."
+        }
+      ]
     }
   ],
   "routines": [

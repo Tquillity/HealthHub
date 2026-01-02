@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { RecipeCard } from './recipe-card';
 import { RecipeListView } from './recipe-list-view';
 import { RecipeFiltersEnhanced } from './recipe-filters-enhanced';
@@ -61,6 +61,16 @@ export function RecipesClient({
     router.push(`/recipes/${recipe.id}/edit`);
   };
 
+  // Filter recipes client-side based on selected category
+  const filteredRecipes = useMemo(() => {
+    if (!category || category === 'all') {
+      return initialRecipes;
+    }
+    return initialRecipes.filter((recipe) => 
+      recipe.category?.toLowerCase() === category.toLowerCase()
+    );
+  }, [initialRecipes, category]);
+
   return (
     <>
       {/* View Type Tab Navigation */}
@@ -87,6 +97,18 @@ export function RecipesClient({
             📋 List View {isAdmin ? '(Management)' : ''}
           </button>
         </nav>
+      </div>
+
+      {/* Filters */}
+      <div className="mb-6">
+        <RecipeFiltersEnhanced categories={categories} />
+      </div>
+
+      {/* Results Count */}
+      <div className="mb-4 flex items-center justify-between">
+        <p className="text-gray-600">
+          {filteredRecipes.length} recipe{filteredRecipes.length !== 1 ? 's' : ''} found
+        </p>
       </div>
 
       {/* Category Tabs */}
@@ -118,24 +140,12 @@ export function RecipesClient({
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="mb-6">
-        <RecipeFiltersEnhanced categories={categories} />
-      </div>
-
-      {/* Results Count */}
-      <div className="mb-6 flex items-center justify-between">
-        <p className="text-gray-600">
-          {initialRecipes.length} recipe{initialRecipes.length !== 1 ? 's' : ''} found
-        </p>
-      </div>
-
       {/* Content based on active tab */}
       {activeTab === 'gallery' ? (
         <>
-          {initialRecipes.length > 0 ? (
+          {filteredRecipes.length > 0 ? (
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {initialRecipes.map((recipe) => (
+              {filteredRecipes.map((recipe) => (
                 <RecipeCard key={recipe.id} recipe={recipe} />
               ))}
             </div>
@@ -150,7 +160,7 @@ export function RecipesClient({
         </>
       ) : (
         <RecipeListView
-          recipes={initialRecipes}
+          recipes={filteredRecipes}
           isAdmin={isAdmin}
           onDelete={handleDelete}
           onEdit={handleEdit}

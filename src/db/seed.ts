@@ -22,6 +22,9 @@ interface KitchenManifestRecipe {
   servings?: number;
   category?: string;
   tags?: string[];
+  difficulty?: string;
+  cuisine?: string;
+  dietaryTags?: string[];
   ingredients: Array<{
     name: string;
     quantity: number;
@@ -197,6 +200,9 @@ async function seed() {
             servings: recipeData.servings || null,
             category: recipeData.category || null,
             tags: recipeData.tags || [],
+            difficulty: recipeData.difficulty || null,
+            cuisine: recipeData.cuisine || null,
+            dietaryTags: recipeData.dietaryTags || [],
             isSystem: true,
             organizationId: null,
           },
