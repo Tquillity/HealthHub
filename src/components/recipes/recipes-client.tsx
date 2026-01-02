@@ -7,6 +7,7 @@ import { RecipeFiltersEnhanced } from './recipe-filters-enhanced';
 import { SafeDeleteModal } from '@/components/ui/safe-delete-modal';
 import { deleteRecipe } from '@/actions/recipe-actions';
 import { useRouter } from 'next/navigation';
+import { useQueryState, parseAsString } from 'nuqs';
 import type { RecipeWithDetails } from '@/actions/recipe-actions';
 
 interface RecipesClientProps {
@@ -26,6 +27,10 @@ export function RecipesClient({
 }: RecipesClientProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'gallery' | 'list'>('gallery');
+  const [category, setCategory] = useQueryState(
+    'category',
+    parseAsString.withDefault('all')
+  );
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [recipeToDelete, setRecipeToDelete] = useState<RecipeWithDetails | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -58,8 +63,8 @@ export function RecipesClient({
 
   return (
     <>
-      {/* Tab Navigation */}
-      <div className="mb-6 border-b border-gray-200">
+      {/* View Type Tab Navigation */}
+      <div className="mb-4 border-b border-gray-200">
         <nav className="-mb-px flex space-x-8">
           <button
             onClick={() => setActiveTab('gallery')}
@@ -67,7 +72,7 @@ export function RecipesClient({
               activeTab === 'gallery'
                 ? 'border-primary-500 text-primary-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            } whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium transition-colors`}
+            } whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium transition-colors cursor-pointer`}
           >
             🖼️ Gallery View
           </button>
@@ -77,11 +82,40 @@ export function RecipesClient({
               activeTab === 'list'
                 ? 'border-primary-500 text-primary-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            } whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium transition-colors`}
+            } whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium transition-colors cursor-pointer`}
           >
             📋 List View {isAdmin ? '(Management)' : ''}
           </button>
         </nav>
+      </div>
+
+      {/* Category Tabs */}
+      <div className="mb-6">
+        <div className="flex flex-wrap gap-2 border-b border-gray-200 pb-4">
+          <button
+            onClick={() => setCategory('all')}
+            className={`${
+              category === 'all' || !category
+                ? 'bg-primary-600 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            } rounded-full px-4 py-2 text-sm font-medium transition-colors cursor-pointer`}
+          >
+            All
+          </button>
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setCategory(cat)}
+              className={`${
+                category === cat
+                  ? 'bg-primary-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              } rounded-full px-4 py-2 text-sm font-medium transition-colors cursor-pointer capitalize`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Filters */}

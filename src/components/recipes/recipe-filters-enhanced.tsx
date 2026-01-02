@@ -64,10 +64,15 @@ export function RecipeFiltersEnhanced({ categories }: RecipeFiltersEnhancedProps
     <div className="mb-6 space-y-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
       {/* Search */}
       <div className="relative">
+        <label htmlFor="recipe-search" className="sr-only">
+          Search recipes
+        </label>
         <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
           <Search className="h-4 w-4 text-gray-400" />
         </div>
         <Input
+          id="recipe-search"
+          name="recipe-search"
           placeholder="Search recipes..."
           value={query}
           onChange={(e) => startTransition(() => setQuery(e.target.value))}
@@ -77,28 +82,13 @@ export function RecipeFiltersEnhanced({ categories }: RecipeFiltersEnhancedProps
 
       {/* Filters Row */}
       <div className="flex flex-wrap gap-3">
-        {/* Category */}
-        <div>
-          <label className="mb-1 block text-xs font-medium text-gray-500">Category</label>
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            className="flex h-9 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm"
-          >
-            <option value="all">All Categories</option>
-            {categories.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
-              </option>
-            ))}
-          </select>
-        </div>
-
         {/* Difficulty */}
         {filterOptions.difficulties.length > 0 && (
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-500">Difficulty</label>
+            <label htmlFor="recipe-difficulty-filter" className="mb-1 block text-xs font-medium text-gray-500">Difficulty</label>
             <select
+              id="recipe-difficulty-filter"
+              name="recipe-difficulty-filter"
               value={difficulty || ''}
               onChange={(e) => setDifficulty(e.target.value || null)}
               className="flex h-9 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm"
@@ -116,8 +106,10 @@ export function RecipeFiltersEnhanced({ categories }: RecipeFiltersEnhancedProps
         {/* Cuisine */}
         {filterOptions.cuisines.length > 0 && (
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-500">Cuisine</label>
+            <label htmlFor="recipe-cuisine-filter" className="mb-1 block text-xs font-medium text-gray-500">Cuisine</label>
             <select
+              id="recipe-cuisine-filter"
+              name="recipe-cuisine-filter"
               value={cuisine || ''}
               onChange={(e) => setCuisine(e.target.value || null)}
               className="flex h-9 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm"
@@ -168,8 +160,10 @@ export function RecipeFiltersEnhanced({ categories }: RecipeFiltersEnhancedProps
         {/* LEAN Role */}
         {filterOptions.leanRoles.length > 0 && (
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-500">LEAN Role</label>
+            <label htmlFor="recipe-lean-role-filter" className="mb-1 block text-xs font-medium text-gray-500">LEAN Role</label>
             <select
+              id="recipe-lean-role-filter"
+              name="recipe-lean-role-filter"
               value={leanRole || ''}
               onChange={(e) => setLeanRole(e.target.value || null)}
               className="flex h-9 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm"

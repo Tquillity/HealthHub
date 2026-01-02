@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/db';
 import { auth } from '@/lib/auth';
@@ -67,15 +68,14 @@ export default async function RecipeDetailPage({
         <div className="lg:col-span-2">
           {/* Recipe Image */}
           {recipe.imageUrl && (
-            <div className="mb-8 aspect-video w-full overflow-hidden rounded-lg bg-gray-100">
-              <img
+            <div className="mb-8 aspect-video w-full overflow-hidden rounded-lg bg-gray-100 relative">
+              <Image
                 src={recipe.imageUrl}
                 alt={recipe.name}
-                className="h-full w-full object-cover"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  target.style.display = 'none';
-                }}
+                fill
+                className="object-cover"
+                loading="lazy"
+                sizes="(max-width: 768px) 100vw, 66vw"
               />
             </div>
           )}

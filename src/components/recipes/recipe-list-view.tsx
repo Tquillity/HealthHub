@@ -167,14 +167,14 @@ export function RecipeListView({
                         <div className="flex items-center justify-end gap-3">
                           <button
                             onClick={() => onEdit(recipe)}
-                            className="flex items-center gap-1 text-primary-600 transition-colors hover:text-primary-900"
+                            className="flex cursor-pointer items-center gap-1 text-primary-600 transition-colors hover:text-primary-900"
                           >
                             <Edit className="h-4 w-4" />
                             <span>Edit</span>
                           </button>
                           <button
                             onClick={() => onDelete(recipe)}
-                            className="flex items-center gap-1 text-red-600 transition-colors hover:text-red-900"
+                            className="flex cursor-pointer items-center gap-1 text-red-600 transition-colors hover:text-red-900"
                           >
                             <Trash2 className="h-4 w-4" />
                             <span>Delete</span>

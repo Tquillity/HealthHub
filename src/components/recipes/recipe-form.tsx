@@ -73,9 +73,6 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [imagePreview, setImagePreview] = useState<string | null>(recipe?.imageUrl || null);
-  const [isUploading, setIsUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -236,10 +233,12 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
         <h3 className="mb-4 text-lg font-semibold text-gray-900">Basic Information</h3>
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="recipe-name" className="block text-sm font-medium text-gray-700 mb-2">
               Recipe Name *
             </label>
             <Input
+              id="recipe-name"
+              name="recipe-name"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               className={errors.name ? 'border-red-300' : ''}
@@ -249,10 +248,12 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
           </div>
 
           <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="recipe-description" className="block text-sm font-medium text-gray-700 mb-2">
               Description
             </label>
             <textarea
+              id="recipe-description"
+              name="recipe-description"
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               rows={3}
@@ -298,6 +299,8 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
                   {isUploading ? 'Uploading...' : imagePreview ? 'Change Image' : 'Upload Image'}
                 </label>
                 <Input
+                  id="image-url"
+                  name="image-url"
                   type="url"
                   value={formData.imageUrl}
                   onChange={(e) => {
@@ -315,10 +318,12 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="recipe-category" className="block text-sm font-medium text-gray-700 mb-2">
               Category
             </label>
             <select
+              id="recipe-category"
+              name="recipe-category"
               value={formData.category}
               onChange={(e) => setFormData({ ...formData, category: e.target.value })}
               className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
@@ -333,10 +338,12 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="recipe-difficulty" className="block text-sm font-medium text-gray-700 mb-2">
               Difficulty
             </label>
             <select
+              id="recipe-difficulty"
+              name="recipe-difficulty"
               value={formData.difficulty}
               onChange={(e) => setFormData({ ...formData, difficulty: e.target.value })}
               className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
@@ -351,10 +358,12 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="recipe-cuisine" className="block text-sm font-medium text-gray-700 mb-2">
               Cuisine
             </label>
             <select
+              id="recipe-cuisine"
+              name="recipe-cuisine"
               value={formData.cuisine}
               onChange={(e) => setFormData({ ...formData, cuisine: e.target.value })}
               className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
@@ -369,10 +378,12 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="recipe-prep-time" className="block text-sm font-medium text-gray-700 mb-2">
               Prep Time (minutes)
             </label>
             <Input
+              id="recipe-prep-time"
+              name="recipe-prep-time"
               type="number"
               min="0"
               value={formData.prepTime}
@@ -381,10 +392,12 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="recipe-cook-time" className="block text-sm font-medium text-gray-700 mb-2">
               Cook Time (minutes)
             </label>
             <Input
+              id="recipe-cook-time"
+              name="recipe-cook-time"
               type="number"
               min="0"
               value={formData.cookTime}
@@ -393,10 +406,12 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="recipe-servings" className="block text-sm font-medium text-gray-700 mb-2">
               Servings
             </label>
             <Input
+              id="recipe-servings"
+              name="recipe-servings"
               type="number"
               min="1"
               value={formData.servings}
@@ -405,10 +420,12 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="recipe-tags" className="block text-sm font-medium text-gray-700 mb-2">
               Tags (comma-separated)
             </label>
             <Input
+              id="recipe-tags"
+              name="recipe-tags"
               value={formData.tags}
               onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
               placeholder="healthy, quick, vegetarian"
@@ -416,10 +433,12 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="recipe-dietary-tags" className="block text-sm font-medium text-gray-700 mb-2">
               Dietary Tags (comma-separated)
             </label>
             <Input
+              id="recipe-dietary-tags"
+              name="recipe-dietary-tags"
               value={formData.dietaryTags}
               onChange={(e) => setFormData({ ...formData, dietaryTags: e.target.value })}
               placeholder="vegetarian, gluten-free, dairy-free"
@@ -433,8 +452,10 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
         <h3 className="mb-4 text-lg font-semibold text-gray-900">Nutrition Information (per serving)</h3>
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Calories</label>
+            <label htmlFor="nutrition-calories" className="block text-sm font-medium text-gray-700 mb-2">Calories</label>
             <Input
+              id="nutrition-calories"
+              name="nutrition-calories"
               type="number"
               min="0"
               step="0.1"
@@ -443,8 +464,10 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Protein (g)</label>
+            <label htmlFor="nutrition-protein" className="block text-sm font-medium text-gray-700 mb-2">Protein (g)</label>
             <Input
+              id="nutrition-protein"
+              name="nutrition-protein"
               type="number"
               min="0"
               step="0.1"
@@ -453,8 +476,10 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Carbs (g)</label>
+            <label htmlFor="nutrition-carbs" className="block text-sm font-medium text-gray-700 mb-2">Carbs (g)</label>
             <Input
+              id="nutrition-carbs"
+              name="nutrition-carbs"
               type="number"
               min="0"
               step="0.1"
@@ -463,8 +488,10 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Fat (g)</label>
+            <label htmlFor="nutrition-fat" className="block text-sm font-medium text-gray-700 mb-2">Fat (g)</label>
             <Input
+              id="nutrition-fat"
+              name="nutrition-fat"
               type="number"
               min="0"
               step="0.1"
@@ -473,8 +500,10 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Fiber (g)</label>
+            <label htmlFor="nutrition-fiber" className="block text-sm font-medium text-gray-700 mb-2">Fiber (g)</label>
             <Input
+              id="nutrition-fiber"
+              name="nutrition-fiber"
               type="number"
               min="0"
               step="0.1"
@@ -483,8 +512,10 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Sugar (g)</label>
+            <label htmlFor="nutrition-sugar" className="block text-sm font-medium text-gray-700 mb-2">Sugar (g)</label>
             <Input
+              id="nutrition-sugar"
+              name="nutrition-sugar"
               type="number"
               min="0"
               step="0.1"
@@ -493,8 +524,10 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Sodium (mg)</label>
+            <label htmlFor="nutrition-sodium" className="block text-sm font-medium text-gray-700 mb-2">Sodium (mg)</label>
             <Input
+              id="nutrition-sodium"
+              name="nutrition-sodium"
               type="number"
               min="0"
               step="0.1"
@@ -521,7 +554,12 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
           {ingredients.map((ingredient, index) => (
             <div key={index} className="grid grid-cols-12 gap-2 items-start">
               <div className="col-span-4">
+                <label htmlFor={`ingredient-name-${index}`} className="sr-only">
+                  Ingredient {index + 1} name
+                </label>
                 <Input
+                  id={`ingredient-name-${index}`}
+                  name={`ingredient-name-${index}`}
                   placeholder="Ingredient name"
                   value={ingredient.name}
                   onChange={(e) => updateIngredient(index, 'name', e.target.value)}
@@ -529,7 +567,12 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
                 />
               </div>
               <div className="col-span-2">
+                <label htmlFor={`ingredient-quantity-${index}`} className="sr-only">
+                  Ingredient {index + 1} quantity
+                </label>
                 <Input
+                  id={`ingredient-quantity-${index}`}
+                  name={`ingredient-quantity-${index}`}
                   type="number"
                   min="0"
                   step="0.1"
@@ -540,7 +583,12 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
                 />
               </div>
               <div className="col-span-3">
+                <label htmlFor={`ingredient-unit-${index}`} className="sr-only">
+                  Ingredient {index + 1} unit
+                </label>
                 <select
+                  id={`ingredient-unit-${index}`}
+                  name={`ingredient-unit-${index}`}
                   value={ingredient.unit}
                   onChange={(e) => updateIngredient(index, 'unit', e.target.value)}
                   className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
@@ -555,7 +603,12 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
                 </select>
               </div>
               <div className="col-span-2">
+                <label htmlFor={`ingredient-notes-${index}`} className="sr-only">
+                  Ingredient {index + 1} notes
+                </label>
                 <Input
+                  id={`ingredient-notes-${index}`}
+                  name={`ingredient-notes-${index}`}
                   placeholder="Notes (optional)"
                   value={ingredient.notes || ''}
                   onChange={(e) => updateIngredient(index, 'notes', e.target.value)}
@@ -598,7 +651,12 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
                 {index + 1}
               </div>
               <div className="flex-1">
+                <label htmlFor={`instruction-${index}`} className="sr-only">
+                  Instruction step {index + 1}
+                </label>
                 <textarea
+                  id={`instruction-${index}`}
+                  name={`instruction-${index}`}
                   value={instruction.text}
                   onChange={(e) => updateInstruction(index, e.target.value)}
                   rows={2}
