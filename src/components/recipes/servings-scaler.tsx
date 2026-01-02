@@ -16,6 +16,7 @@ interface Ingredient {
 interface ServingsScalerProps {
   defaultServings: number;
   ingredients: Ingredient[];
+  recipeId?: string;
 }
 
 function AddToGroceryButton({

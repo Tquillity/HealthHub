@@ -25,6 +25,7 @@ interface KitchenManifestRecipe {
   difficulty?: string;
   cuisine?: string;
   dietaryTags?: string[];
+  videoUrl?: string;
   ingredients: Array<{
     name: string;
     quantity: number;
@@ -48,6 +49,7 @@ interface KitchenManifestRoutine {
 interface KitchenManifest {
   recipes: KitchenManifestRecipe[];
   routines?: KitchenManifestRoutine[];
+  deletedRecipes?: string[]; // Recipe names that should never be seeded (user-deleted)
 }
 
 async function seed() {
@@ -181,31 +183,49 @@ async function seed() {
     const manifestPath = path.join(__dirname, 'kitchen-manifest.json');
     const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8')) as KitchenManifest;
 
-    console.log(`📝 Seeding ${manifest.recipes.length} recipes...`);
+    console.log(`📝 Seeding recipes from manifest...`);
+    const deletedRecipes = new Set(manifest.deletedRecipes || []);
+    
+    // First, delete all existing system recipes to ensure clean state
+    // This removes any recipes that were deleted by the user
+    const deletedCount = await prisma.recipe.deleteMany({
+      where: { isSystem: true },
+    });
+    console.log(`  🗑️  Deleted ${deletedCount.count} existing system recipes`);
+    
+    // Now seed all recipes from the manifest (except deleted ones)
+    let seededCount = 0;
+    let skippedCount = 0;
+    
     for (const recipeData of manifest.recipes) {
-      // Check if recipe exists to avoid duplicates on re-run
-      const existingRecipe = await prisma.recipe.findFirst({ where: { name: recipeData.name }});
-      if (existingRecipe) {
-        console.log(`  ⏭️  Recipe already exists: ${recipeData.name}`);
+      // Skip recipes that have been deleted by the user
+      if (deletedRecipes.has(recipeData.name)) {
+        console.log(`  🚫 Skipping deleted recipe: ${recipeData.name}`);
+        skippedCount++;
         continue;
       }
 
       await prisma.$transaction(async (tx) => {
+        // Prepare recipe data with explicit typing to avoid TypeScript cache issues
+        const recipeDataInput = {
+          name: recipeData.name,
+          description: recipeData.description || null,
+          imageUrl: null,
+          videoUrl: recipeData.videoUrl || null, // Video tutorial URL
+          prepTime: recipeData.prepTime || null,
+          cookTime: recipeData.cookTime || null,
+          servings: recipeData.servings || null,
+          category: recipeData.category || null,
+          tags: recipeData.tags || [],
+          difficulty: recipeData.difficulty || null,
+          cuisine: recipeData.cuisine || null,
+          dietaryTags: recipeData.dietaryTags || [],
+          isSystem: true,
+          organizationId: null,
+        } as const;
+        
         const recipe = await tx.recipe.create({
-          data: {
-            name: recipeData.name,
-            description: recipeData.description || null,
-            prepTime: recipeData.prepTime || null,
-            cookTime: recipeData.cookTime || null,
-            servings: recipeData.servings || null,
-            category: recipeData.category || null,
-            tags: recipeData.tags || [],
-            difficulty: recipeData.difficulty || null,
-            cuisine: recipeData.cuisine || null,
-            dietaryTags: recipeData.dietaryTags || [],
-            isSystem: true,
-            organizationId: null,
-          },
+          data: recipeDataInput,
         });
 
         await tx.ingredient.createMany({
@@ -227,7 +247,13 @@ async function seed() {
         });
       });
       console.log(`  ✅ Recipe: ${recipeData.name}`);
+      seededCount++;
     }
+    
+    console.log(`\n📊 Recipe seeding summary:`);
+    console.log(`   ✅ Seeded: ${seededCount} recipes`);
+    console.log(`   🚫 Skipped (deleted): ${skippedCount} recipes`);
+    console.log(`   📝 Total in manifest: ${manifest.recipes.length} recipes`);
 
     // 4. Seed Routines
     if (manifest.routines && manifest.routines.length > 0) {
@@ -526,6 +552,65 @@ async function seed() {
             difficulty: 'intermediate',
             readTime: 15,
             imageUrl: 'https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=800&h=400&fit=crop',
+            featured: true,
+          },
+          {
+            title: 'Potatisens Vetenskap: Från stärkelse till perfekt puré',
+            content: `
+              <h2>Potatisens Kemiska Struktur</h2>
+              <p>Potatis innehåller tre viktiga komponenter som påverkar konsistensen när den kokas: stärkelse, pektin och kalcium. Förståelsen av dessa komponenter är nyckeln till att skapa en perfekt potatispuré som tål uppvärmning utan att bli klistrig.</p>
+              
+              <h3>Stärkelse (Starch)</h3>
+              <p>Stärkelse är potatisens huvudsakliga kolhydrat och finns i form av små granul. När potatisen värms upp, sväller stärkelsegranulerna och absorberar vatten. Om temperaturen blir för hög eller om potatisen kokas för länge, kan stärkelsen brytas ner och bilda en klistrig, gelatinös massa.</p>
+              <ul>
+                <li><strong>Amylos:</strong> En linjär molekyl som bildar en mer stabil gel</li>
+                <li><strong>Amylopektin:</strong> En förgrenad molekyl som kan göra purén klistrig om den överkokas</li>
+              </ul>
+              
+              <h3>Pektin och Cellväggar</h3>
+              <p>Pektin är en polysackarid som finns i cellväggarna hos växter. I potatis fungerar pektin som ett "lim" som håller cellerna samman. När potatisen kokas, mjuknar pektinet och cellerna separeras, vilket gör potatisen mjuk.</p>
+              <ul>
+                <li><strong>Låg temperatur (65-70°C):</strong> Pektinet stärker cellväggarna och gör dem mer stabila</li>
+                <li><strong>Hög temperatur (100°C):</strong> Pektinet bryts ner för mycket och cellerna kollapsar</li>
+              </ul>
+              
+              <h3>Kalcium och Cellstabilitet</h3>
+              <p>Kalciumjoner spelar en kritisk roll i att stabilisera cellväggarna. Kalcium binder till pektinmolekylerna och skapar en starkare struktur som tål uppvärmning bättre.</p>
+              <ul>
+                <li><strong>Kalcium-Pektin-Bindning:</strong> Skapar en mer stabil cellvägg som inte kollapsar lika lätt</li>
+                <li><strong>Vattenhårdhet:</strong> Kalcium i kokvattnet kan hjälpa till att stärka cellväggarna</li>
+              </ul>
+              
+              <h3>Varför Tvåstegsmetoden Fungerar</h3>
+              <p>Mästerklass-receptet använder en tvåstegsmetod som utnyttjar dessa kemiska processer:</p>
+              <ol>
+                <li><strong>Första steget (65-70°C, 30 min):</strong> Vid denna temperatur stärks pektinet och cellväggarna stabiliseras med kalcium. Stärkelsegranulerna sväller långsamt utan att brytas ner.</li>
+                <li><strong>Andra steget (kokning):</strong> Efter att cellväggarna har stabiliserats, kan potatisen kokas till mjukhet utan att cellerna kollapsar helt. Stärkelsen gelatiniserar kontrollerat.</li>
+              </ol>
+              
+              <h3>Praktiska Tips</h3>
+              <ul>
+                <li><strong>Sköljning:</strong> Att skölja bort ytstärkelse förhindrar att den bildar en klistrig hinna</li>
+                <li><strong>Temperaturkontroll:</strong> Håll strikt temperatur mellan 65-70°C i första steget</li>
+                <li><strong>Kallning:</strong> Att kyla potatisen mellan stegen stoppar processen och låter cellväggarna "fixeras"</li>
+                <li><strong>Ångning:</strong> Att låta potatisen ånga av torkar ytan och förhindrar vattenhaltig puré</li>
+              </ul>
+              
+              <h3>Vetenskaplig Förklaring av Resultatet</h3>
+              <p>Genom att följa denna metod skapas en puré där:</p>
+              <ul>
+                <li>Cellväggarna är stabiliserade och tål uppvärmning</li>
+                <li>Stärkelsen är kontrollerat gelatiniserad utan att bli klistrig</li>
+                <li>Pektinet har skapat en stabil struktur som inte kollapsar</li>
+                <li>Resultatet är en silkeslen, krämig puré som kan värmas om utan att förlora konsistens</li>
+              </ul>
+            `,
+            excerpt: 'Lär dig den kemiska vetenskapen bakom perfekt potatispuré. Förstå hur pektin, kalcium och stärkelse samverkar för att skapa en puré som tål uppvärmning utan att bli klistrig.',
+            category: 'Köksskolan',
+            tags: ['potatis', 'kemi', 'matlagningsteknik', 'vetenskap'],
+            difficulty: 'advanced',
+            readTime: 12,
+            imageUrl: 'https://images.unsplash.com/photo-1518977822534-7049a61ee0c2?w=800&h=400&fit=crop',
             featured: true,
           },
         ];

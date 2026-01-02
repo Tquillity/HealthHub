@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/db';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
-import { ChevronLeft, Clock, Users, ChefHat } from 'lucide-react';
+import { ChevronLeft, Clock, Users, ChefHat, BookOpen, Sparkles } from 'lucide-react';
 import { ServingsScaler } from '@/components/recipes/servings-scaler';
 import { RecipeDetailClient } from '@/components/recipes/recipe-detail-client';
 import type { RecipeWithDetails } from '@/actions/recipe-actions';
@@ -50,6 +50,37 @@ export default async function RecipeDetailPage({
         select: { role: true },
       }))?.role === 'admin'
     : false;
+
+  // Find related educational resource
+  // Look for resources that share tags with the recipe or have relevant title
+  const recipeTags = recipe.tags || [];
+  const recipeNameWords = recipe.name.toLowerCase().split(/\s+/).filter(word => word.length > 3);
+  
+  // Build tag matching conditions (check both original and lowercase versions)
+  const tagConditions = recipeTags.flatMap(tag => [
+    { tags: { has: tag } }, // Original case
+    { tags: { has: tag.toLowerCase() } }, // Lowercase
+    { tags: { has: tag.charAt(0).toUpperCase() + tag.slice(1).toLowerCase() } }, // Capitalized
+  ]);
+  
+  const relatedResource = await prisma.educationalResource.findFirst({
+    where: {
+      OR: [
+        // Match by shared tags (multiple case variations)
+        ...tagConditions,
+        // Match by title containing recipe name words
+        ...recipeNameWords.map(word => ({
+          title: {
+            contains: word,
+            mode: 'insensitive' as const,
+          },
+        })),
+      ],
+    },
+    orderBy: {
+      featured: 'desc', // Prefer featured resources
+    },
+  });
 
   const totalMins = (recipe.prepTime || 0) + (recipe.cookTime || 0);
 
@@ -211,6 +242,33 @@ export default async function RecipeDetailPage({
                     <p className="text-lg font-bold text-gray-900">{Math.round(recipe.sodium)}mg</p>
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* Chef's Note - Science Behind the Dish */}
+          {relatedResource && (
+            <div className="mb-8 rounded-lg border border-blue-100 bg-blue-50 p-6">
+              <div className="flex items-start gap-4">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+                  <Sparkles className="h-5 w-5" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="mb-2 flex items-center gap-2 text-lg font-semibold text-gray-900">
+                    <BookOpen className="h-5 w-5 text-blue-600" />
+                    Chef's Note: Vetenskapen Bakom Rätten
+                  </h3>
+                  <p className="mb-3 text-sm leading-relaxed text-gray-700">
+                    Varför fungerar detta? Lär dig den kemiska vetenskapen bakom denna teknik.
+                  </p>
+                  <Link
+                    href={`/learn/${relatedResource.id}`}
+                    className="inline-flex items-center gap-2 text-sm font-medium text-blue-600 transition-colors hover:text-blue-700"
+                  >
+                    Läs om {relatedResource.title}
+                    <ChevronLeft className="h-4 w-4 rotate-180" />
+                  </Link>
+                </div>
               </div>
             </div>
           )}

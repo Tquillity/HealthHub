@@ -140,6 +140,7 @@ model Recipe {
   name        String
   description String?
   imageUrl    String?
+  videoUrl    String? // YouTube or other video tutorial URL
   prepTime    Int? // Minutes
   cookTime    Int? // Minutes
   servings    Int?
