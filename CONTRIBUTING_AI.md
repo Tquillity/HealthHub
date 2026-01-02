@@ -1,4 +1,4 @@
-# AI Contribution Guidelines (HealthAssist 2025)
+# AI Contribution Guidelines (HealthHub 2026)
 
 > **CRITICAL ARCHITECTURE WARNING:**
 > This repository operates on the **Next.js 16 + PostgreSQL (Prisma)** stack.
@@ -11,7 +11,7 @@
 | :---------------- | :-------------------------- | :------------------------------------------------------------------------------------------------------------------------------------- |
 | **Framework**     | **Next.js 16 (App Router)** | Use **Server Components (RSC)** by default. Use Client Components (`'use client'`) _only_ for interactivity (hooks, event listeners).  |
 | **Database**      | **PostgreSQL (Neon)**       | Hosted on Neon Serverless. **NO** MongoDB.                                                                                             |
-| **ORM**           | **Prisma 7**                | Use `prisma/schema.prisma` for modeling. Use `npx prisma db push` for dev sync. Use `@prisma/adapter-neon` for serverless connections. |
+| **ORM**           | **Prisma 7**                | Use `prisma/schema.prisma` for modeling. Use `npx prisma db push` for dev sync. Use `@prisma/adapter-pg` with standard `pg` Pool for database connections. |
 | **Backend Logic** | **Server Actions**          | Place in `src/actions/`. MUST start with `'use server'`. MUST use **Zod** for input validation.                                        |
 | **Auth**          | **Better-Auth**             | Use `auth.api.getSession()` for server-side checks. Use `useSession()` for client-side.                                                |
 | **Styling**       | **Tailwind CSS v4**         | No `tailwind.config.js`. Use CSS variables in `src/app/globals.css` for theming.                                                       |

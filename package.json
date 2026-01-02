@@ -1,11 +1,11 @@
 {
-  "name": "health-assist",
+  "name": "health-hub",
   "version": "2.0.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "next dev --webpack",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint .",
     "db:push": "prisma db push",

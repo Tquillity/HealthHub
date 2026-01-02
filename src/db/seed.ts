@@ -74,7 +74,7 @@ async function seed() {
 
     // 2. Seed Admin User
     console.log('👤 Seeding admin user...');
-    const adminEmail = process.env.ADMIN_EMAIL || 'admin@healthassist.com';
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@healthhub.com';
     const adminPassword = process.env.ADMIN_PASSWORD || 'Admin123!';
     const adminName = process.env.ADMIN_NAME || 'Admin User';
 

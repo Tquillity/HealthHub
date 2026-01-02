@@ -3,7 +3,7 @@ import './globals.css';
 import { Providers } from '@/components/providers';
 
 export const metadata: Metadata = {
-  title: 'HealthAssist',
+  title: 'HealthHub',
   description: 'A comprehensive health management application',
 };
 
@@ -15,11 +15,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <link rel="icon" href="/favicon.ico" />
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#2563eb" />
+        <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="HealthAssist" />
+        <meta name="apple-mobile-web-app-title" content="HealthHub" />
         <link rel="apple-touch-icon" href="/logo192.png" />
       </head>
       <body>

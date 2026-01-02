@@ -11,7 +11,7 @@ The PWA manifest references two icon files that need to be created:
 
 You can generate these icons using any image editor or online tool:
 
-1. Create a square logo/icon for HealthAssist
+1. Create a square logo/icon for HealthHub
 2. Export at 192x192 and 512x512 resolutions
 3. Place both files in the `/public` directory
 

@@ -10,9 +10,9 @@ export function Footer() {
           <div>
             <div className="mb-4 flex items-center gap-2 text-xl font-bold text-blue-600">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-xs text-white">
-                HA
+                HH
               </div>
-              HealthAssist
+              HealthHub
             </div>
             <p className="text-sm text-gray-600">
               Your comprehensive wellness and meal planning companion.
@@ -114,7 +114,7 @@ export function Footer() {
                 <Instagram className="h-5 w-5" />
               </a>
               <a
-                href="mailto:support@healthassist.com"
+                href="mailto:support@healthhub.com"
                 className="text-gray-400 hover:text-gray-600"
                 aria-label="Email"
               >
@@ -134,7 +134,7 @@ export function Footer() {
         </div>
 
         <div className="mt-8 border-t border-gray-200 pt-8 text-center text-sm text-gray-500">
-          <p>© {new Date().getFullYear()} HealthAssist. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} HealthHub. All rights reserved.</p>
         </div>
       </div>
     </footer>

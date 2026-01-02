@@ -1,8 +1,8 @@
-# HealthAssist (HA)
+# HealthHub (HH)
 
 A comprehensive household wellness application built with the **Next.js 16 + Postgres** stack.
 
-## Tech Stack (2025 Standard)
+## Tech Stack (2026 Standard)
 
 *   **Framework**: Next.js 16 (App Router)
 *   **Database**: PostgreSQL (Neon)

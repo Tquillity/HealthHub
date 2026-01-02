@@ -44,9 +44,9 @@ export default async function DashboardLayout({
       <aside className="hidden w-64 flex-col border-r border-gray-200 bg-white p-4 md:flex">
         <div className="mb-8 flex items-center gap-2 px-2 text-xl font-bold text-blue-600">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-xs text-white">
-            HA
+            HH
           </div>
-          HealthAssist
+          HealthHub
         </div>
 
         <nav className="flex-1 space-y-1">
@@ -72,7 +72,7 @@ export default async function DashboardLayout({
       {/* Main Content Area */}
       <main className="flex flex-1 flex-col">
         <header className="flex h-16 items-center justify-between border-b border-gray-200 bg-white px-8">
-          <div className="font-bold text-blue-600 md:hidden">HealthAssist</div>
+          <div className="font-bold text-blue-600 md:hidden">HealthHub</div>
           <div className="hidden text-sm font-medium text-gray-400 md:block">
             Household Wellness Hub
           </div>

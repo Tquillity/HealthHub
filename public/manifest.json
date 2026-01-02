@@ -1,6 +1,6 @@
 {
-  "name": "HealthAssist - Wellness Hub",
-  "short_name": "HealthAssist",
+  "name": "HealthHub - Wellness Hub",
+  "short_name": "HealthHub",
   "description": "A comprehensive health management application for recipes, meal planning, routines, and journaling",
   "start_url": "/",
   "display": "standalone",

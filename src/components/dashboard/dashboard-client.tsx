@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Sparkles, UtensilsCrossed, BookOpen } from 'lucide-react';
@@ -28,7 +29,15 @@ export function DashboardClient({
     "Taking short breaks every hour during work can improve focus and reduce mental fatigue.",
   ];
 
-  const randomTip = healthTips[Math.floor(Math.random() * healthTips.length)];
+  // Use useState and useEffect to avoid hydration mismatch
+  // Select tip based on day of week for consistent server/client rendering
+  // This ensures the same tip is shown on server and client for the same day
+  const [randomTip, setRandomTip] = useState(() => {
+    // Use day of week to select tip consistently (changes daily, not on each render)
+    const dayOfWeek = new Date().getDay();
+    const tipIndex = dayOfWeek % healthTips.length;
+    return healthTips[tipIndex];
+  });
 
   return (
     <div className="space-y-8">
