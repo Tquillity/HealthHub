@@ -17,6 +17,7 @@ model User {
   email         String       @unique
   emailVerified Boolean
   image         String?
+  role          String       @default("user") // "user", "admin"
   
   // Profile preferences (Sprint 4)
   energyLevel         String?   // "low", "medium", "high"
@@ -32,6 +33,7 @@ model User {
   invitations   Invitation[]
   journalEntries JournalEntry[] // Private journal entries
 
+  @@index([role])
   @@map("user")
 }
 

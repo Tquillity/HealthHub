@@ -127,3 +127,68 @@ export async function getMonthlyStats(month: number, year: number) {
   }
 }
 
+/**
+ * Get journal entry by date
+ */
+export async function getJournalEntryByDate(date: string) {
+  try {
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+
+    if (!session) {
+      return { success: false, error: 'Unauthorized', data: null };
+    }
+
+    const entryDate = new Date(date);
+    entryDate.setHours(0, 0, 0, 0);
+
+    const entry = await prisma.journalEntry.findUnique({
+      where: {
+        userId_date: {
+          userId: session.user.id,
+          date: entryDate,
+        },
+      },
+    });
+
+    return { success: true, data: entry };
+  } catch (error) {
+    console.error('Error fetching journal entry:', error);
+    return { success: false, error: 'Failed to fetch journal entry', data: null };
+  }
+}
+
+/**
+ * Delete journal entry
+ */
+export async function deleteJournalEntry(date: string) {
+  try {
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+
+    if (!session) {
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    const entryDate = new Date(date);
+    entryDate.setHours(0, 0, 0, 0);
+
+    await prisma.journalEntry.delete({
+      where: {
+        userId_date: {
+          userId: session.user.id,
+          date: entryDate,
+        },
+      },
+    });
+
+    revalidatePath('/journal');
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting journal entry:', error);
+    return { success: false, error: 'Failed to delete journal entry' };
+  }
+}
+

@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/db';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
+import { revalidatePath } from 'next/cache';
 import { Prisma } from '@prisma/client';
 
 export type RecipeWithDetails = Prisma.RecipeGetPayload<{
@@ -129,5 +130,75 @@ export async function getRecipeCategories() {
   } catch (error) {
     console.error('Failed to get recipe categories:', error);
     return [];
+  }
+}
+
+/**
+ * Delete a recipe (admin only)
+ */
+export async function deleteRecipe(id: string) {
+  try {
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+
+    if (!session) {
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    // Check if user is admin
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { role: true },
+    });
+
+    if (user?.role !== 'admin') {
+      return { success: false, error: 'Forbidden: Admin access required' };
+    }
+
+    // Check if recipe exists and is not a system recipe (or allow deletion if admin)
+    const recipe = await prisma.recipe.findUnique({
+      where: { id },
+    });
+
+    if (!recipe) {
+      return { success: false, error: 'Recipe not found' };
+    }
+
+    // Delete recipe (cascade will handle ingredients and instructions)
+    await prisma.recipe.delete({
+      where: { id },
+    });
+
+    revalidatePath('/recipes');
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting recipe:', error);
+    return { success: false, error: 'Failed to delete recipe' };
+  }
+}
+
+/**
+ * Get user role (for checking admin status)
+ */
+export async function getUserRole() {
+  try {
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+
+    if (!session) {
+      return { success: false, role: null };
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { role: true },
+    });
+
+    return { success: true, role: user?.role || 'user' };
+  } catch (error) {
+    console.error('Error getting user role:', error);
+    return { success: false, role: null };
   }
 }

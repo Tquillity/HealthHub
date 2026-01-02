@@ -1,16 +1,24 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/db';
+import { auth } from '@/lib/auth';
+import { headers } from 'next/headers';
 import { ChevronLeft, Clock, Users, ChefHat } from 'lucide-react';
 import { ServingsScaler } from '@/components/recipes/servings-scaler';
+import { RecipeDetailClient } from '@/components/recipes/recipe-detail-client';
 
 export default async function RecipeDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
+  const { id } = await params;
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+
   const recipe = await prisma.recipe.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: {
       ingredients: true,
       instructions: { orderBy: { stepNumber: 'asc' } },
@@ -18,6 +26,14 @@ export default async function RecipeDetailPage({
   });
 
   if (!recipe) notFound();
+
+  // Check if user is admin
+  const isAdmin = session
+    ? (await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { role: true },
+      }))?.role === 'admin'
+    : false;
 
   const totalMins = (recipe.prepTime || 0) + (recipe.cookTime || 0);
 
@@ -113,6 +129,11 @@ export default async function RecipeDetailPage({
           />
         </div>
       </div>
+
+      {/* Admin Actions */}
+      {isAdmin && (
+        <RecipeDetailClient recipeId={recipe.id} />
+      )}
     </div>
   );
 }
