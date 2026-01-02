@@ -95,6 +95,7 @@ model Organization {
   // Custom recipes/routines created by this household
   recipes     Recipe[]
   routines    Routine[]
+  shoppingListItems ShoppingListItem[]
 
   @@unique([slug])
   @@map("organization")
@@ -154,6 +155,10 @@ model Recipe {
   fiber    Float? // grams
   sugar    Float? // grams
   sodium   Float? // milligrams
+
+  // LEAN metrics (from old MERN stack)
+  batchEfficiency String? // "High", "Medium", "Low"
+  leanRole        String? // "Infrastructure", "Process", "Daily", "Treat"
 
   // Relations
   ingredients   Ingredient[]
@@ -238,6 +243,35 @@ model MealPlanItem {
 }
 
 // =======================
+// DOMAIN: GROCERIES (Unplanned Items)
+// =======================
+
+model ShoppingListItem {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  name           String
+  quantity       Float
+  unit           String
+  category       String? // "Produce", "Meat & Seafood", "Dairy", etc.
+  isChecked      Boolean  @default(false)
+  notes          String?  @db.Text
+  
+  // Source tracking
+  source         String?  // "meal-plan", "recipe-scaler", "manual"
+  sourceRecipeId String?  // If added from recipe scaler
+  sourceDate     DateTime? // When it was added
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([organizationId, isChecked])
+  @@index([organizationId, category])
+  @@map("shopping_list_item")
+}
+
+// =======================
 // DOMAIN: WELLNESS (Sprint 2)
 // =======================
 
@@ -293,7 +327,21 @@ model JournalEntry {
   sleepHours Float? // Hours slept (Sprint 4)
   tags       String[]
   title      String?
-  content    String?  @db.Text
+  notes      String?  @db.Text // Renamed from content for clarity
+  
+  // Gratitude entries
+  gratitudeEntries String[] @default([])
+  gratitudeNotes   String?  @db.Text
+  
+  // Goals tracking
+  goalsAchieved String[] @default([])
+  goalsProgress  String[] @default([])
+  goalsNotes     String?  @db.Text
+  
+  // Symptoms tracking
+  symptomsPhysical String[] @default([])
+  symptomsMental   String[] @default([])
+  symptomsNotes    String?  @db.Text
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

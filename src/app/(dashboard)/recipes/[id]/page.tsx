@@ -237,6 +237,7 @@ export default async function RecipeDetailPage({
           <ServingsScaler
             defaultServings={recipe.servings || 4}
             ingredients={recipe.ingredients}
+            recipeId={recipe.id}
           />
         </div>
       </div>

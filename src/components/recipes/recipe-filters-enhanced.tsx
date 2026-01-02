@@ -32,13 +32,18 @@ export function RecipeFiltersEnhanced({ categories }: RecipeFiltersEnhancedProps
     'dietaryTags',
     parseAsArrayOf(parseAsString)
   );
+  const [leanRole, setLeanRole] = useQueryState(
+    'leanRole',
+    parseAsString
+  );
   const [, startTransition] = useTransition();
 
   const [filterOptions, setFilterOptions] = useState<{
     difficulties: string[];
     cuisines: string[];
     dietaryTags: string[];
-  }>({ difficulties: [], cuisines: [], dietaryTags: [] });
+    leanRoles: string[];
+  }>({ difficulties: [], cuisines: [], dietaryTags: [], leanRoles: [] });
 
   useEffect(() => {
     getRecipeFilterOptions().then(setFilterOptions);
@@ -49,10 +54,11 @@ export function RecipeFiltersEnhanced({ categories }: RecipeFiltersEnhancedProps
     setDifficulty(null);
     setCuisine(null);
     setDietaryTags(null);
+    setLeanRole(null);
     setQuery('');
   };
 
-  const hasActiveFilters = category !== 'all' || difficulty || cuisine || (dietaryTags && dietaryTags.length > 0) || query;
+  const hasActiveFilters = category !== 'all' || difficulty || cuisine || (dietaryTags && dietaryTags.length > 0) || leanRole || query;
 
   return (
     <div className="mb-6 space-y-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
@@ -156,6 +162,25 @@ export function RecipeFiltersEnhanced({ categories }: RecipeFiltersEnhancedProps
                 );
               })}
             </div>
+          </div>
+        )}
+
+        {/* LEAN Role */}
+        {filterOptions.leanRoles.length > 0 && (
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-500">LEAN Role</label>
+            <select
+              value={leanRole || ''}
+              onChange={(e) => setLeanRole(e.target.value || null)}
+              className="flex h-9 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm"
+            >
+              <option value="">All Roles</option>
+              {filterOptions.leanRoles.map((role) => (
+                <option key={role} value={role}>
+                  {role}
+                </option>
+              ))}
+            </select>
           </div>
         )}
 

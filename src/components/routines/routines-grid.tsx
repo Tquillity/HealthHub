@@ -11,8 +11,8 @@ interface RoutinesGridProps {
 export function RoutinesGrid({ routines }: RoutinesGridProps) {
   const router = useRouter();
 
-  // Check if user is admin (we'll pass this as prop later)
-  const isAdmin = true; // TODO: Get from props
+  // Note: Admin controls are handled by RoutinesClient parent component
+  const isAdmin = false; // This component doesn't need admin check
 
   const handleEdit = (routine: Routine) => {
     // This will be handled by RoutinesClient

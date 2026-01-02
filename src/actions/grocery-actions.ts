@@ -58,6 +58,18 @@ export async function getGroceryList(
       };
     }
 
+    // Get unplanned shopping list items
+    const shoppingListItems = await prisma.shoppingListItem.findMany({
+      where: {
+        organizationId: organizationId,
+        isChecked: false,
+      },
+      orderBy: [
+        { category: 'asc' },
+        { name: 'asc' },
+      ],
+    });
+
     // Get meal plans for the date range
     const mealPlans = await prisma.mealPlan.findMany({
       where: {
@@ -114,12 +126,12 @@ export async function getGroceryList(
       }
     }
 
-    // Convert to array
-    const groceryItems: GroceryItem[] = Array.from(ingredientMap.entries()).map(
+    // Convert meal plan items to array
+    const mealPlanItems: GroceryItem[] = Array.from(ingredientMap.entries()).map(
       ([key, data], index) => {
         const [name] = key.split('_');
         return {
-          id: `grocery_${index}`,
+          id: `meal-plan_${index}`,
           name: name.charAt(0).toUpperCase() + name.slice(1),
           quantity: Math.round(data.quantity * 10) / 10, // Round to 1 decimal
           unit: data.unit,
@@ -128,6 +140,42 @@ export async function getGroceryList(
         };
       }
     );
+
+    // Convert shopping list items to array
+    const unplannedItems: GroceryItem[] = shoppingListItems.map((item) => ({
+      id: item.id,
+      name: item.name,
+      quantity: item.quantity,
+      unit: item.unit,
+      category: item.category || 'Other',
+      isChecked: item.isChecked,
+    }));
+
+    // Combine and merge duplicates (prefer unplanned items if names match)
+    const combinedMap = new Map<string, GroceryItem>();
+
+    // Add meal plan items first
+    for (const item of mealPlanItems) {
+      const key = `${item.name.toLowerCase()}_${item.unit}`;
+      if (!combinedMap.has(key)) {
+        combinedMap.set(key, item);
+      }
+    }
+
+    // Add unplanned items (they take precedence if duplicate)
+    for (const item of unplannedItems) {
+      const key = `${item.name.toLowerCase()}_${item.unit}`;
+      const existing = combinedMap.get(key);
+      if (existing) {
+        // Merge quantities
+        existing.quantity += item.quantity;
+        existing.isChecked = item.isChecked; // Use unplanned item's checked state
+      } else {
+        combinedMap.set(key, item);
+      }
+    }
+
+    const groceryItems = Array.from(combinedMap.values());
 
     // Sort by category, then name
     groceryItems.sort((a, b) => {
@@ -151,10 +199,11 @@ export async function getGroceryList(
 }
 
 /**
- * Add scaled ingredients to grocery list
+ * Add scaled ingredients to grocery list as unplanned items
  */
 export async function addScaledIngredientsToGroceryList(
-  ingredients: Array<{ name: string; quantity: number; unit: string }>
+  ingredients: Array<{ name: string; quantity: number; unit: string }>,
+  sourceRecipeId?: string
 ) {
   try {
     const session = await auth.api.getSession({
@@ -174,32 +223,27 @@ export async function addScaledIngredientsToGroceryList(
       return { success: false, error: 'No household found' };
     }
 
-    // Get current week's meal plan
-    const now = new Date();
-    const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-    const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
+    // Create ShoppingListItem entries for each ingredient
+    const items = await Promise.all(
+      ingredients.map((ingredient) =>
+        prisma.shoppingListItem.create({
+          data: {
+            organizationId: membership.organizationId,
+            name: ingredient.name,
+            quantity: ingredient.quantity,
+            unit: ingredient.unit,
+            category: categorizeIngredient(ingredient.name),
+            source: 'recipe-scaler',
+            sourceRecipeId: sourceRecipeId || null,
+            sourceDate: new Date(),
+            isChecked: false,
+          },
+        })
+      )
+    );
 
-    let plan = await prisma.mealPlan.findFirst({
-      where: {
-        organizationId: membership.organizationId,
-        startDate: weekStart,
-      },
-    });
-
-    if (!plan) {
-      plan = await prisma.mealPlan.create({
-        data: {
-          organizationId: membership.organizationId,
-          startDate: weekStart,
-          endDate: weekEnd,
-        },
-      });
-    }
-
-    // For now, we'll just revalidate - the grocery list is generated from meal plans
-    // In a full implementation, you might want to store these as "custom items"
     revalidatePath('/groceries');
-    return { success: true };
+    return { success: true, data: items };
   } catch (error) {
     console.error('Error adding ingredients to grocery list:', error);
     return { success: false, error: 'Failed to add ingredients' };

@@ -30,10 +30,11 @@ export default async function RecipesPage({ searchParams }: PageProps) {
     : typeof params.dietaryTags === 'string'
     ? [params.dietaryTags]
     : undefined;
+  const leanRole = typeof params.leanRole === 'string' ? params.leanRole : undefined;
 
   // Parallel data fetching
   const [recipesResult, categories, roleResult] = await Promise.all([
-    getRecipes({ query, category, difficulty, cuisine, dietaryTags }),
+    getRecipes({ query, category, difficulty, cuisine, dietaryTags, leanRole }),
     getRecipeCategories(),
     getUserRole(),
   ]);

@@ -17,6 +17,7 @@ interface GetRecipesParams {
   difficulty?: string;
   cuisine?: string;
   dietaryTags?: string[];
+  leanRole?: string;
   page?: number;
 }
 
@@ -26,6 +27,7 @@ export async function getRecipes({
   difficulty,
   cuisine,
   dietaryTags,
+  leanRole,
   page = 1,
 }: GetRecipesParams) {
   try {
@@ -74,6 +76,10 @@ export async function getRecipes({
 
     if (dietaryTags && dietaryTags.length > 0) {
       where.dietaryTags = { hasSome: dietaryTags };
+    }
+
+    if (leanRole) {
+      where.leanRole = leanRole;
     }
 
     const recipes = await prisma.recipe.findMany({
@@ -151,7 +157,7 @@ export async function getRecipeFilterOptions() {
     });
     const orgId = membership?.organizationId || null;
 
-    const [difficulties, cuisines, dietaryTags] = await Promise.all([
+    const [difficulties, cuisines, dietaryTags, leanRoles] = await Promise.all([
       prisma.recipe.findMany({
         where: {
           difficulty: { not: null },
@@ -183,6 +189,17 @@ export async function getRecipeFilterOptions() {
         },
         select: { dietaryTags: true },
       }),
+      prisma.recipe.findMany({
+        where: {
+          leanRole: { not: null },
+          OR: [
+            { isSystem: true },
+            ...(orgId ? [{ organizationId: orgId }] : []),
+          ],
+        },
+        select: { leanRole: true },
+        distinct: ['leanRole'],
+      }),
     ]);
 
     const allDietaryTags = new Set<string>();
@@ -200,10 +217,14 @@ export async function getRecipeFilterOptions() {
         .filter((c): c is string => c !== null)
         .sort(),
       dietaryTags: Array.from(allDietaryTags).sort(),
+      leanRoles: leanRoles
+        .map((r) => r.leanRole)
+        .filter((r): r is string => r !== null)
+        .sort(),
     };
   } catch (error) {
     console.error('Failed to get filter options:', error);
-    return { difficulties: [], cuisines: [], dietaryTags: [] };
+    return { difficulties: [], cuisines: [], dietaryTags: [], leanRoles: [] };
   }
 }
 

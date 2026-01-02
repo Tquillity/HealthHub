@@ -1,15 +1,25 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Edit, Trash2 } from 'lucide-react';
 import { deleteRoutine } from '@/actions/routine-actions';
 import { SafeDeleteModal } from '@/components/ui/safe-delete-modal';
 import type { Routine } from '@prisma/client';
 
+// Extend Routine type to include optional fields that may not be in generated types yet
+type RoutineWithMetadata = Routine & {
+  imageUrl?: string | null;
+  context?: string | null;
+  duration?: string | null;
+  difficulty?: string | null;
+  tags?: string[];
+};
+
 interface RoutineCardProps {
-  routine: Routine;
-  onEdit?: (routine: Routine) => void;
-  onClick?: (routine: Routine) => void;
+  routine: RoutineWithMetadata;
+  onEdit?: (routine: RoutineWithMetadata) => void;
+  onClick?: (routine: RoutineWithMetadata) => void;
   showAdminControls?: boolean;
 }
 

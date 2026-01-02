@@ -24,6 +24,14 @@ export function JournalClient({ initialDate, onEntrySaved }: JournalClientProps)
     sleepHours: '',
     notes: '',
     tags: '',
+    gratitudeEntries: [''],
+    gratitudeNotes: '',
+    goalsAchieved: [''],
+    goalsProgress: [''],
+    goalsNotes: '',
+    symptomsPhysical: [''],
+    symptomsMental: [''],
+    symptomsNotes: '',
   });
 
   useEffect(() => {
@@ -41,8 +49,16 @@ export function JournalClient({ initialDate, onEntrySaved }: JournalClientProps)
         mood: result.data.mood?.toString() || '',
         energy: result.data.energy?.toString() || '',
         sleepHours: result.data.sleepHours?.toString() || '',
-        notes: result.data.content || '',
+        notes: result.data.notes || '',
         tags: result.data.tags.join(', ') || '',
+        gratitudeEntries: result.data.gratitudeEntries?.length > 0 ? result.data.gratitudeEntries : [''],
+        gratitudeNotes: result.data.gratitudeNotes || '',
+        goalsAchieved: result.data.goalsAchieved?.length > 0 ? result.data.goalsAchieved : [''],
+        goalsProgress: result.data.goalsProgress?.length > 0 ? result.data.goalsProgress : [''],
+        goalsNotes: result.data.goalsNotes || '',
+        symptomsPhysical: result.data.symptomsPhysical?.length > 0 ? result.data.symptomsPhysical : [''],
+        symptomsMental: result.data.symptomsMental?.length > 0 ? result.data.symptomsMental : [''],
+        symptomsNotes: result.data.symptomsNotes || '',
       });
     }
   };
@@ -57,6 +73,13 @@ export function JournalClient({ initialDate, onEntrySaved }: JournalClientProps)
       .map((t) => t.trim())
       .filter((t) => t.length > 0);
 
+    // Parse arrays (filter out empty strings)
+    const gratitudeEntries = formData.gratitudeEntries.filter((e) => e.trim().length > 0);
+    const goalsAchieved = formData.goalsAchieved.filter((g) => g.trim().length > 0);
+    const goalsProgress = formData.goalsProgress.filter((g) => g.trim().length > 0);
+    const symptomsPhysical = formData.symptomsPhysical.filter((s) => s.trim().length > 0);
+    const symptomsMental = formData.symptomsMental.filter((s) => s.trim().length > 0);
+
     const result = await logJournalEntry({
       date: formData.date,
       mood: formData.mood ? parseInt(formData.mood) : undefined,
@@ -64,6 +87,14 @@ export function JournalClient({ initialDate, onEntrySaved }: JournalClientProps)
       sleepHours: formData.sleepHours ? parseFloat(formData.sleepHours) : undefined,
       notes: formData.notes || undefined,
       tags,
+      gratitudeEntries,
+      gratitudeNotes: formData.gratitudeNotes || undefined,
+      goalsAchieved,
+      goalsProgress,
+      goalsNotes: formData.goalsNotes || undefined,
+      symptomsPhysical,
+      symptomsMental,
+      symptomsNotes: formData.symptomsNotes || undefined,
     });
 
     if (result.success) {
@@ -75,6 +106,14 @@ export function JournalClient({ initialDate, onEntrySaved }: JournalClientProps)
         sleepHours: '',
         notes: '',
         tags: '',
+        gratitudeEntries: [''],
+        gratitudeNotes: '',
+        goalsAchieved: [''],
+        goalsProgress: [''],
+        goalsNotes: '',
+        symptomsPhysical: [''],
+        symptomsMental: [''],
+        symptomsNotes: '',
       });
       onEntrySaved?.();
       router.refresh();
@@ -93,8 +132,8 @@ export function JournalClient({ initialDate, onEntrySaved }: JournalClientProps)
       </Button>
 
       {showDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-lg bg-white p-6 shadow-xl">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-xl font-bold text-gray-900">Log Journal Entry</h2>
               <button
@@ -190,6 +229,239 @@ export function JournalClient({ initialDate, onEntrySaved }: JournalClientProps)
                   onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
                   placeholder="e.g., workout, productive, stressed"
                   className="mt-1"
+                />
+              </div>
+
+              {/* Gratitude Section */}
+              <div className="border-t pt-4">
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Gratitude</h3>
+                {formData.gratitudeEntries.map((entry, index) => (
+                  <div key={index} className="mb-2 flex gap-2">
+                    <Input
+                      value={entry}
+                      onChange={(e) => {
+                        const newEntries = [...formData.gratitudeEntries];
+                        newEntries[index] = e.target.value;
+                        setFormData({ ...formData, gratitudeEntries: newEntries });
+                      }}
+                      placeholder={`What are you grateful for? ${index + 1}`}
+                      className="flex-1"
+                    />
+                    {formData.gratitudeEntries.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const newEntries = formData.gratitudeEntries.filter((_, i) => i !== index);
+                          setFormData({ ...formData, gratitudeEntries: newEntries.length > 0 ? newEntries : [''] });
+                        }}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setFormData({ ...formData, gratitudeEntries: [...formData.gratitudeEntries, ''] })}
+                  className="mt-2"
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add Gratitude
+                </Button>
+                <textarea
+                  value={formData.gratitudeNotes}
+                  onChange={(e) => setFormData({ ...formData, gratitudeNotes: e.target.value })}
+                  rows={2}
+                  className="mt-2 flex w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                  placeholder="Additional gratitude notes..."
+                />
+              </div>
+
+              {/* Goals Section */}
+              <div className="border-t pt-4">
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Goals</h3>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Achieved Today</label>
+                  {formData.goalsAchieved.map((goal, index) => (
+                    <div key={index} className="mb-2 flex gap-2">
+                      <Input
+                        value={goal}
+                        onChange={(e) => {
+                          const newGoals = [...formData.goalsAchieved];
+                          newGoals[index] = e.target.value;
+                          setFormData({ ...formData, goalsAchieved: newGoals });
+                        }}
+                        placeholder={`Goal achieved ${index + 1}`}
+                        className="flex-1"
+                      />
+                      {formData.goalsAchieved.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const newGoals = formData.goalsAchieved.filter((_, i) => i !== index);
+                            setFormData({ ...formData, goalsAchieved: newGoals.length > 0 ? newGoals : [''] });
+                          }}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setFormData({ ...formData, goalsAchieved: [...formData.goalsAchieved, ''] })}
+                    className="mt-2"
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add Achieved Goal
+                  </Button>
+                </div>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">In Progress</label>
+                  {formData.goalsProgress.map((goal, index) => (
+                    <div key={index} className="mb-2 flex gap-2">
+                      <Input
+                        value={goal}
+                        onChange={(e) => {
+                          const newGoals = [...formData.goalsProgress];
+                          newGoals[index] = e.target.value;
+                          setFormData({ ...formData, goalsProgress: newGoals });
+                        }}
+                        placeholder={`Goal in progress ${index + 1}`}
+                        className="flex-1"
+                      />
+                      {formData.goalsProgress.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const newGoals = formData.goalsProgress.filter((_, i) => i !== index);
+                            setFormData({ ...formData, goalsProgress: newGoals.length > 0 ? newGoals : [''] });
+                          }}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setFormData({ ...formData, goalsProgress: [...formData.goalsProgress, ''] })}
+                    className="mt-2"
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add Progress Goal
+                  </Button>
+                </div>
+                <textarea
+                  value={formData.goalsNotes}
+                  onChange={(e) => setFormData({ ...formData, goalsNotes: e.target.value })}
+                  rows={2}
+                  className="mt-2 flex w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                  placeholder="Additional goal notes..."
+                />
+              </div>
+
+              {/* Symptoms Section */}
+              <div className="border-t pt-4">
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Symptoms</h3>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Physical Symptoms</label>
+                  {formData.symptomsPhysical.map((symptom, index) => (
+                    <div key={index} className="mb-2 flex gap-2">
+                      <Input
+                        value={symptom}
+                        onChange={(e) => {
+                          const newSymptoms = [...formData.symptomsPhysical];
+                          newSymptoms[index] = e.target.value;
+                          setFormData({ ...formData, symptomsPhysical: newSymptoms });
+                        }}
+                        placeholder={`Physical symptom ${index + 1}`}
+                        className="flex-1"
+                      />
+                      {formData.symptomsPhysical.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const newSymptoms = formData.symptomsPhysical.filter((_, i) => i !== index);
+                            setFormData({ ...formData, symptomsPhysical: newSymptoms.length > 0 ? newSymptoms : [''] });
+                          }}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setFormData({ ...formData, symptomsPhysical: [...formData.symptomsPhysical, ''] })}
+                    className="mt-2"
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add Physical Symptom
+                  </Button>
+                </div>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Mental Symptoms</label>
+                  {formData.symptomsMental.map((symptom, index) => (
+                    <div key={index} className="mb-2 flex gap-2">
+                      <Input
+                        value={symptom}
+                        onChange={(e) => {
+                          const newSymptoms = [...formData.symptomsMental];
+                          newSymptoms[index] = e.target.value;
+                          setFormData({ ...formData, symptomsMental: newSymptoms });
+                        }}
+                        placeholder={`Mental symptom ${index + 1}`}
+                        className="flex-1"
+                      />
+                      {formData.symptomsMental.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const newSymptoms = formData.symptomsMental.filter((_, i) => i !== index);
+                            setFormData({ ...formData, symptomsMental: newSymptoms.length > 0 ? newSymptoms : [''] });
+                          }}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setFormData({ ...formData, symptomsMental: [...formData.symptomsMental, ''] })}
+                    className="mt-2"
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add Mental Symptom
+                  </Button>
+                </div>
+                <textarea
+                  value={formData.symptomsNotes}
+                  onChange={(e) => setFormData({ ...formData, symptomsNotes: e.target.value })}
+                  rows={2}
+                  className="mt-2 flex w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                  placeholder="Additional symptom notes..."
                 />
               </div>
 

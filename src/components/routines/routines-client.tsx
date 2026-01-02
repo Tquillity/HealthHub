@@ -1,11 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
+import { parseAsString, useQueryState } from 'nuqs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { createRoutine, drawLottery } from '@/actions/routine-actions';
 import { Plus, Sparkles, X } from 'lucide-react';
 import type { Routine } from '@prisma/client';
+import { RoutineCard } from './routine-card';
 
 interface RoutinesClientProps {
   routines: Routine[];
@@ -466,29 +469,16 @@ export function RoutinesClient({ routines: initialRoutines }: RoutinesClientProp
                   <p className="text-sm font-medium text-blue-900">
                     Your pick{lotteryResults.length > 1 ? 's' : ''}:
                   </p>
-                  {lotteryResults.map((routine) => (
-                    <div key={routine.id} className="rounded-lg border border-blue-200 bg-blue-50 p-4">
-                      <p className="text-lg font-bold text-blue-700">{routine.name}</p>
-                      {routine.description && (
-                        <p className="mt-1 text-sm text-blue-600">{routine.description}</p>
-                      )}
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
-                          {routine.estimatedTime} min
-                        </span>
-                        {routine.context && (
-                          <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 capitalize">
-                            {routine.context}
-                          </span>
-                        )}
-                        {routine.difficulty && (
-                          <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 capitalize">
-                            {routine.difficulty}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {lotteryResults.map((routine) => (
+                      <RoutineCard
+                        key={routine.id}
+                        routine={routine}
+                        onClick={() => {}}
+                        showAdminControls={false}
+                      />
+                    ))}
+                  </div>
                 </div>
               )}
             </div>

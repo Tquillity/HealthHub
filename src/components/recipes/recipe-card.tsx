@@ -17,11 +17,33 @@ export function RecipeCard({ recipe }: RecipeCardProps) {
       href={`/recipes/${recipe.id}`}
       className="group flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition-all hover:shadow-md"
     >
-      {/* Image Placeholder (or real image if you added an image column) */}
-      <div className="relative h-48 w-full bg-gray-100">
-        <div className="flex h-full w-full items-center justify-center text-gray-300">
-          <ChefHat className="h-12 w-12" />
-        </div>
+      {/* Recipe Image */}
+      <div className="relative h-48 w-full bg-gray-100 overflow-hidden">
+        {recipe.imageUrl ? (
+          <img
+            src={recipe.imageUrl}
+            alt={recipe.name}
+            className="h-full w-full object-cover"
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              target.style.display = 'none';
+              const parent = target.parentElement;
+              if (parent) {
+                parent.innerHTML = `
+                  <div class="flex h-full w-full items-center justify-center text-gray-300">
+                    <svg class="h-12 w-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                    </svg>
+                  </div>
+                `;
+              }
+            }}
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-gray-300">
+            <ChefHat className="h-12 w-12" />
+          </div>
+        )}
 
         {/* Badges */}
         <div className="absolute right-2 top-2 flex gap-1">

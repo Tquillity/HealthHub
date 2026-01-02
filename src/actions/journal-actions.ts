@@ -15,6 +15,17 @@ const CreateJournalSchema = z.object({
   sleepHours: z.number().positive().max(24).optional(),
   notes: z.string().optional(),
   tags: z.array(z.string()).default([]),
+  // Gratitude
+  gratitudeEntries: z.array(z.string()).default([]),
+  gratitudeNotes: z.string().optional(),
+  // Goals
+  goalsAchieved: z.array(z.string()).default([]),
+  goalsProgress: z.array(z.string()).default([]),
+  goalsNotes: z.string().optional(),
+  // Symptoms
+  symptomsPhysical: z.array(z.string()).default([]),
+  symptomsMental: z.array(z.string()).default([]),
+  symptomsNotes: z.string().optional(),
 });
 
 export async function logJournalEntry(data: z.infer<typeof CreateJournalSchema>) {
@@ -50,6 +61,14 @@ export async function logJournalEntry(data: z.infer<typeof CreateJournalSchema>)
         sleepHours: validated.sleepHours ?? undefined,
         notes: validated.notes ?? undefined,
         tags: validated.tags,
+        gratitudeEntries: validated.gratitudeEntries,
+        gratitudeNotes: validated.gratitudeNotes ?? undefined,
+        goalsAchieved: validated.goalsAchieved,
+        goalsProgress: validated.goalsProgress,
+        goalsNotes: validated.goalsNotes ?? undefined,
+        symptomsPhysical: validated.symptomsPhysical,
+        symptomsMental: validated.symptomsMental,
+        symptomsNotes: validated.symptomsNotes ?? undefined,
       },
       create: {
         userId: session.user.id,
@@ -59,6 +78,14 @@ export async function logJournalEntry(data: z.infer<typeof CreateJournalSchema>)
         sleepHours: validated.sleepHours ?? undefined,
         notes: validated.notes ?? undefined,
         tags: validated.tags,
+        gratitudeEntries: validated.gratitudeEntries,
+        gratitudeNotes: validated.gratitudeNotes ?? undefined,
+        goalsAchieved: validated.goalsAchieved,
+        goalsProgress: validated.goalsProgress,
+        goalsNotes: validated.goalsNotes ?? undefined,
+        symptomsPhysical: validated.symptomsPhysical,
+        symptomsMental: validated.symptomsMental,
+        symptomsNotes: validated.symptomsNotes ?? undefined,
       },
     });
 

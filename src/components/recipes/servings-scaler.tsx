@@ -3,6 +3,8 @@
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Minus, Plus, ShoppingCart } from 'lucide-react';
+import { addScaledIngredientsToGroceryList } from '@/actions/grocery-actions';
+import { useRouter } from 'next/navigation';
 
 interface Ingredient {
   id: string;
@@ -16,9 +18,44 @@ interface ServingsScalerProps {
   ingredients: Ingredient[];
 }
 
+function AddToGroceryButton({
+  ingredients,
+  recipeId,
+}: {
+  ingredients: Array<{ name: string; quantity: number; unit: string }>;
+  recipeId?: string;
+}) {
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleAdd = async () => {
+    setIsLoading(true);
+    const result = await addScaledIngredientsToGroceryList(ingredients, recipeId);
+    if (result.success) {
+      router.push('/groceries');
+      router.refresh();
+    } else {
+      alert(result.error || 'Failed to add ingredients to grocery list');
+    }
+    setIsLoading(false);
+  };
+
+  return (
+    <Button
+      onClick={handleAdd}
+      disabled={isLoading}
+      className="w-full gap-2"
+    >
+      <ShoppingCart className="h-4 w-4" />
+      {isLoading ? 'Adding...' : 'Add to Grocery List'}
+    </Button>
+  );
+}
+
 export function ServingsScaler({
   defaultServings,
   ingredients,
+  recipeId,
 }: ServingsScalerProps) {
   const initialServings = defaultServings || 4;
   const [servings, setServings] = useState(initialServings);
@@ -77,10 +114,14 @@ export function ServingsScaler({
         <p className="mb-4 text-center text-xs text-gray-400">
           Scaling for {servings} servings
         </p>
-        <Button className="w-full cursor-not-allowed gap-2 opacity-70" disabled>
-          <ShoppingCart className="h-4 w-4" />
-          Add to Grocery List
-        </Button>
+        <AddToGroceryButton
+          ingredients={ingredients.map((ing) => ({
+            name: ing.name,
+            quantity: scale(ing.quantity),
+            unit: ing.unit,
+          }))}
+          recipeId={recipeId}
+        />
       </div>
     </div>
   );
