@@ -2078,6 +2078,257 @@
           "text": "Ställ i frysen och låt stelna i ca 1 timme. Skär i rutor och förvara i frysen."
         }
       ]
+    },
+    {
+      "name": "Långkokt Nöthjärta med rödvin och rotfrukter",
+      "description": "En otroligt mör och näringsrik gryta på nöthjärta. Hjärtat är en bortglömd delikatess som vid ett långkok på 10 timmar blir lika mört som högrev, men med en djupare smak. Rik på mineraler och naturligt glutenfri.",
+      "prepTime": 45,
+      "cookTime": 600,
+      "servings": 8,
+      "category": "Dinner",
+      "difficulty": "medium",
+      "tags": [
+        "Långkok",
+        "Slowcooker",
+        "Inälvsmat",
+        "Nötkött",
+        "Gryta"
+      ],
+      "dietaryTags": [
+        "Glutenfri",
+        "Paleo",
+        "Keto",
+        "LCHF",
+        "Mejerifri",
+        "Nötfritt"
+      ],
+      "ingredients": [
+        {
+          "name": "Nöthjärta",
+          "quantity": 1,
+          "unit": "st",
+          "notes": "Ca 1.8 kg"
+        },
+        {
+          "name": "Vatten",
+          "quantity": 5,
+          "unit": "dl",
+          "notes": null
+        },
+        {
+          "name": "Rödvin",
+          "quantity": 2,
+          "unit": "dl",
+          "notes": "Torrt"
+        },
+        {
+          "name": "Smör eller kokosolja",
+          "quantity": 1,
+          "unit": "dl",
+          "notes": null
+        },
+        {
+          "name": "Olivolja",
+          "quantity": 0.5,
+          "unit": "dl",
+          "notes": null
+        },
+        {
+          "name": "Morötter",
+          "quantity": 3,
+          "unit": "st",
+          "notes": null
+        },
+        {
+          "name": "Rotselleri",
+          "quantity": 1,
+          "unit": "bit",
+          "notes": "Ca 200g"
+        },
+        {
+          "name": "Gula lökar",
+          "quantity": 2,
+          "unit": "st",
+          "notes": null
+        },
+        {
+          "name": "Vitlöksklyftor",
+          "quantity": 3,
+          "unit": "st",
+          "notes": null
+        },
+        {
+          "name": "Röd chili",
+          "quantity": 1,
+          "unit": "st",
+          "notes": null
+        },
+        {
+          "name": "Tomatpuré",
+          "quantity": 0.5,
+          "unit": "dl",
+          "notes": null
+        },
+        {
+          "name": "Lantbuljong",
+          "quantity": 3,
+          "unit": "msk",
+          "notes": "T.ex. Renée Voltaire"
+        },
+        {
+          "name": "Tamarisoja",
+          "quantity": 3,
+          "unit": "msk",
+          "notes": "Glutenfri (t.ex. Renée Voltaire)"
+        },
+        {
+          "name": "Lagerblad",
+          "quantity": 3,
+          "unit": "st",
+          "notes": null
+        },
+        {
+          "name": "Salt",
+          "quantity": 1,
+          "unit": "krm",
+          "notes": "Efter smak"
+        },
+        {
+          "name": "Svartpeppar",
+          "quantity": 1,
+          "unit": "krm",
+          "notes": "Efter smak"
+        }
+      ],
+      "instructions": [
+        {
+          "stepNumber": 1,
+          "text": "Putsa nöthjärtat noga (ta bort fett och senor) och skär köttet i ca 2x2 cm stora tärningar."
+        },
+        {
+          "stepNumber": 2,
+          "text": "Skala och skär morötter, rotselleri och lök i jämnstora bitar. Finhacka vitlök och chili."
+        },
+        {
+          "stepNumber": 3,
+          "text": "Hetta upp smör eller kokosolja i en stor gjutjärnsgryta eller stekpanna. Bryn köttet i omgångar tills det fått fin färg."
+        },
+        {
+          "stepNumber": 4,
+          "text": "Tillsätt grönsakerna, löken, vitlöken och chilin. Låt fräsa med köttet i några minuter."
+        },
+        {
+          "stepNumber": 5,
+          "text": "Rör ner tomatpuré, buljong, tamarisoja och kryddor."
+        },
+        {
+          "stepNumber": 6,
+          "text": "Tillsätt vatten, rödvin och olivolja. Se till att vätskan täcker ingredienserna."
+        },
+        {
+          "stepNumber": 7,
+          "text": "Låt grytan sjuda på mycket svag värme under lock i ca 10 timmar. (Alternativt: Använd en Slowcooker på inställningen \"Low\" i 10 timmar)."
+        },
+        {
+          "stepNumber": 8,
+          "text": "Smaka av med salt och peppar. Servera gärna med hemgjord surkål för extra hälsofördelar."
+        }
+      ]
+    },
+    {
+      "name": "Lafa – Glutenfritt tunnbröd på fullkornsris och quinoa",
+      "description": "Ett mjukt och elastiskt tunnbröd inspirerat av mellanösterns Lafa. Baserat på blötlagda hela korn av runda fullkornsris och vit quinoa. Naturligt glutenfritt och proteinrikt.",
+      "prepTime": 730,
+      "cookTime": 15,
+      "servings": 8,
+      "category": "Breakfast",
+      "difficulty": "medium",
+      "tags": [
+        "Tunnbröd",
+        "Lafa",
+        "Fullkorn",
+        "Proteinrikt",
+        "Blender-bröd"
+      ],
+      "dietaryTags": [
+        "Glutenfri",
+        "Vegansk",
+        "Mejerifri",
+        "Växtbaserat",
+        "Nötfritt"
+      ],
+      "ingredients": [
+        {
+          "name": "Runt fullkornsris",
+          "quantity": 500,
+          "unit": "g",
+          "notes": "Använd gärna Gut Bio Arroz Redondo Integral för bästa resultat"
+        },
+        {
+          "name": "Vit quinoa",
+          "quantity": 2,
+          "unit": "dl",
+          "notes": "Använd gärna Gut Bio Quinoa Real Blanca för bästa resultat (ca 1 kopp/Agat's glass)"
+        },
+        {
+          "name": "Bikarbonat",
+          "quantity": 0.25,
+          "unit": "tsk",
+          "notes": null
+        },
+        {
+          "name": "Salt",
+          "quantity": 0.5,
+          "unit": "tsk",
+          "notes": null
+        },
+        {
+          "name": "Citronsaft",
+          "quantity": 1,
+          "unit": "msk",
+          "notes": "Färsk"
+        },
+        {
+          "name": "Vatten",
+          "quantity": 1,
+          "unit": "dl",
+          "notes": "För blötläggning och mixning (börja med 2-3 dl vid mixning)"
+        }
+      ],
+      "instructions": [
+        {
+          "stepNumber": 1,
+          "text": "Skölj fullkornsriset och quinoan noggrant i en sil."
+        },
+        {
+          "stepNumber": 2,
+          "text": "Lägg riset och quinoan i en stor skål, täck med rikligt med vatten och låt stå i kylskåp i 12 timmar."
+        },
+        {
+          "stepNumber": 3,
+          "text": "Sila av och skölj de blötlagda kornen ordentligt."
+        },
+        {
+          "stepNumber": 4,
+          "text": "Häll kornen i en kraftfull blender. Tillsätt en mindre mängd vatten (börja med ca 2-3 dl) och mixa tills du har en helt slät smet, likt en tjock pannkakssmet."
+        },
+        {
+          "stepNumber": 5,
+          "text": "Tillsätt citronsaft, bikarbonat och salt. Mixa snabbt ihop så att bubblor bildas."
+        },
+        {
+          "stepNumber": 6,
+          "text": "Hetta upp en non-stick panna på medelhög värme. Häll i en skopa smet och sprid ut den till ett tunt runt bröd."
+        },
+        {
+          "stepNumber": 7,
+          "text": "Stek tills ytan stelnat och brödet fått färg, vänd sedan och stek snabbt på andra sidan."
+        },
+        {
+          "stepNumber": 8,
+          "text": "Stapla bröden under en ren handduk så att de håller sig mjuka och elastiska."
+        }
+      ]
     }
   ],
   "routines": [

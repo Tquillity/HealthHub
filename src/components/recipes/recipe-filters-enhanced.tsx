@@ -14,7 +14,7 @@ interface RecipeFiltersEnhancedProps {
 export function RecipeFiltersEnhanced({ categories }: RecipeFiltersEnhancedProps) {
   const [query, setQuery] = useQueryState(
     'q',
-    parseAsString.withDefault('').withOptions({ throttleMs: 500 })
+    parseAsString.withDefault('').withOptions({ throttleMs: 500, clearOnDefault: true })
   );
   const [category, setCategory] = useQueryState(
     'category',
@@ -55,7 +55,7 @@ export function RecipeFiltersEnhanced({ categories }: RecipeFiltersEnhancedProps
     setCuisine(null);
     setDietaryTags(null);
     setLeanRole(null);
-    setQuery('');
+    setQuery(null); // Set to null to remove from URL
   };
 
   const hasActiveFilters = category !== 'all' || difficulty || cuisine || (dietaryTags && dietaryTags.length > 0) || leanRole || query;
@@ -74,8 +74,11 @@ export function RecipeFiltersEnhanced({ categories }: RecipeFiltersEnhancedProps
           id="recipe-search"
           name="recipe-search"
           placeholder="Search recipes..."
-          value={query}
-          onChange={(e) => startTransition(() => setQuery(e.target.value))}
+          value={query || ''}
+          onChange={(e) => {
+            const value = e.target.value;
+            startTransition(() => setQuery(value.trim() || null));
+          }}
           className="pl-10"
         />
       </div>

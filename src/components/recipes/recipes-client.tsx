@@ -7,7 +7,7 @@ import { RecipeFiltersEnhanced } from './recipe-filters-enhanced';
 import { SafeDeleteModal } from '@/components/ui/safe-delete-modal';
 import { deleteRecipe } from '@/actions/recipe-actions';
 import { useRouter } from 'next/navigation';
-import { useQueryState, parseAsString } from 'nuqs';
+import { useQueryState, parseAsString, parseAsArrayOf } from 'nuqs';
 import type { RecipeWithDetails } from '@/actions/recipe-actions';
 
 interface RecipesClientProps {
@@ -27,10 +27,18 @@ export function RecipesClient({
 }: RecipesClientProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'gallery' | 'list'>('gallery');
+  
+  // Get all filter params from URL
   const [category, setCategory] = useQueryState(
     'category',
     parseAsString.withDefault('all')
   );
+  const [query] = useQueryState('q', parseAsString.withDefault('').withOptions({ clearOnDefault: true }));
+  const [difficulty] = useQueryState('difficulty', parseAsString);
+  const [cuisine] = useQueryState('cuisine', parseAsString);
+  const [dietaryTags] = useQueryState('dietaryTags', parseAsArrayOf(parseAsString));
+  const [leanRole] = useQueryState('leanRole', parseAsString);
+  
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [recipeToDelete, setRecipeToDelete] = useState<RecipeWithDetails | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -61,15 +69,60 @@ export function RecipesClient({
     router.push(`/recipes/${recipe.id}/edit`);
   };
 
-  // Filter recipes client-side based on selected category
+  // Filter recipes client-side based on all active filters
   const filteredRecipes = useMemo(() => {
-    if (!category || category === 'all') {
-      return initialRecipes;
-    }
-    return initialRecipes.filter((recipe) => 
-      recipe.category?.toLowerCase() === category.toLowerCase()
-    );
-  }, [initialRecipes, category]);
+    return initialRecipes.filter((recipe) => {
+      // Category filter
+      if (category && category !== 'all') {
+        if (recipe.category?.toLowerCase() !== category.toLowerCase()) {
+          return false;
+        }
+      }
+      
+      // Search query filter
+      if (query && query.trim()) {
+        const searchLower = query.toLowerCase();
+        const matchesName = recipe.name.toLowerCase().includes(searchLower);
+        const matchesDescription = recipe.description?.toLowerCase().includes(searchLower) || false;
+        const matchesTags = recipe.tags?.some(tag => tag.toLowerCase().includes(searchLower)) || false;
+        const matchesIngredients = recipe.ingredients?.some(ing => 
+          ing.name.toLowerCase().includes(searchLower)
+        ) || false;
+        
+        if (!matchesName && !matchesDescription && !matchesTags && !matchesIngredients) {
+          return false;
+        }
+      }
+      
+      // Difficulty filter
+      if (difficulty && recipe.difficulty?.toLowerCase() !== difficulty.toLowerCase()) {
+        return false;
+      }
+      
+      // Cuisine filter
+      if (cuisine && recipe.cuisine?.toLowerCase() !== cuisine.toLowerCase()) {
+        return false;
+      }
+      
+      // Dietary tags filter
+      if (dietaryTags && dietaryTags.length > 0) {
+        const recipeTags = recipe.dietaryTags || [];
+        const hasMatchingTag = dietaryTags.some(tag => 
+          recipeTags.some(rt => rt.toLowerCase() === tag.toLowerCase())
+        );
+        if (!hasMatchingTag) {
+          return false;
+        }
+      }
+      
+      // LEAN role filter
+      if (leanRole && recipe.leanRole?.toLowerCase() !== leanRole.toLowerCase()) {
+        return false;
+      }
+      
+      return true;
+    });
+  }, [initialRecipes, category, query, difficulty, cuisine, dietaryTags, leanRole]);
 
   return (
     <>

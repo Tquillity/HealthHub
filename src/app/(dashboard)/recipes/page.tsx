@@ -21,7 +21,7 @@ export default async function RecipesPage({ searchParams }: PageProps) {
   const params = await searchParams;
 
   // Parse params
-  const query = typeof params.q === 'string' ? params.q : undefined;
+  const query = typeof params.q === 'string' && params.q.trim() ? params.q.trim() : undefined;
   const category = typeof params.category === 'string' && params.category !== 'all' ? params.category : undefined;
   const difficulty = typeof params.difficulty === 'string' ? params.difficulty : undefined;
   const cuisine = typeof params.cuisine === 'string' ? params.cuisine : undefined;

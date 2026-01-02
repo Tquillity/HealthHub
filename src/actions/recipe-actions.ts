@@ -45,42 +45,73 @@ export async function getRecipes({
     });
     const orgId = membership?.organizationId || null;
 
-    // Build where clause
-    const where: Prisma.RecipeWhereInput = {
-      OR: [
-        { isSystem: true },
-        ...(orgId ? [{ organizationId: orgId }] : []),
+    // Check if user is MAIN admin (only MAIN admin can see secret recipes)
+    const mainAdmin = await isMainAdmin(userId);
+
+    // Build base visibility filter
+    // Secret recipes: only visible to MAIN admin
+    // Private recipes: only visible to owner (future feature)
+    // System recipes: visible to everyone
+    // Organization recipes: visible to organization members
+    const visibilityFilter: Prisma.RecipeWhereInput = {
+      AND: [
+        {
+          OR: [
+            { isSystem: true },
+            ...(orgId ? [{ organizationId: orgId }] : []),
+            // Secret recipes only for MAIN admin
+            ...(mainAdmin ? [{ isSecret: true }] : []),
+            // Private recipes for owner (future: add userId field to Recipe)
+          ],
+        },
+        // Exclude secret recipes if not MAIN admin
+        ...(mainAdmin ? [] : [{ isSecret: false }]),
+        // Exclude private recipes (will be handled when userId field is added)
+        { isPrivate: false },
       ],
     };
 
+    // Build where clause combining visibility with search/filter criteria
+    const filterConditions: Prisma.RecipeWhereInput[] = [visibilityFilter];
+
+    // Add search query if provided
     if (query) {
-      where.OR = [
-        { name: { contains: query, mode: 'insensitive' } },
-        { description: { contains: query, mode: 'insensitive' } },
-        { tags: { hasSome: [query] } },
-        { ingredients: { some: { name: { contains: query, mode: 'insensitive' } } } },
-      ];
+      filterConditions.push({
+        OR: [
+          { name: { contains: query, mode: 'insensitive' } },
+          { description: { contains: query, mode: 'insensitive' } },
+          { tags: { hasSome: [query] } },
+          { ingredients: { some: { name: { contains: query, mode: 'insensitive' } } } },
+        ],
+      });
     }
 
+    // Add other filters
     if (category) {
-      where.category = category;
+      filterConditions.push({ category });
     }
 
     if (difficulty) {
-      where.difficulty = difficulty;
+      filterConditions.push({ difficulty });
     }
 
     if (cuisine) {
-      where.cuisine = cuisine;
+      filterConditions.push({ cuisine });
     }
 
-    if (dietaryTags && dietaryTags.length > 0) {
-      where.dietaryTags = { hasSome: dietaryTags };
+    // Filter out empty strings from dietaryTags
+    const validDietaryTags = dietaryTags?.filter((tag) => tag && tag.trim().length > 0);
+    if (validDietaryTags && validDietaryTags.length > 0) {
+      filterConditions.push({ dietaryTags: { hasSome: validDietaryTags } });
     }
 
     if (leanRole) {
-      where.leanRole = leanRole;
+      filterConditions.push({ leanRole });
     }
+
+    const where: Prisma.RecipeWhereInput = {
+      AND: filterConditions,
+    };
 
     const recipes = await prisma.recipe.findMany({
       where,
@@ -250,6 +281,8 @@ const CreateRecipeSchema = z.object({
   fiber: z.number().positive().optional(),
   sugar: z.number().positive().optional(),
   sodium: z.number().positive().optional(),
+  isSecret: z.boolean().default(false), // Only MAIN admin can set this
+  isPrivate: z.boolean().default(false), // For future: user's private recipes
   ingredients: z.array(
     z.object({
       name: z.string().min(1),
@@ -277,8 +310,9 @@ export async function createRecipe(data: z.infer<typeof CreateRecipeSchema>) {
     }
 
     // Check if user is admin
+    const userId = session.user.id;
     const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: userId },
       select: { role: true },
     });
 
@@ -286,9 +320,15 @@ export async function createRecipe(data: z.infer<typeof CreateRecipeSchema>) {
       return { success: false, error: 'Forbidden: Admin access required' };
     }
 
+    // Only MAIN admin can create secret recipes
+    const mainAdmin = await isMainAdmin(userId);
+    if (data.isSecret && !mainAdmin) {
+      return { success: false, error: 'Forbidden: Only MAIN admin can create secret recipes' };
+    }
+
     // Get user's organization
     const membership = await prisma.member.findFirst({
-      where: { userId: session.user.id },
+      where: { userId: userId },
       select: { organizationId: true },
     });
 
@@ -323,6 +363,8 @@ export async function createRecipe(data: z.infer<typeof CreateRecipeSchema>) {
           sodium: validated.sodium || null,
           organizationId: membership.organizationId,
           isSystem: false,
+          isSecret: validated.isSecret || false,
+          isPrivate: validated.isPrivate || false,
         },
       });
 
@@ -376,8 +418,9 @@ export async function updateRecipe(data: z.infer<typeof UpdateRecipeSchema>) {
     }
 
     // Check if user is admin
+    const userId = session.user.id;
     const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: userId },
       select: { role: true },
     });
 
@@ -397,6 +440,19 @@ export async function updateRecipe(data: z.infer<typeof UpdateRecipeSchema>) {
 
     if (!existingRecipe) {
       return { success: false, error: 'Recipe not found' };
+    }
+
+    // Check secret recipe access - only MAIN admin can see/edit secret recipes
+    const mainAdmin = await isMainAdmin(userId);
+    if (existingRecipe.isSecret && !mainAdmin) {
+      return { success: false, error: 'Recipe not found' };
+    }
+
+    // Only MAIN admin can set/change isSecret
+    if (recipeData.isSecret !== undefined && recipeData.isSecret !== existingRecipe.isSecret) {
+      if (!mainAdmin) {
+        return { success: false, error: 'Forbidden: Only MAIN admin can set secret recipes' };
+      }
     }
 
     if (existingRecipe.isSystem) {
@@ -467,6 +523,9 @@ export async function getRecipe(id: string) {
       return { success: false, error: 'Unauthorized', data: null };
     }
 
+    const userId = session.user.id;
+    const mainAdmin = await isMainAdmin(userId);
+
     const recipe = await prisma.recipe.findUnique({
       where: { id },
       include: {
@@ -476,6 +535,17 @@ export async function getRecipe(id: string) {
     });
 
     if (!recipe) {
+      return { success: false, error: 'Recipe not found', data: null };
+    }
+
+    // Check secret recipe access - only MAIN admin can see secret recipes
+    if (recipe.isSecret && !mainAdmin) {
+      return { success: false, error: 'Recipe not found', data: null };
+    }
+
+    // Check private recipe access (future: check if user is owner)
+    if (recipe.isPrivate) {
+      // TODO: When userId field is added to Recipe, check if user is owner
       return { success: false, error: 'Recipe not found', data: null };
     }
 
@@ -553,5 +623,24 @@ export async function getUserRole() {
   } catch (error) {
     console.error('Error getting user role:', error);
     return { success: false, role: null };
+  }
+}
+
+/**
+ * Check if the current user is the MAIN admin (the one created in seed.ts)
+ * MAIN admin is identified by matching the ADMIN_EMAIL from environment
+ */
+async function isMainAdmin(userId: string): Promise<boolean> {
+  try {
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@healthhub.com';
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, role: true },
+    });
+    
+    return user?.role === 'admin' && user?.email === adminEmail;
+  } catch (error) {
+    console.error('Error checking MAIN admin status:', error);
+    return false;
   }
 }

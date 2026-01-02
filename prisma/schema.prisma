@@ -172,6 +172,8 @@ model Recipe {
 
   // Ownership / Visibility
   isSystem       Boolean       @default(false) // True = Visible to everyone (Kitchen Manifest)
+  isSecret       Boolean       @default(false) // True = Only visible to MAIN admin (highest security)
+  isPrivate      Boolean       @default(false) // True = Only visible to recipe owner (for future user recipes)
   organizationId String? // Null if System, ID if Custom
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
@@ -180,6 +182,8 @@ model Recipe {
 
   @@index([organizationId])
   @@index([isSystem])
+  @@index([isSecret])
+  @@index([isPrivate])
   @@index([difficulty])
   @@index([cuisine])
   @@index([dietaryTags])

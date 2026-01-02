@@ -6,7 +6,8 @@ import * as path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import { hashPassword } from 'better-auth/crypto';
-import { PrismaClient } from '@prisma/client';
+// @ts-ignore - Prisma Client types may not be recognized by TS server immediately after regeneration
+import { PrismaClient, Prisma } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 
@@ -26,6 +27,7 @@ interface KitchenManifestRecipe {
   cuisine?: string;
   dietaryTags?: string[];
   videoUrl?: string;
+  isSecret?: boolean; // Only MAIN admin can see secret recipes
   ingredients: Array<{
     name: string;
     quantity: number;
@@ -205,7 +207,7 @@ async function seed() {
         continue;
       }
 
-      await prisma.$transaction(async (tx) => {
+      await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
         // Prepare recipe data with explicit typing to avoid TypeScript cache issues
         const recipeDataInput = {
           name: recipeData.name,
@@ -221,6 +223,8 @@ async function seed() {
           cuisine: recipeData.cuisine || null,
           dietaryTags: recipeData.dietaryTags || [],
           isSystem: true,
+          isSecret: recipeData.isSecret || false, // Secret recipes only visible to MAIN admin
+          isPrivate: false, // System recipes are never private
           organizationId: null,
         } as const;
         
