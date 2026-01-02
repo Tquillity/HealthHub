@@ -28,6 +28,8 @@ node_modules/
 
 # Turborepo cache and logs
 .turbo/
+**/.turbo/
+*.turbo.log*
 
 # Production builds (some frameworks/Next export)
 /dist/
