@@ -121,7 +121,7 @@ export default function SignUpPage() {
             <span className="text-gray-600">Already have an account? </span>
             <Link
               href="/sign-in"
-              className="font-medium text-blue-600 hover:text-blue-500"
+              className="font-medium text-primary-600 hover:text-primary-500"
             >
               Sign in
             </Link>

@@ -17,6 +17,13 @@ model User {
   email         String       @unique
   emailVerified Boolean
   image         String?
+  
+  // Profile preferences (Sprint 4)
+  energyLevel         String?   // "low", "medium", "high"
+  dietaryRestrictions String[]  @default([])
+  healthGoals         String[]  @default([])
+  timezone            String?   @default("UTC")
+  
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
   sessions      Session[]
@@ -259,4 +266,29 @@ model JournalEntry {
   @@unique([userId, date], name: "userId_date") // One entry per user per day
   @@index([userId, date])
   @@map("journal_entry")
+}
+
+// =======================
+// DOMAIN: EDUCATION (Sprint 4)
+// =======================
+
+model EducationalResource {
+  id        String   @id @default(cuid())
+  title     String
+  content   String   @db.Text
+  excerpt   String?
+  category  String?
+  tags      String[] @default([])
+  difficulty String? // "beginner", "intermediate", "advanced"
+  readTime  Int?     // minutes
+  imageUrl  String?
+  featured  Boolean  @default(false)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category])
+  @@index([featured])
+  @@index([tags])
+  @@map("educational_resource")
 }

@@ -13,13 +13,21 @@ export default function Home() {
         </p>
         <div className="mt-10 flex items-center justify-center gap-x-6">
           <Link href="/sign-up">
-            <Button size="lg">Get Started</Button>
+            <Button size="lg" className="bg-primary-500 text-white hover:bg-primary-600">
+              Get Started
+            </Button>
           </Link>
           <Link href="/sign-in">
             <Button variant="outline" size="lg">
               Sign In
             </Button>
           </Link>
+        </div>
+        {/* Verification: Primary color should be #0ea5e9 */}
+        <div className="mt-8 rounded-lg bg-primary-500 p-4 text-primary-50">
+          <p className="text-sm font-medium">
+            Color Verification: This box uses primary-500 (#0ea5e9)
+          </p>
         </div>
       </div>
     </div>

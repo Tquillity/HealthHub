@@ -101,7 +101,7 @@ export default function SignInPage() {
             <span className="text-gray-600">Don't have an account? </span>
             <Link
               href="/sign-up"
-              className="font-medium text-blue-600 hover:text-blue-500"
+              className="font-medium text-primary-600 hover:text-primary-500"
             >
               Sign up
             </Link>

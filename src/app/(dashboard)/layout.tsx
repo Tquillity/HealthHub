@@ -10,6 +10,7 @@ import {
   CalendarDays,
   User,
   Sparkles,
+  GraduationCap,
 } from 'lucide-react';
 
 export default async function DashboardLayout({
@@ -31,7 +32,9 @@ export default async function DashboardLayout({
     { name: 'Meal Planner', href: '/meal-planner', icon: CalendarDays },
     { name: 'Routines', href: '/routines', icon: Sparkles },
     { name: 'Journal', href: '/journal', icon: BookOpen },
+    { name: 'Learn', href: '/learn', icon: GraduationCap },
     { name: 'Groceries', href: '/groceries', icon: ShoppingCart },
+    { name: 'Profile', href: '/profile', icon: User },
   ];
 
   return (
