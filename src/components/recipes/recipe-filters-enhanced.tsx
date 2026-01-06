@@ -130,7 +130,7 @@ export function RecipeFiltersEnhanced({ categories }: RecipeFiltersEnhancedProps
         {/* Dietary Tags */}
         {filterOptions.dietaryTags.length > 0 && (
           <div className="flex-1 min-w-[200px]">
-            <label className="mb-1 block text-xs font-medium text-gray-500">Dietary Tags</label>
+            <div className="mb-1 block text-xs font-medium text-gray-500">Dietary Tags</div>
             <div className="flex flex-wrap gap-2">
               {filterOptions.dietaryTags.slice(0, 8).map((tag) => {
                 const isSelected = dietaryTags?.includes(tag);
