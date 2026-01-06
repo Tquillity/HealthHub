@@ -63,7 +63,12 @@ next-env.d.ts
 
 # Package manager lock files (only commit the one you actually use)
 # For pnpm projects – commit pnpm-lock.yaml, ignore the others
-package-lock.json    # ← ignore npm lock file (using pnpm)
+# 
+# IMPORTANT: Currently package-lock.json is tracked because pnpm-lock.yaml doesn't exist yet.
+# Once pnpm-lock.yaml is generated (via `pnpm install`), uncomment the line below
+# and remove package-lock.json from git tracking.
+#
+# package-lock.json    # ← uncomment once pnpm-lock.yaml exists
 # yarn.lock            # ← uncomment if you ever switch to yarn
 !pnpm-lock.yaml        # ← explicitly allow pnpm-lock.yaml to be committed
 

@@ -104,25 +104,15 @@ export default async function CyclePage() {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Icon Header */}
-      <div className="flex items-center gap-3">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-100 text-primary-600">
-          <Moon className="h-6 w-6" />
-        </div>
-        <div>
-          <p className="text-gray-500">Track your menstrual cycle and get personalized recommendations</p>
-        </div>
-      </div>
-
-      {/* Main Cycle Tracker Client Component */}
+      {/* Main Cycle Tracker Client Component with Bento Grid Layout */}
       <CyclePageClient
         phaseData={phaseData}
         recommendations={recommendations}
         userPreference={userPreference}
       />
 
-      {/* Quick Actions */}
-      <div className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+      {/* Quick Actions Footer */}
+      <div className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-white p-4 shadow-sm max-w-7xl mx-auto w-full">
         <h3 className="text-sm font-semibold text-gray-900">Quick Actions</h3>
         <div className="flex flex-wrap gap-2">
           <Link href="/profile">

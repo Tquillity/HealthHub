@@ -21,6 +21,7 @@
  * - ReferenceArea components create seamless phase backgrounds with 0.5 offset for full coverage
  * - Energy curve models typical hormonal energy fluctuations throughout cycle
  * - XAxis domain extends to [0.5, cycleLength + 0.5] to accommodate phase boundaries
+ * - Line animation (1500ms) provides smooth "drawing" effect on initial load for premium feel
  */
 
 import React, { useEffect } from 'react';
@@ -248,7 +249,7 @@ export function CycleChart({ phaseData, cycleLength, onPhaseHover }: CycleChartP
             />
             <Tooltip content={(props) => <CustomTooltip {...props} onPhaseHover={onPhaseHover} />} />
             
-            {/* Intensity Line */}
+            {/* Intensity Line with Animation */}
             <Line
               type="monotone"
               dataKey="intensity"
@@ -256,6 +257,8 @@ export function CycleChart({ phaseData, cycleLength, onPhaseHover }: CycleChartP
               strokeWidth={2}
               dot={{ r: 4, fill: '#6366f1' }}
               activeDot={{ r: 6, fill: '#4f46e5' }}
+              isAnimationActive={true}
+              animationDuration={1500}
             />
             
             {/* Current Day Marker */}
