@@ -40,6 +40,16 @@ A comprehensive household wellness application built with the **Next.js 16 + Pos
     pnpm dev
     ```
 
+## Database Verification
+
+**Automated Verification:** The Postgres MCP is configured for automated schema verification. All database schema changes should be verified using the `@postgres` MCP tools before deployment.
+
+**Manual Sync (if needed):**
+```bash
+npx prisma db push
+npx prisma generate
+```
+
 ## Development Workflow
 
 *   **Logic**: Write Server Actions in `src/actions/`.

@@ -20,23 +20,21 @@ This repository operates on the **Next.js 16 + PostgreSQL (Prisma)** stack.
 
 ## 2. Directory Structure Standards
 
-```plaintext
-src/
-├── app/                  # Next.js App Router
-│   ├── (auth)/           # Route Group: Login, Register
-│   ├── (dashboard)/      # Route Group: Protected App (Layout with Sidebar)
-│   ├── layout.tsx        # Root Layout (ONLY place for globals.css import)
-│   └── globals.css       # Tailwind v4 theme variables
-├── actions/              # Server Actions (Mutations & Data Fetching)
-├── components/           # React Components
-│   ├── ui/               # shadcn/ui primitives (Button, Card, Input)
-│   └── [feature]/        # Feature-specific components (recipes, journal, etc.)
-├── lib/                  # Singletons & Utilities
-│   ├── db.ts             # Prisma Client singleton
-│   ├── auth.ts           # Better-Auth configuration
-│   └── utils.ts          # cn() helper
-└── db/                   # Database related (schema.prisma, seed scripts)
-```
+    src/
+    ├── app/                  # Next.js App Router
+    │   ├── (auth)/           # Route Group: Login, Register
+    │   ├── (dashboard)/      # Route Group: Protected App (Layout with Sidebar)
+    │   ├── layout.tsx        # Root Layout (ONLY place for globals.css import)
+    │   └── globals.css       # Tailwind v4 theme variables
+    ├── actions/              # Server Actions (Mutations & Data Fetching)
+    ├── components/           # React Components
+    │   ├── ui/               # shadcn/ui primitives (Button, Card, Input)
+    │   └── [feature]/        # Feature-specific components (recipes, journal, etc.)
+    ├── lib/                  # Singletons & Utilities
+    │   ├── db.ts             # Prisma Client singleton
+    │   ├── auth.ts           # Better-Auth configuration
+    │   └── utils.ts          # cn() helper
+    └── db/                   # Database related (schema.prisma, seed scripts)
 
 ## 3. Coding Rules for AI Agents
 
@@ -80,7 +78,32 @@ src/
 - Navigation items and interactive buttons must have a minimum height of 44px (Tailwind `min-h-[44px]`).
 - High-risk actions (Delete, Reset, Logout) must have an increased separation (minimum `gap-6`) to prevent accidental triggers.
 
-## 4. Pre-Generation Checklist
+## 4. Response Protocol & File Separation
+
+- **Dialogue vs. Artifacts:** Provide all Work Plans, Execution Prompts, Todo Lists, and Commit Summaries as **Markdown text in the chat dialogue only**.
+- **Source Code Only:** Never generate or write `.md` files (e.g., `TODO.md`, `PLAN.md`) into the repository filesystem.
+- **File Constraints:** The AI should only create or modify source code, configuration, or database files (`.ts`, `.tsx`, `.prisma`, `.css`, `.json`).
+- **Internal Verification:** The checklist below is for internal reasoning. Do not output the checklist results as a file.
+
+## 5. Database Verification via MCP
+
+**CRITICAL:** Always use the `@postgres` MCP to verify schema changes or debug data persistence before suggesting code changes.
+
+- Use `mcp_postgres_query` to verify table structures match `prisma/schema.prisma`
+- Verify column types, especially array types (TEXT[] should appear as `_text` in PostgreSQL)
+- Check for missing columns before suggesting Prisma operations
+- Query actual data to debug persistence issues rather than assuming schema state
+
+**Example MCP Verification:**
+```sql
+-- Verify JournalEntry array columns
+SELECT column_name, data_type, udt_name 
+FROM information_schema.columns 
+WHERE table_name = 'journal_entry' 
+AND column_name IN ('gratitudeEntries', 'goalsAchieved', 'symptomsPhysical');
+```
+
+## 6. Pre-Generation Checklist
 
 Before providing code, verify:
 
@@ -89,8 +112,9 @@ Before providing code, verify:
 3. **Accessibility:** Does every Input have a unique ID matching a Label's `htmlFor`?
 4. **Layout:** Did I use `flex flex-col gap-X` for vertical lists of interactive elements?
 5. **PWA:** Is the ServiceWorkerCleanup component being respected in development mode?
+6. **Database:** Have I verified the schema using Postgres MCP if making schema-related changes?
 
-## 5. Migration Reminders (If Refactoring)
+## 7. Migration Reminders (If Refactoring)
 
 - **Auth:** Replace passport or next-auth with Better-Auth.
 - **Grocery Logic:** Convert JS aggregation loops into SQL/Prisma `groupBy` queries where possible.
@@ -113,4 +137,3 @@ Before providing code, verify:
     </div>
   ))}
 </div>
-```

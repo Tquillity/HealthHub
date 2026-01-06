@@ -425,8 +425,7 @@ export async function createRecipe(data: z.infer<typeof CreateRecipeSchema>) {
   } catch (error) {
     console.error('Error creating recipe:', error);
     if (error instanceof z.ZodError) {
-      const firstError = error.errors && Array.isArray(error.errors) && error.errors.length > 0 ? error.errors[0] : null;
-      return { success: false, error: firstError?.message || 'Validation failed' };
+      return { success: false, error: (error as any).errors[0]?.message || 'Validation failed' };
     }
     // Handle other error types
     if (error instanceof Error) {
@@ -527,11 +526,15 @@ export async function updateRecipe(data: z.infer<typeof UpdateRecipeSchema>) {
     // But prevent changing the isSystem flag itself
     if (existingRecipe.isSystem) {
       // Prevent changing isSystem flag on system recipes
-      if (recipeData.isSystem !== undefined && recipeData.isSystem !== existingRecipe.isSystem) {
+      // Check processedData since isSystem is not in the schema
+      const isSystemValue = 'isSystem' in processedData ? processedData.isSystem : undefined;
+      if (isSystemValue !== undefined && isSystemValue !== existingRecipe.isSystem) {
         return { success: false, error: 'Cannot change isSystem flag on system recipes' };
       }
-      // Remove isSystem from update data to prevent accidental changes
-      delete recipeData.isSystem;
+      // Remove isSystem from update data to prevent accidental changes (if it somehow got through)
+      if ('isSystem' in recipeData) {
+        delete (recipeData as any).isSystem;
+      }
     }
 
     // Update recipe
@@ -586,8 +589,7 @@ export async function updateRecipe(data: z.infer<typeof UpdateRecipeSchema>) {
   } catch (error) {
     console.error('Error updating recipe:', error);
     if (error instanceof z.ZodError) {
-      const firstError = error.errors && Array.isArray(error.errors) && error.errors.length > 0 ? error.errors[0] : null;
-      return { success: false, error: firstError?.message || 'Validation failed' };
+      return { success: false, error: (error as any).errors[0]?.message || 'Validation failed' };
     }
     // Handle other error types
     if (error instanceof Error) {
