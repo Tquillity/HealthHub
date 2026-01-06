@@ -222,7 +222,7 @@ async function seed() {
           difficulty: recipeData.difficulty || null,
           cuisine: recipeData.cuisine || null,
           dietaryTags: recipeData.dietaryTags || [],
-          leanRole: (recipeData as any).lean_metrics?.lean_role || null, // Map lean_role from lean_metrics
+          leanRole: (recipeData as any).leanInfo?.leanRole || (recipeData as any).lean_metrics?.lean_role || null, // Map leanRole from leanInfo (camelCase) or lean_metrics (snake_case)
           isSystem: true,
           isSecret: recipeData.isSecret || false, // Secret recipes only visible to MAIN admin
           isPrivate: false, // System recipes are never private

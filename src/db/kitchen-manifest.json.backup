@@ -101,10 +101,7 @@
           "stepNumber": 7,
           "text": "Ta ut ur ugnen och låt svalna på galler. OBS! Det är viktigt att man låter brödet kallna helt innan du äter dem, det går alltså inte bra att äta dem helt nybakade. Skär man i brödet innan det är kallnat klibbar det ihop."
         }
-      ],
-      "leanInfo": {
-        "leanRole": "Infrastructure"
-      }
+      ]
     },
     {
       "name": "Fröknäcke (Grundrecept)",
@@ -209,10 +206,7 @@
           "stepNumber": 7,
           "text": "Grädda i ca 1 timme. Låt svalna helt innan du bryter i bitar."
         }
-      ],
-      "leanInfo": {
-        "leanRole": "Infrastructure"
-      }
+      ]
     },
     {
       "name": "Nuoc Cham (Vietnamesisk Dipsås)",
@@ -290,10 +284,7 @@
           "stepNumber": 6,
           "text": "Låt stå i kylen minst 30 minuter innan servering för att smakerna ska gifta sig."
         }
-      ],
-      "leanInfo": {
-        "leanRole": "Process"
-      }
+      ]
     },
     {
       "name": "Jordnötssås med Kokosmjölk",
@@ -412,10 +403,7 @@
           "stepNumber": 9,
           "text": "Servera kall eller varm."
         }
-      ],
-      "leanInfo": {
-        "leanRole": "Process"
-      }
+      ]
     },
     {
       "name": "Sötpotatisrösti med Lingon",
@@ -500,10 +488,7 @@
           "stepNumber": 6,
           "text": "Servera röstin med lingonen."
         }
-      ],
-      "leanInfo": {
-        "leanRole": "Daily"
-      }
+      ]
     },
     {
       "name": "Pinklax-sås med Stekt Potatis",
@@ -628,10 +613,7 @@
           "stepNumber": 12,
           "text": "Servera med den stekta potatisen och kokta grönsaker."
         }
-      ],
-      "leanInfo": {
-        "leanRole": "Daily"
-      }
+      ]
     },
     {
       "name": "Krämig Fisksoppa med Saffran (Mejerifri)",
@@ -814,10 +796,7 @@
           "stepNumber": 8,
           "text": "Servera med ett gott bröd och ev. aioli."
         }
-      ],
-      "leanInfo": {
-        "leanRole": "Daily"
-      }
+      ]
     },
     {
       "name": "Bananpannkaka (Enkel)",
@@ -897,10 +876,7 @@
           "stepNumber": 5,
           "text": "Servera med bär och lite smält honung."
         }
-      ],
-      "leanInfo": {
-        "leanRole": "Daily"
-      }
+      ]
     },
     {
       "name": "Chocolate Chip Cookies (Raw/No-Bake)",
@@ -985,10 +961,7 @@
           "stepNumber": 6,
           "text": "Ställ kallt en stund innan servering. (Kan ätas direkt men godare kalla)."
         }
-      ],
-      "leanInfo": {
-        "leanRole": "Treat"
-      }
+      ]
     },
     {
       "name": "Osannolikt God Raw Vegan Cheesecake",
@@ -1087,10 +1060,7 @@
           "stepNumber": 8,
           "text": "Topping: Lägg på valfria bär när det är dags att servera."
         }
-      ],
-      "leanInfo": {
-        "leanRole": "Treat"
-      }
+      ]
     },
     {
       "name": "Citron- och Marängpaj",
@@ -1210,10 +1180,7 @@
           "stepNumber": 9,
           "text": "Grädda mitt i ugnen i 175°C i ca 10 minuter tills marängen fått fin färg."
         }
-      ],
-      "leanInfo": {
-        "leanRole": "Treat"
-      }
+      ]
     },
     {
       "name": "Mejerifri zucchinilasagne",
@@ -1326,10 +1293,7 @@
           "stepNumber": 7,
           "text": "Grädda i ugnen ca 15-20 minuter. Servera med en stor sallad."
         }
-      ],
-      "leanInfo": {
-        "leanRole": "Daily"
-      }
+      ]
     },
     {
       "name": "Krämig Potatispuré (Mästerklass)",
@@ -1412,10 +1376,7 @@
           "stepNumber": 9,
           "text": "Värm upp purén under omrörning och tillsätt mjölk eller kokvatten till önskad konsistens."
         }
-      ],
-      "leanInfo": {
-        "leanRole": "Process"
-      }
+      ]
     },
     {
       "name": "Asiatisk marinad med krispig tofu och tempeh",
@@ -1523,10 +1484,7 @@
           "stepNumber": 5,
           "text": "Sänk värmen och stek bitarna i resten av marinaden en kort stund för att glasera dem. Servera med salladslök och sesamfrön. Perfekt till ris, bulgur, ugnsrostade grönsaker eller som fyllning i vietnamesiska vårrullar."
         }
-      ],
-      "leanInfo": {
-        "leanRole": "Process"
-      }
+      ]
     },
     {
       "name": "Frisk ärtskottsdressing",
@@ -1601,10 +1559,7 @@
           "stepNumber": 5,
           "text": "Servera direkt eller förvara i en tät glasburk i kylen. Dressingen är god på de allra flesta sallader, många varma rätter eller ringla på smörgåsen tillsammans med hela ärtskott."
         }
-      ],
-      "leanInfo": {
-        "leanRole": "Process"
-      }
+      ]
     },
     {
       "name": "Japanskt Risbröd (Blender-metoden)",
@@ -1695,10 +1650,7 @@
           "stepNumber": 8,
           "text": "När brödet är klart, släpp ut limpan på ett galler för att svalna. Låt svalna helt innan du skär i det. Bäst färskt, men kan hålla några dagar i kylen."
         }
-      ],
-      "leanInfo": {
-        "leanRole": "Infrastructure"
-      }
+      ]
     },
     {
       "name": "Agats Tahinipraliner",
@@ -1781,10 +1733,7 @@
           "stepNumber": 8,
           "text": "Förvara pralinerna i frysen eller kylen fram till servering."
         }
-      ],
-      "leanInfo": {
-        "leanRole": "Treat"
-      }
+      ]
     },
     {
       "name": "Hälsosam Chokladtårta med Mocca- & Karamellfrosting",
@@ -1952,10 +1901,7 @@
           "stepNumber": 9,
           "text": "När frostingen har stelnat i kylen och kakan är helt svalnad eller till och med kyld – bred frostingen tjockt över kakan. Dekorera med frukt, bär och kakaonibs."
         }
-      ],
-      "leanInfo": {
-        "leanRole": "Treat"
-      }
+      ]
     },
     {
       "name": "Klassisk Pepparkakskrydda",
@@ -2020,10 +1966,7 @@
           "stepNumber": 4,
           "text": "Förvara mörkt och svalt för att bevara de eteriska oljorna och smaken så länge som möjligt."
         }
-      ],
-      "leanInfo": {
-        "leanRole": "Process"
-      }
+      ]
     },
     {
       "name": "Pepparkaksrutor med choklad och apelsin",
@@ -2134,10 +2077,7 @@
           "stepNumber": 7,
           "text": "Ställ i frysen och låt stelna i ca 1 timme. Skär i rutor och förvara i frysen."
         }
-      ],
-      "leanInfo": {
-        "leanRole": "Treat"
-      }
+      ]
     },
     {
       "name": "Långkokt Nöthjärta med rödvin och rotfrukter",
@@ -2293,18 +2233,13 @@
           "stepNumber": 8,
           "text": "Smaka av med salt och peppar. Servera gärna med hemgjord surkål för extra hälsofördelar."
         }
-      ],
-      "leanInfo": {
-        "leanRole": "Daily"
-      }
+      ]
     },
     {
       "name": "Lafa – Glutenfritt tunnbröd på fullkornsris och quinoa",
       "description": "Ett mjukt och elastiskt tunnbröd inspirerat av mellanösterns Lafa. Baserat på blötlagda hela korn av runda fullkornsris och vit quinoa. Naturligt glutenfritt och proteinrikt.",
       "imageUrl": "/uploads/recipes/lafa-1.jpg",
-      "imageUrls": [
-        "/uploads/recipes/lafa-2.jpg"
-      ],
+      "imageUrls": ["/uploads/recipes/lafa-2.jpg"],
       "prepTime": 730,
       "cookTime": 15,
       "servings": 8,
@@ -2395,10 +2330,7 @@
           "stepNumber": 8,
           "text": "Stapla bröden under en ren handduk så att de håller sig mjuka och elastiska."
         }
-      ],
-      "leanInfo": {
-        "leanRole": "Infrastructure"
-      }
+      ]
     }
   ],
   "routines": [

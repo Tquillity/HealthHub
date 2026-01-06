@@ -42,6 +42,7 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
     tags: recipe?.tags?.join(', ') || '',
     difficulty: recipe?.difficulty || '',
     cuisine: recipe?.cuisine || '',
+    leanRole: recipe?.leanRole || '',
     dietaryTags: recipe?.dietaryTags?.join(', ') || '',
     calories: recipe?.calories?.toString() || '',
     protein: recipe?.protein?.toString() || '',
@@ -98,6 +99,7 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
         tags: recipe.tags?.join(', ') || '',
         difficulty: recipe.difficulty || '',
         cuisine: recipe.cuisine || '',
+        leanRole: recipe.leanRole || '',
         dietaryTags: recipe.dietaryTags?.join(', ') || '',
         calories: recipe.calories != null ? recipe.calories.toString() : '',
         protein: recipe.protein != null ? recipe.protein.toString() : '',
@@ -294,6 +296,7 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
       tags: formData.tags.split(',').map((t) => t.trim()).filter(Boolean),
       difficulty: formData.difficulty as 'easy' | 'medium' | 'hard' | undefined,
       cuisine: formData.cuisine || undefined,
+      leanRole: formData.leanRole || undefined,
       dietaryTags: formData.dietaryTags.split(',').map((t) => t.trim()).filter(Boolean),
       calories: formData.calories ? parseFloat(formData.calories) : undefined,
       protein: formData.protein ? parseFloat(formData.protein) : undefined,
@@ -593,6 +596,25 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
                   {cuisine}
                 </option>
               ))}
+            </select>
+          </div>
+
+          <div>
+            <label htmlFor="recipe-lean-role" className="block text-sm font-medium text-gray-700 mb-2">
+              Lean Role
+            </label>
+            <select
+              id="recipe-lean-role"
+              name="recipe-lean-role"
+              value={formData.leanRole}
+              onChange={(e) => setFormData({ ...formData, leanRole: e.target.value })}
+              className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+            >
+              <option value="">Select lean role</option>
+              <option value="Infrastructure">Infrastructure</option>
+              <option value="Process">Process</option>
+              <option value="Daily">Daily</option>
+              <option value="Treat">Treat</option>
             </select>
           </div>
 
