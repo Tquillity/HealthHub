@@ -85,7 +85,9 @@ This repository operates on the **Next.js 16 + PostgreSQL (Prisma)** stack.
 - **File Constraints:** The AI should only create or modify source code, configuration, or database files (`.ts`, `.tsx`, `.prisma`, `.css`, `.json`).
 - **Internal Verification:** The checklist below is for internal reasoning. Do not output the checklist results as a file.
 
-## 5. Database Verification via MCP
+## 5. MCP Tools for Verification & Research
+
+### 5.1 Database Verification via Postgres MCP
 
 **CRITICAL:** Always use the `@postgres` MCP to verify schema changes or debug data persistence before suggesting code changes.
 
@@ -94,7 +96,7 @@ This repository operates on the **Next.js 16 + PostgreSQL (Prisma)** stack.
 - Check for missing columns before suggesting Prisma operations
 - Query actual data to debug persistence issues rather than assuming schema state
 
-**Example MCP Verification:**
+**Example Postgres MCP Verification:**
 ```sql
 -- Verify JournalEntry array columns
 SELECT column_name, data_type, udt_name 
@@ -102,6 +104,30 @@ FROM information_schema.columns
 WHERE table_name = 'journal_entry' 
 AND column_name IN ('gratitudeEntries', 'goalsAchieved', 'symptomsPhysical');
 ```
+
+### 5.2 Web Research via Brave Search MCP
+
+**Use `@brave-search` MCP for real-time information gathering and research.**
+
+- Use `mcp_brave-search_brave_web_search` for general web searches, news, articles, and technical documentation
+- Use `mcp_brave-search_brave_local_search` for local business searches (restaurants, services, places)
+- Prefer Brave Search MCP over web_search tool when you need:
+  - Up-to-date information about libraries, frameworks, or APIs
+  - Recent technology updates or breaking changes
+  - Current best practices or community discussions
+  - Local business information for location-based features
+
+**When to use Brave Search MCP:**
+- Researching current versions of dependencies
+- Finding recent examples or tutorials
+- Checking for breaking changes in libraries
+- Gathering information about external APIs or services
+- Looking up local businesses or services for location features
+
+**When NOT to use:**
+- Information already in the codebase (use codebase_search instead)
+- Schema verification (use Postgres MCP instead)
+- Code analysis (use grep or codebase_search)
 
 ## 6. Pre-Generation Checklist
 
@@ -113,6 +139,7 @@ Before providing code, verify:
 4. **Layout:** Did I use `flex flex-col gap-X` for vertical lists of interactive elements?
 5. **PWA:** Is the ServiceWorkerCleanup component being respected in development mode?
 6. **Database:** Have I verified the schema using Postgres MCP if making schema-related changes?
+7. **Research:** Have I used Brave Search MCP for current information instead of relying on potentially outdated knowledge?
 
 ## 7. Migration Reminders (If Refactoring)
 
