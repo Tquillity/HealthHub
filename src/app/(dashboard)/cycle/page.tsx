@@ -24,6 +24,7 @@
 import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
 import { auth } from '@/lib/auth';
+import { prisma } from '@/lib/db';
 import { getCycleDashboard } from '@/actions/cycle-actions';
 import { CyclePageClient } from '@/components/cycle/cycle-page-client';
 import { Button } from '@/components/ui/button';
@@ -102,13 +103,22 @@ export default async function CyclePage() {
 
   const { phaseData, recommendations, userPreference } = dashboardResult;
 
+  // Get lastPeriodDate from user data for date calculations
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { lastPeriodDate: true },
+  });
+
   return (
     <div className="flex flex-col gap-6">
       {/* Main Cycle Tracker Client Component with Bento Grid Layout */}
       <CyclePageClient
         phaseData={phaseData}
         recommendations={recommendations}
-        userPreference={userPreference}
+        userPreference={{
+          ...userPreference,
+          lastPeriodDate: user?.lastPeriodDate || new Date(),
+        }}
       />
 
       {/* Quick Actions Footer */}

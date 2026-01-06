@@ -19,15 +19,21 @@
  * - Integrated recommendations: Top expert tip shown in Insight Center
  */
 
-import { useState } from 'react';
-import { CyclePhase, CyclePhaseResult } from '@/lib/cycle-calculator';
+import { useState, useEffect } from 'react';
+import { CyclePhase, CyclePhaseResult, calculateCyclePhase } from '@/lib/cycle-calculator';
+import { useQueryState, parseAsString } from 'nuqs';
 import { FocusPreferenceSelector } from './focus-preference-selector';
 import { CycleChart } from './cycle-chart';
 import { InsightCenter } from './insight-center';
+import { JournalQuickLook } from './journal-quick-look';
 import { RecommendationCard } from './recommendation-card';
+import { PhaseDeepDive } from './phase-deep-dive';
+import { PhaseDrawer } from './phase-drawer';
 import { Card } from '@/components/ui/card';
 import { Calendar, Sparkles } from 'lucide-react';
 import { differenceInDays } from 'date-fns';
+import { getPhaseTheme } from '@/lib/phase-theme';
+import { getJournalSnippet } from '@/actions/journal-actions';
 
 interface CyclePageClientProps {
   phaseData: CyclePhaseResult;
@@ -35,6 +41,7 @@ interface CyclePageClientProps {
   userPreference: {
     focusPreference: 'hormonal' | 'workout' | 'both';
     cycleLength: number;
+    lastPeriodDate: Date; // Required for date calculations
   };
 }
 
@@ -57,19 +64,152 @@ export function CyclePageClient({
   recommendations,
   userPreference,
 }: CyclePageClientProps) {
+  // URL state management with nuqs
+  const [urlPhase, setUrlPhase] = useQueryState(
+    'phase',
+    parseAsString.withDefault(phaseData.currentPhase)
+  );
+  const [view, setView] = useQueryState(
+    'view',
+    parseAsString.withDefault('summary')
+  );
+  const [selectedDate, setSelectedDate] = useQueryState(
+    'selectedDate',
+    parseAsString
+  );
+
   // Track the "active" phase to show in Insight Center
-  // Defaults to current phase, updates on hover
-  const [activePhase, setActivePhase] = useState<CyclePhase>(phaseData.currentPhase);
+  // Priority: URL phase > hover phase > current phase
+  const [hoveredPhase, setHoveredPhase] = useState<CyclePhase | null>(null);
   const [isHovering, setIsHovering] = useState(false);
 
+  // Determine active phase based on URL and hover state
+  const activePhase: CyclePhase = (urlPhase as CyclePhase) || hoveredPhase || phaseData.currentPhase;
+  const isExploringPhase = urlPhase && urlPhase !== phaseData.currentPhase;
+
+  // Get theme for active phase
+  const theme = getPhaseTheme(activePhase);
+
+  // Handle phase hover
   const handleHoverChange = (phase: CyclePhase | null) => {
     if (phase) {
-      setActivePhase(phase);
+      setHoveredPhase(phase);
       setIsHovering(true);
     } else {
-      setActivePhase(phaseData.currentPhase);
+      setHoveredPhase(null);
       setIsHovering(false);
     }
+  };
+
+  // Handle phase click - navigate to deep dive
+  const handlePhaseClick = (phase: CyclePhase) => {
+    setUrlPhase(phase);
+    setView('detail');
+  };
+
+  // Reset to summary view when clicking away
+  const handleResetView = () => {
+    setUrlPhase(null);
+    setView('summary');
+  };
+
+  // Detect mobile viewport
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024); // lg breakpoint
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Determine if deep dive should be shown
+  const showDeepDive = view === 'detail' && urlPhase;
+  const deepDivePhase = urlPhase as CyclePhase | null;
+
+  // Journal Quick Look state
+  const [journalSnippet, setJournalSnippet] = useState<{
+    mood: number | null;
+    energy: number | null;
+    notesSnippet: string | null;
+  } | null>(null);
+  const [snippetLoading, setSnippetLoading] = useState(false);
+  const [selectedDateObj, setSelectedDateObj] = useState<Date | null>(null);
+  const [selectedDatePhase, setSelectedDatePhase] = useState<CyclePhase | null>(null);
+
+  // Fetch journal snippet when date is selected
+  useEffect(() => {
+    const fetchSnippet = async () => {
+      if (!selectedDate) {
+        setJournalSnippet(null);
+        setSelectedDateObj(null);
+        setSelectedDatePhase(null);
+        return;
+      }
+
+      setSnippetLoading(true);
+      try {
+        // Date object safety: Validate and handle invalid date strings
+        const dateObj = new Date(selectedDate);
+        if (isNaN(dateObj.getTime())) {
+          console.error('Invalid date string:', selectedDate);
+          setJournalSnippet(null);
+          setSelectedDateObj(null);
+          setSelectedDatePhase(null);
+          return;
+        }
+        dateObj.setHours(0, 0, 0, 0);
+        setSelectedDateObj(dateObj);
+
+        // Calculate phase for selected date (not current date)
+        // We need to manually calculate since calculateCyclePhase uses "today"
+        const lastPeriod = new Date(userPreference.lastPeriodDate);
+        lastPeriod.setHours(0, 0, 0, 0);
+        
+        // Handle edge case: selected date is before last period
+        if (dateObj < lastPeriod) {
+          setSelectedDatePhase('follicular'); // Default fallback
+        } else {
+          const daysDiff = differenceInDays(dateObj, lastPeriod);
+          const daysIntoSelectedCycle = (daysDiff % userPreference.cycleLength) + 1;
+          
+          // Determine phase based on selected date's position in cycle
+          let calculatedPhase: CyclePhase = 'luteal';
+          if (daysIntoSelectedCycle <= 5) {
+            calculatedPhase = 'menstrual';
+          } else if (daysIntoSelectedCycle <= 14) {
+            calculatedPhase = 'follicular';
+          } else if (daysIntoSelectedCycle <= 18) {
+            calculatedPhase = 'ovulation';
+          }
+          
+          setSelectedDatePhase(calculatedPhase);
+        }
+
+        const result = await getJournalSnippet(selectedDate);
+        if (result.success) {
+          setJournalSnippet(result.data);
+        }
+      } catch (error) {
+        console.error('Error fetching journal snippet:', error);
+      } finally {
+        setSnippetLoading(false);
+      }
+    };
+
+    fetchSnippet();
+  }, [selectedDate, userPreference.lastPeriodDate, userPreference.cycleLength]);
+
+  // Handle day click from chart
+  const handleDayClick = (date: Date, day: number) => {
+    const dateStr = date.toISOString().split('T')[0];
+    setSelectedDate(dateStr);
+  };
+
+  // Close quick look
+  const handleCloseQuickLook = () => {
+    setSelectedDate(null);
   };
 
   // Calculate days until next period
@@ -84,19 +224,24 @@ export function CyclePageClient({
         <div className="absolute inset-0 bg-black/5 pointer-events-none rounded-lg transition-opacity duration-300 -z-10" />
       )}
 
-      {/* 1. Integrated Header & Preference */}
+      {/* 1. Integrated Header & Preference - Thematic Styling */}
       <div
         className={`grid grid-cols-1 md:grid-cols-3 gap-6 transition-opacity duration-300 ${
           isHovering ? 'opacity-50' : 'opacity-100'
         }`}
       >
         <div className="md:col-span-2">
-          <h1 className="text-4xl font-bold tracking-tight text-gray-900 mb-2">
+          <h1 className={`text-4xl font-bold tracking-tight mb-2 ${theme.text.primary}`}>
             Cycle Intelligence
           </h1>
-          <p className="text-gray-500 text-lg">
+          <p className={`text-lg ${theme.text.secondary}`}>
             Optimizing your performance based on Day {phaseData.daysIntoCycle} of{' '}
             {userPreference.cycleLength}
+            {isExploringPhase && (
+              <span className={`ml-2 ${theme.text.accent}`}>
+                • Exploring {PHASE_NAMES[activePhase]} Phase
+              </span>
+            )}
           </p>
         </div>
         <div className="flex items-start justify-end">
@@ -106,29 +251,42 @@ export function CyclePageClient({
 
       {/* 2. The Bento Grid (Layout Stability) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Main Chart Box (Reserved Space - 8 columns) */}
-        <Card className="lg:col-span-8 p-6 bg-white/50 backdrop-blur-md border-gray-100 shadow-xl overflow-hidden">
+        {/* Main Chart Box (Reserved Space - 8 columns) - Thematic Border */}
+        <Card className={`lg:col-span-8 p-6 bg-white/50 backdrop-blur-md shadow-xl overflow-hidden transition-colors duration-300 ${theme.border.primary} border-2`}>
           <CycleChart
             phaseData={phaseData}
             cycleLength={userPreference.cycleLength}
+            lastPeriodDate={userPreference.lastPeriodDate}
             onPhaseHover={handleHoverChange}
+            onPhaseClick={handlePhaseClick}
+            onDayClick={handleDayClick}
           />
         </Card>
 
         {/* The "Insight Center" (Always occupies 4 columns, no shifting) */}
+        {/* Switches to Journal Quick Look when a date is selected */}
         <div className="lg:col-span-4 flex flex-col gap-6">
-          <InsightCenter
-            activePhase={activePhase}
-            currentPhase={phaseData.currentPhase}
-            isHovering={isHovering}
-          />
+          {selectedDateObj && selectedDatePhase ? (
+            <JournalQuickLook
+              date={selectedDateObj}
+              phase={selectedDatePhase}
+              snippet={journalSnippet}
+              onClose={handleCloseQuickLook}
+            />
+          ) : (
+            <InsightCenter
+              activePhase={activePhase}
+              currentPhase={phaseData.currentPhase}
+              isHovering={isHovering}
+            />
+          )}
 
-          {/* Secondary Metric Box - Next Period */}
+          {/* Secondary Metric Box - Next Period - Thematic Gradient */}
           {phaseData.nextPeriodDate && (
-            <Card className="p-6 bg-linear-to-br from-indigo-500 to-purple-600 text-white shadow-lg">
+            <Card className={`p-6 text-white shadow-lg ${theme.gradient.classes}`}>
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-indigo-100 text-sm font-medium">Next Period</p>
+                  <p className="text-white/90 text-sm font-medium">Next Period</p>
                   {daysUntilNextPeriod !== null && (
                     <p className="text-3xl font-black mt-1">
                       {daysUntilNextPeriod === 0
@@ -139,9 +297,9 @@ export function CyclePageClient({
                     </p>
                   )}
                 </div>
-                <Calendar className="h-8 w-8 text-indigo-200 opacity-50" />
+                <Calendar className="h-8 w-8 text-white/70 opacity-50" />
               </div>
-              <p className="text-xs text-indigo-100 mt-4 font-medium uppercase tracking-tighter">
+              <p className="text-xs text-white/90 mt-4 font-medium uppercase tracking-tighter">
                 Expected:{' '}
                 {phaseData.nextPeriodDate.toLocaleDateString('en-US', {
                   month: 'short',
@@ -206,6 +364,29 @@ export function CyclePageClient({
             </p>
           </div>
         </Card>
+      )}
+
+      {/* Desktop Deep Dive - Full Width Section */}
+      {showDeepDive && !isMobile && deepDivePhase && (
+        <div className="mt-8">
+          <PhaseDeepDive
+            phase={deepDivePhase}
+            currentPhase={phaseData.currentPhase}
+            focusPreference={userPreference.focusPreference}
+            onClose={handleResetView}
+          />
+        </div>
+      )}
+
+      {/* Mobile Drawer */}
+      {isMobile && (
+        <PhaseDrawer
+          isOpen={showDeepDive && !!deepDivePhase}
+          phase={deepDivePhase}
+          currentPhase={phaseData.currentPhase}
+          focusPreference={userPreference.focusPreference}
+          onClose={handleResetView}
+        />
       )}
     </div>
   );

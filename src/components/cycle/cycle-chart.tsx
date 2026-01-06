@@ -33,14 +33,20 @@ import {
   YAxis,
   Tooltip,
   ReferenceArea,
+  ReferenceLine,
   CartesianGrid,
+  Dot,
 } from 'recharts';
 import { CyclePhase, CyclePhaseResult, PHASE_LENGTHS } from '@/lib/cycle-calculator';
+import { useRouter } from 'next/navigation';
 
 interface CycleChartProps {
   phaseData: CyclePhaseResult;
   cycleLength: number;
+  lastPeriodDate: Date; // Required to calculate actual dates for each day
   onPhaseHover?: (phase: CyclePhase | null) => void;
+  onPhaseClick?: (phase: CyclePhase) => void;
+  onDayClick?: (date: Date, day: number) => void; // New: handle individual day clicks
 }
 
 const PHASE_COLORS: Record<CyclePhase, string> = {
@@ -173,9 +179,40 @@ const CustomTooltip = ({ active, payload, label, onPhaseHover }: any) => {
   return null;
 };
 
-export function CycleChart({ phaseData, cycleLength, onPhaseHover }: CycleChartProps) {
+export function CycleChart({ phaseData, cycleLength, lastPeriodDate, onPhaseHover, onPhaseClick, onDayClick }: CycleChartProps) {
   const { currentPhase, daysIntoCycle } = phaseData;
   const chartData = generateCycleData(cycleLength, daysIntoCycle);
+  const router = useRouter();
+
+  // Handle phase area clicks
+  const handlePhaseClick = (phase: CyclePhase) => {
+    if (onPhaseClick) {
+      onPhaseClick(phase);
+    } else {
+      // Default behavior: navigate to phase detail
+      router.push(`/cycle?phase=${phase}&view=detail`);
+    }
+  };
+
+  // Calculate actual date for a given day in the cycle
+  const getDateForDay = (day: number): Date => {
+    const date = new Date(lastPeriodDate);
+    date.setDate(date.getDate() + (day - 1));
+    return date;
+  };
+
+  // Handle day dot clicks
+  const handleDayClick = (day: number) => {
+    const date = getDateForDay(day);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    date.setHours(0, 0, 0, 0);
+
+    // Only allow clicks on past days
+    if (date <= today && onDayClick) {
+      onDayClick(date, day);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -199,7 +236,7 @@ export function CycleChart({ phaseData, cycleLength, onPhaseHover }: CycleChartP
           >
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
             
-            {/* Phase Background Areas - Render in order to ensure all phases are visible */}
+            {/* Phase Background Areas - Clickable regions for deep dive */}
             <ReferenceArea
               x1={0.5}
               x2={PHASE_LENGTHS.MENSTRUAL + 0.5}
@@ -207,6 +244,8 @@ export function CycleChart({ phaseData, cycleLength, onPhaseHover }: CycleChartP
               fillOpacity={0.15}
               stroke={PHASE_COLORS.menstrual}
               strokeOpacity={0.3}
+              onClick={() => handlePhaseClick('menstrual')}
+              style={{ cursor: 'pointer' }}
             />
             <ReferenceArea
               x1={PHASE_LENGTHS.MENSTRUAL + 0.5}
@@ -215,6 +254,8 @@ export function CycleChart({ phaseData, cycleLength, onPhaseHover }: CycleChartP
               fillOpacity={0.15}
               stroke={PHASE_COLORS.follicular}
               strokeOpacity={0.3}
+              onClick={() => handlePhaseClick('follicular')}
+              style={{ cursor: 'pointer' }}
             />
             <ReferenceArea
               x1={PHASE_LENGTHS.MENSTRUAL + PHASE_LENGTHS.FOLLICULAR + 0.5}
@@ -223,6 +264,8 @@ export function CycleChart({ phaseData, cycleLength, onPhaseHover }: CycleChartP
               fillOpacity={0.15}
               stroke={PHASE_COLORS.ovulation}
               strokeOpacity={0.3}
+              onClick={() => handlePhaseClick('ovulation')}
+              style={{ cursor: 'pointer' }}
             />
             <ReferenceArea
               x1={PHASE_LENGTHS.MENSTRUAL + PHASE_LENGTHS.FOLLICULAR + PHASE_LENGTHS.OVULATION + 0.5}
@@ -231,6 +274,8 @@ export function CycleChart({ phaseData, cycleLength, onPhaseHover }: CycleChartP
               fillOpacity={0.15}
               stroke={PHASE_COLORS.luteal}
               strokeOpacity={0.3}
+              onClick={() => handlePhaseClick('luteal')}
+              style={{ cursor: 'pointer' }}
             />
 
             <XAxis
@@ -249,26 +294,87 @@ export function CycleChart({ phaseData, cycleLength, onPhaseHover }: CycleChartP
             />
             <Tooltip content={(props) => <CustomTooltip {...props} onPhaseHover={onPhaseHover} />} />
             
-            {/* Intensity Line with Animation */}
+            {/* Today Marker - Vertical Reference Line */}
+            <ReferenceLine
+              x={daysIntoCycle}
+              stroke="#1f2937"
+              strokeWidth={2}
+              strokeDasharray="4 4"
+              label={{
+                value: 'Today',
+                position: 'top',
+                fill: '#1f2937',
+                fontSize: 12,
+                fontWeight: 'bold',
+                offset: 5,
+              }}
+            />
+            
+            {/* Intensity Line with Animation and Pulsing Today Dot */}
             <Line
               type="monotone"
               dataKey="intensity"
               stroke="#6366f1"
               strokeWidth={2}
-              dot={{ r: 4, fill: '#6366f1' }}
+              dot={(props: any) => {
+                const day = props.payload?.day;
+                const isCurrentDay = props.payload?.isCurrentDay;
+                const date = day ? getDateForDay(day) : null;
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const isPastDay = date && date <= today;
+
+                // Custom dot with pulsing animation for current day
+                if (isCurrentDay) {
+                  return (
+                    <g key={props.key}>
+                      <circle
+                        cx={props.cx}
+                        cy={props.cy}
+                        r={8}
+                        fill="#6366f1"
+                        fillOpacity={0.3}
+                        className="animate-pulse"
+                      />
+                      <circle
+                        cx={props.cx}
+                        cy={props.cy}
+                        r={6}
+                        fill="#6366f1"
+                        stroke="#fff"
+                        strokeWidth={2}
+                      />
+                    </g>
+                  );
+                }
+
+                // Clickable dots for past days
+                if (isPastDay) {
+                  return (
+                    <g
+                      key={props.key}
+                      onClick={() => handleDayClick(day)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <circle
+                        cx={props.cx}
+                        cy={props.cy}
+                        r={5}
+                        fill="#6366f1"
+                        stroke="#fff"
+                        strokeWidth={2}
+                        className="hover:r-6 transition-all"
+                      />
+                    </g>
+                  );
+                }
+
+                // Future days - smaller, non-interactive
+                return <Dot {...props} r={3} fill="#6366f1" fillOpacity={0.5} />;
+              }}
               activeDot={{ r: 6, fill: '#4f46e5' }}
               isAnimationActive={true}
               animationDuration={1500}
-            />
-            
-            {/* Current Day Marker */}
-            <ReferenceArea
-              x1={daysIntoCycle}
-              x2={daysIntoCycle}
-              stroke="#1f2937"
-              strokeWidth={2}
-              strokeDasharray="4 4"
-              fillOpacity={0}
             />
           </LineChart>
         </ResponsiveContainer>
