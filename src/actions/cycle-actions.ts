@@ -304,6 +304,68 @@ export async function getRecommendationsByPhase(phase: string) {
 }
 
 /**
+ * Server Action: Get Phase Recommendations
+ * 
+ * Fetches recommendations for a specific phase, filtered by focus preference.
+ * This is a convenience function that accepts focusPreference as a parameter
+ * rather than fetching it from the user profile.
+ * 
+ * @param phase - The cycle phase (menstrual, follicular, ovulation, luteal)
+ * @param focusPreference - The focus preference ('hormonal', 'workout', or 'both')
+ * @returns List of recommendations for the phase
+ */
+export async function getPhaseRecommendations(phase: string, focusPreference: 'hormonal' | 'workout' | 'both') {
+  try {
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+
+    if (!session) {
+      return { success: false, error: 'Unauthorized', recommendations: null };
+    }
+
+    // Build category filter based on focus preference
+    const categoryFilter: string[] = [];
+    if (focusPreference === 'workout') {
+      categoryFilter.push('exercise');
+    } else if (focusPreference === 'hormonal') {
+      categoryFilter.push('nutrition', 'fasting');
+    } else {
+      // 'both' - fetch all categories
+      categoryFilter.push('nutrition', 'fasting', 'exercise');
+    }
+
+    const recommendations = await (prisma as any).phaseRecommendation.findMany({
+      where: {
+        phase,
+        category: {
+          in: categoryFilter,
+        },
+      },
+      include: {
+        expert: {
+          select: {
+            id: true,
+            name: true,
+            credentials: true,
+            website: true,
+            focusAreas: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+    });
+
+    return { success: true, recommendations, error: null };
+  } catch (error) {
+    console.error('Error fetching phase recommendations:', error);
+    return { success: false, error: 'Failed to fetch recommendations', recommendations: null };
+  }
+}
+
+/**
  * Server Action: Update User Focus Preference
  * 
  * Updates only the focus preference without requiring a full profile update.

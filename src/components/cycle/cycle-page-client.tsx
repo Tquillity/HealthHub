@@ -124,9 +124,9 @@ export function CyclePageClient({
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Determine if deep dive should be shown
-  const showDeepDive = view === 'detail' && urlPhase;
-  const deepDivePhase = urlPhase as CyclePhase | null;
+  // View orchestrator: Determine if we should show detail view or summary view
+  const showDetailView = view === 'detail' && urlPhase;
+  const detailPhase = urlPhase as CyclePhase | null;
 
   // Journal Quick Look state
   const [journalSnippet, setJournalSnippet] = useState<{
@@ -219,12 +219,24 @@ export function CyclePageClient({
 
   return (
     <div className="relative flex flex-col gap-8 max-w-7xl mx-auto">
-      {/* Phase Transition Overlay - Dims content when exploring phases */}
-      {isHovering && (
-        <div className="absolute inset-0 bg-black/5 pointer-events-none rounded-lg transition-opacity duration-300 -z-10" />
-      )}
+      {/* View Orchestrator: Show Detail View OR Summary View */}
+      {showDetailView && detailPhase ? (
+        // Detail View: Full-width immersive phase exploration
+        <PhaseDeepDive
+          phase={detailPhase}
+          currentPhase={phaseData.currentPhase}
+          focusPreference={userPreference.focusPreference}
+          onClose={handleResetView}
+        />
+      ) : (
+        // Summary View: Bento Grid Dashboard
+        <>
+          {/* Phase Transition Overlay - Dims content when exploring phases */}
+          {isHovering && (
+            <div className="absolute inset-0 bg-black/5 pointer-events-none rounded-lg transition-opacity duration-300 -z-10" />
+          )}
 
-      {/* 1. Integrated Header & Preference - Thematic Styling */}
+          {/* 1. Integrated Header & Preference - Thematic Styling */}
       <div
         className={`grid grid-cols-1 md:grid-cols-3 gap-6 transition-opacity duration-300 ${
           isHovering ? 'opacity-50' : 'opacity-100'
@@ -252,7 +264,7 @@ export function CyclePageClient({
       {/* 2. The Bento Grid (Layout Stability) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Main Chart Box (Reserved Space - 8 columns) - Thematic Border */}
-        <Card className={`lg:col-span-8 p-6 bg-white/50 backdrop-blur-md shadow-xl overflow-hidden transition-colors duration-300 ${theme.border.primary} border-2`}>
+        <Card className={`lg:col-span-8 p-6 bg-white/50 backdrop-blur-md shadow-xl overflow-hidden transition-colors duration-300 ${theme.border.primary} border-2 h-full min-h-[400px] flex flex-col`}>
           <CycleChart
             phaseData={phaseData}
             cycleLength={userPreference.cycleLength}
@@ -365,28 +377,7 @@ export function CyclePageClient({
           </div>
         </Card>
       )}
-
-      {/* Desktop Deep Dive - Full Width Section */}
-      {showDeepDive && !isMobile && deepDivePhase && (
-        <div className="mt-8">
-          <PhaseDeepDive
-            phase={deepDivePhase}
-            currentPhase={phaseData.currentPhase}
-            focusPreference={userPreference.focusPreference}
-            onClose={handleResetView}
-          />
-        </div>
-      )}
-
-      {/* Mobile Drawer */}
-      {isMobile && (
-        <PhaseDrawer
-          isOpen={showDeepDive && !!deepDivePhase}
-          phase={deepDivePhase}
-          currentPhase={phaseData.currentPhase}
-          focusPreference={userPreference.focusPreference}
-          onClose={handleResetView}
-        />
+        </>
       )}
     </div>
   );

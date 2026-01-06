@@ -215,7 +215,7 @@ export function CycleChart({ phaseData, cycleLength, lastPeriodDate, onPhaseHove
   };
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 h-full">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-gray-900">Cycle Overview</h3>
         <div className="flex items-center gap-2 text-sm text-gray-600">
@@ -226,12 +226,12 @@ export function CycleChart({ phaseData, cycleLength, lastPeriodDate, onPhaseHove
         </div>
       </div>
 
-      {/* Recharts Visualization */}
-      <div className="w-full" style={{ width: '100%', height: '256px', minHeight: '256px' }}>
-        <ResponsiveContainer width="100%" height={256}>
+      {/* Recharts Visualization - Full Height Card */}
+      <div className="w-full flex-1 min-h-[350px]" style={{ width: '100%', minHeight: '350px' }}>
+        <ResponsiveContainer width="100%" height="100%">
           <LineChart
             data={chartData}
-            margin={{ top: 10, right: 10, left: 0, bottom: 10 }}
+            margin={{ top: 40, right: 10, left: 0, bottom: 10 }}
             onMouseLeave={() => onPhaseHover?.(null)}
           >
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -294,19 +294,44 @@ export function CycleChart({ phaseData, cycleLength, lastPeriodDate, onPhaseHove
             />
             <Tooltip content={(props) => <CustomTooltip {...props} onPhaseHover={onPhaseHover} />} />
             
-            {/* Today Marker - Vertical Reference Line */}
+            {/* Today Marker - Vertical Reference Line with Enhanced Visibility */}
             <ReferenceLine
               x={daysIntoCycle}
               stroke="#1f2937"
-              strokeWidth={2}
-              strokeDasharray="4 4"
-              label={{
-                value: 'Today',
-                position: 'top',
-                fill: '#1f2937',
-                fontSize: 12,
-                fontWeight: 'bold',
-                offset: 5,
+              strokeWidth={3}
+              strokeDasharray="5 5"
+              label={({ viewBox }: any) => {
+                if (!viewBox || viewBox.x === undefined) return null;
+                // Position label in the top margin area (above chart plot area)
+                const labelY = -12; // Position in the top margin area, adjusted for better visibility
+                return (
+                  <g>
+                    {/* Background rectangle for better visibility */}
+                    <rect
+                      x={viewBox.x - 32}
+                      y={labelY - 12}
+                      width={64}
+                      height={24}
+                      fill="#1f2937"
+                      rx={4}
+                      opacity={0.98}
+                      stroke="#ffffff"
+                      strokeWidth={1.5}
+                    />
+                    {/* Label text */}
+                    <text
+                      x={viewBox.x}
+                      y={labelY + 2}
+                      textAnchor="middle"
+                      fill="#ffffff"
+                      fontSize={13}
+                      fontWeight="bold"
+                      style={{ pointerEvents: 'none', userSelect: 'none' }}
+                    >
+                      Today
+                    </text>
+                  </g>
+                );
               }}
             />
             
@@ -324,25 +349,55 @@ export function CycleChart({ phaseData, cycleLength, lastPeriodDate, onPhaseHove
                 today.setHours(0, 0, 0, 0);
                 const isPastDay = date && date <= today;
 
-                // Custom dot with pulsing animation for current day
+                // Custom dot with enhanced pulsing animation for current day
                 if (isCurrentDay) {
                   return (
                     <g key={props.key}>
+                      {/* Outer pulsing ring - animated */}
+                      <circle
+                        cx={props.cx}
+                        cy={props.cy}
+                        r={14}
+                        fill="#6366f1"
+                        fillOpacity={0.15}
+                      >
+                        <animate
+                          attributeName="r"
+                          values="12;16;12"
+                          dur="2s"
+                          repeatCount="indefinite"
+                        />
+                        <animate
+                          attributeName="fillOpacity"
+                          values="0.2;0.4;0.2"
+                          dur="2s"
+                          repeatCount="indefinite"
+                        />
+                      </circle>
+                      {/* Middle ring */}
+                      <circle
+                        cx={props.cx}
+                        cy={props.cy}
+                        r={10}
+                        fill="#6366f1"
+                        fillOpacity={0.5}
+                      />
+                      {/* Inner solid dot with white border */}
                       <circle
                         cx={props.cx}
                         cy={props.cy}
                         r={8}
                         fill="#6366f1"
-                        fillOpacity={0.3}
-                        className="animate-pulse"
+                        stroke="#ffffff"
+                        strokeWidth={3}
                       />
+                      {/* Center highlight */}
                       <circle
                         cx={props.cx}
                         cy={props.cy}
-                        r={6}
-                        fill="#6366f1"
-                        stroke="#fff"
-                        strokeWidth={2}
+                        r={4}
+                        fill="#ffffff"
+                        fillOpacity={0.9}
                       />
                     </g>
                   );

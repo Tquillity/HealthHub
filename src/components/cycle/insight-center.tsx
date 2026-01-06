@@ -86,7 +86,7 @@ export function InsightCenter({ activePhase, currentPhase, isHovering }: Insight
           }`}
         />
         <h3 className="font-bold text-xl text-gray-900">
-          {isHovering ? 'Phase Explorer' : 'Daily Focus'}
+          {isHovering ? 'Phase Intelligence' : 'Daily Focus'}
         </h3>
       </div>
 

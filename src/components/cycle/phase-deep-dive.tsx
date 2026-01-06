@@ -20,8 +20,9 @@ import { getPhaseRecommendations } from '@/actions/cycle-actions';
 import { getDietaryRecommendations } from '@/lib/dietary-recommendations';
 import { RecommendationCard } from './recommendation-card';
 import { Card } from '@/components/ui/card';
-import { X, Sparkles, Heart, Dumbbell, Utensils } from 'lucide-react';
+import { X, Sparkles, Heart, Dumbbell, Utensils, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useRouter } from 'next/navigation';
 
 interface PhaseDeepDiveProps {
   phase: CyclePhase;
@@ -111,17 +112,75 @@ export function PhaseDeepDive({
     fetchRecommendations();
   }, [phase, focusPreference]);
 
+  const router = useRouter();
+  const allPhases: CyclePhase[] = ['menstrual', 'follicular', 'ovulation', 'luteal'];
+
+  // Handle phase tab navigation
+  const handlePhaseTabClick = (newPhase: CyclePhase) => {
+    router.push(`/cycle?phase=${newPhase}&view=detail`);
+  };
+
   return (
     <div className="flex flex-col gap-6">
+      {/* Back to Dashboard Button */}
+      <div className="flex items-center gap-4">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onClose}
+          className="gap-2"
+          aria-label="Back to dashboard"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Dashboard
+        </Button>
+      </div>
+
+      {/* Phase Navigation Tabs - Color-Coded */}
+      <div
+        role="tablist"
+        className="flex flex-wrap gap-2 border-b-2 border-gray-200 pb-2"
+        aria-label="Cycle phase navigation"
+      >
+        {allPhases.map((phaseOption) => {
+          const isActive = phaseOption === phase;
+          const phaseTheme = getPhaseTheme(phaseOption);
+          return (
+            <button
+              key={phaseOption}
+              role="tab"
+              aria-selected={isActive}
+              aria-controls={`phase-${phaseOption}-panel`}
+              onClick={() => handlePhaseTabClick(phaseOption)}
+              className={`px-4 py-2 rounded-t-lg font-semibold text-sm transition-all duration-200 ${
+                isActive
+                  ? `${phaseTheme.bg.secondary} ${phaseTheme.text.primary} border-b-4`
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              }`}
+              style={
+                isActive
+                  ? {
+                      borderBottomColor: phaseTheme.color.primary,
+                      borderBottomWidth: '4px',
+                    }
+                  : {}
+              }
+            >
+              {PHASE_NAMES[phaseOption]}
+            </button>
+          );
+        })}
+      </div>
+
       {/* Header */}
-      <div className={`flex items-center justify-between p-6 rounded-lg ${theme.bg.secondary} ${theme.border.primary} border-2`}>
+      <div className={`flex items-center justify-between p-6 rounded-lg ${theme.bg.primary} ${theme.border.primary} border-2`}>
         <div className="flex items-center gap-4">
           <div
             className="w-4 h-4 rounded-full"
             style={{ backgroundColor: theme.color.primary }}
           />
           <div>
-            <h2 className={`text-2xl font-bold ${theme.text.accent}`}>
+            <h2 className={`text-2xl font-bold ${theme.text.primary}`}>
               {PHASE_NAMES[phase]} Phase
             </h2>
             {!isCurrentPhase && (
@@ -131,15 +190,6 @@ export function PhaseDeepDive({
             )}
           </div>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onClose}
-          className="h-8 w-8 p-0"
-          aria-label="Close deep dive"
-        >
-          <X className="h-4 w-4" />
-        </Button>
       </div>
 
       {/* What's Happening in Your Body */}
