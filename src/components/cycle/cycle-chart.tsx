@@ -23,6 +23,7 @@
  * - XAxis domain extends to [0.5, cycleLength + 0.5] to accommodate phase boundaries
  */
 
+import React, { useEffect } from 'react';
 import {
   ResponsiveContainer,
   LineChart,
@@ -38,6 +39,7 @@ import { CyclePhase, CyclePhaseResult, PHASE_LENGTHS } from '@/lib/cycle-calcula
 interface CycleChartProps {
   phaseData: CyclePhaseResult;
   cycleLength: number;
+  onPhaseHover?: (phase: CyclePhase | null) => void;
 }
 
 const PHASE_COLORS: Record<CyclePhase, string> = {
@@ -117,8 +119,27 @@ function getPhaseBoundaries(cycleLength: number) {
  * 
  * Displays detailed information when hovering over chart data points.
  * Shows: day number, current phase name, energy level, and "Today" indicator if applicable.
+ * Also triggers onPhaseHover callback to update hovered phase state.
  */
-const CustomTooltip = ({ active, payload, label }: any) => {
+const CustomTooltip = ({ active, payload, label, onPhaseHover }: any) => {
+  useEffect(() => {
+    if (active && payload && payload.length) {
+      const day = payload[0].payload.day;
+      // Determine phase for this day
+      let phase: CyclePhase = 'luteal';
+      if (day <= PHASE_LENGTHS.MENSTRUAL) {
+        phase = 'menstrual';
+      } else if (day <= PHASE_LENGTHS.MENSTRUAL + PHASE_LENGTHS.FOLLICULAR) {
+        phase = 'follicular';
+      } else if (day <= PHASE_LENGTHS.MENSTRUAL + PHASE_LENGTHS.FOLLICULAR + PHASE_LENGTHS.OVULATION) {
+        phase = 'ovulation';
+      }
+      onPhaseHover?.(phase);
+    } else {
+      onPhaseHover?.(null);
+    }
+  }, [active, payload, label, onPhaseHover]);
+
   if (active && payload && payload.length) {
     const day = payload[0].payload.day;
     const intensity = payload[0].value;
@@ -151,7 +172,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-export function CycleChart({ phaseData, cycleLength }: CycleChartProps) {
+export function CycleChart({ phaseData, cycleLength, onPhaseHover }: CycleChartProps) {
   const { currentPhase, daysIntoCycle } = phaseData;
   const chartData = generateCycleData(cycleLength, daysIntoCycle);
 
@@ -173,6 +194,7 @@ export function CycleChart({ phaseData, cycleLength }: CycleChartProps) {
           <LineChart
             data={chartData}
             margin={{ top: 10, right: 10, left: 0, bottom: 10 }}
+            onMouseLeave={() => onPhaseHover?.(null)}
           >
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
             
@@ -224,7 +246,7 @@ export function CycleChart({ phaseData, cycleLength }: CycleChartProps) {
               tick={{ fontSize: 12, fill: '#6b7280' }}
               label={{ value: 'Energy Level', angle: -90, position: 'insideLeft', style: { fill: '#6b7280' } }}
             />
-            <Tooltip content={<CustomTooltip />} />
+            <Tooltip content={(props) => <CustomTooltip {...props} onPhaseHover={onPhaseHover} />} />
             
             {/* Intensity Line */}
             <Line

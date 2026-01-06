@@ -115,3 +115,223 @@ export async function getCycleDashboard() {
   }
 }
 
+/**
+ * Server Action: Get All Experts
+ * 
+ * Fetches a list of all experts in the database.
+ * 
+ * @returns List of all experts with their basic information
+ */
+export async function getAllExperts() {
+  try {
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+
+    if (!session) {
+      return { success: false, error: 'Unauthorized', data: null };
+    }
+
+    const experts = await (prisma as any).expert.findMany({
+      orderBy: { name: 'asc' },
+    });
+
+    return { success: true, data: experts, error: null };
+  } catch (error) {
+    console.error('Error fetching experts:', error);
+    return { success: false, error: 'Failed to fetch experts', data: null };
+  }
+}
+
+/**
+ * Server Action: Get Expert with Recommendations
+ * 
+ * Fetches a specific expert and all their recommendations.
+ * 
+ * @param expertId - The ID of the expert to fetch
+ * @returns Expert details with all their recommendations
+ */
+export async function getExpertWithRecommendations(expertId: string) {
+  try {
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+
+    if (!session) {
+      return { success: false, error: 'Unauthorized', data: null };
+    }
+
+    const expert = await (prisma as any).expert.findUnique({
+      where: { id: expertId },
+    });
+
+    if (!expert) {
+      return { success: false, error: 'Expert not found', data: null };
+    }
+
+    const recommendations = await (prisma as any).phaseRecommendation.findMany({
+      where: { expertId },
+      orderBy: [
+        { phase: 'asc' },
+        { category: 'asc' },
+      ],
+    });
+
+    return {
+      success: true,
+      data: {
+        expert,
+        recommendations,
+      },
+      error: null,
+    };
+  } catch (error) {
+    console.error('Error fetching expert with recommendations:', error);
+    return { success: false, error: 'Failed to fetch expert', data: null };
+  }
+}
+
+/**
+ * Server Action: Get Recommendations by Expert ID
+ * 
+ * Fetches all recommendations for a specific expert.
+ * 
+ * @param expertId - The ID of the expert
+ * @returns List of all recommendations for the expert
+ */
+export async function getRecommendationsByExpert(expertId: string) {
+  try {
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+
+    if (!session) {
+      return { success: false, error: 'Unauthorized', data: null };
+    }
+
+    const recommendations = await (prisma as any).phaseRecommendation.findMany({
+      where: { expertId },
+      include: {
+        expert: {
+          select: {
+            id: true,
+            name: true,
+            credentials: true,
+            website: true,
+            focusAreas: true,
+          },
+        },
+      },
+      orderBy: [
+        { phase: 'asc' },
+        { category: 'asc' },
+      ],
+    });
+
+    return { success: true, data: recommendations, error: null };
+  } catch (error) {
+    console.error('Error fetching recommendations by expert:', error);
+    return { success: false, error: 'Failed to fetch recommendations', data: null };
+  }
+}
+
+/**
+ * Server Action: Get Recommendations by Phase
+ * 
+ * Fetches all recommendations for a specific phase, filtered by user's focus preference.
+ * 
+ * @param phase - The cycle phase (menstrual, follicular, ovulation, luteal)
+ * @returns List of recommendations for the phase
+ */
+export async function getRecommendationsByPhase(phase: string) {
+  try {
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+
+    if (!session) {
+      return { success: false, error: 'Unauthorized', data: null };
+    }
+
+    // Get user's focus preference
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+    }) as any;
+
+    if (!user) {
+      return { success: false, error: 'User not found', data: null };
+    }
+
+    // Build category filter based on focus preference
+    const categoryFilter: string[] = [];
+    if (user.focusPreference === 'workout') {
+      categoryFilter.push('exercise');
+    } else if (user.focusPreference === 'hormonal') {
+      categoryFilter.push('nutrition', 'fasting');
+    } else {
+      // 'both' - fetch all categories
+      categoryFilter.push('nutrition', 'fasting', 'exercise');
+    }
+
+    const recommendations = await (prisma as any).phaseRecommendation.findMany({
+      where: {
+        phase,
+        category: {
+          in: categoryFilter,
+        },
+      },
+      include: {
+        expert: {
+          select: {
+            id: true,
+            name: true,
+            credentials: true,
+            website: true,
+            focusAreas: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+    });
+
+    return { success: true, data: recommendations, error: null };
+  } catch (error) {
+    console.error('Error fetching recommendations by phase:', error);
+    return { success: false, error: 'Failed to fetch recommendations', data: null };
+  }
+}
+
+/**
+ * Server Action: Update User Focus Preference
+ * 
+ * Updates only the focus preference without requiring a full profile update.
+ * 
+ * @param focusPreference - The new focus preference ('hormonal', 'workout', or 'both')
+ * @returns Success status
+ */
+export async function updateFocusPreference(focusPreference: 'hormonal' | 'workout' | 'both') {
+  try {
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+
+    if (!session) {
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    await prisma.user.update({
+      where: { id: session.user.id },
+      data: {
+        focusPreference,
+      } as any,
+    });
+
+    return { success: true, error: null };
+  } catch (error) {
+    console.error('Error updating focus preference:', error);
+    return { success: false, error: 'Failed to update focus preference' };
+  }
+}
+

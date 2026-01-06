@@ -25,8 +25,7 @@ import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
 import { auth } from '@/lib/auth';
 import { getCycleDashboard } from '@/actions/cycle-actions';
-import { CycleChart } from '@/components/cycle/cycle-chart';
-import { RecommendationCard } from '@/components/cycle/recommendation-card';
+import { CyclePageClient } from '@/components/cycle/cycle-page-client';
 import { Button } from '@/components/ui/button';
 import { Moon, Settings } from 'lucide-react';
 import Link from 'next/link';
@@ -103,53 +102,24 @@ export default async function CyclePage() {
 
   const { phaseData, recommendations, userPreference } = dashboardResult;
 
-  const phaseNames: Record<string, string> = {
-    menstrual: 'Menstrual',
-    follicular: 'Follicular',
-    ovulation: 'Ovulation',
-    luteal: 'Luteal',
-  };
-
   return (
     <div className="flex flex-col gap-6">
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-2">
+      {/* Icon Header */}
+      <div className="flex items-center gap-3">
         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-100 text-primary-600">
           <Moon className="h-6 w-6" />
         </div>
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Cycle Tracker</h1>
-          <p className="text-gray-500">
-            Day {phaseData.daysIntoCycle} - {phaseNames[phaseData.currentPhase]} Phase
-          </p>
+          <p className="text-gray-500">Track your menstrual cycle and get personalized recommendations</p>
         </div>
       </div>
 
-      {/* Cycle Chart */}
-      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-        <CycleChart phaseData={phaseData} cycleLength={userPreference.cycleLength} />
-      </div>
-
-      {/* Recommendations */}
-      {recommendations && recommendations.length > 0 ? (
-        <div className="flex flex-col gap-4">
-          <h2 className="text-xl font-semibold text-gray-900">
-            Expert Recommendations for {phaseNames[phaseData.currentPhase]} Phase
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {recommendations.map((recommendation: any) => (
-              <RecommendationCard key={recommendation.id} recommendation={recommendation} />
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-          <p className="text-gray-600 text-center">
-            No recommendations available for your current phase and focus preference. 
-            Check back later or adjust your focus preference in profile settings.
-          </p>
-        </div>
-      )}
+      {/* Main Cycle Tracker Client Component */}
+      <CyclePageClient
+        phaseData={phaseData}
+        recommendations={recommendations}
+        userPreference={userPreference}
+      />
 
       {/* Quick Actions */}
       <div className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
