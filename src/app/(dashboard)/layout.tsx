@@ -41,7 +41,7 @@ export default async function DashboardLayout({
   return (
     <div className="flex min-h-screen bg-gray-50 text-gray-900">
       {/* Sidebar */}
-      <aside className="hidden w-64 flex-col border-r border-gray-200 bg-white p-4 md:flex">
+      <aside className="hidden w-64 flex-col border-r border-gray-200 bg-white p-6 md:flex">
         <div className="mb-8 flex items-center gap-2 px-2 text-xl font-bold text-blue-600">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-xs text-white">
             HH
@@ -49,7 +49,7 @@ export default async function DashboardLayout({
           HealthHub
         </div>
 
-        <nav className="flex-1 space-y-1">
+        <nav className="flex-1 flex flex-col gap-2">
           {navItems.map((item) => {
             const Icon = item.icon;
             return (

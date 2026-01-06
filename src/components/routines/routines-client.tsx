@@ -236,27 +236,29 @@ export function RoutinesClient({ routines: initialRoutines }: RoutinesClientProp
 
             <form onSubmit={handleCreateRoutine} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label htmlFor="routine-create-name" className="block text-sm font-medium text-gray-700 mb-1.5">
                   Name *
                 </label>
                 <Input
+                  id="routine-create-name"
+                  name="routine-create-name"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   required
-                  className="mt-1"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label htmlFor="routine-create-description" className="block text-sm font-medium text-gray-700 mb-1.5">
                   Description
                 </label>
                 <Input
+                  id="routine-create-description"
+                  name="routine-create-description"
                   value={formData.description}
                   onChange={(e) =>
                     setFormData({ ...formData, description: e.target.value })
                   }
-                  className="mt-1"
                 />
               </div>
 

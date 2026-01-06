@@ -73,21 +73,24 @@ export function ProfileClient({ profile: initialProfile }: ProfileClientProps) {
         <h3 className="text-lg font-semibold text-gray-900">Personal Information</h3>
         
         <div>
-          <label className="block text-sm font-medium text-gray-700">Name</label>
+          <label htmlFor="profile-name" className="block text-sm font-medium text-gray-700 mb-1.5">Name</label>
           <Input
+            id="profile-name"
+            name="profile-name"
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            className="mt-1"
             required
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">Email</label>
+          <label htmlFor="profile-email" className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
           <Input
+            id="profile-email"
+            name="profile-email"
             value={profile.email}
             disabled
-            className="mt-1 bg-gray-50"
+            className="bg-gray-50"
           />
           <p className="mt-1 text-xs text-gray-500">Email cannot be changed</p>
         </div>
@@ -98,13 +101,15 @@ export function ProfileClient({ profile: initialProfile }: ProfileClientProps) {
         <h3 className="text-lg font-semibold text-gray-900">Preferences</h3>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">Energy Level</label>
+          <label htmlFor="profile-energy-level" className="block text-sm font-medium text-gray-700 mb-1.5">Energy Level</label>
           <select
+            id="profile-energy-level"
+            name="profile-energy-level"
             value={formData.energyLevel}
             onChange={(e) =>
               setFormData({ ...formData, energyLevel: e.target.value })
             }
-            className="mt-1 flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600"
+            className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600"
           >
             <option value="low">Low</option>
             <option value="medium">Medium</option>
@@ -113,16 +118,17 @@ export function ProfileClient({ profile: initialProfile }: ProfileClientProps) {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">
+          <label htmlFor="profile-dietary-restrictions" className="block text-sm font-medium text-gray-700 mb-1.5">
             Dietary Restrictions (comma-separated)
           </label>
           <Input
+            id="profile-dietary-restrictions"
+            name="profile-dietary-restrictions"
             value={formData.dietaryRestrictions}
             onChange={(e) =>
               setFormData({ ...formData, dietaryRestrictions: e.target.value })
             }
             placeholder="e.g., vegetarian, gluten-free, dairy-free"
-            className="mt-1"
           />
           <p className="mt-1 text-xs text-gray-500">
             Separate multiple restrictions with commas
@@ -130,16 +136,17 @@ export function ProfileClient({ profile: initialProfile }: ProfileClientProps) {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">
+          <label htmlFor="profile-health-goals" className="block text-sm font-medium text-gray-700 mb-1.5">
             Health Goals (comma-separated)
           </label>
           <Input
+            id="profile-health-goals"
+            name="profile-health-goals"
             value={formData.healthGoals}
             onChange={(e) =>
               setFormData({ ...formData, healthGoals: e.target.value })
             }
             placeholder="e.g., weight loss, muscle gain, heart health"
-            className="mt-1"
           />
           <p className="mt-1 text-xs text-gray-500">
             Separate multiple goals with commas
@@ -147,14 +154,15 @@ export function ProfileClient({ profile: initialProfile }: ProfileClientProps) {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">Timezone</label>
+          <label htmlFor="profile-timezone" className="block text-sm font-medium text-gray-700 mb-1.5">Timezone</label>
           <Input
+            id="profile-timezone"
+            name="profile-timezone"
             value={formData.timezone}
             onChange={(e) =>
               setFormData({ ...formData, timezone: e.target.value })
             }
             placeholder="UTC"
-            className="mt-1"
           />
         </div>
       </div>

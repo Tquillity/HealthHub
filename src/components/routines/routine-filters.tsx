@@ -48,10 +48,15 @@ export function RoutineFilters() {
     <div className="mb-6 space-y-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
       {/* Search */}
       <div className="relative">
+        <label htmlFor="routine-search" className="sr-only">
+          Search routines
+        </label>
         <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
           <Search className="h-4 w-4 text-gray-400" />
         </div>
         <Input
+          id="routine-search"
+          name="routine-search"
           placeholder="Search routines..."
           value={query}
           onChange={(e) => startTransition(() => setQuery(e.target.value))}
@@ -60,14 +65,16 @@ export function RoutineFilters() {
       </div>
 
       {/* Filters Row */}
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap gap-4">
         {/* Category */}
         <div>
-          <label className="mb-1 block text-xs font-medium text-gray-500">Category</label>
+          <label htmlFor="routine-category-filter" className="mb-1 block text-xs font-medium text-gray-500">Category</label>
           <select
+            id="routine-category-filter"
+            name="routine-category-filter"
             value={category || ''}
             onChange={(e) => setCategory(e.target.value || null)}
-            className="flex h-9 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm"
+            className="flex h-10 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm"
           >
             <option value="">All Categories</option>
             <option value="breathwork">Breathwork</option>
@@ -82,11 +89,13 @@ export function RoutineFilters() {
 
         {/* Energy Level */}
         <div>
-          <label className="mb-1 block text-xs font-medium text-gray-500">Energy</label>
+          <label htmlFor="routine-energy-filter" className="mb-1 block text-xs font-medium text-gray-500">Energy</label>
           <select
+            id="routine-energy-filter"
+            name="routine-energy-filter"
             value={energyLevel || ''}
             onChange={(e) => setEnergyLevel(e.target.value || null)}
-            className="flex h-9 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm"
+            className="flex h-10 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm"
           >
             <option value="">All Energy Levels</option>
             <option value="low">Low</option>
@@ -97,11 +106,13 @@ export function RoutineFilters() {
 
         {/* Context */}
         <div>
-          <label className="mb-1 block text-xs font-medium text-gray-500">Context</label>
+          <label htmlFor="routine-context-filter" className="mb-1 block text-xs font-medium text-gray-500">Context</label>
           <select
+            id="routine-context-filter"
+            name="routine-context-filter"
             value={context || ''}
             onChange={(e) => setContext(e.target.value || null)}
-            className="flex h-9 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm"
+            className="flex h-10 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm"
           >
             <option value="">Any Time</option>
             <option value="morning">Morning</option>
@@ -112,11 +123,13 @@ export function RoutineFilters() {
 
         {/* Difficulty */}
         <div>
-          <label className="mb-1 block text-xs font-medium text-gray-500">Difficulty</label>
+          <label htmlFor="routine-difficulty-filter" className="mb-1 block text-xs font-medium text-gray-500">Difficulty</label>
           <select
+            id="routine-difficulty-filter"
+            name="routine-difficulty-filter"
             value={difficulty || ''}
             onChange={(e) => setDifficulty(e.target.value || null)}
-            className="flex h-9 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm"
+            className="flex h-10 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm"
           >
             <option value="">All Difficulties</option>
             <option value="beginner">Beginner</option>
@@ -127,11 +140,13 @@ export function RoutineFilters() {
 
         {/* Duration */}
         <div>
-          <label className="mb-1 block text-xs font-medium text-gray-500">Duration</label>
+          <label htmlFor="routine-duration-filter" className="mb-1 block text-xs font-medium text-gray-500">Duration</label>
           <select
+            id="routine-duration-filter"
+            name="routine-duration-filter"
             value={duration || ''}
             onChange={(e) => setDuration(e.target.value || null)}
-            className="flex h-9 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm"
+            className="flex h-10 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm"
           >
             <option value="">Any Duration</option>
             <option value="5min">5 minutes</option>

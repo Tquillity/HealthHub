@@ -113,12 +113,14 @@ export function MealPlanGenerator({ onGenerate }: MealPlanGeneratorProps) {
             <form onSubmit={handleGenerate} className="space-y-6">
               {/* Week Start Date */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
+                <label htmlFor="meal-plan-week-start" className="block text-sm font-medium text-gray-700 mb-3">
                   Week Start Date
                 </label>
                 <div className="relative">
                   <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                   <Input
+                    id="meal-plan-week-start"
+                    name="meal-plan-week-start"
                     type="date"
                     value={formData.weekStart}
                     onChange={(e) => setFormData({ ...formData, weekStart: e.target.value })}

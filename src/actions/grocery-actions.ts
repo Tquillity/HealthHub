@@ -71,6 +71,7 @@ export async function getGroceryList(
     });
 
     // Get meal plans for the date range
+    // Optimized query: only fetch fields needed for ingredient aggregation
     const mealPlans = await prisma.mealPlan.findMany({
       where: {
         organizationId: organizationId,
@@ -81,19 +82,27 @@ export async function getGroceryList(
           gte: startDate,
         },
       },
-      include: {
+      select: {
         items: {
-          include: {
-            recipe: {
-              include: {
-                ingredients: true,
-              },
-            },
-          },
           where: {
             date: {
               gte: startDate,
               lte: endDate,
+            },
+          },
+          select: {
+            servings: true,
+            recipe: {
+              select: {
+                servings: true,
+                ingredients: {
+                  select: {
+                    name: true,
+                    quantity: true,
+                    unit: true,
+                  },
+                },
+              },
             },
           },
         },

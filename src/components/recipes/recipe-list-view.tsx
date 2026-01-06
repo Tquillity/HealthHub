@@ -170,7 +170,7 @@ export function RecipeListView({
                     </td>
                     {isAdmin && (
                       <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
-                        <div className="flex items-center justify-end gap-3">
+                        <div className="flex items-center justify-end gap-6">
                           <button
                             onClick={() => onEdit(recipe)}
                             className="flex cursor-pointer items-center gap-1 text-primary-600 transition-colors hover:text-primary-900"

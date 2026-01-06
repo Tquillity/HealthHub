@@ -441,6 +441,21 @@ export async function createRecipe(data: z.infer<typeof CreateRecipeSchema>) {
  */
 const UpdateRecipeSchema = CreateRecipeSchema.partial().extend({
   id: z.string().min(1),
+  // Make ingredients and instructions optional and allow empty arrays for updates
+  ingredients: z.array(
+    z.object({
+      name: z.string().min(1),
+      quantity: z.number().positive(),
+      unit: z.string().min(1),
+      notes: z.string().optional(),
+    })
+  ).optional(), // Optional for updates - can be empty array
+  instructions: z.array(
+    z.object({
+      stepNumber: z.number().int().positive(),
+      text: z.string().min(1),
+    })
+  ).optional(), // Optional for updates - can be empty array
 });
 
 export async function updateRecipe(data: z.infer<typeof UpdateRecipeSchema>) {
@@ -532,30 +547,34 @@ export async function updateRecipe(data: z.infer<typeof UpdateRecipeSchema>) {
         },
       });
 
-      // Update ingredients if provided
-      if (ingredients) {
+      // Update ingredients if provided (including empty arrays to clear all)
+      if (ingredients !== undefined) {
         await tx.ingredient.deleteMany({ where: { recipeId: id } });
-        await tx.ingredient.createMany({
-          data: ingredients.map((ing) => ({
-            recipeId: id,
-            name: ing.name,
-            quantity: ing.quantity,
-            unit: ing.unit,
-            notes: ing.notes || null,
-          })),
-        });
+        if (ingredients.length > 0) {
+          await tx.ingredient.createMany({
+            data: ingredients.map((ing) => ({
+              recipeId: id,
+              name: ing.name,
+              quantity: ing.quantity,
+              unit: ing.unit,
+              notes: ing.notes || null,
+            })),
+          });
+        }
       }
 
-      // Update instructions if provided
-      if (instructions) {
+      // Update instructions if provided (including empty arrays to clear all)
+      if (instructions !== undefined) {
         await tx.instruction.deleteMany({ where: { recipeId: id } });
-        await tx.instruction.createMany({
-          data: instructions.map((inst) => ({
-            recipeId: id,
-            stepNumber: inst.stepNumber,
-            text: inst.text,
-          })),
-        });
+        if (instructions.length > 0) {
+          await tx.instruction.createMany({
+            data: instructions.map((inst) => ({
+              recipeId: id,
+              stepNumber: inst.stepNumber,
+              text: inst.text,
+            })),
+          });
+        }
       }
 
       return updatedRecipe;

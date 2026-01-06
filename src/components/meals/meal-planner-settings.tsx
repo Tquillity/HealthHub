@@ -99,10 +99,10 @@ export function MealPlannerSettings({
               </p>
             </div>
 
-            <div className="space-y-6">
+            <div className="flex flex-col gap-6">
               {/* Quick Presets */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+              <div className="flex flex-col gap-2">
+                <label className="block text-sm font-medium text-gray-700">
                   Quick Presets
                 </label>
                 <div className="flex flex-wrap gap-2">
@@ -134,8 +134,8 @@ export function MealPlannerSettings({
               </div>
 
               {/* Duration Selector */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+              <div className="flex flex-col gap-2">
+                <label className="block text-sm font-medium text-gray-700">
                   Plan Duration
                 </label>
                 <div className="flex gap-2">
@@ -161,13 +161,15 @@ export function MealPlannerSettings({
               </div>
 
               {/* Start Date */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+              <div className="flex flex-col gap-2">
+                <label htmlFor="meal-planner-start-date" className="block text-sm font-medium text-gray-700">
                   Start Date
                 </label>
-                <div className="space-y-2">
-                  <label className="flex items-center gap-2">
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="meal-planner-use-today" className="flex items-center gap-2">
                     <input
+                      id="meal-planner-use-today"
+                      name="meal-planner-use-today"
                       type="checkbox"
                       checked={useToday}
                       onChange={(e) => {
@@ -185,6 +187,8 @@ export function MealPlannerSettings({
                     <div className="relative">
                       <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                       <Input
+                        id="meal-planner-start-date"
+                        name="meal-planner-start-date"
                         type="date"
                         value={startDate}
                         onChange={(e) => setStartDate(e.target.value)}

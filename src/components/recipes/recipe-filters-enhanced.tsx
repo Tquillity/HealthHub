@@ -84,7 +84,7 @@ export function RecipeFiltersEnhanced({ categories }: RecipeFiltersEnhancedProps
       </div>
 
       {/* Filters Row */}
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap gap-4">
         {/* Difficulty */}
         {filterOptions.difficulties.length > 0 && (
           <div>
@@ -94,7 +94,7 @@ export function RecipeFiltersEnhanced({ categories }: RecipeFiltersEnhancedProps
               name="recipe-difficulty-filter"
               value={difficulty || ''}
               onChange={(e) => setDifficulty(e.target.value || null)}
-              className="flex h-9 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm"
+              className="flex h-10 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm"
             >
               <option value="">All Difficulties</option>
               {filterOptions.difficulties.map((diff) => (
@@ -115,7 +115,7 @@ export function RecipeFiltersEnhanced({ categories }: RecipeFiltersEnhancedProps
               name="recipe-cuisine-filter"
               value={cuisine || ''}
               onChange={(e) => setCuisine(e.target.value || null)}
-              className="flex h-9 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm"
+              className="flex h-10 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm"
             >
               <option value="">All Cuisines</option>
               {filterOptions.cuisines.map((cuis) => (
@@ -169,7 +169,7 @@ export function RecipeFiltersEnhanced({ categories }: RecipeFiltersEnhancedProps
               name="recipe-lean-role-filter"
               value={leanRole || ''}
               onChange={(e) => setLeanRole(e.target.value || null)}
-              className="flex h-9 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm"
+              className="flex h-10 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm"
             >
               <option value="">All Roles</option>
               {filterOptions.leanRoles.map((role) => (

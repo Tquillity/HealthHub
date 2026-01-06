@@ -360,7 +360,7 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-8">
       {/* Basic Information */}
       <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
         <h3 className="mb-4 text-lg font-semibold text-gray-900">Basic Information</h3>
@@ -769,7 +769,7 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
         {errors.ingredients && (
           <p className="mb-4 text-sm text-red-600">{errors.ingredients}</p>
         )}
-        <div className="space-y-4">
+        <div className="flex flex-col gap-4">
           {ingredients.map((ingredient, index) => (
             <div key={index} className="grid grid-cols-12 gap-2 items-start">
               <div className="col-span-4">
@@ -867,7 +867,7 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
         {errors.instructions && (
           <p className="mb-4 text-sm text-red-600">{errors.instructions}</p>
         )}
-        <div className="space-y-4">
+        <div className="flex flex-col gap-4">
           {instructions.map((instruction, index) => (
             <div key={index} className="flex gap-2">
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-900 text-sm font-bold text-white">

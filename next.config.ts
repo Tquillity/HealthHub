@@ -12,9 +12,12 @@ const withPWA = withPWAInit({
   workboxOptions: {
     // Suppress all workbox logging
     disableDevLogs: true,
+    selfPreserve: true,
     // Additional log suppression
     skipWaiting: true,
     clientsClaim: true,
+    // Runtime caching with quiet logging
+    runtimeCaching: [],
   },
   // Suppress build-time logs
   buildExcludes: [/app-build-manifest\.json$/],

@@ -144,56 +144,61 @@ export function JournalClient({ initialDate, onEntrySaved }: JournalClientProps)
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label htmlFor="journal-date" className="block text-sm font-medium text-gray-700 mb-1.5">
                   Date
                 </label>
                 <Input
+                  id="journal-date"
+                  name="journal-date"
                   type="date"
                   value={formData.date}
                   onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                  className="mt-1"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label htmlFor="journal-mood" className="block text-sm font-medium text-gray-700 mb-1.5">
                     Mood (1-10)
                   </label>
                   <Input
+                    id="journal-mood"
+                    name="journal-mood"
                     type="number"
                     min="1"
                     max="10"
                     value={formData.mood}
                     onChange={(e) => setFormData({ ...formData, mood: e.target.value })}
                     placeholder="1-10"
-                    className="mt-1"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label htmlFor="journal-energy" className="block text-sm font-medium text-gray-700 mb-1.5">
                     Energy (1-10)
                   </label>
                   <Input
+                    id="journal-energy"
+                    name="journal-energy"
                     type="number"
                     min="1"
                     max="10"
                     value={formData.energy}
                     onChange={(e) => setFormData({ ...formData, energy: e.target.value })}
                     placeholder="1-10"
-                    className="mt-1"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label htmlFor="journal-sleep-hours" className="block text-sm font-medium text-gray-700 mb-1.5">
                   Sleep Hours
                 </label>
                 <Input
+                  id="journal-sleep-hours"
+                  name="journal-sleep-hours"
                   type="number"
                   min="0"
                   max="24"
@@ -203,32 +208,34 @@ export function JournalClient({ initialDate, onEntrySaved }: JournalClientProps)
                     setFormData({ ...formData, sleepHours: e.target.value })
                   }
                   placeholder="e.g., 7.5"
-                  className="mt-1"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label htmlFor="journal-notes" className="block text-sm font-medium text-gray-700 mb-1.5">
                   Notes
                 </label>
                 <textarea
+                  id="journal-notes"
+                  name="journal-notes"
                   value={formData.notes}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                   rows={3}
-                  className="mt-1 flex w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+                  className="flex w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
                   placeholder="How are you feeling today?"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label htmlFor="journal-tags" className="block text-sm font-medium text-gray-700 mb-1.5">
                   Tags (comma-separated)
                 </label>
                 <Input
+                  id="journal-tags"
+                  name="journal-tags"
                   value={formData.tags}
                   onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
                   placeholder="e.g., workout, productive, stressed"
-                  className="mt-1"
                 />
               </div>
 
@@ -237,7 +244,12 @@ export function JournalClient({ initialDate, onEntrySaved }: JournalClientProps)
                 <h3 className="text-lg font-semibold text-gray-900 mb-3">Gratitude</h3>
                 {formData.gratitudeEntries.map((entry, index) => (
                   <div key={index} className="mb-2 flex gap-2">
+                    <label htmlFor={`gratitude-input-${index}`} className="sr-only">
+                      Gratitude entry {index + 1}
+                    </label>
                     <Input
+                      id={`gratitude-input-${index}`}
+                      name={`gratitude-input-${index}`}
                       value={entry}
                       onChange={(e) => {
                         const newEntries = [...formData.gratitudeEntries];
@@ -272,7 +284,12 @@ export function JournalClient({ initialDate, onEntrySaved }: JournalClientProps)
                   <Plus className="h-4 w-4 mr-1" />
                   Add Gratitude
                 </Button>
+                <label htmlFor="journal-gratitude-notes" className="sr-only">
+                  Additional gratitude notes
+                </label>
                 <textarea
+                  id="journal-gratitude-notes"
+                  name="journal-gratitude-notes"
                   value={formData.gratitudeNotes}
                   onChange={(e) => setFormData({ ...formData, gratitudeNotes: e.target.value })}
                   rows={2}
@@ -288,7 +305,12 @@ export function JournalClient({ initialDate, onEntrySaved }: JournalClientProps)
                   <label className="block text-sm font-medium text-gray-700 mb-2">Achieved Today</label>
                   {formData.goalsAchieved.map((goal, index) => (
                     <div key={index} className="mb-2 flex gap-2">
+                      <label htmlFor={`goal-achieved-input-${index}`} className="sr-only">
+                        Goal achieved {index + 1}
+                      </label>
                       <Input
+                        id={`goal-achieved-input-${index}`}
+                        name={`goal-achieved-input-${index}`}
                         value={goal}
                         onChange={(e) => {
                           const newGoals = [...formData.goalsAchieved];
@@ -328,7 +350,12 @@ export function JournalClient({ initialDate, onEntrySaved }: JournalClientProps)
                   <label className="block text-sm font-medium text-gray-700 mb-2">In Progress</label>
                   {formData.goalsProgress.map((goal, index) => (
                     <div key={index} className="mb-2 flex gap-2">
+                      <label htmlFor={`goal-progress-input-${index}`} className="sr-only">
+                        Goal in progress {index + 1}
+                      </label>
                       <Input
+                        id={`goal-progress-input-${index}`}
+                        name={`goal-progress-input-${index}`}
                         value={goal}
                         onChange={(e) => {
                           const newGoals = [...formData.goalsProgress];
@@ -364,7 +391,12 @@ export function JournalClient({ initialDate, onEntrySaved }: JournalClientProps)
                     Add Progress Goal
                   </Button>
                 </div>
+                <label htmlFor="journal-goals-notes" className="sr-only">
+                  Additional goal notes
+                </label>
                 <textarea
+                  id="journal-goals-notes"
+                  name="journal-goals-notes"
                   value={formData.goalsNotes}
                   onChange={(e) => setFormData({ ...formData, goalsNotes: e.target.value })}
                   rows={2}
@@ -380,7 +412,12 @@ export function JournalClient({ initialDate, onEntrySaved }: JournalClientProps)
                   <label className="block text-sm font-medium text-gray-700 mb-2">Physical Symptoms</label>
                   {formData.symptomsPhysical.map((symptom, index) => (
                     <div key={index} className="mb-2 flex gap-2">
+                      <label htmlFor={`symptom-physical-input-${index}`} className="sr-only">
+                        Physical symptom {index + 1}
+                      </label>
                       <Input
+                        id={`symptom-physical-input-${index}`}
+                        name={`symptom-physical-input-${index}`}
                         value={symptom}
                         onChange={(e) => {
                           const newSymptoms = [...formData.symptomsPhysical];
@@ -420,7 +457,12 @@ export function JournalClient({ initialDate, onEntrySaved }: JournalClientProps)
                   <label className="block text-sm font-medium text-gray-700 mb-2">Mental Symptoms</label>
                   {formData.symptomsMental.map((symptom, index) => (
                     <div key={index} className="mb-2 flex gap-2">
+                      <label htmlFor={`symptom-mental-input-${index}`} className="sr-only">
+                        Mental symptom {index + 1}
+                      </label>
                       <Input
+                        id={`symptom-mental-input-${index}`}
+                        name={`symptom-mental-input-${index}`}
                         value={symptom}
                         onChange={(e) => {
                           const newSymptoms = [...formData.symptomsMental];
@@ -456,7 +498,12 @@ export function JournalClient({ initialDate, onEntrySaved }: JournalClientProps)
                     Add Mental Symptom
                   </Button>
                 </div>
+                <label htmlFor="journal-symptoms-notes" className="sr-only">
+                  Additional symptom notes
+                </label>
                 <textarea
+                  id="journal-symptoms-notes"
+                  name="journal-symptoms-notes"
                   value={formData.symptomsNotes}
                   onChange={(e) => setFormData({ ...formData, symptomsNotes: e.target.value })}
                   rows={2}

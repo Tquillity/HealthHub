@@ -58,20 +58,20 @@ export function DashboardClient({
             <h2 className="text-xl font-semibold text-gray-900 mb-5">
               Quick Actions
             </h2>
-            <div className="space-y-4">
-              <Link href="/routines">
+            <div className="flex flex-col gap-3">
+              <Link href="/routines" className="block">
                 <Button className="w-full gap-2 bg-primary-600 hover:bg-primary-700">
                   <Sparkles className="h-4 w-4" />
                   Try Routine Lottery
                 </Button>
               </Link>
-              <Link href="/meal-planner">
-                <Button className="w-full gap-2" style={{ backgroundColor: 'rgb(34, 197, 94)', color: 'white' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgb(22, 163, 74)'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgb(34, 197, 94)'}>
+              <Link href="/meal-planner" className="block">
+                <Button className="w-full gap-2 bg-wellness-500 hover:bg-wellness-600 text-white">
                   <UtensilsCrossed className="h-4 w-4" />
                   Plan Meals
                 </Button>
               </Link>
-              <Link href="/recipes">
+              <Link href="/recipes" className="block">
                 <Button className="w-full gap-2 bg-gray-600 hover:bg-gray-700 text-white">
                   <BookOpen className="h-4 w-4" />
                   Browse Recipes
@@ -81,7 +81,7 @@ export function DashboardClient({
           </div>
 
           {/* Health Tips */}
-          <div className="rounded-lg p-6 border border-primary-100" style={{ background: 'linear-gradient(to bottom right, rgb(240, 249, 255), rgb(240, 253, 244))' }}>
+          <div className="rounded-lg p-6 border border-primary-100 bg-gradient-to-br from-primary-50 to-wellness-50">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               Today's Tip
             </h3>
