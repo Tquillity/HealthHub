@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Edit, Trash2 } from 'lucide-react';
+import { Edit, Trash2, ArrowUpDown } from 'lucide-react';
 import type { RecipeWithDetails } from '@/actions/recipe-actions';
 
 interface RecipeListViewProps {
@@ -12,7 +12,7 @@ interface RecipeListViewProps {
   onEdit: (recipe: RecipeWithDetails) => void;
 }
 
-type SortKey = 'name' | 'category' | 'totalTime';
+type SortKey = 'name' | 'category' | 'leanRole' | 'totalTime';
 type SortDirection = 'asc' | 'desc';
 
 export function RecipeListView({
@@ -47,6 +47,13 @@ export function RecipeListView({
           valA = (a.category || '').toLowerCase();
           valB = (b.category || '').toLowerCase();
           break;
+        case 'leanRole':
+          // Safely access leanRole - handle both direct property and nested object
+          const leanRoleA = (a as any).leanInfo?.leanRole || a.leanRole || '';
+          const leanRoleB = (b as any).leanInfo?.leanRole || b.leanRole || '';
+          valA = (leanRoleA || '').toLowerCase();
+          valB = (leanRoleB || '').toLowerCase();
+          break;
         case 'totalTime':
           valA = (a.prepTime || 0) + (a.cookTime || 0);
           valB = (b.prepTime || 0) + (b.cookTime || 0);
@@ -60,8 +67,21 @@ export function RecipeListView({
   }, [recipes, sortKey, sortDirection]);
 
   const SortIcon = ({ column }: { column: SortKey }) => {
-    if (sortKey !== column) return <span className="text-gray-400">↕</span>;
-    return <span>{sortDirection === 'asc' ? '↑' : '↓'}</span>;
+    if (sortKey !== column) {
+      return <ArrowUpDown className="h-4 w-4 text-gray-400" />;
+    }
+    return (
+      <ArrowUpDown
+        className={`h-4 w-4 ${
+          sortDirection === 'asc' ? 'text-primary-600' : 'text-primary-600'
+        }`}
+      />
+    );
+  };
+
+  // Helper to safely get leanRole
+  const getLeanRole = (recipe: RecipeWithDetails): string => {
+    return (recipe as any).leanInfo?.leanRole || recipe.leanRole || '';
   };
 
   const getCategoryColor = (category?: string | null) => {
@@ -103,18 +123,22 @@ export function RecipeListView({
               <th
                 scope="col"
                 className="cursor-pointer px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 transition-colors hover:bg-gray-100"
+                onClick={() => handleSort('leanRole')}
+              >
+                <div className="flex items-center gap-1">
+                  <span>Lean Role</span>
+                  <SortIcon column="leanRole" />
+                </div>
+              </th>
+              <th
+                scope="col"
+                className="cursor-pointer px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 transition-colors hover:bg-gray-100"
                 onClick={() => handleSort('totalTime')}
               >
                 <div className="flex items-center gap-1">
                   <span>Total Time</span>
                   <SortIcon column="totalTime" />
                 </div>
-              </th>
-              <th
-                scope="col"
-                className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
-              >
-                Servings
               </th>
               {isAdmin && (
                 <th
@@ -163,10 +187,16 @@ export function RecipeListView({
                       )}
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                      {totalTime > 0 ? `${totalTime} min` : '—'}
+                      {getLeanRole(recipe) ? (
+                        <span className="inline-flex rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 capitalize">
+                          {getLeanRole(recipe)}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">—</span>
+                      )}
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                      {recipe.servings || '—'}
+                      {totalTime > 0 ? `${totalTime} min` : '—'}
                     </td>
                     {isAdmin && (
                       <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
@@ -194,7 +224,7 @@ export function RecipeListView({
             ) : (
               <tr>
                 <td
-                  colSpan={isAdmin ? 5 : 4}
+                  colSpan={isAdmin ? 6 : 5}
                   className="px-6 py-4 text-center text-sm text-gray-500"
                 >
                   No recipes found.

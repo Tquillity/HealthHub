@@ -285,6 +285,7 @@ const CreateRecipeSchema = z.object({
   difficulty: z.enum(['easy', 'medium', 'hard']).optional(),
   cuisine: z.string().optional(),
   dietaryTags: z.array(z.string()).default([]),
+  leanRole: z.string().optional(), // LEAN metrics role
   calories: z.number().positive().optional(),
   protein: z.number().positive().optional(),
   carbs: z.number().positive().optional(),
@@ -385,6 +386,7 @@ export async function createRecipe(data: z.infer<typeof CreateRecipeSchema>) {
           difficulty: validated.difficulty || null,
           cuisine: validated.cuisine || null,
           dietaryTags: validated.dietaryTags,
+          leanRole: validated.leanRole || null,
           calories: validated.calories || null,
           protein: validated.protein || null,
           carbs: validated.carbs || null,
@@ -721,7 +723,12 @@ export async function getUserRole() {
  */
 async function isMainAdmin(userId: string): Promise<boolean> {
   try {
-    const adminEmail = process.env.ADMIN_EMAIL || 'admin@healthhub.com';
+    const adminEmail = process.env.ADMIN_EMAIL;
+    if (!adminEmail) {
+      console.warn('⚠️ ADMIN_EMAIL environment variable is not set. Main admin check will fail.');
+      return false;
+    }
+    
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { email: true, role: true },

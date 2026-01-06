@@ -12,9 +12,15 @@ interface PageProps {
 }
 
 export default async function RecipesPage({ searchParams }: PageProps) {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+  let session;
+  try {
+    session = await auth.api.getSession({
+      headers: await headers(),
+    });
+  } catch (error) {
+    console.error('Failed to get session:', error);
+    redirect('/sign-in');
+  }
 
   if (!session) redirect('/sign-in');
 
@@ -32,15 +38,28 @@ export default async function RecipesPage({ searchParams }: PageProps) {
     : undefined;
   const leanRole = typeof params.leanRole === 'string' ? params.leanRole : undefined;
 
-  // Parallel data fetching
-  const [recipesResult, categories, roleResult] = await Promise.all([
-    getRecipes({ query, category, difficulty, cuisine, dietaryTags, leanRole }),
-    getRecipeCategories(),
-    getUserRole(),
-  ]);
+  // Parallel data fetching with error handling
+  let recipes: any[] = [];
+  let categories: string[] = [];
+  let isAdmin = false;
 
-  const recipes = recipesResult.data || [];
-  const isAdmin = roleResult.role === 'admin';
+  try {
+    const [recipesResult, categoriesResult, roleResult] = await Promise.all([
+      getRecipes({ query, category, difficulty, cuisine, dietaryTags, leanRole }),
+      getRecipeCategories(),
+      getUserRole(),
+    ]);
+
+    recipes = recipesResult.data || [];
+    categories = categoriesResult || [];
+    isAdmin = roleResult.role === 'admin';
+  } catch (error) {
+    console.error('Failed to fetch recipes data:', error);
+    // Return empty state instead of crashing
+    recipes = [];
+    categories = [];
+    isAdmin = false;
+  }
 
   return (
     <div className="container mx-auto max-w-7xl p-6">

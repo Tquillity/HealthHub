@@ -1,3 +1,6 @@
+'use client';
+
+import { useState } from 'react';
 import Link from 'next/link';
 import { Clock, Users, ChefHat } from 'lucide-react';
 import { type RecipeWithDetails } from '@/actions/recipe-actions';
@@ -7,6 +10,8 @@ interface RecipeCardProps {
 }
 
 export function RecipeCard({ recipe }: RecipeCardProps) {
+  const [imageError, setImageError] = useState(false);
+  
   // Fallback if numbers are missing
   const prepTime = recipe.prepTime || 0;
   const cookTime = recipe.cookTime || 0;
@@ -19,25 +24,12 @@ export function RecipeCard({ recipe }: RecipeCardProps) {
     >
       {/* Recipe Image */}
       <div className="relative h-48 w-full bg-gray-100 overflow-hidden">
-        {recipe.imageUrl ? (
+        {recipe.imageUrl && !imageError ? (
           <img
             src={recipe.imageUrl}
             alt={recipe.name}
             className="h-full w-full object-cover"
-            onError={(e) => {
-              const target = e.target as HTMLImageElement;
-              target.style.display = 'none';
-              const parent = target.parentElement;
-              if (parent) {
-                parent.innerHTML = `
-                  <div class="flex h-full w-full items-center justify-center text-gray-300">
-                    <svg class="h-12 w-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                    </svg>
-                  </div>
-                `;
-              }
-            }}
+            onError={() => setImageError(true)}
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-gray-300">

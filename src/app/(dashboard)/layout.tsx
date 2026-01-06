@@ -19,9 +19,17 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+  let session;
+  try {
+    session = await auth.api.getSession({
+      headers: await headers(),
+    });
+  } catch (error) {
+    console.error('Failed to get session:', error);
+    // If database connection fails, redirect to sign-in
+    // This prevents the app from crashing on connection errors
+    redirect('/sign-in');
+  }
 
   if (!session) {
     redirect('/sign-in');

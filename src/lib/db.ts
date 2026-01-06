@@ -19,18 +19,34 @@ const createPrismaClient = () => {
     connectionString,
     max: 10, // Limit connections to prevent Neon exhaustion
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 10000, // Increased timeout for Neon connections
+    connectionTimeoutMillis: 20000, // Increased timeout for Neon connections (20s)
     statement_timeout: 30000, // 30 second statement timeout
+    // Add retry and error handling
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10000,
+  });
+
+  // Handle pool errors gracefully
+  pool.on('error', (err) => {
+    console.error('❌ [Prisma Pool] Unexpected error on idle client:', err);
   });
 
   const adapter = new PrismaPg(pool);
 
   console.log('🔌 [Prisma] Initializing client with standard PG adapter');
 
-  return new PrismaClient({
+  const client = new PrismaClient({
     adapter,
     log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
   });
+
+  // Add connection health check
+  client.$connect().catch((err) => {
+    console.error('❌ [Prisma] Failed to connect to database:', err.message);
+    // Don't throw here - let individual queries handle errors
+  });
+
+  return client;
 };
 
 export const prisma = globalForPrisma.prisma ?? createPrismaClient();

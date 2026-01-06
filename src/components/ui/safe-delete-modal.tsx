@@ -1,6 +1,8 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Dialog,
   DialogContent,
@@ -28,8 +30,37 @@ export function SafeDeleteModal({
   itemName,
   description,
 }: SafeDeleteModalProps) {
+  const [verificationText, setVerificationText] = useState('');
+  const [isVerified, setIsVerified] = useState(false);
+
+  // Reset verification when modal opens/closes or itemName changes
+  useEffect(() => {
+    if (isOpen) {
+      setVerificationText('');
+      setIsVerified(false);
+    }
+  }, [isOpen, itemName]);
+
+  // Check if verification text matches itemName exactly
+  useEffect(() => {
+    setIsVerified(verificationText.trim() === itemName.trim());
+  }, [verificationText, itemName]);
+
+  const handleClose = () => {
+    setVerificationText('');
+    setIsVerified(false);
+    onClose();
+  };
+
+  const handleConfirm = () => {
+    if (isVerified) {
+      onConfirm();
+      handleClose();
+    }
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <div className="flex items-center gap-3">
@@ -52,18 +83,33 @@ export function SafeDeleteModal({
             Are you sure you want to delete{' '}
             <span className="font-semibold text-gray-900">&quot;{itemName}&quot;</span>?
           </p>
+          <p className="mt-3 text-sm font-medium text-gray-900">
+            To confirm, type the name exactly: <span className="font-semibold text-red-600">&quot;{itemName}&quot;</span>
+          </p>
+          <div className="mt-3">
+            <label htmlFor="delete-verification" className="sr-only">
+              Type the recipe name to confirm deletion
+            </label>
+            <Input
+              id="delete-verification"
+              type="text"
+              value={verificationText}
+              onChange={(e) => setVerificationText(e.target.value)}
+              placeholder={`Type "${itemName}" to confirm`}
+              className="w-full"
+              autoFocus
+            />
+          </div>
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0">
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={handleClose}>
             Cancel
           </Button>
           <Button
             variant="destructive"
-            onClick={() => {
-              onConfirm();
-              onClose();
-            }}
+            onClick={handleConfirm}
+            disabled={!isVerified}
           >
             Delete
           </Button>
