@@ -636,6 +636,9 @@ async function seed() {
           console.log(`  ✅ Resource: ${resourceData.title}`);
         }
 
+        // Seed Experts and Phase Recommendations
+        await seedExperts(prisma);
+
         console.log('✨ Seed completed successfully!');
   } catch (error) {
     console.error('❌ Error seeding database:', error);
@@ -644,6 +647,297 @@ async function seed() {
     await prisma.$disconnect();
     await pool.end();
   }
+}
+
+/**
+ * Seed Experts and their Phase Recommendations
+ * Ported from Food-Heaven project for HealthHub
+ */
+
+// Type-safe interface for recommendation content
+interface RecommendationContent {
+  foods_to_eat?: string[];
+  foods_to_avoid?: string[];
+  workout_types?: string[];
+  guidance?: string;
+}
+
+async function seedExperts(prisma: PrismaClient) {
+  console.log('👩‍⚕️ Seeding experts and phase recommendations...');
+
+  // Expert A: Dr. Mindy Pelz
+  let drMindyPelz = await prisma.expert.findFirst({
+    where: { name: 'Dr. Mindy Pelz' },
+  });
+
+  if (!drMindyPelz) {
+    drMindyPelz = await prisma.expert.create({
+      data: {
+        name: 'Dr. Mindy Pelz',
+        focusAreas: ['nutrition', 'fasting'],
+        credentials: 'DC, Functional Medicine Practitioner',
+        website: 'https://drmindypelz.com',
+      },
+    });
+    console.log(`  ✅ Expert: ${drMindyPelz.name}`);
+  } else {
+    console.log(`  ⏭️  Expert already exists: ${drMindyPelz.name}`);
+  }
+
+  // Update Dr. Mindy Pelz recommendations with enhanced sources
+
+  // Dr. Mindy Pelz Recommendations (Complete data from food-heaven)
+  const mindyRecommendations = [
+    {
+      expertId: drMindyPelz.id,
+      phase: 'menstrual',
+      category: 'nutrition',
+      content: {
+        foods_to_eat: [
+          'High in protein, fiber, minerals, and healthy fats (Paleo-style diet)',
+          'Iron-rich foods to combat potential iron loss',
+        ],
+        foods_to_avoid: [
+          'Heavily processed foods, alcohol, spicy foods, and sugar to reduce inflammation',
+        ],
+      },
+      source: 'https://londonclinicofnutrition.co.uk/nutrition-articles/foods-to-eat-for-each-stage-of-your-menstrual-cycle/',
+    },
+    {
+      expertId: drMindyPelz.id,
+      phase: 'menstrual',
+      category: 'fasting',
+      content: {
+        guidance: 'Avoid fasting; focus on nutrition for recovery. Fasting during progesterone-dominant phases (menstrual/luteal) can interfere with cortisol regulation and hormone support.',
+      },
+      source: 'https://drmindypelz.com/fasting-for-women/ | Fast Like a Girl by Dr. Mindy Pelz',
+    },
+    {
+      expertId: drMindyPelz.id,
+      phase: 'follicular',
+      category: 'nutrition',
+      content: {
+        foods_to_eat: [
+          'Low-carb/sugar to keep glucose levels low for estrogen production',
+          'Healthy fats and proteins',
+        ],
+      },
+      source: 'https://www.purition.co.uk/blogs/articles/dr-mindy-pelz-fast-like-a-girl',
+    },
+    {
+      expertId: drMindyPelz.id,
+      phase: 'follicular',
+      category: 'fasting',
+      content: {
+        guidance: 'Can fast freely between Day 1 and Day 12',
+      },
+      source: 'https://drmindypelz.com/fasting-for-women/ | Fast Like a Girl by Dr. Mindy Pelz',
+    },
+    {
+      expertId: drMindyPelz.id,
+      phase: 'ovulation',
+      category: 'nutrition',
+      content: {
+        foods_to_eat: [
+          'Balanced meals to maintain energy and hormone balance',
+        ],
+      },
+      source: 'https://londonclinicofnutrition.co.uk/nutrition-articles/foods-to-eat-for-each-stage-of-your-menstrual-cycle/',
+    },
+    {
+      expertId: drMindyPelz.id,
+      phase: 'ovulation',
+      category: 'fasting',
+      content: {
+        guidance: 'Avoid long fasts; limit to 13-15 hours if fasting',
+      },
+      source: 'https://drmindypelz.com/fasting-for-women/ | Fast Like a Girl by Dr. Mindy Pelz',
+    },
+    {
+      expertId: drMindyPelz.id,
+      phase: 'luteal',
+      category: 'nutrition',
+      content: {
+        foods_to_eat: [
+          'Increase in carbohydrates, especially complex ones',
+          'Magnesium-rich foods for mood and energy support',
+          'Healthy fats and proteins',
+        ],
+      },
+      source: 'https://londonclinicofnutrition.co.uk/nutrition-articles/foods-to-eat-for-each-stage-of-your-menstrual-cycle/',
+    },
+    {
+      expertId: drMindyPelz.id,
+      phase: 'luteal',
+      category: 'fasting',
+      content: {
+        guidance: 'Avoid fasting; focus on hormone support with carbs. Progesterone-dominant phases require adequate nutrition to prevent cortisol interference and support hormone production.',
+      },
+      source: 'https://drmindypelz.com/fasting-for-women/ | Fast Like a Girl by Dr. Mindy Pelz',
+    },
+  ];
+
+  for (const rec of mindyRecommendations) {
+    const existingRec = await prisma.phaseRecommendation.findFirst({
+      where: {
+        expertId: rec.expertId,
+        phase: rec.phase,
+        category: rec.category,
+      },
+    });
+
+    if (existingRec) {
+      await prisma.phaseRecommendation.update({
+        where: { id: existingRec.id },
+        data: {
+          content: rec.content as Prisma.JsonObject,
+          source: rec.source,
+        },
+      });
+      console.log(`  🔄 Updated: ${rec.phase} - ${rec.category}`);
+    } else {
+      await prisma.phaseRecommendation.create({
+        data: {
+          expertId: rec.expertId,
+          phase: rec.phase,
+          category: rec.category,
+          content: rec.content as Prisma.JsonObject,
+          source: rec.source,
+        },
+      });
+      console.log(`  ✅ Created: ${rec.phase} - ${rec.category}`);
+    }
+  }
+
+  // Expert B: Dr. Stacy Sims
+  let drStacySims = await prisma.expert.findFirst({
+    where: { name: 'Dr. Stacy Sims' },
+  });
+
+  if (!drStacySims) {
+    drStacySims = await prisma.expert.create({
+      data: {
+        name: 'Dr. Stacy Sims',
+        focusAreas: ['exercise', 'training'],
+        credentials: 'PhD, Exercise Physiologist & Nutrition Scientist',
+        website: 'https://www.drstacysims.com',
+      },
+    });
+    console.log(`  ✅ Expert: ${drStacySims.name}`);
+  } else {
+    // Update credentials if they exist but are outdated
+    if (drStacySims.credentials !== 'PhD, Exercise Physiologist & Nutrition Scientist') {
+      await prisma.expert.update({
+        where: { id: drStacySims.id },
+        data: {
+          credentials: 'PhD, Exercise Physiologist & Nutrition Scientist',
+        },
+      });
+      console.log(`  🔄 Updated credentials for: ${drStacySims.name}`);
+    } else {
+      console.log(`  ⏭️  Expert already exists: ${drStacySims.name}`);
+    }
+  }
+
+  // Dr. Stacy Sims Recommendations (Updated 2024-2025)
+  // Note: Dr. Sims' views have evolved - menstrual phase is now seen as a high-performance window
+  const stacyRecommendations = [
+    {
+      expertId: drStacySims.id,
+      phase: 'menstrual',
+      category: 'exercise',
+      content: {
+        workout_types: [
+          'High-performance window: Menstrual phase often allows heavy training if discomfort is managed',
+          'Low hormone state is "most like a man" - leverage this for high-intensity work',
+          'Focus on readiness and recovery rather than rigid phase-based training',
+          'If comfortable, this can be an optimal time for strength and power training',
+        ],
+        guidance: 'Menstrual phase (low hormones) creates a physiological state similar to male athletes, making it a potential high-performance window. Focus on readiness and symptom management rather than avoiding intensity.',
+        nutrition: 'Balance nutrition based on comfort and energy levels. Support recovery with adequate protein and hydration.',
+      },
+      source: 'Huberman Lab: Dr. Stacy Sims Episode (Jul 2024) - https://www.hubermanlab.com/episode/dr-stacy-sims-female-specific-exercise-nutrition-for-health-performance-longevity | Dr. Stacy Sims Blog (2025): The Evolution of Menstrual Cycle Training - https://www.drstacysims.com/newsletters/articles/posts/the-evolution-of-menstrual-cycle-training',
+    },
+    {
+      expertId: drStacySims.id,
+      phase: 'follicular',
+      category: 'exercise',
+      content: {
+        workout_types: [
+          'High-intensity workouts, strength training, HIIT',
+          'Good time for heavier lifting and power training',
+          'Estrogen rising supports performance and recovery',
+        ],
+        guidance: 'Follicular phase supports high-intensity training as estrogen levels rise. Focus on readiness and recovery metrics rather than rigid phase-based protocols.',
+        nutrition: 'Carbohydrates and protein before and after training to support performance and recovery',
+      },
+      source: 'Huberman Lab: Dr. Stacy Sims Episode (Jul 2024) - https://www.hubermanlab.com/episode/dr-stacy-sims-female-specific-exercise-nutrition-for-health-performance-longevity',
+    },
+    {
+      expertId: drStacySims.id,
+      phase: 'ovulation',
+      category: 'exercise',
+      content: {
+        workout_types: [
+          'Maintain intensity if feeling good, or shift to recovery if not',
+          'Technical work or recovery day',
+          'Peak hormone state - individual responses vary',
+        ],
+        guidance: 'Ovulation represents peak hormone state. Individual responses vary widely. Focus on readiness and recovery rather than assuming peak performance.',
+      },
+      source: 'Huberman Lab: Dr. Stacy Sims Episode (Jul 2024) - https://www.hubermanlab.com/episode/dr-stacy-sims-female-specific-exercise-nutrition-for-health-performance-longevity',
+    },
+    {
+      expertId: drStacySims.id,
+      phase: 'luteal',
+      category: 'exercise',
+      content: {
+        workout_types: [
+          'Reduce intensity in late luteal phase if symptoms present',
+          'Focus on steady-state cardio or lower intensity strength training',
+          'Incorporate more recovery-focused activities like yoga',
+          'Progesterone-dominant phase may require more recovery support',
+        ],
+        guidance: 'Luteal phase is progesterone-dominant. Individual responses vary. Some may need reduced intensity, while others maintain performance. Focus on readiness metrics and symptom management.',
+        nutrition: 'Increase protein and moderate carbs for recovery. Support progesterone production with adequate nutrition.',
+      },
+      source: 'Huberman Lab: Dr. Stacy Sims Episode (Jul 2024) - https://www.hubermanlab.com/episode/dr-stacy-sims-female-specific-exercise-nutrition-for-health-performance-longevity',
+    },
+  ];
+
+  for (const rec of stacyRecommendations) {
+    const existingRec = await prisma.phaseRecommendation.findFirst({
+      where: {
+        expertId: rec.expertId,
+        phase: rec.phase,
+        category: rec.category,
+      },
+    });
+
+    if (existingRec) {
+      await prisma.phaseRecommendation.update({
+        where: { id: existingRec.id },
+        data: {
+          content: rec.content as Prisma.JsonObject,
+          source: rec.source,
+        },
+      });
+      console.log(`  🔄 Updated: ${rec.phase} - ${rec.category}`);
+    } else {
+      await prisma.phaseRecommendation.create({
+        data: {
+          expertId: rec.expertId,
+          phase: rec.phase,
+          category: rec.category,
+          content: rec.content as Prisma.JsonObject,
+          source: rec.source,
+        },
+      });
+      console.log(`  ✅ Created: ${rec.phase} - ${rec.category}`);
+    }
+  }
+
+  console.log(`✅ Seeded ${mindyRecommendations.length + stacyRecommendations.length} phase recommendations`);
 }
 
 seed();

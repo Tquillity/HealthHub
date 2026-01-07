@@ -219,3 +219,65 @@ export async function deleteJournalEntry(date: string) {
   }
 }
 
+/**
+ * Get journal snippet for a specific date
+ * Optimized for Quick Look previews - only fetches essential fields
+ * 
+ * @param date - ISO date string (YYYY-MM-DD format)
+ * @returns Lightweight object with mood, energy, and truncated notes (first 100 chars)
+ */
+export async function getJournalSnippet(date: string) {
+  try {
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+
+    if (!session) {
+      return { success: false, error: 'Unauthorized', data: null };
+    }
+
+    const entryDate = new Date(date);
+    entryDate.setHours(0, 0, 0, 0);
+
+    // Use select to only fetch required fields for performance
+    const entry = await prisma.journalEntry.findUnique({
+      where: {
+        userId_date: {
+          userId: session.user.id,
+          date: entryDate,
+        },
+      },
+      select: {
+        date: true,
+        mood: true,
+        energy: true,
+        notes: true,
+      },
+    });
+
+    if (!entry) {
+      return { success: true, data: null }; // No entry exists for this date
+    }
+
+    // Truncate notes to first 100 characters for preview
+    const notesSnippet = entry.notes
+      ? entry.notes.length > 100
+        ? entry.notes.substring(0, 100) + '...'
+        : entry.notes
+      : null;
+
+    return {
+      success: true,
+      data: {
+        date: entry.date,
+        mood: entry.mood,
+        energy: entry.energy,
+        notesSnippet,
+      },
+    };
+  } catch (error) {
+    console.error('Error fetching journal snippet:', error);
+    return { success: false, error: 'Failed to fetch journal snippet', data: null };
+  }
+}
+
