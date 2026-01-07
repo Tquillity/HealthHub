@@ -1,5 +1,6 @@
+import { betterFetch } from '@better-fetch/fetch';
 import { NextResponse, type NextRequest } from 'next/server';
-import { auth } from '@/lib/auth';
+import type { Session } from 'better-auth/types';
 
 /**
  * Next.js Middleware for Authentication
@@ -7,29 +8,31 @@ import { auth } from '@/lib/auth';
  * Protects dashboard routes and redirects unauthenticated users to sign-in.
  * Redirects authenticated users away from auth pages to dashboard.
  * 
- * Uses Better-Auth's session API to check authentication status.
+ * Uses REST-based session check via @better-fetch/fetch to avoid Edge Runtime issues.
+ * This bypasses the database connection (prisma) that would crash in Edge Runtime.
  */
 export default async function authMiddleware(request: NextRequest) {
-  // Get session using Better-Auth's API
-  // In middleware, we need to create headers object from request
-  const cookieHeader = request.headers.get('cookie') || '';
-  const headers = new Headers();
-  if (cookieHeader) {
-    headers.set('cookie', cookieHeader);
-  }
-  
-  const session = await auth.api.getSession({
-    headers: headers,
-  });
+  // Use REST-based session check to avoid Edge Runtime Node.js module issues
+  // This makes an HTTP request to the auth API endpoint instead of importing auth directly
+  const { data: session } = await betterFetch<Session>(
+    '/api/auth/get-session',
+    {
+      baseURL: request.nextUrl.origin,
+      headers: {
+        cookie: request.headers.get('cookie') || '',
+      },
+    },
+  );
 
   const isAuthRoute = request.nextUrl.pathname.startsWith('/sign-in') || 
                      request.nextUrl.pathname.startsWith('/sign-up');
+  
   const isDashboardRoute = request.nextUrl.pathname.startsWith('/dashboard') || 
                            request.nextUrl.pathname.startsWith('/recipes') ||
                            request.nextUrl.pathname.startsWith('/meal-planner') ||
                            request.nextUrl.pathname.startsWith('/routines') ||
-                           request.nextUrl.pathname.startsWith('/groceries') ||
                            request.nextUrl.pathname.startsWith('/journal') ||
+                           request.nextUrl.pathname.startsWith('/groceries') ||
                            request.nextUrl.pathname.startsWith('/cycle') ||
                            request.nextUrl.pathname.startsWith('/learn') ||
                            request.nextUrl.pathname.startsWith('/profile');
