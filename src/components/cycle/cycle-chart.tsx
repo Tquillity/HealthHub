@@ -266,8 +266,8 @@ const CustomTooltip = ({ active, payload, label, onPhaseHover, visibleSeries }: 
   return null;
 };
 
-export function CycleChart({ phaseData, cycleLength, lastPeriodDate, onPhaseHover, onPhaseClick, onDayClick }: CycleChartProps) {
-  const { currentPhase, daysIntoCycle } = phaseData;
+export function CycleChart({ phaseData, cycleLength, lastPeriodDate, onPhaseHover, onPhaseClick, onDayClick, mode = 'lifestyle' }: CycleChartProps) {
+  const { currentPhase, daysIntoCycle, ovulationDay } = phaseData;
   const router = useRouter();
 
   // Get visible series from URL state
@@ -292,6 +292,28 @@ export function CycleChart({ phaseData, cycleLength, lastPeriodDate, onPhaseHove
     () => mergeChartData(energyData, hormoneCurves),
     [energyData, hormoneCurves]
   );
+
+  // Calculate dynamic phase boundaries (matching cycle-calculator.ts logic)
+  // This ensures ReferenceArea backgrounds align with actual phase calculations
+  // Using 0.5 offset for seamless coverage (prevents white gaps between phase zones)
+  const phaseBoundaries = useMemo(() => {
+    const calculatedOvulationDay = ovulationDay || Math.max(cycleLength - 14, 14);
+    const menstrualEnd = PHASE_LENGTHS.MENSTRUAL; // Day 5
+    const follicularEnd = calculatedOvulationDay - 4; // Follicular ends 4 days before ovulation
+    const ovulationStart = calculatedOvulationDay - 3; // Ovulation window starts 3 days before ovulation day
+    const ovulationEnd = calculatedOvulationDay;
+    const lutealStart = calculatedOvulationDay + 1; // Luteal starts the day after ovulation
+    
+    return {
+      menstrualEnd: menstrualEnd + 0.5, // Day 5.5 (end of day 5)
+      follicularStart: menstrualEnd + 0.5, // Day 5.5 (start of day 6)
+      follicularEnd: follicularEnd + 0.5, // End of follicular phase
+      ovulationStart: ovulationStart + 0.5, // Start of ovulation window
+      ovulationEnd: ovulationEnd + 0.5, // End of ovulation (day ovulationDay.5)
+      lutealStart: lutealStart + 0.5, // Start of luteal (day after ovulation + 0.5)
+      lutealEnd: cycleLength + 0.5, // End of cycle
+    };
+  }, [cycleLength, ovulationDay]);
 
   // Handle phase area clicks - Navigate to deep dive with mode preserved
   const handlePhaseClick = (phase: CyclePhase) => {
@@ -346,45 +368,55 @@ export function CycleChart({ phaseData, cycleLength, lastPeriodDate, onPhaseHove
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
             
             {/* Phase Background Areas - Clickable regions for deep dive */}
+            {/* Using dynamic phase boundaries with 0.5 offset for seamless coverage (prevents white gaps) */}
+            {/* isFront={false} ensures backgrounds stay behind lines and dots */}
             <ReferenceArea
               x1={0.5}
-              x2={PHASE_LENGTHS.MENSTRUAL + 0.5}
+              x2={phaseBoundaries.menstrualEnd}
               fill={PHASE_COLORS.menstrual}
               fillOpacity={0.15}
               stroke={PHASE_COLORS.menstrual}
               strokeOpacity={0.3}
+              isFront={false}
               onClick={() => handlePhaseClick('menstrual')}
               style={{ cursor: 'pointer' }}
+              pointerEvents="auto"
             />
             <ReferenceArea
-              x1={PHASE_LENGTHS.MENSTRUAL + 0.5}
-              x2={PHASE_LENGTHS.MENSTRUAL + PHASE_LENGTHS.FOLLICULAR + 0.5}
+              x1={phaseBoundaries.follicularStart}
+              x2={phaseBoundaries.follicularEnd}
               fill={PHASE_COLORS.follicular}
               fillOpacity={0.15}
               stroke={PHASE_COLORS.follicular}
               strokeOpacity={0.3}
+              isFront={false}
               onClick={() => handlePhaseClick('follicular')}
               style={{ cursor: 'pointer' }}
+              pointerEvents="auto"
             />
             <ReferenceArea
-              x1={PHASE_LENGTHS.MENSTRUAL + PHASE_LENGTHS.FOLLICULAR + 0.5}
-              x2={PHASE_LENGTHS.MENSTRUAL + PHASE_LENGTHS.FOLLICULAR + PHASE_LENGTHS.OVULATION + 0.5}
+              x1={phaseBoundaries.ovulationStart}
+              x2={phaseBoundaries.ovulationEnd}
               fill={PHASE_COLORS.ovulation}
               fillOpacity={0.15}
               stroke={PHASE_COLORS.ovulation}
               strokeOpacity={0.3}
+              isFront={false}
               onClick={() => handlePhaseClick('ovulation')}
               style={{ cursor: 'pointer' }}
+              pointerEvents="auto"
             />
             <ReferenceArea
-              x1={PHASE_LENGTHS.MENSTRUAL + PHASE_LENGTHS.FOLLICULAR + PHASE_LENGTHS.OVULATION + 0.5}
-              x2={cycleLength + 0.5}
+              x1={phaseBoundaries.lutealStart}
+              x2={phaseBoundaries.lutealEnd}
               fill={PHASE_COLORS.luteal}
               fillOpacity={0.15}
               stroke={PHASE_COLORS.luteal}
               strokeOpacity={0.3}
+              isFront={false}
               onClick={() => handlePhaseClick('luteal')}
               style={{ cursor: 'pointer' }}
+              pointerEvents="auto"
             />
 
             <XAxis
@@ -704,10 +736,10 @@ export function CycleChart({ phaseData, cycleLength, lastPeriodDate, onPhaseHove
             </h4>
             <p className="text-sm text-gray-600">
               You are on day {daysIntoCycle} of your {cycleLength}-day cycle.{' '}
-              {currentPhase === 'menstrual' && 'Focus on rest and recovery.'}
-              {currentPhase === 'follicular' && 'Energy levels are rising. Great time for high-intensity activities.'}
-              {currentPhase === 'ovulation' && 'Peak fertility and energy. Ideal for challenging workouts.'}
-              {currentPhase === 'luteal' && 'Energy may fluctuate. Listen to your body and adjust intensity.'}
+              {currentPhase === 'menstrual' && 'Low hormone state - high-performance window if discomfort managed. Focus on readiness and recovery.'}
+              {currentPhase === 'follicular' && 'Energy levels are rising. Great time for high-intensity activities. Estrogen supports performance.'}
+              {currentPhase === 'ovulation' && 'Peak hormone state. Individual responses vary. Focus on readiness metrics.'}
+              {currentPhase === 'luteal' && 'Progesterone-dominant phase. Energy may fluctuate. Adjust intensity based on symptoms and readiness.'}
             </p>
           </div>
         </div>

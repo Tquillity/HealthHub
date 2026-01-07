@@ -27,6 +27,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { getCycleDashboard } from '@/actions/cycle-actions';
 import { CyclePageClient } from '@/components/cycle/cycle-page-client';
+import { CycleDisclaimer } from '@/components/cycle/cycle-disclaimer';
 import { Button } from '@/components/ui/button';
 import { Moon, Settings } from 'lucide-react';
 import Link from 'next/link';
@@ -138,6 +139,9 @@ export default async function CyclePage() {
           </Link>
         </div>
       </div>
+
+      {/* Cycle Disclaimer */}
+      <CycleDisclaimer />
     </div>
   );
 }

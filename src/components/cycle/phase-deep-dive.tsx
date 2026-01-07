@@ -23,6 +23,7 @@ import { Card } from '@/components/ui/card';
 import { X, Sparkles, Heart, Dumbbell, Utensils, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
+import { useQueryState, parseAsString } from 'nuqs';
 
 interface PhaseDeepDiveProps {
   phase: CyclePhase;
@@ -115,9 +116,15 @@ export function PhaseDeepDive({
   const router = useRouter();
   const allPhases: CyclePhase[] = ['menstrual', 'follicular', 'ovulation', 'luteal'];
 
-  // Handle phase tab navigation
+  // Get current mode from URL to preserve it when switching phases
+  const [mode] = useQueryState(
+    'mode',
+    parseAsString.withDefault('lifestyle')
+  );
+
+  // Handle phase tab navigation - preserve mode parameter
   const handlePhaseTabClick = (newPhase: CyclePhase) => {
-    router.push(`/cycle?phase=${newPhase}&view=detail`);
+    router.push(`/cycle?phase=${newPhase}&view=detail&mode=${mode}`);
   };
 
   return (
@@ -128,7 +135,7 @@ export function PhaseDeepDive({
           variant="ghost"
           size="sm"
           onClick={onClose}
-          className="gap-2"
+          className="gap-2 min-h-[44px]"
           aria-label="Back to dashboard"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -136,7 +143,7 @@ export function PhaseDeepDive({
         </Button>
       </div>
 
-      {/* Phase Navigation Tabs - Color-Coded */}
+      {/* Phase Navigation Tabs - Color-Coded with Enhanced Theming */}
       <div
         role="tablist"
         className="flex flex-wrap gap-2 border-b-2 border-gray-200 pb-2"
@@ -152,9 +159,9 @@ export function PhaseDeepDive({
               aria-selected={isActive}
               aria-controls={`phase-${phaseOption}-panel`}
               onClick={() => handlePhaseTabClick(phaseOption)}
-              className={`px-4 py-2 rounded-t-lg font-semibold text-sm transition-all duration-200 ${
+              className={`px-4 py-2 rounded-t-lg font-semibold text-sm transition-all duration-200 min-h-[44px] ${
                 isActive
-                  ? `${phaseTheme.bg.secondary} ${phaseTheme.text.primary} border-b-4`
+                  ? 'text-gray-900 border-b-4'
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
               }`}
               style={
@@ -162,6 +169,7 @@ export function PhaseDeepDive({
                   ? {
                       borderBottomColor: phaseTheme.color.primary,
                       borderBottomWidth: '4px',
+                      backgroundColor: `${phaseTheme.color.primary}10`, // 10% opacity background
                     }
                   : {}
               }

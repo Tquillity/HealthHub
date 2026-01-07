@@ -36,10 +36,10 @@ const PHASE_NAMES: Record<CyclePhase, string> = {
 };
 
 const PHASE_DESCRIPTIONS: Record<CyclePhase, string> = {
-  menstrual: 'Rest and recovery phase. Focus on gentle movement and nourishing foods.',
-  follicular: 'Energy levels rising. Great time for high-intensity activities and new challenges.',
-  ovulation: 'Peak energy window. Optimal time for high-intensity training and complex problem solving.',
-  luteal: 'Energy may fluctuate. Listen to your body and adjust intensity accordingly.',
+  menstrual: 'Low hormone state creates a high-performance window (similar to male physiology). Heavy training possible if discomfort managed. Focus on readiness and recovery.',
+  follicular: 'Energy levels rising. Great time for high-intensity activities and new challenges. Estrogen supports performance and recovery.',
+  ovulation: 'Peak hormone state. Individual responses vary. Focus on readiness metrics rather than assuming peak performance.',
+  luteal: 'Progesterone-dominant phase. Energy may fluctuate. Some may need reduced intensity; others maintain performance. Listen to your body.',
 };
 
 export function InsightCenter({ activePhase, currentPhase, isHovering, mode = 'lifestyle' }: InsightCenterProps) {
@@ -125,13 +125,13 @@ export function InsightCenter({ activePhase, currentPhase, isHovering, mode = 'l
             </div>
             <p className="text-sm text-gray-800 leading-relaxed">
               {activePhase === 'menstrual' && 
-                'Baseline: Estrogen and Progesterone are at their lowest; iron demand increases.'}
+                'Baseline: Estrogen and Progesterone are at their lowest; iron demand increases. Low hormone state is "most like a man" - leverage for high-intensity work if comfortable.'}
               {activePhase === 'follicular' && 
-                'Estrogen Rising: FSH recruits follicles; metabolic efficiency improves.'}
+                'Estrogen Rising: FSH recruits follicles; metabolic efficiency improves. Supports high-intensity training and recovery.'}
               {activePhase === 'ovulation' && 
-                'Peak Window: Estrogen surge triggers LH; testosterone peaks. Physical Strength.'}
+                'Peak Window: Estrogen surge triggers LH; testosterone peaks. Individual responses vary widely. Focus on readiness rather than assuming peak performance.'}
               {activePhase === 'luteal' && 
-                'Progesterone Dominant: Body temp rises ~0.5°C; resting heart rate may increase.'}
+                'Progesterone Dominant: Body temp rises ~0.4-1.0°F (0.2-0.6°C); resting heart rate may increase. May require more recovery support.'}
             </p>
           </div>
         )}

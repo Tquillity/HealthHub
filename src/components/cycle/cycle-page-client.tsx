@@ -130,8 +130,10 @@ export function CyclePageClient({
   }, []);
 
   // View orchestrator: Determine if we should show detail view or summary view
-  const showDetailView = view === 'detail' && urlPhase;
-  const detailPhase = urlPhase as CyclePhase | null;
+  // If view is 'detail', default to current phase if no phase is selected
+  const effectivePhase = (urlPhase as CyclePhase) || (view === 'detail' ? phaseData.currentPhase : null);
+  const showDetailView = view === 'detail' && effectivePhase;
+  const detailPhase = effectivePhase;
 
   // Journal Quick Look state
   const [journalSnippet, setJournalSnippet] = useState<{
@@ -223,7 +225,59 @@ export function CyclePageClient({
     : null;
 
   return (
-    <div className="relative flex flex-col gap-8 max-w-7xl mx-auto">
+    <div className="relative flex flex-col gap-6 max-w-7xl mx-auto">
+      {/* Phase Transition Overlay - Dims content when exploring phases */}
+      {isHovering && view === 'summary' && (
+        <div className="absolute inset-0 bg-black/5 pointer-events-none rounded-lg transition-opacity duration-300 -z-10" />
+      )}
+
+      {/* 1. View Switcher Tabs - Dashboard vs Phase Library (Always Visible) */}
+      <div className="flex items-center justify-between gap-4 border-b-2 border-gray-200 pb-2">
+        {/* Left: View Switcher Tabs */}
+        <div className="flex items-center gap-2" role="tablist" aria-label="View navigation">
+          <button
+            role="tab"
+            aria-selected={view === 'summary'}
+            onClick={() => setView('summary')}
+            className={`px-4 py-2 rounded-t-lg font-semibold text-sm transition-all duration-200 min-h-[44px] ${
+              view === 'summary'
+                ? 'bg-primary-50 text-primary-700 border-b-4 border-primary-500'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+            }`}
+          >
+            Dashboard
+          </button>
+          <button
+            role="tab"
+            aria-selected={view === 'detail'}
+            onClick={() => {
+              setView('detail');
+              // Default to current phase when switching to Library
+              if (!urlPhase) {
+                setUrlPhase(phaseData.currentPhase);
+              }
+            }}
+            className={`px-4 py-2 rounded-t-lg font-semibold text-sm transition-all duration-200 min-h-[44px] ${
+              view === 'detail'
+                ? 'bg-primary-50 text-primary-700 border-b-4 border-primary-500'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+            }`}
+          >
+            Phase Library
+          </button>
+        </div>
+        
+        {/* Right: Mode Toggle + Focus Preference (Compact) */}
+        <div className="flex items-center gap-2">
+          <ModeToggle currentPhase={phaseData.currentPhase} />
+          <FocusPreferenceSelector 
+            currentPreference={userPreference.focusPreference} 
+            onPreferenceChange={() => {}}
+            compact={true}
+          />
+        </div>
+      </div>
+
       {/* View Orchestrator: Show Detail View OR Summary View */}
       {showDetailView && detailPhase ? (
         // Detail View: Full-width immersive phase exploration
@@ -236,12 +290,7 @@ export function CyclePageClient({
       ) : (
         // Summary View: Bento Grid Dashboard
         <>
-          {/* Phase Transition Overlay - Dims content when exploring phases */}
-          {isHovering && (
-            <div className="absolute inset-0 bg-black/5 pointer-events-none rounded-lg transition-opacity duration-300 -z-10" />
-          )}
-
-          {/* 1. Compact Header - 2-Column Layout */}
+          {/* 2. Compact Header - Title + Current Day */}
           <div className="flex items-center justify-between gap-4 pb-2">
             {/* Left: Title + Current Day */}
             <div className="flex flex-col gap-1">
@@ -257,19 +306,10 @@ export function CyclePageClient({
                 )}
               </p>
             </div>
-            
-            {/* Right: Mode Toggle + Focus Preference (Compact) */}
-            <div className="flex items-center gap-2">
-              <ModeToggle currentPhase={phaseData.currentPhase} />
-              <FocusPreferenceSelector 
-                currentPreference={userPreference.focusPreference} 
-                onPreferenceChange={() => {}}
-                compact={true}
-              />
-            </div>
           </div>
 
-      {/* 2. The Bento Grid (Layout Stability) - Reduced gap for tighter layout */}
+      {/* 3. The Bento Grid (Layout Stability) - Reduced gap for tighter layout */}
+      {view === 'summary' && (
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         {/* Main Chart Box (Reserved Space - 8 columns) - Thematic Border */}
         <Card className={`lg:col-span-8 p-4 bg-white/50 backdrop-blur-md shadow-xl overflow-hidden transition-colors duration-300 ${theme.border.primary} border-2 h-full min-h-[400px] flex flex-col`}>
@@ -333,9 +373,10 @@ export function CyclePageClient({
           )}
         </div>
       </div>
+      )}
 
-      {/* 3. Personalized Recommendation Feed (Modern Grid) */}
-      {recommendations && recommendations.length > 0 && (
+      {/* 4. Personalized Recommendation Feed (Modern Grid) - Only show in Dashboard view */}
+      {view === 'summary' && recommendations && recommendations.length > 0 && (
         <div
           className={`flex flex-col gap-6 transition-opacity duration-300 ${
             isHovering ? 'opacity-50' : 'opacity-100'
