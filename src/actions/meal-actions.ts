@@ -162,6 +162,13 @@ export async function removeMealFromPlan(itemId: string) {
 
 /**
  * Generate a meal plan based on user preferences
+ * 
+ * Non-destructive: Only fills empty meal slots, preserving user's manually planned meals.
+ * Filters recipes by dietary restrictions, cuisine preferences, and avoided ingredients.
+ * Randomly selects recipes for each meal type (breakfast, lunch, dinner) per day.
+ * 
+ * @param data - Generation parameters including week start, dietary restrictions, etc.
+ * @returns Success status with message indicating how many meals were generated
  */
 export async function generateMealPlan(data: {
   weekStart: string;
@@ -213,6 +220,16 @@ export async function generateMealPlan(data: {
         organizationId: membership.organizationId,
         startDate: startOfWeek(weekStart, { weekStartsOn: 1 }),
       },
+      include: {
+        items: {
+          where: {
+            date: {
+              gte: weekStart,
+              lte: weekEnd,
+            },
+          },
+        },
+      },
     });
 
     if (!plan) {
@@ -222,12 +239,18 @@ export async function generateMealPlan(data: {
           startDate: startOfWeek(weekStart, { weekStartsOn: 1 }),
           endDate: weekEnd,
         },
+        include: {
+          items: true,
+        },
       });
-    } else {
-      // Clear existing items
-      await prisma.mealPlanItem.deleteMany({
-        where: { mealPlanId: plan.id },
-      });
+    }
+
+    // Create a Set of existing meal slots (day + mealType) to avoid overwriting
+    // This ensures we only fill empty slots and preserve user's manual meal planning
+    const existingSlots = new Set<string>();
+    for (const item of plan.items) {
+      const dayKey = item.date.toISOString().split('T')[0]; // YYYY-MM-DD
+      existingSlots.add(`${dayKey}::${item.mealType}`);
     }
 
     // Build recipe filter
@@ -294,9 +317,19 @@ export async function generateMealPlan(data: {
       servings: number;
     }> = [];
 
-    // Generate meals for each day
+    // Generate meals for each day, only filling empty slots
     for (const day of weekDays) {
       for (const mealType of mealTypes) {
+        // Check if this slot is already filled
+        const dayKey = day.toISOString().split('T')[0]; // YYYY-MM-DD
+        const slotKey = `${dayKey}::${mealType}`;
+        
+        if (existingSlots.has(slotKey)) {
+          // Skip this slot - user has already planned a meal here
+          // This preserves manual meal planning work
+          continue;
+        }
+
         // Filter recipes by meal type (category)
         const categoryOptions = categoryMap[mealType] || [];
         const recipesForMeal = filteredRecipes.filter((recipe) => {
@@ -331,13 +364,21 @@ export async function generateMealPlan(data: {
       }
     }
 
-    // Create all meal plan items
-    await prisma.mealPlanItem.createMany({
-      data: mealPlanItems,
-    });
+    // Create meal plan items only if there are any to add
+    // This prevents unnecessary database operations when all slots are filled
+    if (mealPlanItems.length > 0) {
+      await prisma.mealPlanItem.createMany({
+        data: mealPlanItems,
+      });
+    }
 
     revalidatePath('/meal-planner');
-    return { success: true };
+    return { 
+      success: true,
+      message: mealPlanItems.length > 0 
+        ? `Generated ${mealPlanItems.length} meals for empty slots.`
+        : 'All meal slots are already filled. No meals generated.',
+    };
   } catch (error) {
     console.error('Error generating meal plan:', error);
     return {

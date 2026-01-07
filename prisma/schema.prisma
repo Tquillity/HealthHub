@@ -389,3 +389,42 @@ model EducationalResource {
   @@index([tags])
   @@map("educational_resource")
 }
+
+// =======================
+// DOMAIN: CYCLE TRACKING (Sprint 6)
+// =======================
+
+model Expert {
+  id          String   @id @default(cuid())
+  name        String
+  credentials String?
+  website     String?
+  focusAreas  String[] @default([]) // e.g., ["nutrition", "fasting", "exercise"]
+  
+  recommendations PhaseRecommendation[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([name])
+  @@map("expert")
+}
+
+model PhaseRecommendation {
+  id         String   @id @default(cuid())
+  expertId   String
+  expert     Expert   @relation(fields: [expertId], references: [id], onDelete: Cascade)
+  phase      String   // "menstrual", "follicular", "ovulation", "luteal"
+  category   String   // "nutrition", "fasting", "exercise", "training"
+  content    Json     // Structured recommendation content (foods_to_eat, foods_to_avoid, workout_types, guidance, etc.)
+  source     String?  // URL or citation source
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([expertId, phase, category])
+  @@index([expertId])
+  @@index([phase])
+  @@index([category])
+  @@map("phase_recommendation")
+}

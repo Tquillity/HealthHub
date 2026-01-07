@@ -40,9 +40,9 @@ export function DashboardClient({
   });
 
   return (
-    <div className="space-y-8">
+    <div className="flex flex-col gap-8">
       {/* Welcome Section */}
-      <div className="mb-8">
+      <div>
         <h1 className="text-3xl font-bold text-gray-900 mb-3">
           Welcome back, {firstName}!
         </h1>
@@ -53,7 +53,7 @@ export function DashboardClient({
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Quick Actions */}
-        <div className="lg:col-span-1 space-y-6">
+        <div className="lg:col-span-1 flex flex-col gap-6">
           <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
             <h2 className="text-xl font-semibold text-gray-900 mb-5">
               Quick Actions
@@ -92,7 +92,7 @@ export function DashboardClient({
         </div>
 
         {/* Statistics & Recent Routines */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 flex flex-col gap-6">
           {/* Statistics Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
@@ -117,7 +117,7 @@ export function DashboardClient({
               <h2 className="text-xl font-semibold text-gray-900 mb-5">
                 Recent Routines
               </h2>
-              <div className="space-y-4">
+              <div className="flex flex-col gap-4">
                 {recentRoutines.map((routine) => (
                   <Link
                     key={routine.id}

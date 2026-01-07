@@ -1,13 +1,17 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useOptimistic, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { CheckSquare, Printer, Download } from 'lucide-react';
+import { toggleShoppingItem } from '@/actions/grocery-actions';
 
 interface GroceryItem {
+  id?: string; // ShoppingListItem ID if from shopping list
   name: string;
   unit: string;
   totalQuantity: number;
+  isChecked?: boolean; // Only for ShoppingListItem entries
   recipes: Array<{
     recipeName: string;
     quantity: number;
@@ -27,31 +31,25 @@ export function GroceryListClient({
   weekStart,
   weekEnd,
 }: GroceryListClientProps) {
-  const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   const [sortBy, setSortBy] = useState<'name' | 'category'>('name');
-
-  const toggleItem = (itemKey: string) => {
-    const newChecked = new Set(checkedItems);
-    if (newChecked.has(itemKey)) {
-      newChecked.delete(itemKey);
-    } else {
-      newChecked.add(itemKey);
-    }
-    setCheckedItems(newChecked);
-  };
-
-  const toggleAll = () => {
-    if (checkedItems.size === initialItems.length) {
-      setCheckedItems(new Set());
-    } else {
-      setCheckedItems(new Set(initialItems.map((_, index) => index.toString())));
-    }
+  
+  // Helper functions (defined before useMemo)
+  const getCategory = (name: string): string => {
+    const lower = name.toLowerCase();
+    if (lower.includes('chicken') || lower.includes('beef') || lower.includes('pork') || lower.includes('meat')) return 'Meat';
+    if (lower.includes('milk') || lower.includes('cheese') || lower.includes('yogurt') || lower.includes('dairy')) return 'Dairy';
+    if (lower.includes('bread') || lower.includes('flour') || lower.includes('pasta')) return 'Bakery';
+    if (lower.includes('apple') || lower.includes('banana') || lower.includes('fruit')) return 'Produce';
+    if (lower.includes('onion') || lower.includes('garlic') || lower.includes('pepper') || lower.includes('vegetable')) return 'Produce';
+    if (lower.includes('oil') || lower.includes('vinegar') || lower.includes('spice')) return 'Pantry';
+    return 'Other';
   };
 
   const getSortedItems = () => {
     const sorted = [...initialItems];
     if (sortBy === 'category') {
-      // Group by category (we'll use a simple heuristic: first letter or common categories)
       return sorted.sort((a, b) => {
         const categoryA = getCategory(a.name);
         const categoryB = getCategory(b.name);
@@ -63,17 +61,93 @@ export function GroceryListClient({
     }
     return sorted.sort((a, b) => a.name.localeCompare(b.name));
   };
+  
+  // Initialize checked state from items that have isChecked: true
+  const initialChecked = useMemo(() => {
+    const checked = new Set<string>();
+    getSortedItems().forEach((item, index) => {
+      const category = sortBy === 'category' ? getCategory(item.name) : 'All Items';
+      const itemKey = item.id || `${category}-${index}`;
+      if (item.isChecked) {
+        checked.add(itemKey);
+      }
+    });
+    return checked;
+  }, [initialItems, sortBy]);
+  
+  // Use optimistic state for instant UI feedback
+  const [optimisticChecked, setOptimisticChecked] = useOptimistic<Set<string>>(
+    initialChecked,
+    (current, newChecked: Set<string>) => newChecked
+  );
 
-  const getCategory = (name: string): string => {
-    const lower = name.toLowerCase();
-    if (lower.includes('chicken') || lower.includes('beef') || lower.includes('pork') || lower.includes('meat')) return 'Meat';
-    if (lower.includes('milk') || lower.includes('cheese') || lower.includes('yogurt') || lower.includes('dairy')) return 'Dairy';
-    if (lower.includes('bread') || lower.includes('flour') || lower.includes('pasta')) return 'Bakery';
-    if (lower.includes('apple') || lower.includes('banana') || lower.includes('fruit')) return 'Produce';
-    if (lower.includes('onion') || lower.includes('garlic') || lower.includes('pepper') || lower.includes('vegetable')) return 'Produce';
-    if (lower.includes('oil') || lower.includes('vinegar') || lower.includes('spice')) return 'Pantry';
-    return 'Other';
+  const toggleItem = async (item: GroceryItem, itemKey: string) => {
+    const isCurrentlyChecked = optimisticChecked.has(itemKey);
+    const newChecked = new Set(optimisticChecked);
+    
+    if (isCurrentlyChecked) {
+      newChecked.delete(itemKey);
+    } else {
+      newChecked.add(itemKey);
+    }
+    
+    // Optimistic update
+    setOptimisticChecked(newChecked);
+    
+    // Persist to database (only for ShoppingListItem entries with actual IDs)
+    if (item.id) {
+      startTransition(async () => {
+        const result = await toggleShoppingItem(item.id!, !isCurrentlyChecked);
+        if (!result.success) {
+          // Revert on error
+          const reverted = new Set(optimisticChecked);
+          if (isCurrentlyChecked) {
+            reverted.add(itemKey);
+          } else {
+            reverted.delete(itemKey);
+          }
+          setOptimisticChecked(reverted);
+          console.error('Failed to persist checked state:', result.error);
+        } else {
+          // Refresh to get latest state
+          router.refresh();
+        }
+      });
+    }
+    // For meal plan items (no ID), checked state is local-only (lost on refresh)
   };
+
+  const toggleAll = () => {
+    const sorted = getSortedItems();
+    const allKeys = sorted.map((item, index) => {
+      const category = sortBy === 'category' ? getCategory(item.name) : 'All Items';
+      return item.id || `${category}-${index}`;
+    });
+    
+    if (optimisticChecked.size === allKeys.length) {
+      setOptimisticChecked(new Set());
+      // Uncheck all items in database (only those with IDs)
+      sorted.forEach(item => {
+        if (item.id) {
+          startTransition(async () => {
+            await toggleShoppingItem(item.id!, false);
+          });
+        }
+      });
+    } else {
+      setOptimisticChecked(new Set(allKeys));
+      // Check all items in database (only those with IDs)
+      sorted.forEach(item => {
+        if (item.id) {
+          startTransition(async () => {
+            await toggleShoppingItem(item.id!, true);
+          });
+        }
+      });
+    }
+    router.refresh();
+  };
+
 
   const getGroupedItems = () => {
     if (sortBy !== 'category') return { 'All Items': getSortedItems() };
@@ -97,7 +171,12 @@ export function GroceryListClient({
   };
 
   const getProgressPercentage = () => {
-    return initialItems.length > 0 ? (checkedItems.size / initialItems.length) * 100 : 0;
+    const sorted = getSortedItems();
+    const allKeys = sorted.map((_, index) => {
+      const category = sortBy === 'category' ? getCategory(sorted[index].name) : 'All Items';
+      return `${category}-${index}`;
+    });
+    return allKeys.length > 0 ? (optimisticChecked.size / allKeys.length) * 100 : 0;
   };
 
   const handlePrint = () => {
@@ -129,7 +208,7 @@ export function GroceryListClient({
   const groupedItems = getGroupedItems();
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       {/* Header Controls */}
       <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
         <div className="mb-4 flex items-center justify-between">
@@ -155,7 +234,7 @@ export function GroceryListClient({
         <div className="mb-4">
           <div className="mb-2 flex items-center justify-between">
             <span className="text-sm font-medium text-gray-700">
-              Progress: {checkedItems.size} of {initialItems.length} items
+              Progress: {optimisticChecked.size} of {getSortedItems().length} items
             </span>
             <span className="text-sm text-gray-500">
               {Math.round(getProgressPercentage())}%
@@ -176,7 +255,7 @@ export function GroceryListClient({
               onClick={toggleAll}
               className="text-sm font-medium text-primary-600 transition-colors hover:text-primary-700"
             >
-              {checkedItems.size === initialItems.length ? 'Uncheck All' : 'Check All'}
+              {optimisticChecked.size === getSortedItems().length ? 'Uncheck All' : 'Check All'}
             </button>
           </div>
           <div className="flex items-center gap-2">
@@ -206,18 +285,19 @@ export function GroceryListClient({
             )}
             <ul className="divide-y divide-gray-100">
               {categoryItems.map((item, index) => {
-                const itemKey = `${category}-${index}`;
-                const isChecked = checkedItems.has(itemKey);
+                // Use item.id if available (ShoppingListItem), otherwise use category-index key
+                const itemKey = item.id || `${category}-${index}`;
+                const isChecked = optimisticChecked.has(itemKey);
                 return (
                   <li
-                    key={`${item.name}-${item.unit}`}
+                    key={`${item.name}-${item.unit}-${item.id || index}`}
                     className="flex items-center justify-between p-4 transition-colors hover:bg-gray-50"
                   >
                     <div className="flex items-center gap-4">
                       <input
                         type="checkbox"
                         checked={isChecked}
-                        onChange={() => toggleItem(itemKey)}
+                        onChange={() => toggleItem(item, itemKey)}
                         className="h-5 w-5 rounded border-gray-300 text-primary-600 focus:ring-primary-600"
                       />
                       <div>
