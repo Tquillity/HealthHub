@@ -51,6 +51,7 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
     fiber: recipe?.fiber?.toString() || '',
     sugar: recipe?.sugar?.toString() || '',
     sodium: recipe?.sodium?.toString() || '',
+    isSecret: recipe?.isSecret || false,
   });
 
   const [imagePreview, setImagePreview] = useState<string | null>(recipe?.imageUrl || null);
@@ -101,6 +102,7 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
         cuisine: recipe.cuisine || '',
         leanRole: recipe.leanRole || '',
         dietaryTags: recipe.dietaryTags?.join(', ') || '',
+        isSecret: recipe.isSecret || false,
         calories: recipe.calories != null ? recipe.calories.toString() : '',
         protein: recipe.protein != null ? recipe.protein.toString() : '',
         carbs: recipe.carbs != null ? recipe.carbs.toString() : '',
@@ -298,6 +300,7 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
       cuisine: formData.cuisine || undefined,
       leanRole: formData.leanRole || undefined,
       dietaryTags: formData.dietaryTags.split(',').map((t) => t.trim()).filter(Boolean),
+      isSecret: formData.isSecret,
       calories: formData.calories ? parseFloat(formData.calories) : undefined,
       protein: formData.protein ? parseFloat(formData.protein) : undefined,
       carbs: formData.carbs ? parseFloat(formData.carbs) : undefined,
@@ -616,6 +619,20 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
               <option value="Daily">Daily</option>
               <option value="Treat">Treat</option>
             </select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="recipe-is-secret"
+              name="recipe-is-secret"
+              checked={formData.isSecret}
+              onChange={(e) => setFormData({ ...formData, isSecret: e.target.checked })}
+              className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-600"
+            />
+            <label htmlFor="recipe-is-secret" className="text-sm font-medium text-gray-700">
+              Secret Recipe (Only visible to main admin)
+            </label>
           </div>
 
           <div>

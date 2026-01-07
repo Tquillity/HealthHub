@@ -1,59 +1,46 @@
 generator client {
-  provider        = "prisma-client-js"
+  provider = "prisma-client-js"
   previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
-// =======================
-// AUTHENTICATION (Better-Auth)
-// =======================
-
 model User {
-  id            String  @id @default(cuid())
-  name          String
-  email         String  @unique
-  emailVerified Boolean
-  image         String?
-  role          String  @default("user") // "user", "admin"
-
-  // Profile preferences (Sprint 4)
-  energyLevel         String? // "low", "medium", "high"
-  dietaryRestrictions String[] @default([])
-  healthGoals         String[] @default([])
-  timezone            String?  @default("UTC")
-  
-  // Meal planner preferences
-  mealPlanDuration    String?  @default("1week") // "1week", "2weeks", "1month"
-  mealPlanStartDate   String?  // ISO date string, null means "today"
-
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
-  sessions       Session[]
-  accounts       Account[]
-  members        Member[]
-  invitations    Invitation[]
-  journalEntries JournalEntry[] // Private journal entries
-
-  @@index([role])
-  @@map("user")
+  id                  String    @id @default(cuid())
+  name                String
+  email               String    @unique
+  emailVerified       Boolean?
+  image               String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  role                String    @default("user")
+  sessions            Session[]
+  accounts            Account[]
+  energyLevel         String?
+  dietaryRestrictions String[]
+  healthGoals         String[]
+  timezone            String    @default("UTC")
+  enableCycleTracking Boolean   @default(false)
+  cycleLength         Int       @default(28)
+  lastPeriodDate      DateTime?
+  focusPreference     String?
+  mealPlanDuration    String?
+  mealPlanStartDate   DateTime?
+  members             Member[]
+  journalEntries      JournalEntry[]
 }
 
 model Session {
   id        String   @id
   userId    String
-  token     String
   expiresAt DateTime
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
   ipAddress String?
   userAgent String?
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([token])
-  @@map("session")
+  @@index([userId])
 }
 
 model Account {
@@ -61,15 +48,12 @@ model Account {
   userId       String
   accountId    String
   providerId   String
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @default(now()) @updatedAt
   accessToken  String?
   refreshToken String?
   expiresAt    DateTime?
   password     String?
   user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("account")
+  @@index([userId])
 }
 
 model Verification {
@@ -77,32 +61,21 @@ model Verification {
   identifier String
   value      String
   expiresAt  DateTime
-  createdAt  DateTime @default(now())
-
-  @@map("verification")
 }
 
-// =======================
-// HOUSEHOLD / ORGANIZATION
-// =======================
-
 model Organization {
-  id          String       @id
-  name        String
-  slug        String?
-  logo        String?
-  createdAt   DateTime     @default(now())
-  metadata    String?
-  members     Member[]
-  invitations Invitation[]
-  mealPlans   MealPlan[]
-  // Custom recipes/routines created by this household
-  recipes     Recipe[]
-  routines    Routine[]
+  id                String             @id
+  name              String
+  slug              String             @unique
+  logo              String?
+  createdAt         DateTime           @default(now())
+  metadata          String?
+  members           Member[]
+  invitations       Invitation[]
+  recipes           Recipe[]
+  routines          Routine[]
+  mealPlans         MealPlan[]
   shoppingListItems ShoppingListItem[]
-
-  @@unique([slug])
-  @@map("organization")
 }
 
 model Member {
@@ -113,8 +86,8 @@ model Member {
   createdAt      DateTime     @default(now())
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("member")
+  @@index([organizationId])
+  @@index([userId])
 }
 
 model Invitation {
@@ -126,305 +99,184 @@ model Invitation {
   expiresAt      DateTime
   inviterId      String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  user           User         @relation(fields: [inviterId], references: [id], onDelete: Cascade)
-
-  @@map("invitation")
 }
 
-// =======================
-// DOMAIN: RECIPES (Sprint 2)
-// =======================
-
 model Recipe {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  imageUrl    String? // Primary/main image
-  imageUrls   String[] @default([]) // Additional images (array support)
-  videoUrl    String? // YouTube or other video tutorial URL
-  prepTime    Int? // Minutes
-  cookTime    Int? // Minutes
-  servings    Int?
-  category    String? // Breakfast, Lunch, Dinner, etc.
-  tags        String[]
-
-  // Enhanced metadata (from old MERN stack)
-  difficulty  String? // "easy", "medium", "hard"
-  cuisine     String? // Italian, Mexican, Asian, etc.
-  dietaryTags String[] @default([]) // vegetarian, vegan, gluten-free, etc.
-
-  // Nutrition information
-  calories Float?
-  protein  Float? // grams
-  carbs    Float? // grams
-  fat      Float? // grams
-  fiber    Float? // grams
-  sugar    Float? // grams
-  sodium   Float? // milligrams
-
-  // LEAN metrics (from old MERN stack)
-  batchEfficiency String? // "High", "Medium", "Low"
-  leanRole        String? // "Infrastructure", "Process", "Daily", "Treat"
-
-  // Relations
-  ingredients   Ingredient[]
-  instructions  Instruction[]
-  mealPlanItems MealPlanItem[]
-
-  // Ownership / Visibility
-  isSystem       Boolean       @default(false) // True = Visible to everyone (Kitchen Manifest)
-  isSecret       Boolean       @default(false) // True = Only visible to MAIN admin (highest security)
-  isPrivate      Boolean       @default(false) // True = Only visible to recipe owner (for future user recipes)
-  organizationId String? // Null if System, ID if Custom
-  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([organizationId])
-  @@index([isSystem])
-  @@index([isSecret])
-  @@index([isPrivate])
-  @@index([difficulty])
-  @@index([cuisine])
-  @@index([dietaryTags])
-  @@map("recipe")
+  id             String         @id @default(cuid())
+  name           String
+  description    String?
+  imageUrl       String?
+  imageUrls      String[]
+  videoUrl       String?
+  prepTime       Int?
+  cookTime       Int?
+  servings       Int?
+  category       String?
+  difficulty     String?
+  cuisine        String?
+  calories       Float?
+  protein        Float?
+  carbs          Float?
+  fat            Float?
+  fiber          Float?
+  sugar          Float?
+  sodium         Float?
+  tags           String[]
+  dietaryTags    String[]
+  leanRole       String?
+  isSystem       Boolean        @default(false)
+  isSecret       Boolean        @default(false)
+  isPrivate      Boolean        @default(false)
+  organizationId String?
+  organization   Organization?  @relation(fields: [organizationId], references: [id])
+  ingredients    Ingredient[]
+  instructions   Instruction[]
+  mealPlanItems  MealPlanItem[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 }
 
 model Ingredient {
   id       String  @id @default(cuid())
-  recipeId String
-  recipe   Recipe  @relation(fields: [recipeId], references: [id], onDelete: Cascade)
   name     String
   quantity Float
   unit     String
   notes    String?
-
-  @@index([recipeId])
-  @@map("ingredient")
+  recipeId String
+  recipe   Recipe  @relation(fields: [recipeId], references: [id], onDelete: Cascade)
 }
 
 model Instruction {
   id         String @id @default(cuid())
-  recipeId   String
-  recipe     Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
   stepNumber Int
   text       String
-
-  @@index([recipeId])
-  @@map("instruction")
+  recipeId   String
+  recipe     Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
 }
 
-// =======================
-// DOMAIN: MEAL PLANS (Sprint 2)
-// =======================
+model Routine {
+  id                String        @id @default(cuid())
+  name              String
+  description       String?
+  imageUrl          String?
+  category          String?
+  frequency         String?
+  energyLevel       String        @default("medium")
+  estimatedTime     Int           @default(15)
+  context           String?
+  duration          String?
+  difficulty        String?
+  equipment         String[]
+  tags              String[]
+  steps             Json?
+  tips              String[]
+  contraindications String[]
+  isSystem          Boolean       @default(false)
+  organizationId    String?
+  organization      Organization? @relation(fields: [organizationId], references: [id])
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+}
 
 model MealPlan {
   id             String         @id @default(cuid())
   organizationId String
-  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   startDate      DateTime
   endDate        DateTime
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   items          MealPlanItem[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([organizationId])
-  @@index([startDate, endDate])
-  @@map("meal_plan")
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 }
 
 model MealPlanItem {
   id         String   @id @default(cuid())
   mealPlanId String
-  mealPlan   MealPlan @relation(fields: [mealPlanId], references: [id], onDelete: Cascade)
   recipeId   String
-  recipe     Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
   date       DateTime
-  mealType   String // breakfast, lunch, dinner, snack
-  servings   Float    @default(1)
-  createdAt  DateTime @default(now())
-
-  @@index([mealPlanId])
-  @@index([recipeId])
-  @@index([date])
-  @@map("meal_plan_item")
+  mealType   String
+  servings   Int      @default(4)
+  isCooked   Boolean  @default(false)
+  mealPlan   MealPlan @relation(fields: [mealPlanId], references: [id], onDelete: Cascade)
+  recipe     Recipe   @relation(fields: [recipeId], references: [id])
 }
 
-// =======================
-// DOMAIN: GROCERIES (Unplanned Items)
-// =======================
-
 model ShoppingListItem {
-  id             String   @id @default(cuid())
+  id             String       @id @default(cuid())
   organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  
   name           String
   quantity       Float
   unit           String
-  category       String? // "Produce", "Meat & Seafood", "Dairy", etc.
-  isChecked      Boolean  @default(false)
-  notes          String?  @db.Text
-  
-  // Source tracking
-  source         String?  // "meal-plan", "recipe-scaler", "manual"
-  sourceRecipeId String?  // If added from recipe scaler
-  sourceDate     DateTime? // When it was added
-  
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  @@index([organizationId, isChecked])
-  @@index([organizationId, category])
-  @@map("shopping_list_item")
-}
-
-// =======================
-// DOMAIN: WELLNESS (Sprint 2)
-// =======================
-
-model Routine {
-  id          String  @id @default(cuid())
-  name        String
-  description String?
-  category    String? // breathwork, meditation, exercise, stretching, mindfulness, sleep, energy
-  frequency   String?
-  imageUrl    String?
-
-  // Wellness Engine fields (Sprint 4)
-  energyLevel   String @default("medium") // "low", "medium", "high"
-  estimatedTime Int    @default(15) // minutes
-
-  // Rich metadata (from old MERN stack)
-  context    String? // "morning", "evening", "anytime"
-  duration   String? // "5min", "15min", "30min", "60min"
-  difficulty String? // "beginner", "intermediate", "advanced"
-  equipment  String[] @default([])
-  tags       String[] @default([])
-
-  // Instructions (rich content)
-  steps             Json? // Array of { step: number, title: string, description: string, duration?: number, imageUrl?: string }
-  tips              String[] @default([])
-  contraindications String[] @default([])
-
-  // Ownership / Visibility
-  isSystem       Boolean       @default(false)
-  organizationId String?
-  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([organizationId])
-  @@index([isSystem])
-  @@index([energyLevel, estimatedTime]) // For lottery queries
-  @@index([context])
-  @@index([duration])
-  @@index([difficulty])
-  @@map("routine")
+  category       String?
+  isChecked      Boolean      @default(false)
+  source         String?
+  sourceRecipeId String?
+  sourceDate     DateTime?
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 }
 
 model JournalEntry {
-  id     String @id @default(cuid())
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  date       DateTime @db.Date // Store as date only (YYYY-MM-DD)
-  mood       Int? // 1-10
-  energy     Int? // 1-10 (Sprint 4)
-  sleepHours Float? // Hours slept (Sprint 4)
-  tags       String[]
-  title      String?
-  notes      String?  @db.Text // Renamed from content for clarity
-  
-  // Gratitude entries
-  gratitudeEntries String[] @default([])
-  gratitudeNotes   String?  @db.Text
-  
-  // Goals tracking
-  goalsAchieved String[] @default([])
-  goalsProgress  String[] @default([])
-  goalsNotes     String?  @db.Text
-  
-  // Symptoms tracking
-  symptomsPhysical String[] @default([])
-  symptomsMental   String[] @default([])
-  symptomsNotes    String?  @db.Text
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([userId, date], name: "userId_date") // One entry per user per day
-  @@index([userId, date])
-  @@map("journal_entry")
+  id               String   @id @default(cuid())
+  userId           String
+  date             DateTime
+  mood             Int?
+  energy           Int?
+  sleepHours       Float?
+  notes            String?
+  tags             String[]
+  gratitudeEntries String[]
+  gratitudeNotes   String?
+  goalsAchieved    String[]
+  goalsProgress    String[]
+  goalsNotes       String?
+  symptomsPhysical String[]
+  symptomsMental   String[]
+  symptomsNotes    String?
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  @@unique([userId, date])
 }
-
-// =======================
-// DOMAIN: EDUCATION (Sprint 4)
-// =======================
 
 model EducationalResource {
-  id         String   @id @default(cuid())
-  title      String
-  content    String   @db.Text
-  excerpt    String?
-  category   String?
-  tags       String[] @default([])
-  difficulty String? // "beginner", "intermediate", "advanced"
-  readTime   Int? // minutes
-  imageUrl   String?
-  videoUrl   String? // Video embed URL
-  featured   Boolean  @default(false)
-  author     String? // Author name
-  likes      Int      @default(0) // Like count
-  viewCount  Int      @default(0) // View count
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([category])
-  @@index([featured])
-  @@index([tags])
-  @@map("educational_resource")
+  id          String   @id @default(cuid())
+  title       String
+  content     String
+  excerpt     String?
+  category    String
+  tags        String[]
+  difficulty  String?
+  readTime    Int?
+  author      String?
+  imageUrl    String?
+  videoUrl    String?
+  externalUrl String?
+  featured    Boolean  @default(false)
+  viewCount   Int      @default(0)
+  likes       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
-// =======================
-// DOMAIN: CYCLE TRACKING (Sprint 6)
-// =======================
-
 model Expert {
-  id          String   @id @default(cuid())
-  name        String
-  credentials String?
-  website     String?
-  focusAreas  String[] @default([]) // e.g., ["nutrition", "fasting", "exercise"]
-  
+  id              String                @id @default(cuid())
+  name            String
+  credentials     String?
+  website         String?
+  focusAreas      String[]
   recommendations PhaseRecommendation[]
-  
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  @@index([name])
-  @@map("expert")
 }
 
 model PhaseRecommendation {
-  id         String   @id @default(cuid())
-  expertId   String
-  expert     Expert   @relation(fields: [expertId], references: [id], onDelete: Cascade)
-  phase      String   // "menstrual", "follicular", "ovulation", "luteal"
-  category   String   // "nutrition", "fasting", "exercise", "training"
-  content    Json     // Structured recommendation content (foods_to_eat, foods_to_avoid, workout_types, guidance, etc.)
-  source     String?  // URL or citation source
-  
+  id        String   @id @default(cuid())
+  expertId  String
+  phase     String
+  category  String
+  content   Json
+  source    String?
+  expert    Expert   @relation(fields: [expertId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
-  @@unique([expertId, phase, category])
-  @@index([expertId])
-  @@index([phase])
-  @@index([category])
-  @@map("phase_recommendation")
 }

@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useMemo, useOptimistic, useTransition } from 'react';
+import { useState, useMemo, useTransition, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { CheckSquare, Printer, Download } from 'lucide-react';
-import { toggleShoppingItem } from '@/actions/grocery-actions';
+import { Input } from '@/components/ui/input';
+import { CheckSquare, Printer, Download, Plus } from 'lucide-react';
+import { toggleShoppingItem, addShoppingItem } from '@/actions/grocery-actions';
 
 interface GroceryItem {
   id?: string; // ShoppingListItem ID if from shopping list
@@ -34,6 +35,8 @@ export function GroceryListClient({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [sortBy, setSortBy] = useState<'name' | 'category'>('name');
+  const [newItemName, setNewItemName] = useState('');
+  const [isAddingItem, setIsAddingItem] = useState(false);
   
   // Helper functions (defined before useMemo)
   const getCategory = (name: string): string => {
@@ -75,11 +78,14 @@ export function GroceryListClient({
     return checked;
   }, [initialItems, sortBy]);
   
-  // Use optimistic state for instant UI feedback
-  const [optimisticChecked, setOptimisticChecked] = useOptimistic<Set<string>>(
-    initialChecked,
-    (current, newChecked: Set<string>) => newChecked
-  );
+  // Use state with optimistic updates for instant UI feedback
+  // React 19's useOptimistic has type issues, so we use useState + useTransition
+  const [optimisticChecked, setOptimisticChecked] = useState<Set<string>>(initialChecked);
+  
+  // Sync optimistic state when initialChecked changes (e.g., after refresh)
+  useEffect(() => {
+    setOptimisticChecked(initialChecked);
+  }, [initialChecked]);
 
   const toggleItem = async (item: GroceryItem, itemKey: string) => {
     const isCurrentlyChecked = optimisticChecked.has(itemKey);
@@ -205,10 +211,46 @@ export function GroceryListClient({
     window.URL.revokeObjectURL(url);
   };
 
+  const handleAddItem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newItemName.trim()) return;
+
+    setIsAddingItem(true);
+    try {
+      const result = await addShoppingItem(newItemName.trim());
+      if (result.success) {
+        setNewItemName('');
+        router.refresh();
+      } else {
+        alert(result.error || 'Failed to add item');
+      }
+    } finally {
+      setIsAddingItem(false);
+    }
+  };
+
   const groupedItems = getGroupedItems();
 
   return (
     <div className="flex flex-col gap-6">
+      {/* Manual Item Entry */}
+      <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+        <form onSubmit={handleAddItem} className="flex gap-2">
+          <Input
+            type="text"
+            placeholder="Add extra item (e.g., Paper Towels)"
+            value={newItemName}
+            onChange={(e) => setNewItemName(e.target.value)}
+            className="flex-1"
+            disabled={isAddingItem}
+          />
+          <Button type="submit" disabled={isAddingItem || !newItemName.trim()} className="gap-2">
+            <Plus className="h-4 w-4" />
+            {isAddingItem ? 'Adding...' : 'Add'}
+          </Button>
+        </form>
+      </div>
+
       {/* Header Controls */}
       <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
         <div className="mb-4 flex items-center justify-between">

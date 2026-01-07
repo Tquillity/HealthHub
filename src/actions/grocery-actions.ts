@@ -265,6 +265,62 @@ export async function toggleShoppingItem(
 }
 
 /**
+ * Add manual shopping item to the grocery list
+ * 
+ * Allows users to add items manually (e.g., "Paper Towels", "Toilet Paper")
+ * that aren't part of any recipe or meal plan.
+ * 
+ * @param name - Item name
+ * @param quantity - Quantity (default: 1)
+ * @param unit - Unit (default: 'pcs')
+ * @returns Success status
+ */
+export async function addShoppingItem(
+  name: string,
+  quantity: number = 1,
+  unit: string = 'pcs'
+) {
+  'use server';
+
+  try {
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+    
+    if (!session) {
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    const membership = await prisma.member.findFirst({
+      where: { userId: session.user.id },
+      select: { organizationId: true },
+    });
+    
+    if (!membership) {
+      return { success: false, error: 'No household found' };
+    }
+
+    await prisma.shoppingListItem.create({
+      data: {
+        organizationId: membership.organizationId,
+        name,
+        quantity,
+        unit,
+        category: 'Other',
+        source: 'manual',
+        isChecked: false,
+      },
+    });
+
+    revalidatePath('/groceries');
+    return { success: true };
+  } catch (error) {
+    console.error('Error adding shopping item:', error);
+    return { success: false, error: 'Failed to add item' };
+  }
+}
+
+/**
  * Add scaled ingredients to grocery list as unplanned items
  */
 export async function addScaledIngredientsToGroceryList(
