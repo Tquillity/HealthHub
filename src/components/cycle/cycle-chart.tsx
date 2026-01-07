@@ -24,7 +24,7 @@
  * - Line animation (1500ms) provides smooth "drawing" effect on initial load for premium feel
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
   ResponsiveContainer,
   LineChart,
@@ -38,7 +38,11 @@ import {
   Dot,
 } from 'recharts';
 import { CyclePhase, CyclePhaseResult, PHASE_LENGTHS } from '@/lib/cycle-calculator';
+import { generateHormoneCurves } from '@/lib/hormone-math';
+import { useQueryState } from 'nuqs';
+import { parseAsString } from 'nuqs';
 import { useRouter } from 'next/navigation';
+import { SeriesSelector, getVisibleSeries, SeriesType } from './series-selector';
 
 interface CycleChartProps {
   phaseData: CyclePhaseResult;
@@ -47,6 +51,7 @@ interface CycleChartProps {
   onPhaseHover?: (phase: CyclePhase | null) => void;
   onPhaseClick?: (phase: CyclePhase) => void;
   onDayClick?: (date: Date, day: number) => void; // New: handle individual day clicks
+  mode?: 'lifestyle' | 'clinical'; // Mode toggle for UI complexity
 }
 
 const PHASE_COLORS: Record<CyclePhase, string> = {
@@ -67,7 +72,7 @@ const PHASE_NAMES: Record<CyclePhase, string> = {
  * Generate intensity/energy data for the cycle
  * This represents typical energy levels throughout the cycle
  */
-function generateCycleData(cycleLength: number, currentDay: number) {
+function generateEnergyData(cycleLength: number, currentDay: number) {
   return Array.from({ length: cycleLength }, (_, i) => {
     const day = i + 1;
     
@@ -104,6 +109,33 @@ function generateCycleData(cycleLength: number, currentDay: number) {
 }
 
 /**
+ * Merge energy and hormone data for chart display
+ * Memoized for performance
+ */
+function mergeChartData(
+  energyData: ReturnType<typeof generateEnergyData>,
+  hormoneCurves: ReturnType<typeof generateHormoneCurves>
+) {
+  return energyData.map((energyPoint) => {
+    const day = energyPoint.day;
+    const estrogen = hormoneCurves.estrogen.find((h) => h.day === day);
+    const progesterone = hormoneCurves.progesterone.find((h) => h.day === day);
+    const lh = hormoneCurves.lh.find((h) => h.day === day);
+    const fsh = hormoneCurves.fsh.find((h) => h.day === day);
+    const testosterone = hormoneCurves.testosterone.find((h) => h.day === day);
+
+    return {
+      ...energyPoint,
+      estrogen: estrogen?.referenceValue ?? 0,
+      progesterone: progesterone?.referenceValue ?? 0,
+      lh: lh?.referenceValue ?? 0,
+      fsh: fsh?.referenceValue ?? 0,
+      testosterone: testosterone?.referenceValue ?? 0,
+    };
+  });
+}
+
+/**
  * Get phase boundaries for ReferenceArea
  * Using 0.5 offsets to ensure seamless coverage between phases
  */
@@ -125,10 +157,10 @@ function getPhaseBoundaries(cycleLength: number) {
  * Custom Tooltip Component for Recharts
  * 
  * Displays detailed information when hovering over chart data points.
- * Shows: day number, current phase name, energy level, and "Today" indicator if applicable.
+ * Shows: day number, current phase name, energy level, hormone levels (only visible ones), and "Today" indicator.
  * Also triggers onPhaseHover callback to update hovered phase state.
  */
-const CustomTooltip = ({ active, payload, label, onPhaseHover }: any) => {
+const CustomTooltip = ({ active, payload, label, onPhaseHover, visibleSeries }: any) => {
   useEffect(() => {
     if (active && payload && payload.length) {
       const day = payload[0].payload.day;
@@ -148,8 +180,8 @@ const CustomTooltip = ({ active, payload, label, onPhaseHover }: any) => {
   }, [active, payload, label, onPhaseHover]);
 
   if (active && payload && payload.length) {
-    const day = payload[0].payload.day;
-    const intensity = payload[0].value;
+    const data = payload[0].payload;
+    const day = data.day;
     
     // Determine phase for this day based on PHASE_LENGTHS constants
     let phase: CyclePhase = 'luteal';
@@ -161,17 +193,72 @@ const CustomTooltip = ({ active, payload, label, onPhaseHover }: any) => {
       phase = 'ovulation';
     }
 
+    // Extract values from payload
+    const energy = data.intensity;
+    const estrogen = data.estrogen;
+    const progesterone = data.progesterone;
+    const lh = data.lh;
+    const fsh = data.fsh;
+    const testosterone = data.testosterone;
+
+    // Check if any hormone is visible
+    const hasVisibleHormones = visibleSeries?.some((s: SeriesType) => 
+      ['estrogen', 'progesterone', 'lh', 'fsh', 'testosterone'].includes(s)
+    );
+
     return (
       <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-lg">
-        <p className="font-semibold text-gray-900">Day {day}</p>
-        <p className="text-sm text-gray-600">
+        <p className="font-semibold text-gray-900 mb-2">Day {day}</p>
+        <p className="text-sm text-gray-600 mb-2">
           <span className="font-medium">{PHASE_NAMES[phase]}</span> Phase
         </p>
-        <p className="text-sm text-gray-600">
-          Energy Level: <span className="font-medium">{intensity}/10</span>
-        </p>
-        {payload[0].payload.isCurrentDay && (
-          <p className="text-xs text-primary-600 font-medium mt-1">Today</p>
+        
+        {/* Energy Level - Only show if visible */}
+        {visibleSeries?.includes('energy') && energy !== undefined && (
+          <p className="text-sm text-gray-700 mb-1">
+            <span className="inline-block w-2 h-2 rounded-full bg-indigo-500 mr-2" />
+            Energy: <span className="font-medium">{energy}/10</span>
+          </p>
+        )}
+        
+        {/* Hormone Levels - Only show if visible */}
+        {hasVisibleHormones && (
+          <div className="flex flex-col gap-1 mt-2 pt-2 border-t border-gray-100">
+            {visibleSeries?.includes('estrogen') && estrogen !== undefined && (
+              <p className="text-xs text-gray-600">
+                <span className="inline-block w-2 h-2 rounded-full bg-blue-500 mr-2" />
+                Estrogen: <span className="font-medium">{Math.round(estrogen)}%</span>
+              </p>
+            )}
+            {visibleSeries?.includes('progesterone') && progesterone !== undefined && (
+              <p className="text-xs text-gray-600">
+                <span className="inline-block w-2 h-2 rounded-full bg-purple-500 mr-2" />
+                Progesterone: <span className="font-medium">{Math.round(progesterone)}%</span>
+              </p>
+            )}
+            {visibleSeries?.includes('lh') && lh !== undefined && (
+              <p className="text-xs text-gray-600">
+                <span className="inline-block w-2 h-2 rounded-full bg-green-500 mr-2" />
+                LH: <span className="font-medium">{Math.round(lh)}%</span>
+              </p>
+            )}
+            {visibleSeries?.includes('fsh') && fsh !== undefined && (
+              <p className="text-xs text-gray-600">
+                <span className="inline-block w-2 h-2 rounded-full bg-gray-400 mr-2" />
+                FSH: <span className="font-medium">{Math.round(fsh)}%</span>
+              </p>
+            )}
+            {visibleSeries?.includes('testosterone') && testosterone !== undefined && (
+              <p className="text-xs text-gray-600">
+                <span className="inline-block w-2 h-2 rounded-full bg-orange-500 mr-2" />
+                Testosterone: <span className="font-medium">{Math.round(testosterone)}%</span>
+              </p>
+            )}
+          </div>
+        )}
+        
+        {data.isCurrentDay && (
+          <p className="text-xs text-primary-600 font-medium mt-2 pt-2 border-t border-gray-100">Today</p>
         )}
       </div>
     );
@@ -181,16 +268,38 @@ const CustomTooltip = ({ active, payload, label, onPhaseHover }: any) => {
 
 export function CycleChart({ phaseData, cycleLength, lastPeriodDate, onPhaseHover, onPhaseClick, onDayClick }: CycleChartProps) {
   const { currentPhase, daysIntoCycle } = phaseData;
-  const chartData = generateCycleData(cycleLength, daysIntoCycle);
   const router = useRouter();
 
-  // Handle phase area clicks
+  // Get visible series from URL state
+  const [visibleSeriesStr] = useQueryState(
+    'show',
+    parseAsString.withDefault('energy')
+  );
+  const visibleSeries = useMemo(() => getVisibleSeries(visibleSeriesStr), [visibleSeriesStr]);
+
+  // Memoize data generation for performance
+  const energyData = useMemo(
+    () => generateEnergyData(cycleLength, daysIntoCycle),
+    [cycleLength, daysIntoCycle]
+  );
+
+  const hormoneCurves = useMemo(
+    () => generateHormoneCurves(cycleLength),
+    [cycleLength]
+  );
+
+  const chartData = useMemo(
+    () => mergeChartData(energyData, hormoneCurves),
+    [energyData, hormoneCurves]
+  );
+
+  // Handle phase area clicks - Navigate to deep dive with mode preserved
   const handlePhaseClick = (phase: CyclePhase) => {
     if (onPhaseClick) {
       onPhaseClick(phase);
     } else {
-      // Default behavior: navigate to phase detail
-      router.push(`/cycle?phase=${phase}&view=detail`);
+      // Default behavior: navigate to phase detail with current mode preserved
+      router.push(`/cycle?phase=${phase}&view=detail&mode=${mode}`);
     }
   };
 
@@ -231,7 +340,7 @@ export function CycleChart({ phaseData, cycleLength, lastPeriodDate, onPhaseHove
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
             data={chartData}
-            margin={{ top: 40, right: 10, left: 0, bottom: 10 }}
+            margin={{ top: 40, right: 60, left: 50, bottom: 10 }}
             onMouseLeave={() => onPhaseHover?.(null)}
           >
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -287,12 +396,28 @@ export function CycleChart({ phaseData, cycleLength, lastPeriodDate, onPhaseHove
               tickCount={Math.min(cycleLength, 7)}
               label={{ value: 'Day', position: 'insideBottom', offset: -5, style: { fill: '#6b7280' } }}
             />
-            <YAxis
-              domain={[0, 10]}
-              tick={{ fontSize: 12, fill: '#6b7280' }}
-              label={{ value: 'Energy Level', angle: -90, position: 'insideLeft', style: { fill: '#6b7280' } }}
-            />
-            <Tooltip content={(props) => <CustomTooltip {...props} onPhaseHover={onPhaseHover} />} />
+            
+            {/* Left Y-Axis: Energy Level (0-10) - Always show if energy is visible */}
+            {visibleSeries.includes('energy') && (
+              <YAxis
+                yAxisId="left"
+                domain={[0, 10]}
+                tick={{ fontSize: 12, fill: '#6366f1' }}
+                label={{ value: 'Energy Level', angle: -90, position: 'insideLeft', style: { fill: '#6366f1' } }}
+              />
+            )}
+            
+            {/* Right Y-Axis: Hormone Levels (0-100) - Show if any hormone is visible */}
+            {visibleSeries.some((s) => ['estrogen', 'progesterone', 'lh', 'fsh', 'testosterone'].includes(s)) && (
+              <YAxis
+                yAxisId="right"
+                orientation="right"
+                domain={[0, 100]}
+                tick={{ fontSize: 12, fill: '#6b7280' }}
+                label={{ value: 'Hormone Level (%)', angle: 90, position: 'insideRight', style: { fill: '#6b7280' } }}
+              />
+            )}
+            <Tooltip content={(props) => <CustomTooltip {...props} onPhaseHover={onPhaseHover} visibleSeries={visibleSeries} />} />
             
             {/* Today Marker - Vertical Reference Line with Enhanced Visibility */}
             <ReferenceLine
@@ -335,12 +460,14 @@ export function CycleChart({ phaseData, cycleLength, lastPeriodDate, onPhaseHove
               }}
             />
             
-            {/* Intensity Line with Animation and Pulsing Today Dot */}
-            <Line
-              type="monotone"
-              dataKey="intensity"
-              stroke="#6366f1"
-              strokeWidth={2}
+            {/* Energy Level Line - Left Y-Axis (0-10) */}
+            {visibleSeries.includes('energy') && (
+              <Line
+                yAxisId="left"
+                type="monotone"
+                dataKey="intensity"
+                stroke="#6366f1"
+                strokeWidth={3}
               dot={(props: any) => {
                 const day = props.payload?.day;
                 const isCurrentDay = props.payload?.isCurrentDay;
@@ -427,26 +554,136 @@ export function CycleChart({ phaseData, cycleLength, lastPeriodDate, onPhaseHove
                 // Future days - smaller, non-interactive
                 return <Dot {...props} r={3} fill="#6366f1" fillOpacity={0.5} />;
               }}
-              activeDot={{ r: 6, fill: '#4f46e5' }}
-              isAnimationActive={true}
-              animationDuration={1500}
-            />
+                activeDot={{ r: 6, fill: '#4f46e5' }}
+                isAnimationActive={true}
+                animationDuration={1500}
+              />
+            )}
+
+            {/* Hormone Lines - Right Y-Axis (0-100) - Dashed style */}
+            {visibleSeries.includes('estrogen') && (
+              <Line
+                yAxisId="right"
+                type="monotone"
+                dataKey="estrogen"
+                stroke="#3b82f6"
+                strokeWidth={2}
+                strokeDasharray="5 5"
+                dot={false}
+                isAnimationActive={true}
+                animationDuration={1500}
+              />
+            )}
+
+            {visibleSeries.includes('progesterone') && (
+              <Line
+                yAxisId="right"
+                type="monotone"
+                dataKey="progesterone"
+                stroke="#a855f7"
+                strokeWidth={2}
+                strokeDasharray="5 5"
+                dot={false}
+                isAnimationActive={true}
+                animationDuration={1500}
+              />
+            )}
+
+            {visibleSeries.includes('lh') && (
+              <Line
+                yAxisId="right"
+                type="monotone"
+                dataKey="lh"
+                stroke="#22c55e"
+                strokeWidth={2}
+                strokeDasharray="5 5"
+                dot={false}
+                isAnimationActive={true}
+                animationDuration={1500}
+              />
+            )}
+
+            {visibleSeries.includes('fsh') && (
+              <Line
+                yAxisId="right"
+                type="monotone"
+                dataKey="fsh"
+                stroke="#9ca3af"
+                strokeWidth={2}
+                strokeDasharray="5 5"
+                dot={false}
+                isAnimationActive={true}
+                animationDuration={1500}
+              />
+            )}
+
+            {visibleSeries.includes('testosterone') && (
+              <Line
+                yAxisId="right"
+                type="monotone"
+                dataKey="testosterone"
+                stroke="#f97316"
+                strokeWidth={2}
+                strokeDasharray="8 4"
+                dot={false}
+                isAnimationActive={true}
+                animationDuration={1500}
+              />
+            )}
           </LineChart>
         </ResponsiveContainer>
       </div>
 
-      {/* Phase Legend */}
-      <div className="flex flex-wrap gap-4 pt-4 border-t border-gray-200">
-        {Object.entries(PHASE_NAMES).map(([phase, name]) => (
-          <div key={phase} className="flex items-center gap-2">
-            <div
-              className="w-4 h-4 rounded"
-              style={{ backgroundColor: PHASE_COLORS[phase as CyclePhase] }}
-            />
-            <span className="text-sm text-gray-600">{name}</span>
+      {/* Interactive Series Selector - Only show in clinical mode */}
+      {mode === 'clinical' && <SeriesSelector />}
+
+      {/* Phase Legend with Tooltips (Clinical Mode Only) */}
+      {mode === 'clinical' && (
+        <div className="flex flex-col gap-3 pt-4 border-t border-gray-200">
+          <div className="flex flex-wrap gap-4">
+            {Object.entries(PHASE_NAMES).map(([phase, name]) => (
+              <div key={phase} className="flex items-center gap-2">
+                <div
+                  className="w-4 h-4 rounded"
+                  style={{ backgroundColor: PHASE_COLORS[phase as CyclePhase] }}
+                />
+                <span className="text-sm text-gray-600">{name}</span>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+          
+          {/* Hormone Tooltips */}
+          <div className="flex flex-wrap gap-4 text-xs text-gray-500">
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-green-500" />
+              <span>LH: Triggers the release of the egg</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-gray-400" />
+              <span>FSH: Recruits and matures follicles</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-orange-500" />
+              <span>Testosterone: Peaks during ovulation, supports strength</span>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Simple Phase Legend (Lifestyle Mode) */}
+      {mode === 'lifestyle' && (
+        <div className="flex flex-wrap gap-4 pt-4 border-t border-gray-200">
+          {Object.entries(PHASE_NAMES).map(([phase, name]) => (
+            <div key={phase} className="flex items-center gap-2">
+              <div
+                className="w-4 h-4 rounded"
+                style={{ backgroundColor: PHASE_COLORS[phase as CyclePhase] }}
+              />
+              <span className="text-sm text-gray-600">{name}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Phase Information Card */}
       <div

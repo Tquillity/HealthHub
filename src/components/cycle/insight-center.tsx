@@ -19,12 +19,13 @@ import { useState, useEffect } from 'react';
 import { CyclePhase } from '@/lib/cycle-calculator';
 import { getRecommendationsByPhase } from '@/actions/cycle-actions';
 import { getDietaryRecommendations } from '@/lib/dietary-recommendations';
-import { Sparkles, Loader2 } from 'lucide-react';
+import { Sparkles, Loader2, Activity } from 'lucide-react';
 
 interface InsightCenterProps {
   activePhase: CyclePhase;
   currentPhase: CyclePhase;
   isHovering: boolean;
+  mode?: 'lifestyle' | 'clinical'; // Mode toggle for UI complexity
 }
 
 const PHASE_NAMES: Record<CyclePhase, string> = {
@@ -41,7 +42,7 @@ const PHASE_DESCRIPTIONS: Record<CyclePhase, string> = {
   luteal: 'Energy may fluctuate. Listen to your body and adjust intensity accordingly.',
 };
 
-export function InsightCenter({ activePhase, currentPhase, isHovering }: InsightCenterProps) {
+export function InsightCenter({ activePhase, currentPhase, isHovering, mode = 'lifestyle' }: InsightCenterProps) {
   const [recommendations, setRecommendations] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -86,7 +87,7 @@ export function InsightCenter({ activePhase, currentPhase, isHovering }: Insight
           }`}
         />
         <h3 className="font-bold text-xl text-gray-900">
-          {isHovering ? 'Phase Intelligence' : 'Daily Focus'}
+          {mode === 'clinical' && isHovering ? 'Phase Intelligence' : 'Daily Focus'}
         </h3>
       </div>
 
@@ -112,6 +113,28 @@ export function InsightCenter({ activePhase, currentPhase, isHovering }: Insight
             {PHASE_DESCRIPTIONS[activePhase]}
           </p>
         </div>
+
+        {/* Biochemical Driver Widget - Only show in clinical mode */}
+        {mode === 'clinical' && (
+          <div className="p-4 rounded-xl bg-white/40 backdrop-blur-md border border-primary-100/50 shadow-sm">
+            <div className="flex items-center gap-2 mb-2">
+              <Activity className="h-4 w-4 text-primary-600" />
+              <span className="text-xs font-semibold uppercase tracking-wider text-primary-700">
+                Biological Status
+              </span>
+            </div>
+            <p className="text-sm text-gray-800 leading-relaxed">
+              {activePhase === 'menstrual' && 
+                'Baseline: Estrogen and Progesterone are at their lowest; iron demand increases.'}
+              {activePhase === 'follicular' && 
+                'Estrogen Rising: FSH recruits follicles; metabolic efficiency improves.'}
+              {activePhase === 'ovulation' && 
+                'Peak Window: Estrogen surge triggers LH; testosterone peaks. Physical Strength.'}
+              {activePhase === 'luteal' && 
+                'Progesterone Dominant: Body temp rises ~0.5°C; resting heart rate may increase.'}
+            </p>
+          </div>
+        )}
 
         {/* Top Recommendation */}
         {loading ? (

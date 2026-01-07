@@ -11,14 +11,17 @@
 import { useState } from 'react';
 import { updateFocusPreference } from '@/actions/cycle-actions';
 import { useRouter } from 'next/navigation';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Settings } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface FocusPreferenceSelectorProps {
   currentPreference: 'hormonal' | 'workout' | 'both';
+  onPreferenceChange?: () => void;
+  compact?: boolean;
 }
 
-export function FocusPreferenceSelector({ currentPreference }: FocusPreferenceSelectorProps) {
-  const [isExpanded, setIsExpanded] = useState(true);
+export function FocusPreferenceSelector({ currentPreference, onPreferenceChange, compact = false }: FocusPreferenceSelectorProps) {
+  const [isExpanded, setIsExpanded] = useState(!compact);
   const [isUpdating, setIsUpdating] = useState(false);
   const router = useRouter();
 
@@ -30,6 +33,7 @@ export function FocusPreferenceSelector({ currentPreference }: FocusPreferenceSe
       const result = await updateFocusPreference(newPreference);
       if (result.success) {
         router.refresh();
+        onPreferenceChange?.();
       } else {
         console.error('Failed to update preference:', result.error);
       }
@@ -46,6 +50,52 @@ export function FocusPreferenceSelector({ currentPreference }: FocusPreferenceSe
     both: 'Both',
   };
 
+  // Compact mode: Icon button with dropdown
+  if (compact) {
+    return (
+      <div className="relative">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="gap-2 min-h-[44px]"
+          aria-label="Focus Preference Settings"
+        >
+          <Settings className="h-4 w-4" />
+          <span className="text-xs font-medium">{preferenceLabels[currentPreference]}</span>
+          <ChevronDown
+            className={`h-3 w-3 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+          />
+        </Button>
+        
+        {isExpanded && (
+          <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg border border-gray-200 shadow-lg z-10">
+            <div className="flex flex-col gap-1 p-2">
+              {(['hormonal', 'workout', 'both'] as const).map((focus) => (
+                <button
+                  key={focus}
+                  onClick={() => {
+                    handlePreferenceChange(focus);
+                    setIsExpanded(false);
+                  }}
+                  disabled={isUpdating}
+                  className={`px-3 py-2 rounded text-sm text-left transition-colors ${
+                    currentPreference === focus
+                      ? 'bg-purple-600 text-white'
+                      : 'text-gray-700 hover:bg-gray-100'
+                  } ${isUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  {preferenceLabels[focus]}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Full mode: Original collapsible card
   return (
     <div className="mb-6 bg-gray-50 rounded-lg border border-gray-200">
       <button

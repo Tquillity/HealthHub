@@ -29,9 +29,10 @@ import { JournalQuickLook } from './journal-quick-look';
 import { RecommendationCard } from './recommendation-card';
 import { PhaseDeepDive } from './phase-deep-dive';
 import { PhaseDrawer } from './phase-drawer';
+import { ModeToggle } from './mode-toggle';
 import { Card } from '@/components/ui/card';
-import { Calendar, Sparkles } from 'lucide-react';
-import { differenceInDays } from 'date-fns';
+import { Calendar, Sparkles, Settings } from 'lucide-react';
+import { differenceInDays, format } from 'date-fns';
 import { getPhaseTheme } from '@/lib/phase-theme';
 import { getJournalSnippet } from '@/actions/journal-actions';
 
@@ -76,6 +77,10 @@ export function CyclePageClient({
   const [selectedDate, setSelectedDate] = useQueryState(
     'selectedDate',
     parseAsString
+  );
+  const [mode, setMode] = useQueryState(
+    'mode',
+    parseAsString.withDefault('lifestyle')
   );
 
   // Track the "active" phase to show in Insight Center
@@ -236,35 +241,38 @@ export function CyclePageClient({
             <div className="absolute inset-0 bg-black/5 pointer-events-none rounded-lg transition-opacity duration-300 -z-10" />
           )}
 
-          {/* 1. Integrated Header & Preference - Thematic Styling */}
-      <div
-        className={`grid grid-cols-1 md:grid-cols-3 gap-6 transition-opacity duration-300 ${
-          isHovering ? 'opacity-50' : 'opacity-100'
-        }`}
-      >
-        <div className="md:col-span-2">
-          <h1 className={`text-4xl font-bold tracking-tight mb-2 ${theme.text.primary}`}>
-            Cycle Intelligence
-          </h1>
-          <p className={`text-lg ${theme.text.secondary}`}>
-            Optimizing your performance based on Day {phaseData.daysIntoCycle} of{' '}
-            {userPreference.cycleLength}
-            {isExploringPhase && (
-              <span className={`ml-2 ${theme.text.accent}`}>
-                • Exploring {PHASE_NAMES[activePhase]} Phase
-              </span>
-            )}
-          </p>
-        </div>
-        <div className="flex items-start justify-end">
-          <FocusPreferenceSelector currentPreference={userPreference.focusPreference} />
-        </div>
-      </div>
+          {/* 1. Compact Header - 2-Column Layout */}
+          <div className="flex items-center justify-between gap-4 pb-2">
+            {/* Left: Title + Current Day */}
+            <div className="flex flex-col gap-1">
+              <h1 className={`text-3xl font-bold tracking-tight ${theme.text.primary}`}>
+                Cycle Intelligence
+              </h1>
+              <p className={`text-sm ${theme.text.secondary}`}>
+                Day {phaseData.daysIntoCycle} of {userPreference.cycleLength}
+                {isExploringPhase && (
+                  <span className={`ml-2 ${theme.text.accent}`}>
+                    • Exploring {PHASE_NAMES[activePhase]}
+                  </span>
+                )}
+              </p>
+            </div>
+            
+            {/* Right: Mode Toggle + Focus Preference (Compact) */}
+            <div className="flex items-center gap-2">
+              <ModeToggle currentPhase={phaseData.currentPhase} />
+              <FocusPreferenceSelector 
+                currentPreference={userPreference.focusPreference} 
+                onPreferenceChange={() => {}}
+                compact={true}
+              />
+            </div>
+          </div>
 
-      {/* 2. The Bento Grid (Layout Stability) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      {/* 2. The Bento Grid (Layout Stability) - Reduced gap for tighter layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         {/* Main Chart Box (Reserved Space - 8 columns) - Thematic Border */}
-        <Card className={`lg:col-span-8 p-6 bg-white/50 backdrop-blur-md shadow-xl overflow-hidden transition-colors duration-300 ${theme.border.primary} border-2 h-full min-h-[400px] flex flex-col`}>
+        <Card className={`lg:col-span-8 p-4 bg-white/50 backdrop-blur-md shadow-xl overflow-hidden transition-colors duration-300 ${theme.border.primary} border-2 h-full min-h-[400px] flex flex-col`}>
           <CycleChart
             phaseData={phaseData}
             cycleLength={userPreference.cycleLength}
@@ -272,12 +280,13 @@ export function CyclePageClient({
             onPhaseHover={handleHoverChange}
             onPhaseClick={handlePhaseClick}
             onDayClick={handleDayClick}
+            mode={mode as 'lifestyle' | 'clinical'}
           />
         </Card>
 
         {/* The "Insight Center" (Always occupies 4 columns, no shifting) */}
         {/* Switches to Journal Quick Look when a date is selected */}
-        <div className="lg:col-span-4 flex flex-col gap-6">
+        <div className="lg:col-span-4 flex flex-col gap-4">
           {selectedDateObj && selectedDatePhase ? (
             <JournalQuickLook
               date={selectedDateObj}
@@ -290,6 +299,7 @@ export function CyclePageClient({
               activePhase={activePhase}
               currentPhase={phaseData.currentPhase}
               isHovering={isHovering}
+              mode={mode as 'lifestyle' | 'clinical'}
             />
           )}
 
