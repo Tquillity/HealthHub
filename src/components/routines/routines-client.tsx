@@ -6,6 +6,7 @@ import { parseAsString, useQueryState } from 'nuqs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { createRoutine, drawLottery } from '@/actions/routine-actions';
+import { useUIStore } from '@/lib/store';
 import { Plus, Sparkles, X } from 'lucide-react';
 import type { Routine } from '@prisma/client';
 import { RoutineCard } from './routine-card';
@@ -17,6 +18,7 @@ interface RoutinesClientProps {
 
 export function RoutinesClient({ routines: initialRoutines }: RoutinesClientProps) {
   const router = useRouter();
+  const showToast = useUIStore((state) => state.showToast);
   const [routines, setRoutines] = useState(initialRoutines);
 
   // Get filter params from URL
@@ -90,9 +92,10 @@ export function RoutinesClient({ routines: initialRoutines }: RoutinesClientProp
         energyLevel: 'medium',
         estimatedTime: 15,
       });
+      showToast(editingRoutine ? 'Routine updated successfully!' : 'Routine created successfully!', 'success');
       router.refresh();
     } else {
-      alert(result.error || 'Failed to save routine');
+      showToast(result.error || 'Failed to save routine', 'error');
     }
 
     setIsSubmitting(false);
@@ -234,7 +237,7 @@ export function RoutinesClient({ routines: initialRoutines }: RoutinesClientProp
               </button>
             </div>
 
-            <form onSubmit={handleCreateRoutine} className="space-y-4">
+            <form onSubmit={handleCreateRoutine} className="flex flex-col gap-4">
               <div>
                 <label htmlFor="routine-create-name" className="block text-sm font-medium text-gray-700 mb-1.5">
                   Name *
@@ -365,7 +368,7 @@ export function RoutinesClient({ routines: initialRoutines }: RoutinesClientProp
               </button>
             </div>
 
-            <div className="space-y-4">
+            <div className="flex flex-col gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">
                   Your Energy Level
@@ -472,7 +475,7 @@ export function RoutinesClient({ routines: initialRoutines }: RoutinesClientProp
               </Button>
 
               {lotteryResults.length > 0 && (
-                <div className="mt-4 space-y-3">
+                <div className="mt-4 flex flex-col gap-3">
                   <p className="text-sm font-medium text-blue-900">
                     Your pick{lotteryResults.length > 1 ? 's' : ''}:
                   </p>

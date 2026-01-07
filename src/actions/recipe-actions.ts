@@ -328,7 +328,8 @@ export async function createRecipe(data: z.infer<typeof CreateRecipeSchema>) {
       select: { role: true },
     });
 
-    if (user?.role !== 'admin') {
+    // Allow both 'admin' and 'superadmin' roles
+    if (user?.role !== 'admin' && user?.role !== 'superadmin') {
       return { success: false, error: 'Forbidden: Admin access required' };
     }
 
@@ -476,7 +477,8 @@ export async function updateRecipe(data: z.infer<typeof UpdateRecipeSchema>) {
       select: { role: true },
     });
 
-    if (user?.role !== 'admin') {
+    // Allow both 'admin' and 'superadmin' roles
+    if (user?.role !== 'admin' && user?.role !== 'superadmin') {
       return { success: false, error: 'Forbidden: Admin access required' };
     }
 
@@ -666,7 +668,8 @@ export async function deleteRecipe(id: string) {
       select: { role: true },
     });
 
-    if (user?.role !== 'admin') {
+    // Allow both 'admin' and 'superadmin' roles
+    if (user?.role !== 'admin' && user?.role !== 'superadmin') {
       return { success: false, error: 'Forbidden: Admin access required' };
     }
 
@@ -718,25 +721,26 @@ export async function getUserRole() {
 }
 
 /**
- * Check if the current user is the MAIN admin (the one created in seed.ts)
- * MAIN admin is identified by matching the ADMIN_EMAIL from environment
+ * Check if the current user is a superadmin
+ * 
+ * Uses database role field instead of environment variable for better security
+ * and maintainability. Superadmin role is set in the database and can be
+ * managed through the admin interface.
+ * 
+ * @param userId - The user ID to check
+ * @returns true if user has 'superadmin' role
  */
 async function isMainAdmin(userId: string): Promise<boolean> {
   try {
-    const adminEmail = process.env.ADMIN_EMAIL;
-    if (!adminEmail) {
-      console.warn('⚠️ ADMIN_EMAIL environment variable is not set. Main admin check will fail.');
-      return false;
-    }
-    
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { email: true, role: true },
+      select: { role: true },
     });
     
-    return user?.role === 'admin' && user?.email === adminEmail;
+    // Check for superadmin role (more secure than env var matching)
+    return user?.role === 'superadmin';
   } catch (error) {
-    console.error('Error checking MAIN admin status:', error);
+    console.error('Error checking superadmin status:', error);
     return false;
   }
 }

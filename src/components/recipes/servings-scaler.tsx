@@ -97,7 +97,7 @@ export function ServingsScaler({
         </div>
       </div>
 
-      <ul className="space-y-3">
+      <ul className="flex flex-col gap-3">
         {ingredients.map((ing) => (
           <li
             key={ing.id}

@@ -38,7 +38,8 @@
     "recharts": "^3.6.0",
     "tailwind-merge": "^3.4.0",
     "tailwindcss": "^4.1.18",
-    "ws": "^8.18.3"
+    "ws": "^8.18.3",
+    "zustand": "^5.0.9"
   },
   "devDependencies": {
     "@ducanh2912/next-pwa": "^10.2.9",

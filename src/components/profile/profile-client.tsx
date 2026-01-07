@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { updateProfile } from '@/actions/profile-actions';
+import { useUIStore } from '@/lib/store';
 import { CheckCircle2 } from 'lucide-react';
 
 interface ProfileClientProps {
@@ -24,6 +25,7 @@ interface ProfileClientProps {
 }
 
 export function ProfileClient({ profile: initialProfile }: ProfileClientProps) {
+  const showToast = useUIStore((state) => state.showToast);
   const [profile, setProfile] = useState(initialProfile);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -77,9 +79,10 @@ export function ProfileClient({ profile: initialProfile }: ProfileClientProps) {
     if (result.success && result.data) {
       setProfile(result.data);
       setSuccess(true);
+      showToast('Profile updated successfully!', 'success');
       setTimeout(() => setSuccess(false), 3000);
     } else {
-      alert(result.error || 'Failed to update profile');
+      showToast(result.error || 'Failed to update profile', 'error');
     }
 
     setIsSubmitting(false);

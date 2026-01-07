@@ -110,7 +110,7 @@ export function MealPlanGenerator({ onGenerate }: MealPlanGeneratorProps) {
               </p>
             </div>
 
-            <form onSubmit={handleGenerate} className="space-y-6">
+            <form onSubmit={handleGenerate} className="flex flex-col gap-6">
               {/* Week Start Date */}
               <div>
                 <label htmlFor="meal-plan-week-start" className="block text-sm font-medium text-gray-700 mb-3">

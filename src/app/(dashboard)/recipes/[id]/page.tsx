@@ -43,13 +43,14 @@ export default async function RecipeDetailPage({
     sodium?: number | null;
   };
 
-  // Check if user is admin
-  const isAdmin = session
+  // Check if user is admin or superadmin
+  const userRole = session
     ? (await prisma.user.findUnique({
         where: { id: session.user.id },
         select: { role: true },
-      }))?.role === 'admin'
-    : false;
+      }))?.role
+    : null;
+  const isAdmin = userRole === 'admin' || userRole === 'superadmin';
 
   // Find related educational resource
   // Look for resources that share tags with the recipe or have relevant title

@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useUIStore } from '@/lib/store';
 import { X, Plus, Trash2, Upload } from 'lucide-react';
 import { createRecipe, updateRecipe, type RecipeWithDetails } from '@/actions/recipe-actions';
 import { uploadImage } from '@/actions/image-upload';
@@ -28,6 +29,7 @@ interface RecipeFormProps {
 
 export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
   const router = useRouter();
+  const showToast = useUIStore((state) => state.showToast);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isEditing = !!recipe;
 
@@ -319,6 +321,7 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
       : await createRecipe(recipeData);
 
     if (result.success) {
+      showToast(isEditing ? 'Recipe updated successfully!' : 'Recipe created successfully!', 'success');
       if (isEditing) {
         router.push(`/recipes/${recipe.id}`);
       } else {
@@ -327,6 +330,7 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
       router.refresh();
       onSuccess?.();
     } else {
+      showToast(result.error || 'Failed to save recipe', 'error');
       setErrors({ submit: result.error || 'Failed to save recipe' });
       setIsSubmitting(false);
     }

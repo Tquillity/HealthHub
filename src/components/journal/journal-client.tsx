@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { logJournalEntry, getJournalEntryByDate } from '@/actions/journal-actions';
+import { useUIStore } from '@/lib/store';
 import { Plus, X } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -15,6 +16,7 @@ interface JournalClientProps {
 
 export function JournalClient({ initialDate, onEntrySaved }: JournalClientProps) {
   const router = useRouter();
+  const showToast = useUIStore((state) => state.showToast);
   const [showDialog, setShowDialog] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
@@ -115,10 +117,11 @@ export function JournalClient({ initialDate, onEntrySaved }: JournalClientProps)
         symptomsMental: [''],
         symptomsNotes: '',
       });
+      showToast('Journal entry saved successfully!', 'success');
       onEntrySaved?.();
       router.refresh();
     } else {
-      alert(result.error || 'Failed to log entry');
+      showToast(result.error || 'Failed to log entry', 'error');
     }
 
     setIsSubmitting(false);

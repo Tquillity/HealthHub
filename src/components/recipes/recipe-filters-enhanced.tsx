@@ -61,7 +61,7 @@ export function RecipeFiltersEnhanced({ categories }: RecipeFiltersEnhancedProps
   const hasActiveFilters = category !== 'all' || difficulty || cuisine || (dietaryTags && dietaryTags.length > 0) || leanRole || query;
 
   return (
-    <div className="mb-6 space-y-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+    <div className="mb-6 flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
       {/* Search */}
       <div className="relative">
         <label htmlFor="recipe-search" className="sr-only">

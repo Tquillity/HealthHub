@@ -1,5 +1,17 @@
 'use client';
 
+/**
+ * JournalAnalytics Component
+ * 
+ * Displays aggregated wellness metrics from journal entries including:
+ * - Average mood, energy, and sleep hours
+ * - Trend analysis comparing first half vs second half of entries
+ * - Visual indicators (icons, colors) for quick pattern recognition
+ * 
+ * Trend Calculation: Splits entries into two halves and compares averages
+ * to show whether metrics are improving, declining, or stable over time.
+ */
+
 interface JournalAnalyticsProps {
   entries: Array<{
     date: Date;
@@ -18,7 +30,7 @@ export function JournalAnalytics({ entries }: JournalAnalyticsProps) {
     );
   }
 
-  // Calculate averages
+  // Calculate averages from non-null entries only
   const moodEntries = entries.filter((e) => e.mood !== null);
   const energyEntries = entries.filter((e) => e.energy !== null);
   const sleepEntries = entries.filter((e) => e.sleepHours !== null);
@@ -36,11 +48,23 @@ export function JournalAnalytics({ entries }: JournalAnalyticsProps) {
       ? sleepEntries.reduce((sum, e) => sum + (e.sleepHours || 0), 0) / sleepEntries.length
       : null;
 
-  // Calculate trends (compare first half vs second half)
+  /**
+   * Trend Analysis: Compare first half vs second half of entries
+   * 
+   * This provides a simple way to see if metrics are improving or declining
+   * over time. Positive trend = improving, negative = declining.
+   */
   const midPoint = Math.floor(entries.length / 2);
   const firstHalf = entries.slice(0, midPoint);
   const secondHalf = entries.slice(midPoint);
 
+  /**
+   * Calculate trend for a specific field by comparing averages
+   * between first and second half of entries.
+   * 
+   * @param field - The metric to analyze ('mood', 'energy', or 'sleepHours')
+   * @returns Difference between second half and first half averages
+   */
   const getTrend = (field: 'mood' | 'energy' | 'sleepHours') => {
     const firstAvg =
       firstHalf.length > 0
@@ -65,18 +89,36 @@ export function JournalAnalytics({ entries }: JournalAnalyticsProps) {
   const energyTrend = getTrend('energy');
   const sleepTrend = getTrend('sleepHours');
 
+  /**
+   * Returns emoji icon based on trend direction
+   * 📈 = improving, 📉 = declining, ➡️ = stable
+   */
   const getTrendIcon = (trend: number) => {
     if (trend > 0) return '📈';
     if (trend < 0) return '📉';
     return '➡️';
   };
 
+  /**
+   * Returns Tailwind color class for trend visualization
+   * Green = positive trend, Red = negative trend, Gray = neutral
+   */
   const getTrendColor = (trend: number) => {
     if (trend > 0) return 'text-green-600';
     if (trend < 0) return 'text-red-600';
     return 'text-gray-600';
   };
 
+  /**
+   * Returns Tailwind color class for rating visualization
+   * 
+   * Color scale:
+   * - 8-10: Green (excellent)
+   * - 6-7: Yellow (good)
+   * - 4-5: Orange (fair)
+   * - 0-3: Red (poor)
+   * - null: Gray (no data)
+   */
   const getRatingColor = (rating: number | null) => {
     if (!rating) return 'text-gray-600';
     if (rating >= 8) return 'text-green-600';
@@ -86,7 +128,7 @@ export function JournalAnalytics({ entries }: JournalAnalyticsProps) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       {/* Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* Mood Card */}

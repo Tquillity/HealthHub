@@ -52,7 +52,7 @@ export default async function RecipesPage({ searchParams }: PageProps) {
 
     recipes = recipesResult.data || [];
     categories = categoriesResult || [];
-    isAdmin = roleResult.role === 'admin';
+    isAdmin = roleResult.role === 'admin' || roleResult.role === 'superadmin';
   } catch (error) {
     console.error('Failed to fetch recipes data:', error);
     // Return empty state instead of crashing

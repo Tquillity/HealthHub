@@ -6,6 +6,7 @@ import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { startOfMonth, endOfMonth } from 'date-fns';
+import { encrypt, decrypt, encryptArray, decryptArray } from '@/lib/encryption';
 
 // Zod schemas
 const CreateJournalSchema = z.object({
@@ -47,6 +48,17 @@ export async function logJournalEntry(data: z.infer<typeof CreateJournalSchema>)
       : validated.date;
     date.setHours(0, 0, 0, 0);
 
+    // Encrypt sensitive fields before storing (GDPR compliance)
+    const encryptedNotes = encrypt(validated.notes);
+    const encryptedGratitudeNotes = encrypt(validated.gratitudeNotes);
+    const encryptedGoalsNotes = encrypt(validated.goalsNotes);
+    const encryptedSymptomsNotes = encrypt(validated.symptomsNotes);
+    const encryptedGratitudeEntries = encryptArray(validated.gratitudeEntries);
+    const encryptedGoalsAchieved = encryptArray(validated.goalsAchieved);
+    const encryptedGoalsProgress = encryptArray(validated.goalsProgress);
+    const encryptedSymptomsPhysical = encryptArray(validated.symptomsPhysical);
+    const encryptedSymptomsMental = encryptArray(validated.symptomsMental);
+
     // Upsert entry (create or update if exists for this date)
     const entry = await prisma.journalEntry.upsert({
       where: {
@@ -59,16 +71,16 @@ export async function logJournalEntry(data: z.infer<typeof CreateJournalSchema>)
         mood: validated.mood ?? undefined,
         energy: validated.energy ?? undefined,
         sleepHours: validated.sleepHours ?? undefined,
-        notes: validated.notes ?? undefined,
+        notes: encryptedNotes ?? undefined,
         tags: validated.tags,
-        gratitudeEntries: validated.gratitudeEntries,
-        gratitudeNotes: validated.gratitudeNotes ?? undefined,
-        goalsAchieved: validated.goalsAchieved,
-        goalsProgress: validated.goalsProgress,
-        goalsNotes: validated.goalsNotes ?? undefined,
-        symptomsPhysical: validated.symptomsPhysical,
-        symptomsMental: validated.symptomsMental,
-        symptomsNotes: validated.symptomsNotes ?? undefined,
+        gratitudeEntries: encryptedGratitudeEntries ?? validated.gratitudeEntries,
+        gratitudeNotes: encryptedGratitudeNotes ?? undefined,
+        goalsAchieved: encryptedGoalsAchieved ?? validated.goalsAchieved,
+        goalsProgress: encryptedGoalsProgress ?? validated.goalsProgress,
+        goalsNotes: encryptedGoalsNotes ?? undefined,
+        symptomsPhysical: encryptedSymptomsPhysical ?? validated.symptomsPhysical,
+        symptomsMental: encryptedSymptomsMental ?? validated.symptomsMental,
+        symptomsNotes: encryptedSymptomsNotes ?? undefined,
       },
       create: {
         userId: session.user.id,
@@ -76,21 +88,35 @@ export async function logJournalEntry(data: z.infer<typeof CreateJournalSchema>)
         mood: validated.mood ?? undefined,
         energy: validated.energy ?? undefined,
         sleepHours: validated.sleepHours ?? undefined,
-        notes: validated.notes ?? undefined,
+        notes: encryptedNotes ?? undefined,
         tags: validated.tags,
-        gratitudeEntries: validated.gratitudeEntries,
-        gratitudeNotes: validated.gratitudeNotes ?? undefined,
-        goalsAchieved: validated.goalsAchieved,
-        goalsProgress: validated.goalsProgress,
-        goalsNotes: validated.goalsNotes ?? undefined,
-        symptomsPhysical: validated.symptomsPhysical,
-        symptomsMental: validated.symptomsMental,
-        symptomsNotes: validated.symptomsNotes ?? undefined,
+        gratitudeEntries: encryptedGratitudeEntries ?? validated.gratitudeEntries,
+        gratitudeNotes: encryptedGratitudeNotes ?? undefined,
+        goalsAchieved: encryptedGoalsAchieved ?? validated.goalsAchieved,
+        goalsProgress: encryptedGoalsProgress ?? validated.goalsProgress,
+        goalsNotes: encryptedGoalsNotes ?? undefined,
+        symptomsPhysical: encryptedSymptomsPhysical ?? validated.symptomsPhysical,
+        symptomsMental: encryptedSymptomsMental ?? validated.symptomsMental,
+        symptomsNotes: encryptedSymptomsNotes ?? undefined,
       },
     });
 
+    // Decrypt sensitive fields before returning to client
+    const decryptedEntry = {
+      ...entry,
+      notes: decrypt(entry.notes),
+      gratitudeNotes: decrypt(entry.gratitudeNotes),
+      goalsNotes: decrypt(entry.goalsNotes),
+      symptomsNotes: decrypt(entry.symptomsNotes),
+      gratitudeEntries: decryptArray(entry.gratitudeEntries),
+      goalsAchieved: decryptArray(entry.goalsAchieved),
+      goalsProgress: decryptArray(entry.goalsProgress),
+      symptomsPhysical: decryptArray(entry.symptomsPhysical),
+      symptomsMental: decryptArray(entry.symptomsMental),
+    };
+
     revalidatePath('/journal');
-    return { success: true, data: entry };
+    return { success: true, data: decryptedEntry };
   } catch (error) {
     if (error instanceof z.ZodError) {
       return { success: false, error: error.errors[0]?.message || 'Validation failed' };
@@ -179,7 +205,25 @@ export async function getJournalEntryByDate(date: string) {
       },
     });
 
-    return { success: true, data: entry };
+    if (!entry) {
+      return { success: true, data: null };
+    }
+
+    // Decrypt sensitive fields before returning to client
+    const decryptedEntry = {
+      ...entry,
+      notes: decrypt(entry.notes),
+      gratitudeNotes: decrypt(entry.gratitudeNotes),
+      goalsNotes: decrypt(entry.goalsNotes),
+      symptomsNotes: decrypt(entry.symptomsNotes),
+      gratitudeEntries: decryptArray(entry.gratitudeEntries),
+      goalsAchieved: decryptArray(entry.goalsAchieved),
+      goalsProgress: decryptArray(entry.goalsProgress),
+      symptomsPhysical: decryptArray(entry.symptomsPhysical),
+      symptomsMental: decryptArray(entry.symptomsMental),
+    };
+
+    return { success: true, data: decryptedEntry };
   } catch (error) {
     console.error('Error fetching journal entry:', error);
     return { success: false, error: 'Failed to fetch journal entry', data: null };
@@ -259,11 +303,14 @@ export async function getJournalSnippet(date: string) {
       return { success: true, data: null }; // No entry exists for this date
     }
 
+    // Decrypt notes before truncating
+    const decryptedNotes = decrypt(entry.notes);
+    
     // Truncate notes to first 100 characters for preview
-    const notesSnippet = entry.notes
-      ? entry.notes.length > 100
-        ? entry.notes.substring(0, 100) + '...'
-        : entry.notes
+    const notesSnippet = decryptedNotes
+      ? decryptedNotes.length > 100
+        ? decryptedNotes.substring(0, 100) + '...'
+        : decryptedNotes
       : null;
 
     return {

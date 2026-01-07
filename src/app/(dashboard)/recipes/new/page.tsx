@@ -21,7 +21,8 @@ export default async function NewRecipePage() {
     select: { role: true },
   });
 
-  if (user?.role !== 'admin') {
+  // Allow both 'admin' and 'superadmin' roles
+  if (user?.role !== 'admin' && user?.role !== 'superadmin') {
     redirect('/recipes');
   }
 

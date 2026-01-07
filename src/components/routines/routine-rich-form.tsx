@@ -201,9 +201,9 @@ export function RoutineRichForm({ routine, onSuccess, onCancel }: RoutineRichFor
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 max-h-[80vh] overflow-y-auto p-4">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-6 max-h-[80vh] overflow-y-auto p-4">
       {/* Basic Info */}
-      <div className="space-y-4">
+      <div className="flex flex-col gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Name *</label>
           <Input
@@ -228,7 +228,7 @@ export function RoutineRichForm({ routine, onSuccess, onCancel }: RoutineRichFor
         {/* Image Upload */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Image</label>
-          <div className="space-y-2">
+          <div className="flex flex-col gap-2">
             {imagePreview && (
               <div className="relative inline-block">
                 <img src={imagePreview} alt="Preview" className="h-32 w-32 rounded-lg object-cover border border-gray-200" />
@@ -390,7 +390,7 @@ export function RoutineRichForm({ routine, onSuccess, onCancel }: RoutineRichFor
       </div>
 
       {/* Steps */}
-      <div className="space-y-4">
+      <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-900">Steps</h3>
           <Button type="button" variant="outline" size="sm" onClick={addStep} className="gap-2">
@@ -408,7 +408,7 @@ export function RoutineRichForm({ routine, onSuccess, onCancel }: RoutineRichFor
                 </Button>
               )}
             </div>
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               <Input
                 placeholder="Step title (optional)"
                 value={step.title || ''}
@@ -443,7 +443,7 @@ export function RoutineRichForm({ routine, onSuccess, onCancel }: RoutineRichFor
       </div>
 
       {/* Tips */}
-      <div className="space-y-4">
+      <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-900">Tips</h3>
           <Button type="button" variant="outline" size="sm" onClick={addTip} className="gap-2">
@@ -466,7 +466,7 @@ export function RoutineRichForm({ routine, onSuccess, onCancel }: RoutineRichFor
       </div>
 
       {/* Contraindications */}
-      <div className="space-y-4">
+      <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-900">Contraindications</h3>
           <Button type="button" variant="outline" size="sm" onClick={addContraindication} className="gap-2">

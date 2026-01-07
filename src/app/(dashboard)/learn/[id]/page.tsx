@@ -1,3 +1,4 @@
+import { unstable_cache } from 'next/cache';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getResourceById, toggleResourceLike } from '@/actions/education-actions';
@@ -5,13 +6,26 @@ import { ChevronLeft, Clock, Star, Heart, Eye } from 'lucide-react';
 import { format } from 'date-fns';
 import { LearnDetailClient } from '@/components/learn/learn-detail-client';
 
+// Cache resource fetch using Next.js 16 Data Cache (persists across requests)
+// This leverages the Next.js 16 cache engine for high-performance PWA
+const getCachedResource = unstable_cache(
+  async (id: string) => {
+    return await getResourceById(id);
+  },
+  ['educational-resource'],
+  {
+    revalidate: 3600, // Revalidate every hour
+    tags: ['educational-resources'],
+  }
+);
+
 export default async function LearnDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const result = await getResourceById(id);
+  const result = await getCachedResource(id);
 
   if (!result.success || !result.data) {
     notFound();

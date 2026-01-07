@@ -1,9 +1,28 @@
+import { unstable_cache } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
 import { auth } from '@/lib/auth';
 import { getEducationalResources } from '@/actions/education-actions';
 import { LearnClient } from '@/components/learn/learn-client';
 import { BookOpen } from 'lucide-react';
+
+// Cache educational resources using Next.js 16 Data Cache (persists across requests)
+// This leverages the Next.js 16 cache engine for high-performance PWA
+const getCachedResources = unstable_cache(
+  async (params: {
+    category?: string;
+    query?: string;
+    featured?: boolean;
+    difficulty?: string;
+  }) => {
+    return await getEducationalResources(params);
+  },
+  ['educational-resources'],
+  {
+    revalidate: 3600, // Revalidate every hour
+    tags: ['educational-resources'],
+  }
+);
 
 export default async function LearnPage({
   searchParams,
@@ -28,7 +47,7 @@ export default async function LearnPage({
   // Combine search and tag into query if needed
   const query = search || tag;
 
-  const result = await getEducationalResources({
+  const result = await getCachedResources({
     category,
     query,
     featured,
