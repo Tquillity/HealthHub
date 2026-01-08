@@ -1,5 +1,7 @@
 # Dependencies
+node_modules/
 /node_modules
+.node_modules
 /.pnp
 .pnp.js
 .pnp.loader.mjs
@@ -9,6 +11,8 @@
 
 # Next.js – core build output (covers both Webpack and Turbopack)
 /.next/
+.next
+.next/
 /out/
 /build/
 
@@ -21,6 +25,11 @@
 .next/trace
 .next/lock
 .next/turbopack.lock
+
+# Turborepo cache and logs
+.turbo/
+**/.turbo/
+*.turbo.log*
 
 # Production builds (some frameworks/Next export)
 /dist/
@@ -53,8 +62,20 @@ ts-debug.log*
 next-env.d.ts
 
 # Package manager lock files (only commit the one you actually use)
+# 
+# CURRENT STATE (2026-01-06):
+# - Project uses pnpm (see package.json scripts)
+# - package-lock.json IS TRACKED (not ignored) because pnpm-lock.yaml doesn't exist yet
+# - This ensures dependency reproducibility until pnpm migration is complete
+#
+# MIGRATION STEPS (when ready to switch to pnpm):
+# 1. Run: pnpm install (generates pnpm-lock.yaml)
+# 2. Uncomment the package-lock.json line below
+# 3. Run: git rm --cached package-lock.json (remove from tracking)
+# 4. Commit both changes together
+#
 # For pnpm projects – commit pnpm-lock.yaml, ignore the others
-# package-lock.json    # ← uncomment if you ever switch to npm
+# package-lock.json    # ← CURRENTLY COMMENTED (package-lock.json is tracked)
 # yarn.lock            # ← uncomment if you ever switch to yarn
 !pnpm-lock.yaml        # ← explicitly allow pnpm-lock.yaml to be committed
 
@@ -72,3 +93,6 @@ prisma/*.db
 *.db
 *.sqlite
 *.sqlite3
+
+# MCP
+mcp.json

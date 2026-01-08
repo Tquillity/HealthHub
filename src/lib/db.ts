@@ -1,19 +1,54 @@
-import 'dotenv/config';
-import { Pool, neonConfig } from '@neondatabase/serverless';
-import { PrismaNeon } from '@prisma/adapter-neon';
+// src/lib/db.ts
 import { PrismaClient } from '@prisma/client';
-import ws from 'ws';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { Pool } from 'pg';
 
-// Configure WebSocket for Node.js (required for Neon serverless)
-neonConfig.webSocketConstructor = ws;
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClient | undefined;
+};
 
-const connectionString = process.env.DATABASE_URL!;
+const createPrismaClient = () => {
+  const connectionString = process.env.DATABASE_URL;
 
-if (!connectionString) {
-  throw new Error('DATABASE_URL environment variable is not set');
-}
+  if (!connectionString) {
+    throw new Error('❌ DATABASE_URL is not defined in .env');
+  }
 
-const pool = new Pool({ connectionString });
-const adapter = new PrismaNeon(pool);
+  // Use standard 'pg' Pool - more stable for local Next.js dev
+  const pool = new Pool({ 
+    connectionString,
+    max: 10, // Limit connections to prevent Neon exhaustion
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 20000, // Increased timeout for Neon connections (20s)
+    statement_timeout: 30000, // 30 second statement timeout
+    // Add retry and error handling
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10000,
+  });
 
-export const prisma = new PrismaClient({ adapter });
+  // Handle pool errors gracefully
+  pool.on('error', (err) => {
+    console.error('❌ [Prisma Pool] Unexpected error on idle client:', err);
+  });
+
+  const adapter = new PrismaPg(pool);
+
+  console.log('🔌 [Prisma] Initializing client with standard PG adapter');
+
+  const client = new PrismaClient({
+    adapter,
+    log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
+  });
+
+  // Add connection health check
+  client.$connect().catch((err) => {
+    console.error('❌ [Prisma] Failed to connect to database:', err.message);
+    // Don't throw here - let individual queries handle errors
+  });
+
+  return client;
+};
+
+export const prisma = globalForPrisma.prisma ?? createPrismaClient();
+
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;

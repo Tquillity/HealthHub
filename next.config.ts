@@ -1,7 +1,33 @@
 import type { NextConfig } from 'next';
+import withPWAInit from '@ducanh2912/next-pwa';
+
+const withPWA = withPWAInit({
+  dest: 'public',
+  cacheOnFrontEndNav: true,
+  aggressiveFrontEndNavCaching: true,
+  reloadOnOnline: true,
+  swcMinify: true,
+  // Completely disable PWA in development to avoid workbox logs
+  disable: process.env.NODE_ENV === 'development',
+  workboxOptions: {
+    // Suppress all workbox logging
+    disableDevLogs: true,
+    selfPreserve: true,
+    // Additional log suppression
+    skipWaiting: true,
+    clientsClaim: true,
+    // Runtime caching with quiet logging
+    runtimeCaching: [],
+  },
+  // Suppress build-time logs
+  buildExcludes: [/app-build-manifest\.json$/],
+});
 
 const nextConfig: NextConfig = {
   /* config options here */
+  // Add empty turbopack config to silence the warning
+  // PWA plugin uses webpack, but we can use both
+  turbopack: {},
 };
 
-export default nextConfig;
+export default withPWA(nextConfig);

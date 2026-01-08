@@ -1,8 +1,8 @@
-# HealthAssist (HA)
+# HealthHub (HH)
 
 A comprehensive household wellness application built with the **Next.js 16 + Postgres** stack.
 
-## Tech Stack (2025 Standard)
+## Tech Stack (2026 Standard)
 
 *   **Framework**: Next.js 16 (App Router)
 *   **Database**: PostgreSQL (Neon)
@@ -39,6 +39,16 @@ A comprehensive household wellness application built with the **Next.js 16 + Pos
     ```bash
     pnpm dev
     ```
+
+## Database Verification
+
+**Automated Verification:** The Postgres MCP is configured for automated schema verification. All database schema changes should be verified using the `@postgres` MCP tools before deployment.
+
+**Manual Sync (if needed):**
+```bash
+npx prisma db push
+npx prisma generate
+```
 
 ## Development Workflow
 

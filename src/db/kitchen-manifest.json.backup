@@ -1,0 +1,2367 @@
+{
+  "recipes": [
+    {
+      "name": "Havrefrallor med russin (Batch)",
+      "description": "Fantastiskt mjuka, fluffiga och saftiga glutenfria frallor. Detta är ett storbak (36 st) perfekt för att fylla frysen med näringsrikt bröd. Innehåller psylliumhusk för optimal textur utan gluten. Måste svalna helt innan de skärs.",
+      "prepTime": 25,
+      "cookTime": 25,
+      "servings": 36,
+      "category": "Breakfast",
+      "difficulty": "medium",
+      "tags": [
+        "Batch-cooking",
+        "Infrastruktur",
+        "Frukost",
+        "Bakning",
+        "Russin"
+      ],
+      "dietaryTags": [
+        "Glutenfri",
+        "Vegansk",
+        "Mejerifri",
+        "Växtbaserat",
+        "Nötfritt"
+      ],
+      "ingredients": [
+        {
+          "name": "Jäst (eller torrjäst)",
+          "quantity": 75.0,
+          "unit": "g",
+          "notes": "Eller 2 tsk torrjäst"
+        },
+        {
+          "name": "Vatten",
+          "quantity": 2400.0,
+          "unit": "g",
+          "notes": "30-37°C"
+        },
+        {
+          "name": "Olja",
+          "quantity": 6.0,
+          "unit": "msk",
+          "notes": null
+        },
+        {
+          "name": "Havremjöl",
+          "quantity": 1050.0,
+          "unit": "g",
+          "notes": null
+        },
+        {
+          "name": "Fullkornsrismjöl",
+          "quantity": 600.0,
+          "unit": "g",
+          "notes": "Alt. bovete/durra"
+        },
+        {
+          "name": "Psylliumhusk",
+          "quantity": 120.0,
+          "unit": "g",
+          "notes": null
+        },
+        {
+          "name": "Salt",
+          "quantity": 6.0,
+          "unit": "tsk",
+          "notes": null
+        },
+        {
+          "name": "Russin",
+          "quantity": 375.0,
+          "unit": "g",
+          "notes": "Valfritt"
+        }
+      ],
+      "instructions": [
+        {
+          "stepNumber": 1,
+          "text": "Lös upp jästen i fingervarmt vatten (30-37°C) i en bunke. Vattnet kan vara 30-37°C beroende på hur snabbt du vill att degen ska jäsa. Tillsätt oljan."
+        },
+        {
+          "stepNumber": 2,
+          "text": "Mät upp och blanda alla torra ingredienser. Tillsätt torra ingredienser till degvätskan och rör hastigt ihop till en slät smet med slev eller ballongvisp. Det blir en ganska klibbig smet som sakta sväller och stelnar vart efter psylliumfröskalet suger upp vätska. Blanda i russinen mot slutet. (Degen behöver inte knådas eller vispas)."
+        },
+        {
+          "stepNumber": 3,
+          "text": "Vänta ca 10 minuter för att tillåta degen att svälla maximalt så att psylliumhusken hinner suga upp vätskan."
+        },
+        {
+          "stepNumber": 4,
+          "text": "Forma små bröd med väl fuktade händer eller klicka ut smeten på bakplåtspapper på en plåt med sked. Pudra havremjöl, havregryn eller annat mjöl över."
+        },
+        {
+          "stepNumber": 5,
+          "text": "Låt frallorna jäsa på plåten under bakduk i 75-160 minuter beroende på hur varm degvätska du använt. Frallorna ska jäsa upp ordentligt - ca 30-40% (de jäser inte upp till dubbel storlek som vetedeg)."
+        },
+        {
+          "stepNumber": 6,
+          "text": "Värm ugnen till 225°C och grädda i 20-25 minuter beroende på hur bruna du vill ha dem."
+        },
+        {
+          "stepNumber": 7,
+          "text": "Ta ut ur ugnen och låt svalna på galler. OBS! Det är viktigt att man låter brödet kallna helt innan du äter dem, det går alltså inte bra att äta dem helt nybakade. Skär man i brödet innan det är kallnat klibbar det ihop."
+        }
+      ]
+    },
+    {
+      "name": "Fröknäcke (Grundrecept)",
+      "description": "Glutenfritt, krispigt fröknäcke. Detta är bassatsen för en plåt. Håller mycket länge i skafferiet och är perfekt infrastruktur-mat.",
+      "prepTime": 10,
+      "cookTime": 60,
+      "servings": 10,
+      "category": "Snack",
+      "tags": [
+        "gluten-free",
+        "pantry-staple",
+        "infrastructure"
+      ],
+      "ingredients": [
+        {
+          "name": "Solrosfrön",
+          "quantity": 1.5,
+          "unit": "dl",
+          "notes": null
+        },
+        {
+          "name": "Pumpafrön",
+          "quantity": 1.5,
+          "unit": "dl",
+          "notes": null
+        },
+        {
+          "name": "Sesamfrön",
+          "quantity": 1.0,
+          "unit": "dl",
+          "notes": null
+        },
+        {
+          "name": "Linfrön",
+          "quantity": 1.0,
+          "unit": "dl",
+          "notes": null
+        },
+        {
+          "name": "Maizena",
+          "quantity": 1.0,
+          "unit": "dl",
+          "notes": null
+        },
+        {
+          "name": "Majsmjöl",
+          "quantity": 1.0,
+          "unit": "dl",
+          "notes": null
+        },
+        {
+          "name": "Salt",
+          "quantity": 0.5,
+          "unit": "tsk",
+          "notes": null
+        },
+        {
+          "name": "Rapsolja",
+          "quantity": 1.0,
+          "unit": "dl",
+          "notes": null
+        },
+        {
+          "name": "Kokande vatten",
+          "quantity": 2.0,
+          "unit": "dl",
+          "notes": null
+        },
+        {
+          "name": "Flingsalt",
+          "quantity": 1.0,
+          "unit": "nypa",
+          "notes": "Att strö ovanpå"
+        }
+      ],
+      "instructions": [
+        {
+          "stepNumber": 1,
+          "text": "Sätt ugnen på 160°C Varmluft."
+        },
+        {
+          "stepNumber": 2,
+          "text": "Blanda alla torra ingredienser (frön, maizena, majsmjöl, salt) i en bunke."
+        },
+        {
+          "stepNumber": 3,
+          "text": "Tillsätt rapsolja och det kokande vattnet. Rör om till en jämn smet."
+        },
+        {
+          "stepNumber": 4,
+          "text": "Häll ut smeten på en plåt klädd med bakplåtspapper."
+        },
+        {
+          "stepNumber": 5,
+          "text": "Tryck ut smeten tunt och jämnt över hela plåten (tips: lägg ett extra bakplåtspapper ovanpå och kavla/tryck ut för jämnhet)."
+        },
+        {
+          "stepNumber": 6,
+          "text": "Strö över flingsalt."
+        },
+        {
+          "stepNumber": 7,
+          "text": "Grädda i ca 1 timme. Låt svalna helt innan du bryter i bitar."
+        }
+      ]
+    },
+    {
+      "name": "Nuoc Cham (Vietnamesisk Dipsås)",
+      "description": "Klassisk vietnamesisk dipsås med syra, sötma och hetta. Perfekt till vårrullar, sallader eller grillat. En viktig ",
+      "prepTime": 10,
+      "cookTime": 0,
+      "servings": 8,
+      "category": "Sauce",
+      "tags": [
+        "gluten-free",
+        "dairy-free",
+        "condiment",
+        "no-cook"
+      ],
+      "ingredients": [
+        {
+          "name": "Röd chilifrukt",
+          "quantity": 1.0,
+          "unit": "st",
+          "notes": null
+        },
+        {
+          "name": "Vitlöksklyfta",
+          "quantity": 1.0,
+          "unit": "st",
+          "notes": null
+        },
+        {
+          "name": "Strösocker",
+          "quantity": 5.0,
+          "unit": "msk",
+          "notes": null
+        },
+        {
+          "name": "Vatten (kokande)",
+          "quantity": 0.5,
+          "unit": "dl",
+          "notes": null
+        },
+        {
+          "name": "Fisksås",
+          "quantity": 0.5,
+          "unit": "dl",
+          "notes": null
+        },
+        {
+          "name": "Limesaft",
+          "quantity": 1.0,
+          "unit": "dl",
+          "notes": "Ca 3 lime (färsk)"
+        }
+      ],
+      "instructions": [
+        {
+          "stepNumber": 1,
+          "text": "Kärna ur och strimla chilin fint."
+        },
+        {
+          "stepNumber": 2,
+          "text": "Pressa vitlöken."
+        },
+        {
+          "stepNumber": 3,
+          "text": "Blanda socker och chili/vitlök i en skål."
+        },
+        {
+          "stepNumber": 4,
+          "text": "Häll över det kokande vattnet och rör tills sockret löst sig helt."
+        },
+        {
+          "stepNumber": 5,
+          "text": "Tillsätt fisksås och limesaft."
+        },
+        {
+          "stepNumber": 6,
+          "text": "Låt stå i kylen minst 30 minuter innan servering för att smakerna ska gifta sig."
+        }
+      ]
+    },
+    {
+      "name": "Jordnötssås med Kokosmjölk",
+      "description": "Krämig jordnötssås med röd curry och kokosmjölk. Serveras varm eller kall.",
+      "prepTime": 15,
+      "cookTime": 5,
+      "servings": 4,
+      "category": "Sauce",
+      "tags": [
+        "vegetarian",
+        "condiment",
+        "peanut"
+      ],
+      "ingredients": [
+        {
+          "name": "Jordnötssmör (osötad, med bitar)",
+          "quantity": 0.5,
+          "unit": "dl",
+          "notes": null
+        },
+        {
+          "name": "Kokosmjölk",
+          "quantity": 100.0,
+          "unit": "ml",
+          "notes": null
+        },
+        {
+          "name": "Lök",
+          "quantity": 0.5,
+          "unit": "st",
+          "notes": null
+        },
+        {
+          "name": "Vitlöksklyfta",
+          "quantity": 1.0,
+          "unit": "st",
+          "notes": null
+        },
+        {
+          "name": "Ingefära (finhackad)",
+          "quantity": 1.0,
+          "unit": "tsk",
+          "notes": null
+        },
+        {
+          "name": "Röd chili",
+          "quantity": 1.0,
+          "unit": "st",
+          "notes": "Valfritt för hetta"
+        },
+        {
+          "name": "Röd curry eller Sambal Oelek",
+          "quantity": 1.0,
+          "unit": "tsk",
+          "notes": null
+        },
+        {
+          "name": "Palmsocker (eller råsocker/honung)",
+          "quantity": 2.0,
+          "unit": "tsk",
+          "notes": null
+        },
+        {
+          "name": "Soja",
+          "quantity": 2.0,
+          "unit": "tsk",
+          "notes": null
+        },
+        {
+          "name": "Salt",
+          "quantity": 1.0,
+          "unit": "krm",
+          "notes": "Efter smak"
+        },
+        {
+          "name": "Olja",
+          "quantity": 1.0,
+          "unit": "msk",
+          "notes": "Till stekning"
+        }
+      ],
+      "instructions": [
+        {
+          "stepNumber": 1,
+          "text": "Hacka lök, vitlök, ingefära och chili."
+        },
+        {
+          "stepNumber": 2,
+          "text": "Stek hacket i olja på medelvärme tills löken mjuknar."
+        },
+        {
+          "stepNumber": 3,
+          "text": "Tillsätt röd curry/sambal oelek och fräs några sekunder för att väcka smakerna."
+        },
+        {
+          "stepNumber": 4,
+          "text": "Sänk värmen och vänd i jordnötssmöret."
+        },
+        {
+          "stepNumber": 5,
+          "text": "Mixa samman allting med en stavmixer (eller i mixer)."
+        },
+        {
+          "stepNumber": 6,
+          "text": "Häll tillbaka i kastrullen och tillsätt kokosmjölk, socker och soja. Salta efter smak."
+        },
+        {
+          "stepNumber": 7,
+          "text": "Koka upp såsen och låt puttra i ca 3-5 minuter. Rör om ofta så det inte bränns."
+        },
+        {
+          "stepNumber": 8,
+          "text": "Om såsen känns för tjock, späd med mer kokosmjölk eller lite vatten."
+        },
+        {
+          "stepNumber": 9,
+          "text": "Servera kall eller varm."
+        }
+      ]
+    },
+    {
+      "name": "Sötpotatisrösti med Lingon",
+      "description": "Paleo/AIP-vänlig vardagsrätt. Riven sötpotatis stekt till raggmunkar, serverad med rårörda lingon. Enkel och näringsrik.",
+      "prepTime": 15,
+      "cookTime": 10,
+      "servings": 1,
+      "category": "Lunch",
+      "tags": [
+        "paleo",
+        "aip",
+        "vegetarian",
+        "gluten-free",
+        "dairy-free"
+      ],
+      "ingredients": [
+        {
+          "name": "Sötpotatis",
+          "quantity": 1.0,
+          "unit": "st",
+          "notes": null
+        },
+        {
+          "name": "Vitlöksklyfta",
+          "quantity": 1.0,
+          "unit": "st",
+          "notes": null
+        },
+        {
+          "name": "Havssalt",
+          "quantity": 1.0,
+          "unit": "nypa",
+          "notes": "Lite"
+        },
+        {
+          "name": "Färska kryddor (timjan eller persilja)",
+          "quantity": 1.0,
+          "unit": "knippe",
+          "notes": "Lite"
+        },
+        {
+          "name": "Lingon",
+          "quantity": 1.0,
+          "unit": "dl",
+          "notes": null
+        },
+        {
+          "name": "Honung",
+          "quantity": 1.0,
+          "unit": "tsk",
+          "notes": null
+        },
+        {
+          "name": "Kokosolja",
+          "quantity": 1.0,
+          "unit": "msk",
+          "notes": "Till stekning"
+        }
+      ],
+      "instructions": [
+        {
+          "stepNumber": 1,
+          "text": "Skala och riv sötpotatisen grovt. Krama ur vätskan ordentligt."
+        },
+        {
+          "stepNumber": 2,
+          "text": "Pressa i vitlök och blanda med salt och färska kryddor."
+        },
+        {
+          "stepNumber": 3,
+          "text": "Hetta upp kokosolja i en panna. Klicka ut smeten och platta till."
+        },
+        {
+          "stepNumber": 4,
+          "text": "Stek ca två minuter per sida tills de fått fin färg."
+        },
+        {
+          "stepNumber": 5,
+          "text": "Rårörda lingon: Tina frysta lingon (om de inte är färska) och blanda med honung."
+        },
+        {
+          "stepNumber": 6,
+          "text": "Servera röstin med lingonen."
+        }
+      ]
+    },
+    {
+      "name": "Pinklax-sås med Stekt Potatis",
+      "description": "Krämig laxsås smaksatt med kryddblandningen ",
+      "prepTime": 20,
+      "cookTime": 30,
+      "servings": 4,
+      "category": "Dinner",
+      "tags": [
+        "fish",
+        "creamy",
+        "comfort-food"
+      ],
+      "ingredients": [
+        {
+          "name": "Potatis (medelstora)",
+          "quantity": 18.0,
+          "unit": "st",
+          "notes": "15-20 st, kokta/kalla"
+        },
+        {
+          "name": "Pinklax (bitar)",
+          "quantity": 5.0,
+          "unit": "st",
+          "notes": "4-5 bitar"
+        },
+        {
+          "name": "Rödlök (liten)",
+          "quantity": 1.0,
+          "unit": "st",
+          "notes": null
+        },
+        {
+          "name": "Grädde (eller kokosgrädde)",
+          "quantity": 2.0,
+          "unit": "dl",
+          "notes": "1-2 dl"
+        },
+        {
+          "name": "Viltfond (alt. grönsaksfond)",
+          "quantity": 2.0,
+          "unit": "msk",
+          "notes": "Om grönsaksfond, tillsätt lite soja"
+        },
+        {
+          "name": "Salt",
+          "quantity": 2.5,
+          "unit": "tsk",
+          "notes": "2-3 tsk"
+        },
+        {
+          "name": "Krydda ",
+          "quantity": 1.5,
+          "unit": "tsk",
+          "notes": "1-2 tsk"
+        },
+        {
+          "name": "Citron",
+          "quantity": 1.5,
+          "unit": "msk",
+          "notes": "1-2 msk"
+        },
+        {
+          "name": "Smör/Olja",
+          "quantity": 2.0,
+          "unit": "msk",
+          "notes": "Till stekning"
+        },
+        {
+          "name": "Grönsaker (Ärtor/Majs/Paprika)",
+          "quantity": 3.0,
+          "unit": "dl",
+          "notes": "Ångkokta/kokta"
+        }
+      ],
+      "instructions": [
+        {
+          "stepNumber": 1,
+          "text": "Förberedelse: Använd kokt, kall potatis. Dela och stek dem i smör/olja ("
+        },
+        {
+          "stepNumber": 2,
+          "text": ")."
+        },
+        {
+          "stepNumber": 3,
+          "text": "Krydda fisken med ca 1 tsk salt och "
+        },
+        {
+          "stepNumber": 4,
+          "text": "."
+        },
+        {
+          "stepNumber": 5,
+          "text": "Stek fisken i smör så den får yta, dela den i små bitar ("
+        },
+        {
+          "stepNumber": 6,
+          "text": "-storlek). Ta ur pannan."
+        },
+        {
+          "stepNumber": 7,
+          "text": "Hacka rödlöken fint. Fräs den i pannan."
+        },
+        {
+          "stepNumber": 8,
+          "text": "Häll i grädden och citron. Låt stå och puttra."
+        },
+        {
+          "stepNumber": 9,
+          "text": "Tillsätt fond och vispa ur smakerna ur stekpannan om det behövs."
+        },
+        {
+          "stepNumber": 10,
+          "text": "Lägg tillbaka fisken i såsen så den blir genomvarm."
+        },
+        {
+          "stepNumber": 11,
+          "text": "Smaka av med salt och mer citron."
+        },
+        {
+          "stepNumber": 12,
+          "text": "Servera med den stekta potatisen och kokta grönsaker."
+        }
+      ]
+    },
+    {
+      "name": "Krämig Fisksoppa med Saffran (Mejerifri)",
+      "description": "Mustig fisksoppa med lax, torsk och räkor. Basen görs på rotfrukter, vitt vin och saffran. Rundas av med kokosgrädde för en fyllig, mejerifri soppa.",
+      "prepTime": 30,
+      "cookTime": 30,
+      "servings": 8,
+      "category": "Dinner",
+      "tags": [
+        "soup",
+        "seafood",
+        "batch-friendly",
+        "dairy-free",
+        "luxury-weekend"
+      ],
+      "ingredients": [
+        {
+          "name": "Gul lök",
+          "quantity": 2.0,
+          "unit": "st",
+          "notes": null
+        },
+        {
+          "name": "Vitlök",
+          "quantity": 6.0,
+          "unit": "st",
+          "notes": null
+        },
+        {
+          "name": "Purjolök",
+          "quantity": 1.0,
+          "unit": "st",
+          "notes": null
+        },
+        {
+          "name": "Potatis",
+          "quantity": 800.0,
+          "unit": "g",
+          "notes": null
+        },
+        {
+          "name": "Morötter",
+          "quantity": 600.0,
+          "unit": "g",
+          "notes": null
+        },
+        {
+          "name": "Fänkål färsk",
+          "quantity": 1.0,
+          "unit": "st",
+          "notes": null
+        },
+        {
+          "name": "Olivolja",
+          "quantity": 2.0,
+          "unit": "msk",
+          "notes": null
+        },
+        {
+          "name": "Mat & Bak Smör (eller Ghee)",
+          "quantity": 2.0,
+          "unit": "msk",
+          "notes": null
+        },
+        {
+          "name": "Saffran",
+          "quantity": 2.0,
+          "unit": "g",
+          "notes": null
+        },
+        {
+          "name": "Chiliflakes",
+          "quantity": 2.0,
+          "unit": "tsk",
+          "notes": null
+        },
+        {
+          "name": "Tomatpuré",
+          "quantity": 4.0,
+          "unit": "msk",
+          "notes": null
+        },
+        {
+          "name": "Vitt vin",
+          "quantity": 6.0,
+          "unit": "dl",
+          "notes": null
+        },
+        {
+          "name": "Vatten",
+          "quantity": 1.0,
+          "unit": "l",
+          "notes": null
+        },
+        {
+          "name": "Kokosgrädde",
+          "quantity": 6.0,
+          "unit": "dl",
+          "notes": "Ersätter vispgrädde"
+        },
+        {
+          "name": "Fiskfond (eller buljongtärning)",
+          "quantity": 4.0,
+          "unit": "msk",
+          "notes": null
+        },
+        {
+          "name": "Laxfilé (färsk)",
+          "quantity": 600.0,
+          "unit": "g",
+          "notes": null
+        },
+        {
+          "name": "Torskfilé",
+          "quantity": 600.0,
+          "unit": "g",
+          "notes": null
+        },
+        {
+          "name": "Handskalade räkor",
+          "quantity": 480.0,
+          "unit": "g",
+          "notes": null
+        },
+        {
+          "name": "Timjan (färsk)",
+          "quantity": 1.0,
+          "unit": "msk",
+          "notes": null
+        },
+        {
+          "name": "Citron",
+          "quantity": 1.0,
+          "unit": "st",
+          "notes": null
+        },
+        {
+          "name": "Salt",
+          "quantity": 1.0,
+          "unit": "krm",
+          "notes": "Smaka av"
+        },
+        {
+          "name": "Svartpeppar",
+          "quantity": 1.0,
+          "unit": "krm",
+          "notes": null
+        }
+      ],
+      "instructions": [
+        {
+          "stepNumber": 1,
+          "text": "Skala och finhacka lök och vitlök. Skölj och grovhacka purjolök. Skala och tärna potatis, morötter och skölj/grovhacka fänkål."
+        },
+        {
+          "stepNumber": 2,
+          "text": "Hetta upp olja och smör/ghee i en stor kastrull. Fräs lök, vitlök, purjolök, fänkål, potatis och morötter tills det mjuknar något. Tillsätt saffran och chiliflakes."
+        },
+        {
+          "stepNumber": 3,
+          "text": "Tillsätt tomatpuré och fräs i 30 sekunder under omrörning."
+        },
+        {
+          "stepNumber": 4,
+          "text": "Tillsätt vitt vin och låt puttra i ca 4-5 min."
+        },
+        {
+          "stepNumber": 5,
+          "text": "Tillsätt vatten, kokosgrädde och fond. Låt soppan sjuda under lock i ca 20 min (tills rotfrukterna är mjuka)."
+        },
+        {
+          "stepNumber": 6,
+          "text": "Tärna laxen och torsken. Lägg i soppan och låt sjuda i ca 5 min."
+        },
+        {
+          "stepNumber": 7,
+          "text": "Lägg ner räkor, timjan och smaka av med citronsaft, salt och peppar."
+        },
+        {
+          "stepNumber": 8,
+          "text": "Servera med ett gott bröd och ev. aioli."
+        }
+      ]
+    },
+    {
+      "name": "Bananpannkaka (Enkel)",
+      "description": "Snabba och nyttiga pannkakor gjorda på banan, ägg och mandelmjöl. Perfekt frukost eller mellanmål.",
+      "prepTime": 5,
+      "cookTime": 10,
+      "servings": 1,
+      "category": "Breakfast",
+      "tags": [
+        "gluten-free",
+        "dairy-free",
+        "paleo-friendly",
+        "quick"
+      ],
+      "ingredients": [
+        {
+          "name": "Banan",
+          "quantity": 0.5,
+          "unit": "st",
+          "notes": "Mogen"
+        },
+        {
+          "name": "Ägg",
+          "quantity": 2.0,
+          "unit": "st",
+          "notes": null
+        },
+        {
+          "name": "Mandelmjöl",
+          "quantity": 0.5,
+          "unit": "dl",
+          "notes": null
+        },
+        {
+          "name": "Vaniljpulver",
+          "quantity": 1.0,
+          "unit": "nypa",
+          "notes": null
+        },
+        {
+          "name": "Bakpulver",
+          "quantity": 1.0,
+          "unit": "krm",
+          "notes": "Valfritt"
+        },
+        {
+          "name": "Smör",
+          "quantity": 1.0,
+          "unit": "msk",
+          "notes": "Till stekning"
+        },
+        {
+          "name": "Bär & Honung",
+          "quantity": 1.0,
+          "unit": "portion",
+          "notes": "Till servering"
+        }
+      ],
+      "instructions": [
+        {
+          "stepNumber": 1,
+          "text": "Mosa bananen eller mixa den."
+        },
+        {
+          "stepNumber": 2,
+          "text": "Vispa ihop banan, ägg, mandelmjöl, vaniljpulver och eventuellt bakpulver."
+        },
+        {
+          "stepNumber": 3,
+          "text": "Hetta upp smör i en stekpanna."
+        },
+        {
+          "stepNumber": 4,
+          "text": "Stek på medelvärme. (Receptet ger ca två stora pannkakor eller flera små)."
+        },
+        {
+          "stepNumber": 5,
+          "text": "Servera med bär och lite smält honung."
+        }
+      ]
+    },
+    {
+      "name": "Chocolate Chip Cookies (Raw/No-Bake)",
+      "description": "Hälsosamma kakor baserade på cashewnötter och hemmagjorda chokladchips. Behöver ingen ugn, men chokladen ska stelna.",
+      "prepTime": 20,
+      "cookTime": 0,
+      "servings": 12,
+      "category": "Snack",
+      "tags": [
+        "raw",
+        "vegan",
+        "gluten-free",
+        "no-bake",
+        "treat"
+      ],
+      "ingredients": [
+        {
+          "name": "Cashewnötter",
+          "quantity": 3.0,
+          "unit": "dl",
+          "notes": "Eller hälften mandel/solrosfrön"
+        },
+        {
+          "name": "Agavenektar (eller honung)",
+          "quantity": 2.0,
+          "unit": "msk",
+          "notes": null
+        },
+        {
+          "name": "Vaniljpulver",
+          "quantity": 1.0,
+          "unit": "tsk",
+          "notes": null
+        },
+        {
+          "name": "Kokosfett (smält/mjukt)",
+          "quantity": 2.0,
+          "unit": "msk",
+          "notes": null
+        },
+        {
+          "name": "Havssalt",
+          "quantity": 1.0,
+          "unit": "nypa",
+          "notes": null
+        },
+        {
+          "name": "Rå kakao (till chips)",
+          "quantity": 0.5,
+          "unit": "dl",
+          "notes": null
+        },
+        {
+          "name": "Kokosolja (till chips)",
+          "quantity": 1.0,
+          "unit": "msk",
+          "notes": "Eller kakaosmör"
+        }
+      ],
+      "instructions": [
+        {
+          "stepNumber": 1,
+          "text": "Chokladchips: Blanda kakao och kokosolja/kakaosmör (ev sötning). Bred ut tunt på bakplåtspapper och frys tills det stelnat. Hacka i bitar."
+        },
+        {
+          "stepNumber": 2,
+          "text": "Mixa cashewnötterna till mjöl i en mixer."
+        },
+        {
+          "stepNumber": 3,
+          "text": "Blanda i en bunke: nötmjöl, sötning, vanilj, kokosfett och salt. Arbeta ihop till en deg."
+        },
+        {
+          "stepNumber": 4,
+          "text": "När chokladkrosset är kallt/stelnat, blanda ner det i degen."
+        },
+        {
+          "stepNumber": 5,
+          "text": "Rulla bollar och platta ut till kakor på en tallrik eller plåt."
+        },
+        {
+          "stepNumber": 6,
+          "text": "Ställ kallt en stund innan servering. (Kan ätas direkt men godare kalla)."
+        }
+      ]
+    },
+    {
+      "name": "Osannolikt God Raw Vegan Cheesecake",
+      "description": "En lyxig raw-fika från ",
+      "prepTime": 25,
+      "cookTime": 0,
+      "servings": 6,
+      "category": "Dessert",
+      "tags": [
+        "raw",
+        "vegan",
+        "gluten-free",
+        "luxury",
+        "party"
+      ],
+      "ingredients": [
+        {
+          "name": "Sötmandel",
+          "quantity": 100.0,
+          "unit": "g",
+          "notes": null
+        },
+        {
+          "name": "Dadlar",
+          "quantity": 75.0,
+          "unit": "g",
+          "notes": "Urkärnade"
+        },
+        {
+          "name": "Cashewnötter",
+          "quantity": 200.0,
+          "unit": "g",
+          "notes": null
+        },
+        {
+          "name": "Vatten",
+          "quantity": 3.0,
+          "unit": "msk",
+          "notes": null
+        },
+        {
+          "name": "Citronsaft (pressad)",
+          "quantity": 3.0,
+          "unit": "msk",
+          "notes": null
+        },
+        {
+          "name": "Honung (eller vaniljpulver)",
+          "quantity": 2.0,
+          "unit": "msk",
+          "notes": "Raw honung för strikt raw"
+        },
+        {
+          "name": "Vaniljpulver",
+          "quantity": 0.5,
+          "unit": "tsk",
+          "notes": null
+        },
+        {
+          "name": "Bär (valfria)",
+          "quantity": 1.5,
+          "unit": "dl",
+          "notes": "Att toppa med"
+        }
+      ],
+      "instructions": [
+        {
+          "stepNumber": 1,
+          "text": "Botten: Kör sötmandlar och dadlar i en mixer med S-blad till en deg."
+        },
+        {
+          "stepNumber": 2,
+          "text": "Klä en liten springform (16-17 cm) med gladpack. Tryck ut degen jämnt i formen."
+        },
+        {
+          "stepNumber": 3,
+          "text": "Fyllning ("
+        },
+        {
+          "stepNumber": 4,
+          "text": "): Kör cashewnötter till så fint mjöl som möjligt i blender/mixer."
+        },
+        {
+          "stepNumber": 5,
+          "text": "Tillsätt vatten, pressad citron, honung och vaniljpulver i mixern. Kör tills det blir en slät kräm/fyllning."
+        },
+        {
+          "stepNumber": 6,
+          "text": "Bred ut fyllningen över botten."
+        },
+        {
+          "stepNumber": 7,
+          "text": "Låt gärna kakan stå i kylen en timme eller två så blir den lättare att skära upp."
+        },
+        {
+          "stepNumber": 8,
+          "text": "Topping: Lägg på valfria bär när det är dags att servera."
+        }
+      ]
+    },
+    {
+      "name": "Citron- och Marängpaj",
+      "description": "Klassisk sötsyrlig paj med frasig botten, len citronkräm och fluffig maräng. En lyxig dessert som kräver lite tid men är värd besväret.",
+      "prepTime": 45,
+      "cookTime": 25,
+      "servings": 8,
+      "category": "Dessert",
+      "tags": [
+        "baking",
+        "citrus",
+        "party",
+        "classic"
+      ],
+      "ingredients": [
+        {
+          "name": "Vetemjöl",
+          "quantity": 3.0,
+          "unit": "dl",
+          "notes": "Till pajdeg"
+        },
+        {
+          "name": "Smör",
+          "quantity": 150.0,
+          "unit": "g",
+          "notes": "Till pajdeg"
+        },
+        {
+          "name": "Ägg",
+          "quantity": 1.0,
+          "unit": "st",
+          "notes": "Till pajdeg"
+        },
+        {
+          "name": "Vatten",
+          "quantity": 3.0,
+          "unit": "dl",
+          "notes": null
+        },
+        {
+          "name": "Strösocker",
+          "quantity": 1.5,
+          "unit": "dl",
+          "notes": "Till krämen"
+        },
+        {
+          "name": "Majsstärkelse (Maizena)",
+          "quantity": 4.0,
+          "unit": "msk",
+          "notes": null
+        },
+        {
+          "name": "Citroner",
+          "quantity": 2.0,
+          "unit": "st",
+          "notes": "Saft och skal"
+        },
+        {
+          "name": "Äggulor",
+          "quantity": 3.0,
+          "unit": "st",
+          "notes": null
+        },
+        {
+          "name": "Smör",
+          "quantity": 2.0,
+          "unit": "msk",
+          "notes": "Till krämen"
+        },
+        {
+          "name": "Äggvitor",
+          "quantity": 3.0,
+          "unit": "st",
+          "notes": null
+        },
+        {
+          "name": "Strösocker",
+          "quantity": 0.5,
+          "unit": "dl",
+          "notes": "Till marängen"
+        }
+      ],
+      "instructions": [
+        {
+          "stepNumber": 1,
+          "text": "PAJDEG: Hacka samman mjöl och smör till en grynig massa. Tillsätt ägget och arbeta snabbt ihop till en deg."
+        },
+        {
+          "stepNumber": 2,
+          "text": "Tryck ut degen i en rund form (ca 25 cm). Låt vila i kylen i 15 minuter."
+        },
+        {
+          "stepNumber": 3,
+          "text": "Nagga botten och förgrädda i mitten av ugnen i 225°C i ca 15 minuter. Låt svalna."
+        },
+        {
+          "stepNumber": 4,
+          "text": "CITRONKRÄM: Blanda vatten, socker, majsstärkelse och pressad citronsaft i en kastrull. Koka upp under omrörning."
+        },
+        {
+          "stepNumber": 5,
+          "text": "Dra av från plattan. Rör ner äggulorna. Sjud upp krämen igen under omrörning tills den tjocknar (får ej koka!)."
+        },
+        {
+          "stepNumber": 6,
+          "text": "Blanda i rivet citronskal och smör (2 msk). Låt krämen svalna något och häll den sedan i pajskalet."
+        },
+        {
+          "stepNumber": 7,
+          "text": "MARÄNG: Vispa äggvitorna till hårt skum. Tillsätt sockret och vispa tills smeten är styv."
+        },
+        {
+          "stepNumber": 8,
+          "text": "Bred marängen över citronkrämen (se till att den täcker ända ut till kanterna)."
+        },
+        {
+          "stepNumber": 9,
+          "text": "Grädda mitt i ugnen i 175°C i ca 10 minuter tills marängen fått fin färg."
+        }
+      ]
+    },
+    {
+      "name": "Mejerifri zucchinilasagne",
+      "description": "En krämig och rund zucchinilasagne med kokosmjölk. Perfekt för Paleo, LCHF och glutenfria dieter. Min man tycker att det blir en så god och rund smak med kokos i, och det håller jag verkligen med om!",
+      "prepTime": 20,
+      "cookTime": 45,
+      "servings": 4,
+      "category": "Dinner",
+      "difficulty": "medium",
+      "tags": [
+        "LCHF",
+        "Paleo",
+        "Lasagne",
+        "Zucchini",
+        "gluten-free",
+        "dairy-free"
+      ],
+      "dietaryTags": [
+        "Glutenfri",
+        "Mejerifri",
+        "Paleo",
+        "LCHF"
+      ],
+      "ingredients": [
+        {
+          "name": "Gul eller röd lök",
+          "quantity": 2,
+          "unit": "st"
+        },
+        {
+          "name": "Vitlök",
+          "quantity": 0.5,
+          "unit": "st"
+        },
+        {
+          "name": "Nötfärs",
+          "quantity": 500,
+          "unit": "g"
+        },
+        {
+          "name": "Passerade tomater",
+          "quantity": 500,
+          "unit": "g"
+        },
+        {
+          "name": "Tomatpuré",
+          "quantity": 2,
+          "unit": "msk"
+        },
+        {
+          "name": "Herbamare",
+          "quantity": 1,
+          "unit": "tsk"
+        },
+        {
+          "name": "Äppelcidervinäger",
+          "quantity": 1,
+          "unit": "msk",
+          "notes": "Balsamvinäger borde funka också"
+        },
+        {
+          "name": "Kokosmjölk",
+          "quantity": 2,
+          "unit": "dl"
+        },
+        {
+          "name": "Zucchini",
+          "quantity": 500,
+          "unit": "g"
+        },
+        {
+          "name": "Kokosolja",
+          "quantity": 1,
+          "unit": "msk",
+          "notes": "Till stekning"
+        },
+        {
+          "name": "Peppar",
+          "quantity": 1,
+          "unit": "krm",
+          "notes": "Efter smak"
+        }
+      ],
+      "instructions": [
+        {
+          "stepNumber": 1,
+          "text": "Sätt ugnen på 175 grader. Skölj och skär zucchinin i smala skivor, cirka 3-5 mm tjocka."
+        },
+        {
+          "stepNumber": 2,
+          "text": "Salta zucchinin och lägg på en plåt (med olja eller bakplåtspapper). Ställ in i ugnen cirka 10 minuter för att svetta av vätskan. Detta gör att det blir ett krämigare resultat."
+        },
+        {
+          "stepNumber": 3,
+          "text": "Skala och hacka löken och vitlök. Bryn i kokosolja i en stekpanna."
+        },
+        {
+          "stepNumber": 4,
+          "text": "Lägg i färsen och stek den så den får fin färg."
+        },
+        {
+          "stepNumber": 5,
+          "text": "Ha kvar allt i stekpannan (på detta sätt försvinner vätskan och det blir krämigare). Tillsätt de passerade tomaterna, tomatpuré, herbamare, vinäger, kokosmjölk och peppar. Låt koka cirka 10 minuter på svag värme. Det ska inte koka helt torrt utan vara krämigt. De som menar att det blir en lös lasagne har utan tvekan låtit köttfärsen koka för kort tid, den ska vara fast inte rinna från skeden."
+        },
+        {
+          "stepNumber": 6,
+          "text": "Varva köttfärs (lägg i botten) och zucchini. Avsluta med köttfärs."
+        },
+        {
+          "stepNumber": 7,
+          "text": "Grädda i ugnen ca 15-20 minuter. Servera med en stor sallad."
+        }
+      ]
+    },
+    {
+      "name": "Krämig Potatispuré (Mästerklass)",
+      "description": "En tekniskt avancerad potatispuré som utnyttjar kemiska processer mellan pektin och kalcium för att skapa en perfekt konsistens som tål uppvärmning utan att bli klistrig.",
+      "prepTime": 20,
+      "cookTime": 60,
+      "servings": 4,
+      "category": "Side",
+      "difficulty": "hard",
+      "tags": [
+        "Potatis",
+        "Vetenskap",
+        "Grundrecept",
+        "Mästerklass"
+      ],
+      "dietaryTags": [
+        "Vegetariskt",
+        "Glutenfri"
+      ],
+      "ingredients": [
+        {
+          "name": "Halvfast potatis (t.ex. Nicola)",
+          "quantity": 1.2,
+          "unit": "kg",
+          "notes": "Skalad vikt"
+        },
+        {
+          "name": "Smör (kallt)",
+          "quantity": 180,
+          "unit": "g",
+          "notes": "Motsvarar ca 15% av potatisvikten"
+        },
+        {
+          "name": "Mjölk eller kokvatten",
+          "quantity": 2,
+          "unit": "dl",
+          "notes": "Tillsätt efter behov för önskad konsistens"
+        },
+        {
+          "name": "Salt",
+          "quantity": 1,
+          "unit": "tsk",
+          "notes": "Till det andra kokvattnet"
+        }
+      ],
+      "instructions": [
+        {
+          "stepNumber": 1,
+          "text": "Skala potatisen och skär i ca 3 cm tjocka skivor. Skölj noga i kallt vatten för att få bort ytstärkelse."
+        },
+        {
+          "stepNumber": 2,
+          "text": "Värm upp rikligt med osaltat vatten till ca 80 grader."
+        },
+        {
+          "stepNumber": 3,
+          "text": "Lägg i potatisen och håll vattentemperaturen strikt mellan 65-70 grader i 30 minuter (detta stärker cellväggarna)."
+        },
+        {
+          "stepNumber": 4,
+          "text": "Ta ut potatisen och skölj under kallt vatten tills den är helt genomkall."
+        },
+        {
+          "stepNumber": 5,
+          "text": "Koka upp nytt vatten med lite salt. Lägg i potatisen och sjud tills den är mjuk men inte faller isär."
+        },
+        {
+          "stepNumber": 6,
+          "text": "Häll av vattnet (spara lite om du vill späda med det senare). Låt potatisen ånga av i kastrullen tills ytan är helt torr."
+        },
+        {
+          "stepNumber": 7,
+          "text": "Skiva det kalla smöret i en bunke. Pressa den varma potatisen direkt över smöret med en potatispress."
+        },
+        {
+          "stepNumber": 8,
+          "text": "Rör om tills smöret smält helt. Pressa sedan moset genom en finmaskig sil ner i en kastrull för en silkeslen puré."
+        },
+        {
+          "stepNumber": 9,
+          "text": "Värm upp purén under omrörning och tillsätt mjölk eller kokvatten till önskad konsistens."
+        }
+      ]
+    },
+    {
+      "name": "Asiatisk marinad med krispig tofu och tempeh",
+      "description": "En fyllig asiatisk marinad med vitlök, ingefära och sesamolja som ger tofun eller tempehn en fantastisk smak. Majsstärkelsen ger en perfekt krispig yta vid stekning. Denna marinad tar smaklökarna till Asien, där tofun och tempeh får en given plats till ris, bulgur, grönsaker eller som fyllning i vietnamesiska vårrullar.",
+      "prepTime": 30,
+      "cookTime": 10,
+      "servings": 4,
+      "category": "Dinner",
+      "difficulty": "easy",
+      "tags": [
+        "Asiatiskt",
+        "Tofu",
+        "Tempeh",
+        "Proteinrikt"
+      ],
+      "dietaryTags": [
+        "Vegansk",
+        "Mejerifri",
+        "Växtbaserat"
+      ],
+      "ingredients": [
+        {
+          "name": "Extra fast tofu eller tempeh",
+          "quantity": 460,
+          "unit": "g"
+        },
+        {
+          "name": "Japansk sojasås",
+          "quantity": 4,
+          "unit": "msk",
+          "notes": "Använd Tamari eller glutenfri soja för ett helt glutenfritt alternativ"
+        },
+        {
+          "name": "Olja",
+          "quantity": 2,
+          "unit": "msk",
+          "notes": "För marinad + extra för stekning"
+        },
+        {
+          "name": "Agavesirap eller annan sötning",
+          "quantity": 4,
+          "unit": "tsk"
+        },
+        {
+          "name": "Riven färsk ingefära",
+          "quantity": 4,
+          "unit": "tsk"
+        },
+        {
+          "name": "Vitlöksklyftor",
+          "quantity": 4,
+          "unit": "st",
+          "notes": "Pressade"
+        },
+        {
+          "name": "Chiliflakes",
+          "quantity": 2,
+          "unit": "nypa"
+        },
+        {
+          "name": "Sesamolja",
+          "quantity": 2,
+          "unit": "tsk"
+        },
+        {
+          "name": "Vatten",
+          "quantity": 4,
+          "unit": "msk"
+        },
+        {
+          "name": "Limejuice",
+          "quantity": 2,
+          "unit": "msk"
+        },
+        {
+          "name": "Majsstärkelse",
+          "quantity": 4,
+          "unit": "msk"
+        },
+        {
+          "name": "Salt och peppar",
+          "quantity": 1,
+          "unit": "krm",
+          "notes": "Efter smak"
+        }
+      ],
+      "instructions": [
+        {
+          "stepNumber": 1,
+          "text": "I en skål, blanda alla ingredienser för marinaden förutom majsstärkelsen (sojasås, olja, agavesirap, ingefära, vitlök, chiliflakes, sesamolja, vatten, limejuice, salt och peppar)."
+        },
+        {
+          "stepNumber": 2,
+          "text": "Dela tofun i ca 1 ½ cm stora kuber eller använd färdigtärnad tempeh. Lägg kuberna i skålen med marinaden. Täck med plastfilm eller lock och låt stå i kylskåp i minst 20 minuter, eller längre för djupare smak."
+        },
+        {
+          "stepNumber": 3,
+          "text": "Häll av marinaden i en separat skål (spara den för att glasera senare). Vänd runt marinerad tofu eller tempeh i majsstärkelsen så att alla bitar är täckta."
+        },
+        {
+          "stepNumber": 4,
+          "text": "Stek i en stekpanna på hög värme med lite olja tills du fått en fin krispig yta på alla sidor."
+        },
+        {
+          "stepNumber": 5,
+          "text": "Sänk värmen och stek bitarna i resten av marinaden en kort stund för att glasera dem. Servera med salladslök och sesamfrön. Perfekt till ris, bulgur, ugnsrostade grönsaker eller som fyllning i vietnamesiska vårrullar."
+        }
+      ]
+    },
+    {
+      "name": "Frisk ärtskottsdressing",
+      "description": "En livligt grön och smakrik dressing gjord på nyskördade ärtskott. Perfekt att ringla över sallader, varma rätter eller en lyxig smörgås. Ärtskott är förträffliga att odla varhelst det finns plats och de hemodlade slår de köpta i både smak och krispighet.",
+      "prepTime": 5,
+      "cookTime": 0,
+      "servings": 4,
+      "category": "Sauce",
+      "difficulty": "easy",
+      "tags": [
+        "Ärtskott",
+        "Dressing",
+        "Hemodlat",
+        "Snabbt"
+      ],
+      "dietaryTags": [
+        "Vegansk",
+        "Glutenfri",
+        "Mejerifri",
+        "Paleo",
+        "Raw"
+      ],
+      "ingredients": [
+        {
+          "name": "Ärtskott",
+          "quantity": 100,
+          "unit": "g",
+          "notes": "Ca 2-3 dl, grovhackade. Ta bort den träiga nedersta delen om de är köpta"
+        },
+        {
+          "name": "Rapsolja",
+          "quantity": 1,
+          "unit": "dl",
+          "notes": "Gärna kallpressad för mer smak"
+        },
+        {
+          "name": "Salt",
+          "quantity": 2,
+          "unit": "krm"
+        },
+        {
+          "name": "Citronsaft",
+          "quantity": 1,
+          "unit": "msk",
+          "notes": "Färskpressad"
+        },
+        {
+          "name": "Svartpeppar",
+          "quantity": 1,
+          "unit": "krm",
+          "notes": "Valfritt, efter smak"
+        }
+      ],
+      "instructions": [
+        {
+          "stepNumber": 1,
+          "text": "Skölj ärtskotten noga och hacka dem grovt. Ta bort den träiga nedersta delen om de är köpta i butik."
+        },
+        {
+          "stepNumber": 2,
+          "text": "Lägg ärtskotten i en mixer eller i en hög behållare för stavmixer. Tillsätt rapsoljan."
+        },
+        {
+          "stepNumber": 3,
+          "text": "Mixa till en slät, livligt grön dressing."
+        },
+        {
+          "stepNumber": 4,
+          "text": "Smaka av med salt och citronsaft. Mixa snabbt igen för att blanda allt. Tillsätt eventuellt svartpeppar efter smak."
+        },
+        {
+          "stepNumber": 5,
+          "text": "Servera direkt eller förvara i en tät glasburk i kylen. Dressingen är god på de allra flesta sallader, många varma rätter eller ringla på smörgåsen tillsammans med hela ärtskott."
+        }
+      ]
+    },
+    {
+      "name": "Japanskt Risbröd (Blender-metoden)",
+      "description": "Ett revolutionerande glutenfritt och veganskt bröd gjort direkt på blötlagt råris. Genom att mixa riset till en slät smet skapas en unik konsistens utan behov av dyra mjölblandningar. Använd kortkornigt japanskt eller taiwanesiskt ris för bästa resultat.",
+      "prepTime": 130,
+      "cookTime": 40,
+      "servings": 1,
+      "category": "Breakfast",
+      "difficulty": "medium",
+      "tags": [
+        "Ris",
+        "Blender",
+        "Bröd",
+        "Hembakat"
+      ],
+      "dietaryTags": [
+        "Glutenfri",
+        "Vegansk",
+        "Mejerifri",
+        "Växtbaserat"
+      ],
+      "videoUrl": "https://www.youtube.com/watch?v=reYAnV6e-O0",
+      "ingredients": [
+        {
+          "name": "Rundkornigt ris",
+          "quantity": 360,
+          "unit": "g",
+          "notes": "T.ex. japanskt eller taiwanesiskt ris. Undvik långkornigt ris (basmati, jasmin), kladdigt ris eller rismjöl"
+        },
+        {
+          "name": "Vatten",
+          "quantity": 2.4,
+          "unit": "dl",
+          "notes": "Rumstempererat"
+        },
+        {
+          "name": "Neutral olja eller veganskt smör",
+          "quantity": 3,
+          "unit": "msk"
+        },
+        {
+          "name": "Salt",
+          "quantity": 1,
+          "unit": "tsk"
+        },
+        {
+          "name": "Ljust farinsocker eller lönnsirap",
+          "quantity": 2,
+          "unit": "msk"
+        },
+        {
+          "name": "Torrjäst",
+          "quantity": 7,
+          "unit": "g",
+          "notes": "Motsvarar ca 2.25 tsk"
+        }
+      ],
+      "instructions": [
+        {
+          "stepNumber": 1,
+          "text": "Tvätta riset noga som du skulle göra innan kokning. Blötlägg i nytt vatten i 2 timmar i rumstemperatur."
+        },
+        {
+          "stepNumber": 2,
+          "text": "Sila av riset ordentligt och häll ner i en kraftfull blender tillsammans med alla ingredienser utom jästen (vatten, olja, salt, socker)."
+        },
+        {
+          "stepNumber": 3,
+          "text": "Mixa på hög effekt i 2-3 minuter tills smeten är helt slät och har nått en temperatur på ca 40°C. Omjämna korn kommer att sjunka till botten och orsaka problem vid jäsning/bakning. Tillsätt jästen sist och mixa snabbt ihop."
+        },
+        {
+          "stepNumber": 4,
+          "text": "Häll smeten i en smord brödform (ca 24x10 cm). Smeten ska bara nå halvvägs upp i formen initialt. Använd bakplåtspapper om din form inte är non-stick."
+        },
+        {
+          "stepNumber": 5,
+          "text": "Täck och låt jäsa övertäckt (gärna i ugn på lägsta temp, 40°C) tills den ökat till 1.5x sin ursprungliga storlek."
+        },
+        {
+          "stepNumber": 6,
+          "text": "Ta ut formen och värm ugnen till 190°C. När brödet nästan dubblat sin storlek, grädda otäckt i 35-40 minuter eller tills det är gyllenbrunt på toppen."
+        },
+        {
+          "stepNumber": 7,
+          "text": "Viktigt: Spraya toppen av brödet med vatten med jämna mellanrum under gräddningen för att förhindra att det torkar ut, eftersom rissmeten är mycket benägen att torka."
+        },
+        {
+          "stepNumber": 8,
+          "text": "När brödet är klart, släpp ut limpan på ett galler för att svalna. Låt svalna helt innan du skär i det. Bäst färskt, men kan hålla några dagar i kylen."
+        }
+      ]
+    },
+    {
+      "name": "Agats Tahinipraliner",
+      "description": "Otroligt krämiga och nyttiga praliner som görs på endast två huvudingredienser. Kombinationen av mörk choklad och sesampasta (tahini) ger en lyxig smak som påminner om fudge. Perfekt som ett nyttigt alternativ till traditionellt godis.",
+      "prepTime": 10,
+      "cookTime": 60,
+      "servings": 20,
+      "category": "Dessert",
+      "difficulty": "easy",
+      "tags": [
+        "Choklad",
+        "Tahini",
+        "Praliner",
+        "Nyttigt godis",
+        "Utan socker"
+      ],
+      "dietaryTags": [
+        "Vegansk",
+        "Glutenfri",
+        "Mejerifri",
+        "Växtbaserat",
+        "Paleo"
+      ],
+      "ingredients": [
+        {
+          "name": "Mörk choklad",
+          "quantity": 200,
+          "unit": "g",
+          "notes": "Gärna 70% kakaohalt eller bakchoklad"
+        },
+        {
+          "name": "Tahini",
+          "quantity": 200,
+          "unit": "g",
+          "notes": "Rå sesampasta"
+        },
+        {
+          "name": "Kakao",
+          "quantity": 1,
+          "unit": "msk",
+          "notes": "Att pudra över"
+        },
+        {
+          "name": "Flingsalt",
+          "quantity": 1,
+          "unit": "nypa",
+          "notes": "För topping"
+        }
+      ],
+      "instructions": [
+        {
+          "stepNumber": 1,
+          "text": "Bryt chokladen i mindre bitar."
+        },
+        {
+          "stepNumber": 2,
+          "text": "Smält chokladen försiktigt i ett vattenbad (Baño de Maria). Se till att inget vatten kommer in i chokladen."
+        },
+        {
+          "stepNumber": 3,
+          "text": "Ta bort skålen från värmen när chokladen har smält helt."
+        },
+        {
+          "stepNumber": 4,
+          "text": "Tillsätt tahini (lika stor mängd som chokladen, 200g) och rör om tills du har en helt slät och glansig smet."
+        },
+        {
+          "stepNumber": 5,
+          "text": "Häll upp smeten i en silikonform för praliner eller små isbitsformar."
+        },
+        {
+          "stepNumber": 6,
+          "text": "Ställ in formen i frysen och låt stelna i minst en timme."
+        },
+        {
+          "stepNumber": 7,
+          "text": "Ta ut pralinerna ur formarna. Pudra över lite kakao och strö över en aning flingsalt för att lyfta smakerna."
+        },
+        {
+          "stepNumber": 8,
+          "text": "Förvara pralinerna i frysen eller kylen fram till servering."
+        }
+      ]
+    },
+    {
+      "name": "Hälsosam Chokladtårta med Mocca- & Karamellfrosting",
+      "description": "En lyxig, antiinflammatorisk tårta som är helt vegansk, naturligt glutenfri och utan raffinerat socker. Basen görs på svarta bönor och äppelmos vilket ger en fantastisk saftighet utan mjöl-smak. OBS: Förbered gärna frostingen dagen innan så den hinner stelna ordentligt.",
+      "prepTime": 15,
+      "cookTime": 50,
+      "servings": 12,
+      "category": "Dessert",
+      "difficulty": "medium",
+      "tags": [
+        "Choklad",
+        "Bönor",
+        "Dadlar",
+        "Kaffe",
+        "Fest"
+      ],
+      "dietaryTags": [
+        "Vegansk",
+        "Glutenfri",
+        "Mejerifri",
+        "Nötfritt",
+        "Antiinflammatorisk",
+        "Utan vitt socker"
+      ],
+      "ingredients": [
+        {
+          "name": "Mörk choklad",
+          "quantity": 100,
+          "unit": "g",
+          "notes": "Till kakan"
+        },
+        {
+          "name": "Kokosolja",
+          "quantity": 0.5,
+          "unit": "dl"
+        },
+        {
+          "name": "Osötat äppelmos",
+          "quantity": 3.5,
+          "unit": "dl",
+          "notes": "Eller osötat päronmos, mosad banan eller mangopuré"
+        },
+        {
+          "name": "Svarta bönor",
+          "quantity": 3.5,
+          "unit": "dl",
+          "notes": "Kokta och sköljda, kan ersättas med kideybönor"
+        },
+        {
+          "name": "Äppelcidervinäger",
+          "quantity": 1,
+          "unit": "msk",
+          "notes": "Eller citronsaft"
+        },
+        {
+          "name": "Mandeldryck",
+          "quantity": 1,
+          "unit": "dl",
+          "notes": "Eller annan växtdryck"
+        },
+        {
+          "name": "Kokossocker",
+          "quantity": 1,
+          "unit": "dl",
+          "notes": "Kan ersättas med xylitol/björksocker eller ljust muscavadosocker"
+        },
+        {
+          "name": "Kakao",
+          "quantity": 1.5,
+          "unit": "dl"
+        },
+        {
+          "name": "Teffmjöl",
+          "quantity": 2.5,
+          "unit": "dl",
+          "notes": "Eller bovetemjöl eller rårismjöl"
+        },
+        {
+          "name": "Bikarbonat",
+          "quantity": 1,
+          "unit": "tsk"
+        },
+        {
+          "name": "Salt",
+          "quantity": 0.5,
+          "unit": "tsk"
+        },
+        {
+          "name": "Vaniljpulver",
+          "quantity": 2,
+          "unit": "krm",
+          "notes": "Till kakan"
+        },
+        {
+          "name": "Kokosgrädde",
+          "quantity": 2,
+          "unit": "dl",
+          "notes": "Det vita/fasta i en burk kokosmjölk när den varit kyld, till frostingen"
+        },
+        {
+          "name": "Mörk choklad",
+          "quantity": 50,
+          "unit": "g",
+          "notes": "Till frostingen"
+        },
+        {
+          "name": "Starkt kaffe",
+          "quantity": 1.5,
+          "unit": "dl",
+          "notes": "Rumstempererat, till frostingen"
+        },
+        {
+          "name": "Dadlar",
+          "quantity": 2,
+          "unit": "dl",
+          "notes": "Färska eller medjool, urkärnade, rumstempererade, till frostingen"
+        },
+        {
+          "name": "Salt",
+          "quantity": 2,
+          "unit": "krm",
+          "notes": "Till frostingen"
+        },
+        {
+          "name": "Vaniljpulver",
+          "quantity": 2,
+          "unit": "krm",
+          "notes": "Till frostingen"
+        }
+      ],
+      "instructions": [
+        {
+          "stepNumber": 1,
+          "text": "Värm ugnen till 175°C och förbered en springform eller ett anslag (ca 20-24 cm) med bakplåtspapper eller smöra och mjöla med kokosolja och rismjöl eller kakao."
+        },
+        {
+          "stepNumber": 2,
+          "text": "Smält chokladen (100g) tillsammans med kokosolja över vattenbad eller försiktigt i micro."
+        },
+        {
+          "stepNumber": 3,
+          "text": "Mixa fruktmos, äppelcidervinäger/citron, mjölken och bönor i ett par minuter tills att du har en helt slät smet och bönorna är helt finfördelade."
+        },
+        {
+          "stepNumber": 4,
+          "text": "För över smeten till en bunke och rör i choklad/kokosolja. Mät upp och blanda alla torra ingredienser (kokossocker, kakao, teffmjöl, bikarbonat, salt, vaniljpulver) för sig och rör ned i bunken lite i taget till en slät smet med slev."
+        },
+        {
+          "stepNumber": 5,
+          "text": "Klicka över smeten i formen, släta till ytan med baksidan av en slev och grädda lågt/mitten i ugnen i 40-60 minuter. Håll koll mot slutet och känn efter när kakan är genomgräddad. Ytan ska spricka upp och kakan ska kännas kompakt helt igenom."
+        },
+        {
+          "stepNumber": 6,
+          "text": "Ta ut kakan och låt den sätta sig ca 10 minuter i formen. Ta den sedan ur formen och låt svalna helt. Kan förvaras i kylskåp över natten."
+        },
+        {
+          "stepNumber": 7,
+          "text": "Gör frostingen: Smält chokladen (50g) och 2 dl av det vita/fasta i en burk kokosmjölk (fast när den varit kyld). Mixa alla ingredienser utom kaffet till frostingen i matberedare eller med stavmixer till en helt slät smet. Det kan ta några minuter för att få konsistensen slät."
+        },
+        {
+          "stepNumber": 8,
+          "text": "Medan du fortsätter att mixa, häll långsamt i kaffet, lite i taget tills att frostingen går ihop. Låt stelna i kylskåp i några timmar, gärna över natten."
+        },
+        {
+          "stepNumber": 9,
+          "text": "När frostingen har stelnat i kylen och kakan är helt svalnad eller till och med kyld – bred frostingen tjockt över kakan. Dekorera med frukt, bär och kakaonibs."
+        }
+      ]
+    },
+    {
+      "name": "Klassisk Pepparkakskrydda",
+      "description": "En perfekt balanserad blandning av julens mest aromatiska kryddor. Utmärkt för pepparkaksbak, men även fantastisk i morgongröten, smoothies eller som smaksättare i antiinflammatoriska desserter.",
+      "prepTime": 2,
+      "cookTime": 0,
+      "servings": 1,
+      "category": "Sauce",
+      "difficulty": "easy",
+      "tags": [
+        "Kryddmix",
+        "Jul",
+        "Pepparkaka",
+        "Skafferi",
+        "Antiinflammatorisk"
+      ],
+      "dietaryTags": [
+        "Glutenfri",
+        "Mejerifri",
+        "Vegansk",
+        "Växtbaserat",
+        "Paleo",
+        "AIP-vänlig",
+        "Utan vitt socker"
+      ],
+      "ingredients": [
+        {
+          "name": "Mald kanel",
+          "quantity": 2,
+          "unit": "msk"
+        },
+        {
+          "name": "Mald kardemumma",
+          "quantity": 1,
+          "unit": "msk"
+        },
+        {
+          "name": "Mald ingefära",
+          "quantity": 1,
+          "unit": "msk"
+        },
+        {
+          "name": "Mald kryddnejlika",
+          "quantity": 1,
+          "unit": "msk"
+        }
+      ],
+      "instructions": [
+        {
+          "stepNumber": 1,
+          "text": "Mät upp alla kryddor och lägg dem i en liten skål eller direkt i en ren glasburk."
+        },
+        {
+          "stepNumber": 2,
+          "text": "Rör om eller skaka burken ordentligt tills blandningen är helt homogen."
+        },
+        {
+          "stepNumber": 3,
+          "text": "Förslut burken med ett tätt lock."
+        },
+        {
+          "stepNumber": 4,
+          "text": "Förvara mörkt och svalt för att bevara de eteriska oljorna och smaken så länge som möjligt."
+        }
+      ]
+    },
+    {
+      "name": "Pepparkaksrutor med choklad och apelsin",
+      "description": "Ljuvliga julrutor som bakas helt utan ugn. En kombination av kryddig pepparkaksdeg på dadlar och mandel, toppad med ett lyxigt täcke av apelsindoftande choklad.",
+      "prepTime": 30,
+      "cookTime": 0,
+      "servings": 18,
+      "category": "Dessert",
+      "difficulty": "easy",
+      "tags": [
+        "Jul",
+        "Pepparkaka",
+        "Choklad",
+        "Apelsin",
+        "No-bake"
+      ],
+      "dietaryTags": [
+        "Paleo",
+        "Glutenfri",
+        "Mejerifri",
+        "Laktosfri",
+        "Vegansk",
+        "Raw",
+        "Utan vitt socker"
+      ],
+      "ingredients": [
+        {
+          "name": "Färska dadlar",
+          "quantity": 12,
+          "unit": "st",
+          "notes": "Urkärnade"
+        },
+        {
+          "name": "Rostad mandel",
+          "quantity": 2.5,
+          "unit": "dl",
+          "notes": "Kokos kan användas som alternativ för nötallergi"
+        },
+        {
+          "name": "Smält kokosolja",
+          "quantity": 2,
+          "unit": "msk",
+          "notes": null
+        },
+        {
+          "name": "Pepparkakskrydda",
+          "quantity": 18,
+          "unit": "g",
+          "notes": null
+        },
+        {
+          "name": "Äkta vaniljpulver",
+          "quantity": 0.5,
+          "unit": "tsk",
+          "notes": null
+        },
+        {
+          "name": "Mörk choklad",
+          "quantity": 80,
+          "unit": "g",
+          "notes": "Gärna 54% kakaohalt eller högre"
+        },
+        {
+          "name": "Pressad apelsin",
+          "quantity": 2,
+          "unit": "msk",
+          "notes": null
+        },
+        {
+          "name": "Smält kokosolja",
+          "quantity": 1,
+          "unit": "msk",
+          "notes": "För chokladtäcket"
+        },
+        {
+          "name": "Apelsinzest",
+          "quantity": 1,
+          "unit": "tsk",
+          "notes": "Riven från apelsin"
+        }
+      ],
+      "instructions": [
+        {
+          "stepNumber": 1,
+          "text": "Rosta mandeln (eller kokosen) gyllene i en torr stekpanna."
+        },
+        {
+          "stepNumber": 2,
+          "text": "Kärna ur dadlarna och lägg i en matberedare. Tillsätt rostad mandel, pepparkakskrydda, vaniljpulver och smält kokosolja."
+        },
+        {
+          "stepNumber": 3,
+          "text": "Mixa till en kladdig deg."
+        },
+        {
+          "stepNumber": 4,
+          "text": "Tryck ut degen i ett jämnt lager i en bakplåtspappersklädd form (ca 9x18 cm)."
+        },
+        {
+          "stepNumber": 5,
+          "text": "Smält chokladen över vattenbad. Rör försiktigt ner apelsinsaft och kokosolja tills det blandats väl."
+        },
+        {
+          "stepNumber": 6,
+          "text": "Häll chokladen över kakdegen och riv över apelsinzest."
+        },
+        {
+          "stepNumber": 7,
+          "text": "Ställ i frysen och låt stelna i ca 1 timme. Skär i rutor och förvara i frysen."
+        }
+      ]
+    },
+    {
+      "name": "Långkokt Nöthjärta med rödvin och rotfrukter",
+      "description": "En otroligt mör och näringsrik gryta på nöthjärta. Hjärtat är en bortglömd delikatess som vid ett långkok på 10 timmar blir lika mört som högrev, men med en djupare smak. Rik på mineraler och naturligt glutenfri.",
+      "prepTime": 45,
+      "cookTime": 600,
+      "servings": 8,
+      "category": "Dinner",
+      "difficulty": "medium",
+      "tags": [
+        "Långkok",
+        "Slowcooker",
+        "Inälvsmat",
+        "Nötkött",
+        "Gryta"
+      ],
+      "dietaryTags": [
+        "Glutenfri",
+        "Paleo",
+        "Keto",
+        "LCHF",
+        "Mejerifri",
+        "Nötfritt"
+      ],
+      "ingredients": [
+        {
+          "name": "Nöthjärta",
+          "quantity": 1,
+          "unit": "st",
+          "notes": "Ca 1.8 kg"
+        },
+        {
+          "name": "Vatten",
+          "quantity": 5,
+          "unit": "dl",
+          "notes": null
+        },
+        {
+          "name": "Rödvin",
+          "quantity": 2,
+          "unit": "dl",
+          "notes": "Torrt"
+        },
+        {
+          "name": "Smör eller kokosolja",
+          "quantity": 1,
+          "unit": "dl",
+          "notes": null
+        },
+        {
+          "name": "Olivolja",
+          "quantity": 0.5,
+          "unit": "dl",
+          "notes": null
+        },
+        {
+          "name": "Morötter",
+          "quantity": 3,
+          "unit": "st",
+          "notes": null
+        },
+        {
+          "name": "Rotselleri",
+          "quantity": 1,
+          "unit": "bit",
+          "notes": "Ca 200g"
+        },
+        {
+          "name": "Gula lökar",
+          "quantity": 2,
+          "unit": "st",
+          "notes": null
+        },
+        {
+          "name": "Vitlöksklyftor",
+          "quantity": 3,
+          "unit": "st",
+          "notes": null
+        },
+        {
+          "name": "Röd chili",
+          "quantity": 1,
+          "unit": "st",
+          "notes": null
+        },
+        {
+          "name": "Tomatpuré",
+          "quantity": 0.5,
+          "unit": "dl",
+          "notes": null
+        },
+        {
+          "name": "Lantbuljong",
+          "quantity": 3,
+          "unit": "msk",
+          "notes": "T.ex. Renée Voltaire"
+        },
+        {
+          "name": "Tamarisoja",
+          "quantity": 3,
+          "unit": "msk",
+          "notes": "Glutenfri (t.ex. Renée Voltaire)"
+        },
+        {
+          "name": "Lagerblad",
+          "quantity": 3,
+          "unit": "st",
+          "notes": null
+        },
+        {
+          "name": "Salt",
+          "quantity": 1,
+          "unit": "krm",
+          "notes": "Efter smak"
+        },
+        {
+          "name": "Svartpeppar",
+          "quantity": 1,
+          "unit": "krm",
+          "notes": "Efter smak"
+        }
+      ],
+      "instructions": [
+        {
+          "stepNumber": 1,
+          "text": "Putsa nöthjärtat noga (ta bort fett och senor) och skär köttet i ca 2x2 cm stora tärningar."
+        },
+        {
+          "stepNumber": 2,
+          "text": "Skala och skär morötter, rotselleri och lök i jämnstora bitar. Finhacka vitlök och chili."
+        },
+        {
+          "stepNumber": 3,
+          "text": "Hetta upp smör eller kokosolja i en stor gjutjärnsgryta eller stekpanna. Bryn köttet i omgångar tills det fått fin färg."
+        },
+        {
+          "stepNumber": 4,
+          "text": "Tillsätt grönsakerna, löken, vitlöken och chilin. Låt fräsa med köttet i några minuter."
+        },
+        {
+          "stepNumber": 5,
+          "text": "Rör ner tomatpuré, buljong, tamarisoja och kryddor."
+        },
+        {
+          "stepNumber": 6,
+          "text": "Tillsätt vatten, rödvin och olivolja. Se till att vätskan täcker ingredienserna."
+        },
+        {
+          "stepNumber": 7,
+          "text": "Låt grytan sjuda på mycket svag värme under lock i ca 10 timmar. (Alternativt: Använd en Slowcooker på inställningen \"Low\" i 10 timmar)."
+        },
+        {
+          "stepNumber": 8,
+          "text": "Smaka av med salt och peppar. Servera gärna med hemgjord surkål för extra hälsofördelar."
+        }
+      ]
+    },
+    {
+      "name": "Lafa – Glutenfritt tunnbröd på fullkornsris och quinoa",
+      "description": "Ett mjukt och elastiskt tunnbröd inspirerat av mellanösterns Lafa. Baserat på blötlagda hela korn av runda fullkornsris och vit quinoa. Naturligt glutenfritt och proteinrikt.",
+      "imageUrl": "/uploads/recipes/lafa-1.jpg",
+      "imageUrls": ["/uploads/recipes/lafa-2.jpg"],
+      "prepTime": 730,
+      "cookTime": 15,
+      "servings": 8,
+      "category": "Breakfast",
+      "difficulty": "medium",
+      "tags": [
+        "Tunnbröd",
+        "Lafa",
+        "Fullkorn",
+        "Proteinrikt",
+        "Blender-bröd"
+      ],
+      "dietaryTags": [
+        "Glutenfri",
+        "Vegansk",
+        "Mejerifri",
+        "Växtbaserat",
+        "Nötfritt"
+      ],
+      "ingredients": [
+        {
+          "name": "Runt fullkornsris",
+          "quantity": 500,
+          "unit": "g",
+          "notes": "Använd gärna Gut Bio Arroz Redondo Integral för bästa resultat"
+        },
+        {
+          "name": "Vit quinoa",
+          "quantity": 2,
+          "unit": "dl",
+          "notes": "Använd gärna Gut Bio Quinoa Real Blanca för bästa resultat (ca 1 kopp/Agat's glass)"
+        },
+        {
+          "name": "Bikarbonat",
+          "quantity": 0.25,
+          "unit": "tsk",
+          "notes": null
+        },
+        {
+          "name": "Salt",
+          "quantity": 0.5,
+          "unit": "tsk",
+          "notes": null
+        },
+        {
+          "name": "Citronsaft",
+          "quantity": 1,
+          "unit": "msk",
+          "notes": "Färsk"
+        },
+        {
+          "name": "Vatten",
+          "quantity": 1,
+          "unit": "dl",
+          "notes": "För blötläggning och mixning (börja med 2-3 dl vid mixning)"
+        }
+      ],
+      "instructions": [
+        {
+          "stepNumber": 1,
+          "text": "Skölj fullkornsriset och quinoan noggrant i en sil."
+        },
+        {
+          "stepNumber": 2,
+          "text": "Lägg riset och quinoan i en stor skål, täck med rikligt med vatten och låt stå i kylskåp i 12 timmar."
+        },
+        {
+          "stepNumber": 3,
+          "text": "Sila av och skölj de blötlagda kornen ordentligt."
+        },
+        {
+          "stepNumber": 4,
+          "text": "Häll kornen i en kraftfull blender. Tillsätt en mindre mängd vatten (börja med ca 2-3 dl) och mixa tills du har en helt slät smet, likt en tjock pannkakssmet."
+        },
+        {
+          "stepNumber": 5,
+          "text": "Tillsätt citronsaft, bikarbonat och salt. Mixa snabbt ihop så att bubblor bildas."
+        },
+        {
+          "stepNumber": 6,
+          "text": "Hetta upp en non-stick panna på medelhög värme. Häll i en skopa smet och sprid ut den till ett tunt runt bröd."
+        },
+        {
+          "stepNumber": 7,
+          "text": "Stek tills ytan stelnat och brödet fått färg, vänd sedan och stek snabbt på andra sidan."
+        },
+        {
+          "stepNumber": 8,
+          "text": "Stapla bröden under en ren handduk så att de håller sig mjuka och elastiska."
+        }
+      ]
+    }
+  ],
+  "routines": [
+    {
+      "name": "Morning Meditation",
+      "description": "Start your day with 10 minutes of mindfulness",
+      "category": "wellness",
+      "frequency": "daily"
+    },
+    {
+      "name": "Evening Walk",
+      "description": "Take a 30-minute walk after dinner",
+      "category": "exercise",
+      "frequency": "daily"
+    },
+    {
+      "name": "Weekly Meal Prep",
+      "description": "Prepare meals for the week ahead",
+      "category": "habit",
+      "frequency": "weekly"
+    }
+  ],
+  "deletedRecipes": [
+    "Classic Pancakes",
+    "Grilled Chicken Salad",
+    "Spaghetti Carbonara",
+    "Overnight Oats",
+    "Vegetable Stir Fry",
+    "Green Smoothie Bowl",
+    "Mediterranean Quinoa Bowl",
+    "Grilled Salmon with Roasted Vegetables",
+    "Greek Yogurt Parfait"
+  ]
+}

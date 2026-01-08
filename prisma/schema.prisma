@@ -1,44 +1,46 @@
 generator client {
-  provider        = "prisma-client-js"
+  provider = "prisma-client-js"
   previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
   provider = "postgresql"
+  // Note: url is configured in prisma.config.ts for Prisma 7
 }
 
-// =======================
-// AUTHENTICATION (Better-Auth)
-// =======================
-
 model User {
-  id            String       @id @default(cuid())
-  name          String
-  email         String       @unique
-  emailVerified Boolean
-  image         String?
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
-  sessions      Session[]
-  accounts      Account[]
-  members       Member[]
-  invitations   Invitation[]
-  journalEntries JournalEntry[] // Private journal entries
-
-  @@map("user")
+  id                  String    @id @default(cuid())
+  name                String
+  email               String    @unique
+  emailVerified       Boolean?
+  image               String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  role                String    @default("user")
+  sessions            Session[]
+  accounts            Account[]
+  energyLevel         String?
+  dietaryRestrictions String[]
+  healthGoals         String[]
+  timezone            String    @default("UTC")
+  enableCycleTracking Boolean   @default(false)
+  cycleLength         Int       @default(28)
+  lastPeriodDate      DateTime?
+  focusPreference     String?
+  mealPlanDuration    String?
+  mealPlanStartDate   DateTime?
+  members             Member[]
+  journalEntries      JournalEntry[]
 }
 
 model Session {
   id        String   @id
   userId    String
-  token     String
   expiresAt DateTime
   ipAddress String?
   userAgent String?
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([token])
-  @@map("session")
+  @@index([userId])
 }
 
 model Account {
@@ -51,8 +53,7 @@ model Account {
   expiresAt    DateTime?
   password     String?
   user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("account")
+  @@index([userId])
 }
 
 model Verification {
@@ -60,31 +61,21 @@ model Verification {
   identifier String
   value      String
   expiresAt  DateTime
-  createdAt  DateTime @default(now())
-
-  @@map("verification")
 }
 
-// =======================
-// HOUSEHOLD / ORGANIZATION
-// =======================
-
 model Organization {
-  id          String       @id
-  name        String
-  slug        String?
-  logo        String?
-  createdAt   DateTime     @default(now())
-  metadata    String?
-  members     Member[]
-  invitations Invitation[]
-  mealPlans   MealPlan[]
-  // Custom recipes/routines created by this household
-  recipes     Recipe[]
-  routines    Routine[]
-
-  @@unique([slug])
-  @@map("organization")
+  id                String             @id
+  name              String
+  slug              String             @unique
+  logo              String?
+  createdAt         DateTime           @default(now())
+  metadata          String?
+  members           Member[]
+  invitations       Invitation[]
+  recipes           Recipe[]
+  routines          Routine[]
+  mealPlans         MealPlan[]
+  shoppingListItems ShoppingListItem[]
 }
 
 model Member {
@@ -95,8 +86,8 @@ model Member {
   createdAt      DateTime     @default(now())
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("member")
+  @@index([organizationId])
+  @@index([userId])
 }
 
 model Invitation {
@@ -108,144 +99,184 @@ model Invitation {
   expiresAt      DateTime
   inviterId      String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  user           User         @relation(fields: [inviterId], references: [id], onDelete: Cascade)
-
-  @@map("invitation")
 }
-
-// =======================
-// DOMAIN: RECIPES (Sprint 2)
-// =======================
 
 model Recipe {
   id             String         @id @default(cuid())
   name           String
   description    String?
   imageUrl       String?
-  prepTime       Int?           // Minutes
-  cookTime       Int?           // Minutes
+  imageUrls      String[]
+  videoUrl       String?
+  prepTime       Int?
+  cookTime       Int?
   servings       Int?
-  category       String?        // Breakfast, Lunch, Dinner, etc.
+  category       String?
+  difficulty     String?
+  cuisine        String?
+  calories       Float?
+  protein        Float?
+  carbs          Float?
+  fat            Float?
+  fiber          Float?
+  sugar          Float?
+  sodium         Float?
   tags           String[]
-  
-  // Relations
+  dietaryTags    String[]
+  leanRole       String?
+  isSystem       Boolean        @default(false)
+  isSecret       Boolean        @default(false)
+  isPrivate      Boolean        @default(false)
+  organizationId String?
+  organization   Organization?  @relation(fields: [organizationId], references: [id])
   ingredients    Ingredient[]
   instructions   Instruction[]
   mealPlanItems  MealPlanItem[]
-
-  // Ownership / Visibility
-  isSystem       Boolean        @default(false) // True = Visible to everyone (Kitchen Manifest)
-  organizationId String?        // Null if System, ID if Custom
-  organization   Organization?  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
-
-  @@index([organizationId])
-  @@index([isSystem])
-  @@map("recipe")
 }
 
 model Ingredient {
-  id        String  @id @default(cuid())
-  recipeId  String
-  recipe    Recipe  @relation(fields: [recipeId], references: [id], onDelete: Cascade)
-  name      String
-  quantity  Float
-  unit      String
-  notes     String?
-
-  @@index([recipeId])
-  @@map("ingredient")
+  id       String  @id @default(cuid())
+  name     String
+  quantity Float
+  unit     String
+  notes    String?
+  recipeId String
+  recipe   Recipe  @relation(fields: [recipeId], references: [id], onDelete: Cascade)
 }
 
 model Instruction {
   id         String @id @default(cuid())
-  recipeId   String
-  recipe     Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
   stepNumber Int
   text       String
-
-  @@index([recipeId])
-  @@map("instruction")
+  recipeId   String
+  recipe     Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
 }
 
-// =======================
-// DOMAIN: MEAL PLANS (Sprint 2)
-// =======================
+model Routine {
+  id                String        @id @default(cuid())
+  name              String
+  description       String?
+  imageUrl          String?
+  category          String?
+  frequency         String?
+  energyLevel       String        @default("medium")
+  estimatedTime     Int           @default(15)
+  context           String?
+  duration          String?
+  difficulty        String?
+  equipment         String[]
+  tags              String[]
+  steps             Json?
+  tips              String[]
+  contraindications String[]
+  isSystem          Boolean       @default(false)
+  organizationId    String?
+  organization      Organization? @relation(fields: [organizationId], references: [id])
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+}
 
 model MealPlan {
   id             String         @id @default(cuid())
   organizationId String
-  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   startDate      DateTime
   endDate        DateTime
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   items          MealPlanItem[]
-  
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
-
-  @@index([organizationId])
-  @@index([startDate, endDate])
-  @@map("meal_plan")
 }
 
 model MealPlanItem {
   id         String   @id @default(cuid())
   mealPlanId String
-  mealPlan   MealPlan @relation(fields: [mealPlanId], references: [id], onDelete: Cascade)
   recipeId   String
-  recipe     Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
   date       DateTime
-  mealType   String   // breakfast, lunch, dinner, snack
-  servings   Float    @default(1)
-  createdAt  DateTime  @default(now())
-
-  @@index([mealPlanId])
-  @@index([recipeId])
-  @@index([date])
-  @@map("meal_plan_item")
+  mealType   String
+  servings   Int      @default(4)
+  isCooked   Boolean  @default(false)
+  mealPlan   MealPlan @relation(fields: [mealPlanId], references: [id], onDelete: Cascade)
+  recipe     Recipe   @relation(fields: [recipeId], references: [id])
 }
 
-// =======================
-// DOMAIN: WELLNESS (Sprint 2)
-// =======================
-
-model Routine {
-  id             String        @id @default(cuid())
+model ShoppingListItem {
+  id             String       @id @default(cuid())
+  organizationId String
   name           String
-  description    String?
+  quantity       Float
+  unit           String
   category       String?
-  frequency      String?
-  
-  // Ownership / Visibility
-  isSystem       Boolean       @default(false)
-  organizationId String?
-  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-
-  @@index([organizationId])
-  @@index([isSystem])
-  @@map("routine")
+  isChecked      Boolean      @default(false)
+  source         String?
+  sourceRecipeId String?
+  sourceDate     DateTime?
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 }
 
 model JournalEntry {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  date      DateTime  @default(now())
-  mood      Int?     // 1-10
-  tags      String[]
-  title     String?
-  content   String?
-  
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id               String   @id @default(cuid())
+  userId           String
+  date             DateTime
+  mood             Int?
+  energy           Int?
+  sleepHours       Float?
+  notes            String?
+  tags             String[]
+  gratitudeEntries String[]
+  gratitudeNotes   String?
+  goalsAchieved    String[]
+  goalsProgress    String[]
+  goalsNotes       String?
+  symptomsPhysical String[]
+  symptomsMental   String[]
+  symptomsNotes    String?
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  @@unique([userId, date])
+}
 
-  @@index([userId])
-  @@index([date])
-  @@map("journal_entry")
+model EducationalResource {
+  id          String   @id @default(cuid())
+  title       String
+  content     String
+  excerpt     String?
+  category    String
+  tags        String[]
+  difficulty  String?
+  readTime    Int?
+  author      String?
+  imageUrl    String?
+  videoUrl    String?
+  externalUrl String?
+  featured    Boolean  @default(false)
+  viewCount   Int      @default(0)
+  likes       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Expert {
+  id              String                @id @default(cuid())
+  name            String
+  credentials     String?
+  website         String?
+  focusAreas      String[]
+  recommendations PhaseRecommendation[]
+}
+
+model PhaseRecommendation {
+  id        String   @id @default(cuid())
+  expertId  String
+  phase     String
+  category  String
+  content   Json
+  source    String?
+  expert    Expert   @relation(fields: [expertId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
