@@ -45,7 +45,7 @@ export function RoutineFilters() {
   const hasActiveFilters = category || energyLevel || context || difficulty || duration || query;
 
   return (
-    <div className="mb-6 space-y-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+    <div className="mb-6 flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
       {/* Search */}
       <div className="relative">
         <label htmlFor="routine-search" className="sr-only">

@@ -38,7 +38,7 @@ export default async function ProfilePage() {
         </div>
       </div>
 
-      <div className="space-y-6">
+      <div className="flex flex-col gap-6">
         {/* Personal Info Section */}
         <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
           <h2 className="mb-4 text-xl font-semibold text-gray-900">Personal Information</h2>

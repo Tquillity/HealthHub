@@ -84,7 +84,7 @@ export function JournalEntryDetail({ entry, onClose, onEdit }: JournalEntryDetai
           </div>
 
           {/* Content */}
-          <div className="p-6 space-y-8">
+          <div className="p-6 flex flex-col gap-8">
             {/* Mood & Energy */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="bg-gray-50 rounded-lg p-4">
@@ -92,7 +92,7 @@ export function JournalEntryDetail({ entry, onClose, onEdit }: JournalEntryDetai
                   <span className="text-2xl mr-2">😊</span>
                   Mood
                 </h3>
-                <div className="space-y-2">
+                <div className="flex flex-col gap-2">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600">Rating</span>
                     <span className={`text-lg font-semibold ${getRatingColor(entry.mood)}`}>
@@ -107,7 +107,7 @@ export function JournalEntryDetail({ entry, onClose, onEdit }: JournalEntryDetai
                   <span className="text-2xl mr-2">⚡</span>
                   Energy
                 </h3>
-                <div className="space-y-2">
+                <div className="flex flex-col gap-2">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600">Rating</span>
                     <span className={`text-lg font-semibold ${getRatingColor(entry.energy)}`}>
@@ -125,7 +125,7 @@ export function JournalEntryDetail({ entry, onClose, onEdit }: JournalEntryDetai
                   <span className="text-2xl mr-2">😴</span>
                   Sleep
                 </h3>
-                <div className="space-y-2">
+                <div className="flex flex-col gap-2">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600">Hours</span>
                     <span className="text-lg font-semibold text-blue-600">

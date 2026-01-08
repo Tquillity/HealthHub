@@ -408,7 +408,7 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Recipe Image
             </label>
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               {imagePreview && (
                 <div className="relative inline-block">
                   <div className="mb-1 text-xs font-medium text-gray-500">Main Image (Card)</div>
@@ -487,7 +487,7 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Additional Images
             </label>
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               {additionalImages.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {additionalImages.map((url, index) => (

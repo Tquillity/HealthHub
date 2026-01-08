@@ -135,7 +135,7 @@ export function JournalCalendar({
                 </div>
 
                 {entry && (
-                  <div className="flex-1 flex flex-col justify-center space-y-1 mt-1">
+                  <div className="flex-1 flex flex-col justify-center gap-1 mt-1">
                     {entry.mood !== null && (
                       <div
                         className={`text-xs px-1 py-0.5 rounded-full text-center ${getMoodColor(entry.mood)}`}

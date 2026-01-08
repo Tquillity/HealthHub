@@ -302,7 +302,7 @@ export default async function RecipeDetailPage({
             <ChefHat className="h-6 w-6 text-gray-400" />
             Instructions
           </h2>
-          <div className="space-y-8 pl-2">
+          <div className="flex flex-col gap-8 pl-2">
             {recipe.instructions.map((step) => (
               <div key={step.id} className="group relative flex gap-6">
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-900 text-sm font-bold text-white shadow-sm ring-4 ring-white">

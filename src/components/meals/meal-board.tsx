@@ -186,7 +186,7 @@ export default function MealBoard({
         <div className="w-full shrink-0 pr-2 lg:w-64">
           <div className="sticky top-0 rounded-xl border border-gray-200 bg-white p-4">
             <h3 className="mb-4 font-bold text-gray-700">Recipes</h3>
-            <div className="space-y-2 max-h-[calc(100vh-300px)] overflow-y-auto">
+            <div className="flex flex-col gap-2 max-h-[calc(100vh-300px)] overflow-y-auto">
               {recipes.map((r) => (
                 <DraggableRecipe key={r.id} recipe={r} />
               ))}

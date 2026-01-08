@@ -22,7 +22,7 @@ export function Footer() {
           {/* Quick Links */}
           <div>
             <h3 className="mb-4 text-sm font-semibold text-gray-900">Quick Links</h3>
-            <ul className="space-y-2">
+            <ul className="flex flex-col gap-2">
               <li>
                 <Link href="/dashboard" className="text-sm text-gray-600 hover:text-blue-600">
                   Dashboard
@@ -49,7 +49,7 @@ export function Footer() {
           {/* Resources */}
           <div>
             <h3 className="mb-4 text-sm font-semibold text-gray-900">Resources</h3>
-            <ul className="space-y-2">
+            <ul className="flex flex-col gap-2">
               <li>
                 <Link href="/learn" className="text-sm text-gray-600 hover:text-blue-600">
                   Educational Content
@@ -121,7 +121,7 @@ export function Footer() {
                 <Mail className="h-5 w-5" />
               </a>
             </div>
-            <div className="space-y-2 text-xs text-gray-500">
+            <div className="flex flex-col gap-2 text-xs text-gray-500">
               <Link href="/privacy" className="hover:text-gray-700">
                 Privacy Policy
               </Link>

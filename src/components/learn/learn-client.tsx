@@ -87,7 +87,7 @@ export function LearnClient({ resources: initialResources }: LearnClientProps) {
 
           <div>
             <h4 className="mb-2 text-xs font-medium text-gray-500 uppercase">Category</h4>
-            <div className="space-y-1">
+            <div className="flex flex-col gap-1">
               <button
                 onClick={() => {
                   const params = new URLSearchParams(searchParams.toString());
