@@ -129,7 +129,7 @@ export function RecipesClient({
     <>
       {/* View Type Tab Navigation */}
       <div className="mb-4 border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8">
+        <nav className="-mb-px flex gap-8">
           <button
             onClick={() => setActiveTab('gallery')}
             className={`${

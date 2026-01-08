@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Clock, Star, Search } from 'lucide-react';
+import { Clock, Star, Search, BookOpen } from 'lucide-react';
 import type { EducationalResource } from '@prisma/client';
 
 interface LearnClientProps {
@@ -116,7 +116,7 @@ export function LearnClient({ resources: initialResources }: LearnClientProps) {
       <div className="flex-1">
         {/* Tabs */}
         <div className="mb-6 border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8">
+          <nav className="-mb-px flex gap-8">
             <button
               onClick={() => handleTabChange('all')}
               className={`${
