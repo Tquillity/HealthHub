@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Minus, Plus, ShoppingCart } from 'lucide-react';
 import { addScaledIngredientsToGroceryList } from '@/actions/grocery-actions';
 import { useRouter } from 'next/navigation';
+import { useUIStore } from '@/lib/store';
 
 interface Ingredient {
   id: string;
@@ -28,15 +29,25 @@ function AddToGroceryButton({
 }) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const showToast = useUIStore((state) => state.showToast);
 
   const handleAdd = async () => {
     setIsLoading(true);
     const result = await addScaledIngredientsToGroceryList(ingredients, recipeId);
     if (result.success) {
+      showToast({
+        id: 'grocery-add-success',
+        message: 'Ingredients added to grocery list successfully!',
+        type: 'success',
+      });
       router.push('/groceries');
       router.refresh();
     } else {
-      alert(result.error || 'Failed to add ingredients to grocery list');
+      showToast({
+        id: 'grocery-add-error',
+        message: result.error || 'Failed to add ingredients to grocery list',
+        type: 'error',
+      });
     }
     setIsLoading(false);
   };

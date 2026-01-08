@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { updateProfile, getProfile } from '@/actions/profile-actions';
 import { Settings, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
+import { useUIStore } from '@/lib/store';
 
 interface MealPlannerSettingsProps {
   initialDuration?: string | null;
@@ -18,6 +19,7 @@ export function MealPlannerSettings({
   initialStartDate = null,
 }: MealPlannerSettingsProps) {
   const router = useRouter();
+  const showToast = useUIStore((state) => state.showToast);
   const [showDialog, setShowDialog] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [duration, setDuration] = useState<string>(initialDuration || '1week');
@@ -63,10 +65,19 @@ export function MealPlannerSettings({
     setIsSaving(false);
 
     if (result.success) {
+      showToast({
+        id: 'meal-planner-settings-success',
+        message: 'Meal planner settings saved successfully!',
+        type: 'success',
+      });
       setShowDialog(false);
       router.refresh();
     } else {
-      alert(result.error || 'Failed to save settings');
+      showToast({
+        id: 'meal-planner-settings-error',
+        message: result.error || 'Failed to save settings',
+        type: 'error',
+      });
     }
   };
 
