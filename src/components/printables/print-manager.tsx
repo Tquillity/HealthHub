@@ -43,16 +43,43 @@ export function PrintManager({ plan, startDate }: PrintManagerProps) {
 
   // Transform plan data into WeeklyPlanData format
   const weeklyData: WeeklyPlanData = useMemo(() => {
-    const start = startDate instanceof Date ? startDate : new Date(startDate);
-    // Normalize to UTC midnight to avoid timezone shifts
-    start.setUTCHours(0, 0, 0, 0);
-    const end = addDays(start, 6); // Default to 7 days
-    const days = eachDayOfInterval({ start, end });
+    // Build a stable Monday→Sunday week in UTC date-space.
+    // We use UTC-normalized date strings for comparisons so items don't shift in UTC+/- timezones.
+    const referenceDateStr = normalizeToUTCMidnight(startDate);
+    const referenceUtc = new Date(`${referenceDateStr}T00:00:00.000Z`);
+    const referenceUtcDay = referenceUtc.getUTCDay(); // 0=Sun ... 6=Sat
+    const daysSinceMonday = (referenceUtcDay + 6) % 7; // Monday=0 ... Sunday=6
+    const mondayNoonUtc = new Date(
+      Date.UTC(
+        referenceUtc.getUTCFullYear(),
+        referenceUtc.getUTCMonth(),
+        referenceUtc.getUTCDate() - daysSinceMonday,
+        12,
+        0,
+        0,
+        0,
+      ),
+    );
+
+    const dayNames = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday',
+    ] as const;
+
+    const days = Array.from({ length: 7 }).map((_, i) => {
+      return new Date(mondayNoonUtc.getTime() + i * 24 * 60 * 60 * 1000);
+    });
 
     return {
-      startDate: start,
-      days: days.map((date) => {
-        const dayName = format(date, 'EEEE'); // Full day name
+      startDate: mondayNoonUtc,
+      days: days.map((date, i) => {
+        // Explicit Monday→Sunday labels; do not rely on local timezone formatting.
+        const dayName = dayNames[i] ?? 'Monday';
         const dateStr = normalizeToUTCMidnight(date);
 
         // Get meals for this day
@@ -247,7 +274,8 @@ export function PrintManager({ plan, startDate }: PrintManagerProps) {
             </div>
 
             {/* Preview */}
-            <div className="flex-1 rounded-lg bg-gray-200/70 p-6 overflow-y-auto w-full flex justify-center">
+            {/* UX: force vertical-only scrolling; pages are stacked vertically in .print-container */}
+            <div className="flex-1 rounded-lg bg-gray-200/70 p-6 overflow-y-auto overflow-x-hidden w-full flex justify-center">
               <div ref={printRef}>
                 <WeeklySheet
                   data={weeklyData}
