@@ -11,7 +11,7 @@ interface RecipeFiltersEnhancedProps {
   categories: string[];
 }
 
-export function RecipeFiltersEnhanced({ categories }: RecipeFiltersEnhancedProps) {
+export function RecipeFiltersEnhanced({ categories: _categories }: RecipeFiltersEnhancedProps) {
   const [query, setQuery] = useQueryState(
     'q',
     parseAsString.withDefault('').withOptions({ throttleMs: 500, clearOnDefault: true })
@@ -77,7 +77,10 @@ export function RecipeFiltersEnhanced({ categories }: RecipeFiltersEnhancedProps
           value={query || ''}
           onChange={(e) => {
             const value = e.target.value;
-            startTransition(() => setQuery(value.trim() || null));
+            startTransition(() => {
+              // nuqs setters return a Promise; startTransition callback must return void
+              void setQuery(value.trim() || null);
+            });
           }}
           className="pl-10"
         />

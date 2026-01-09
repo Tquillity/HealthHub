@@ -150,7 +150,6 @@ export default function MealBoard({
   if (duration === '2weeks') daysToShow = 14;
   if (duration === '1month') daysToShow = 30;
   
-  const today = startOfDay(new Date());
   const allDays = Array.from({ length: daysToShow }).map((_, i) =>
     addDays(startDate, i)
   );

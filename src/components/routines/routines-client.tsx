@@ -5,12 +5,13 @@ import { useRouter } from 'next/navigation';
 import { parseAsString, useQueryState } from 'nuqs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { createRoutine, drawLottery } from '@/actions/routine-actions';
+import { createRoutine, updateRoutine, drawLottery } from '@/actions/routine-actions';
 import { useUIStore } from '@/lib/store';
 import { Plus, Sparkles, X } from 'lucide-react';
 import type { Routine } from '@prisma/client';
 import { RoutineCard } from './routine-card';
 import { RoutinesGrid } from './routines-grid';
+import { RoutineRichForm } from './routine-rich-form';
 
 interface RoutinesClientProps {
   routines: Routine[];

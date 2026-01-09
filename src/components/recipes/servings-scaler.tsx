@@ -35,19 +35,11 @@ function AddToGroceryButton({
     setIsLoading(true);
     const result = await addScaledIngredientsToGroceryList(ingredients, recipeId);
     if (result.success) {
-      showToast({
-        id: 'grocery-add-success',
-        message: 'Ingredients added to grocery list successfully!',
-        type: 'success',
-      });
+      showToast('Ingredients added to grocery list successfully!', 'success');
       router.push('/groceries');
       router.refresh();
     } else {
-      showToast({
-        id: 'grocery-add-error',
-        message: result.error || 'Failed to add ingredients to grocery list',
-        type: 'error',
-      });
+      showToast(result.error || 'Failed to add ingredients to grocery list', 'error');
     }
     setIsLoading(false);
   };

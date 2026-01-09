@@ -14,7 +14,6 @@ const ALGORITHM = 'aes-256-gcm';
 const KEY_LENGTH = 32; // 256 bits
 const IV_LENGTH = 16; // 128 bits
 const SALT_LENGTH = 16;
-const TAG_LENGTH = 16;
 
 /**
  * Get encryption key from environment variable
@@ -78,7 +77,9 @@ export function decrypt(encryptedText: string | null | undefined): string | null
       return encryptedText;
     }
     
-    const [saltBase64, ivBase64, tagBase64, encrypted] = parts;
+    // We include the `salt` segment for forward/backward compatibility with existing stored values,
+    // even though this implementation derives the key from a fixed salt.
+    const [_saltBase64, ivBase64, tagBase64, encrypted] = parts;
     
     const iv = Buffer.from(ivBase64, 'base64');
     const tag = Buffer.from(tagBase64, 'base64');
@@ -111,8 +112,12 @@ export function encryptArray(items: string[] | null | undefined): string[] | nul
  * 
  * Handles backward compatibility - if items are not encrypted, returns them as-is
  */
-export function decryptArray(encryptedItems: string[] | null | undefined): string[] | null {
-  if (!encryptedItems || encryptedItems.length === 0) return null;
-  return encryptedItems.map((item) => decrypt(item)!).filter((item): item is string => item !== null);
+export function decryptArray(encryptedItems: string[] | null | undefined): string[] {
+  // Prisma models use `String[]` (non-nullable). Returning `[]` keeps client/server types aligned
+  // and avoids `null` leaking into UI state.
+  if (!encryptedItems || encryptedItems.length === 0) return [];
+  return encryptedItems
+    .map((item) => decrypt(item)!)
+    .filter((item): item is string => item !== null);
 }
 

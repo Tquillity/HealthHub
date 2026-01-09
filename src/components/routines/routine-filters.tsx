@@ -1,6 +1,6 @@
 'use client';
 
-import { useQueryState, parseAsString, parseAsArrayOf } from 'nuqs';
+import { useQueryState, parseAsString } from 'nuqs';
 import { Input } from '@/components/ui/input';
 import { Search, X } from 'lucide-react';
 import { useTransition } from 'react';
@@ -59,7 +59,12 @@ export function RoutineFilters() {
           name="routine-search"
           placeholder="Search routines..."
           value={query}
-          onChange={(e) => startTransition(() => setQuery(e.target.value))}
+          onChange={(e) =>
+            startTransition(() => {
+              // nuqs setters return a Promise; startTransition callback must return void
+              void setQuery(e.target.value);
+            })
+          }
           className="pl-10"
         />
       </div>

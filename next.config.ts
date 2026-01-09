@@ -6,21 +6,17 @@ const withPWA = withPWAInit({
   cacheOnFrontEndNav: true,
   aggressiveFrontEndNavCaching: true,
   reloadOnOnline: true,
-  swcMinify: true,
   // Completely disable PWA in development to avoid workbox logs
   disable: process.env.NODE_ENV === 'development',
   workboxOptions: {
     // Suppress all workbox logging
     disableDevLogs: true,
-    selfPreserve: true,
     // Additional log suppression
     skipWaiting: true,
     clientsClaim: true,
     // Runtime caching with quiet logging
     runtimeCaching: [],
   },
-  // Suppress build-time logs
-  buildExcludes: [/app-build-manifest\.json$/],
 });
 
 const nextConfig: NextConfig = {

@@ -38,7 +38,7 @@ const UpdateRoutineSchema = CreateRoutineSchema.partial().extend({
   id: z.string().min(1),
 });
 
-export async function createRoutine(data: z.infer<typeof CreateRoutineSchema>) {
+export async function createRoutine(data: z.input<typeof CreateRoutineSchema>) {
   try {
     const session = await auth.api.getSession({
       headers: await headers(),
@@ -76,7 +76,9 @@ export async function createRoutine(data: z.infer<typeof CreateRoutineSchema>) {
         difficulty: validated.difficulty || null,
         equipment: validated.equipment,
         tags: validated.tags,
-        steps: validated.steps ? JSON.stringify(validated.steps) : null,
+        // Prisma `Json?` fields expect `undefined` (omit) instead of `null` for "no value".
+        // Store steps as JSON (array/object) rather than a stringified blob.
+        steps: validated.steps ?? undefined,
         tips: validated.tips,
         contraindications: validated.contraindications,
         organizationId: membership.organizationId,
@@ -87,14 +89,15 @@ export async function createRoutine(data: z.infer<typeof CreateRoutineSchema>) {
     return { success: true, data: routine };
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return { success: false, error: error.errors[0]?.message || 'Validation failed' };
+      // Zod v4 uses `issues` (Zod v3 used `errors`)
+      return { success: false, error: error.issues?.[0]?.message || 'Validation failed' };
     }
     console.error('Error creating routine:', error);
     return { success: false, error: 'Failed to create routine' };
   }
 }
 
-export async function updateRoutine(data: z.infer<typeof UpdateRoutineSchema>) {
+export async function updateRoutine(data: z.input<typeof UpdateRoutineSchema>) {
   try {
     const session = await auth.api.getSession({
       headers: await headers(),
@@ -144,7 +147,11 @@ export async function updateRoutine(data: z.infer<typeof UpdateRoutineSchema>) {
     if (updateData.difficulty !== undefined) dataToUpdate.difficulty = updateData.difficulty || null;
     if (updateData.equipment !== undefined) dataToUpdate.equipment = updateData.equipment;
     if (updateData.tags !== undefined) dataToUpdate.tags = updateData.tags;
-    if (updateData.steps !== undefined) dataToUpdate.steps = updateData.steps ? JSON.stringify(updateData.steps) : null;
+    if (updateData.steps !== undefined) {
+      // Prisma `Json?` fields expect `undefined` (omit) instead of `null` for "no value".
+      // Store steps as JSON (array/object) rather than a stringified blob.
+      dataToUpdate.steps = updateData.steps ?? undefined;
+    }
     if (updateData.tips !== undefined) dataToUpdate.tips = updateData.tips;
     if (updateData.contraindications !== undefined) dataToUpdate.contraindications = updateData.contraindications;
 
@@ -158,7 +165,8 @@ export async function updateRoutine(data: z.infer<typeof UpdateRoutineSchema>) {
     return { success: true, data: routine };
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return { success: false, error: error.errors[0]?.message || 'Validation failed' };
+      // Zod v4 uses `issues` (Zod v3 used `errors`)
+      return { success: false, error: error.issues?.[0]?.message || 'Validation failed' };
     }
     console.error('Error updating routine:', error);
     return { success: false, error: 'Failed to update routine' };

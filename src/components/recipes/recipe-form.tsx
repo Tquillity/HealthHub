@@ -58,7 +58,7 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
 
   const [imagePreview, setImagePreview] = useState<string | null>(recipe?.imageUrl || null);
   const [additionalImages, setAdditionalImages] = useState<string[]>(
-    (recipe as any)?.imageUrls || []
+    recipe?.imageUrls || []
   );
   const [isUploading, setIsUploading] = useState(false);
   const [isUploadingAdditional, setIsUploadingAdditional] = useState(false);
@@ -116,7 +116,7 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
 
       // Update image preview
       setImagePreview(recipe.imageUrl || null);
-      setAdditionalImages((recipe as any)?.imageUrls || []);
+      setAdditionalImages(recipe.imageUrls || []);
 
       // Update ingredients - always update when recipe changes
       // Ensure we always have at least one row, even if recipe has no ingredients
@@ -288,7 +288,6 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
 
     // Prepare data
     const recipeData = {
-      ...(isEditing && { id: recipe.id }),
       name: formData.name,
       description: formData.description || undefined,
       imageUrl: formData.imageUrl || undefined,
@@ -303,6 +302,9 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
       leanRole: formData.leanRole || undefined,
       dietaryTags: formData.dietaryTags.split(',').map((t) => t.trim()).filter(Boolean),
       isSecret: formData.isSecret,
+      // `isPrivate` is a required field in the recipe creation schema. HealthHub does not expose a "private"
+      // recipe toggle yet, so we preserve existing value when editing and default to false when creating.
+      isPrivate: recipe?.isPrivate ?? false,
       calories: formData.calories ? parseFloat(formData.calories) : undefined,
       protein: formData.protein ? parseFloat(formData.protein) : undefined,
       carbs: formData.carbs ? parseFloat(formData.carbs) : undefined,
@@ -317,7 +319,7 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
     };
 
     const result = isEditing
-      ? await updateRecipe(recipeData)
+      ? await updateRecipe({ ...recipeData, id: recipe!.id })
       : await createRecipe(recipeData);
 
     if (result.success) {

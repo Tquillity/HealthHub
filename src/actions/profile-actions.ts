@@ -14,6 +14,10 @@ const UpdateProfileSchema = z.object({
   timezone: z.string().optional(),
   mealPlanDuration: z.enum(['1week', '2weeks', '1month']).optional(),
   mealPlanStartDate: z.string().nullable().optional(), // ISO date string or null
+  enableCycleTracking: z.boolean().optional(),
+  cycleLength: z.number().int().min(20).max(45).optional(),
+  lastPeriodDate: z.string().nullable().optional(), // ISO datetime string or null
+  focusPreference: z.enum(['hormonal', 'workout', 'both']).optional(),
 });
 
 export async function updateProfile(data: z.infer<typeof UpdateProfileSchema>) {
@@ -46,14 +50,45 @@ export async function updateProfile(data: z.infer<typeof UpdateProfileSchema>) {
         ...(validated.mealPlanStartDate !== undefined && {
           mealPlanStartDate: validated.mealPlanStartDate,
         }),
+        ...(validated.enableCycleTracking !== undefined && {
+          enableCycleTracking: validated.enableCycleTracking,
+        }),
+        ...(validated.cycleLength !== undefined && {
+          cycleLength: validated.cycleLength,
+        }),
+        ...(validated.lastPeriodDate !== undefined && {
+          lastPeriodDate: validated.lastPeriodDate ? new Date(validated.lastPeriodDate) : null,
+        }),
+        ...(validated.focusPreference !== undefined && {
+          focusPreference: validated.focusPreference,
+        }),
       },
     });
 
+    // Return a serializable DTO (do NOT return raw Prisma User with Date fields)
+    const userData = {
+      id: updatedUser.id,
+      name: updatedUser.name,
+      email: updatedUser.email,
+      image: updatedUser.image,
+      energyLevel: updatedUser.energyLevel,
+      dietaryRestrictions: updatedUser.dietaryRestrictions,
+      healthGoals: updatedUser.healthGoals,
+      timezone: updatedUser.timezone,
+      mealPlanDuration: (updatedUser as any).mealPlanDuration || null,
+      mealPlanStartDate: (updatedUser as any).mealPlanStartDate || null,
+      enableCycleTracking: updatedUser.enableCycleTracking,
+      cycleLength: updatedUser.cycleLength,
+      lastPeriodDate: updatedUser.lastPeriodDate ? updatedUser.lastPeriodDate.toISOString() : null,
+      focusPreference: updatedUser.focusPreference || 'both',
+    };
+
     revalidatePath('/profile');
-    return { success: true, data: updatedUser };
+    return { success: true, data: userData };
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return { success: false, error: error.errors[0]?.message || 'Validation failed' };
+      // Zod v4 uses `issues` (Zod v3 used `errors`)
+      return { success: false, error: error.issues?.[0]?.message || 'Validation failed' };
     }
     console.error('Error updating profile:', error);
     return { success: false, error: 'Failed to update profile' };
@@ -90,6 +125,10 @@ export async function getProfile() {
       timezone: user.timezone,
       mealPlanDuration: (user as any).mealPlanDuration || null,
       mealPlanStartDate: (user as any).mealPlanStartDate || null,
+      enableCycleTracking: user.enableCycleTracking,
+      cycleLength: user.cycleLength,
+      lastPeriodDate: user.lastPeriodDate ? user.lastPeriodDate.toISOString() : null,
+      focusPreference: user.focusPreference || 'both',
     };
 
     return { success: true, error: null, data: userData };

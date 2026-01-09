@@ -2,11 +2,12 @@
 
 import { useState, useRef, useMemo } from 'react';
 import { useReactToPrint } from 'react-to-print';
+import type { ContentNode } from 'react-to-print/lib/types/ContentNode';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { WeeklySheet } from './weekly-sheet';
 import { WeeklyPlanData, TemplateVariant } from './types';
-import { format, addDays, eachDayOfInterval } from 'date-fns';
+import { format } from 'date-fns';
 import { Printer } from 'lucide-react';
 
 interface Plan {
@@ -113,7 +114,8 @@ export function PrintManager({ plan, startDate }: PrintManagerProps) {
   }, [plan, startDate]);
 
   const handlePrint = useReactToPrint({
-    content: () => printRef.current,
+    // react-to-print v3 uses `contentRef` instead of the older `content` callback.
+    contentRef: printRef as unknown as React.RefObject<ContentNode>,
     documentTitle: `Meal Plan - ${format(new Date(startDate), 'MMM d, yyyy')}`,
   });
 

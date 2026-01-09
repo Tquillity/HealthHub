@@ -119,7 +119,8 @@ export async function logJournalEntry(data: z.infer<typeof CreateJournalSchema>)
     return { success: true, data: decryptedEntry };
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return { success: false, error: error.errors[0]?.message || 'Validation failed' };
+      // Zod v4 uses `issues` (Zod v3 used `errors`)
+      return { success: false, error: error.issues?.[0]?.message || 'Validation failed' };
     }
     console.error('Error logging journal entry:', error);
     return { success: false, error: 'Failed to log journal entry' };

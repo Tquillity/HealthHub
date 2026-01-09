@@ -79,7 +79,7 @@ export function SeriesSelector({ onSeriesChange }: SeriesSelectorProps) {
 
   // Parse visible series from URL string
   const visibleSeries = useMemo(() => {
-    if (!visibleSeriesStr) return ['energy'];
+    if (!visibleSeriesStr) return ['energy'] as SeriesType[];
     return visibleSeriesStr.split(',').filter((s): s is SeriesType => 
       ['energy', 'estrogen', 'progesterone', 'lh', 'fsh', 'testosterone'].includes(s.trim())
     );
@@ -168,11 +168,11 @@ export function SeriesSelector({ onSeriesChange }: SeriesSelectorProps) {
  * @returns Array of visible series IDs (always returns at least ['energy'] if empty)
  */
 export function getVisibleSeries(urlValue: string | null): SeriesType[] {
-  if (!urlValue) return ['energy'];
+  if (!urlValue) return ['energy'] as SeriesType[];
   const series = urlValue.split(',').filter((s): s is SeriesType => 
     ['energy', 'estrogen', 'progesterone', 'lh', 'fsh', 'testosterone'].includes(s.trim())
   );
   // Ensure at least one series is always visible (default to energy)
-  return series.length > 0 ? series : ['energy'];
+  return series.length > 0 ? series : (['energy'] as SeriesType[]);
 }
 
