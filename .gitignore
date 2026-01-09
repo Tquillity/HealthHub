@@ -15,7 +15,6 @@ node_modules/
 .next/
 /out/
 /build/
-.next/
 
 # Turbopack-specific dev-time cache and artifacts (Next.js 15–16+)
 /.next/dev/

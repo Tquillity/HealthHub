@@ -1,6 +1,5 @@
 generator client {
   provider = "prisma-client-js"
-  previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
@@ -31,16 +30,21 @@ model User {
   mealPlanStartDate   DateTime?
   members             Member[]
   journalEntries      JournalEntry[]
+  @@map("user")
 }
 
 model Session {
   id        String   @id
   userId    String
+  token     String   @unique
   expiresAt DateTime
   ipAddress String?
   userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@index([userId])
+  @@map("session")
 }
 
 model Account {
@@ -52,8 +56,11 @@ model Account {
   refreshToken String?
   expiresAt    DateTime?
   password     String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
   user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@index([userId])
+  @@map("account")
 }
 
 model Verification {
@@ -61,6 +68,7 @@ model Verification {
   identifier String
   value      String
   expiresAt  DateTime
+  @@map("verification")
 }
 
 model Organization {
@@ -76,6 +84,7 @@ model Organization {
   routines          Routine[]
   mealPlans         MealPlan[]
   shoppingListItems ShoppingListItem[]
+  @@map("organization")
 }
 
 model Member {
@@ -88,6 +97,7 @@ model Member {
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@index([organizationId])
   @@index([userId])
+  @@map("member")
 }
 
 model Invitation {
@@ -99,6 +109,7 @@ model Invitation {
   expiresAt      DateTime
   inviterId      String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  @@map("invitation")
 }
 
 model Recipe {
@@ -134,6 +145,7 @@ model Recipe {
   mealPlanItems  MealPlanItem[]
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
+  @@map("recipe")
 }
 
 model Ingredient {
@@ -144,6 +156,7 @@ model Ingredient {
   notes    String?
   recipeId String
   recipe   Recipe  @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  @@map("ingredient")
 }
 
 model Instruction {
@@ -152,6 +165,7 @@ model Instruction {
   text       String
   recipeId   String
   recipe     Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  @@map("instruction")
 }
 
 model Routine {
@@ -176,6 +190,7 @@ model Routine {
   organization      Organization? @relation(fields: [organizationId], references: [id])
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
+  @@map("routine")
 }
 
 model MealPlan {
@@ -187,6 +202,7 @@ model MealPlan {
   items          MealPlanItem[]
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
+  @@map("meal_plan")
 }
 
 model MealPlanItem {
@@ -199,6 +215,7 @@ model MealPlanItem {
   isCooked   Boolean  @default(false)
   mealPlan   MealPlan @relation(fields: [mealPlanId], references: [id], onDelete: Cascade)
   recipe     Recipe   @relation(fields: [recipeId], references: [id])
+  @@map("meal_plan_item")
 }
 
 model ShoppingListItem {
@@ -215,6 +232,7 @@ model ShoppingListItem {
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
+  @@map("shopping_list_item")
 }
 
 model JournalEntry {
@@ -238,6 +256,7 @@ model JournalEntry {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
   @@unique([userId, date])
+  @@map("journal_entry")
 }
 
 model EducationalResource {
@@ -258,6 +277,7 @@ model EducationalResource {
   likes       Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  @@map("educational_resource")
 }
 
 model Expert {
@@ -266,7 +286,10 @@ model Expert {
   credentials     String?
   website         String?
   focusAreas      String[]
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
   recommendations PhaseRecommendation[]
+  @@map("expert")
 }
 
 model PhaseRecommendation {
@@ -279,4 +302,5 @@ model PhaseRecommendation {
   expert    Expert   @relation(fields: [expertId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  @@map("phase_recommendation")
 }

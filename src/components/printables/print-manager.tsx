@@ -30,12 +30,22 @@ export function PrintManager({ plan, startDate }: PrintManagerProps) {
   const [viewMode, setViewMode] = useState<'portrait' | 'landscape'>('portrait');
   const [template, setTemplate] = useState<TemplateVariant>('classic');
   const [paperSize, setPaperSize] = useState<'A4' | 'A3'>('A4');
+  const [density, setDensity] = useState<'comfortable' | 'compact'>('comfortable');
   const printRef = useRef<HTMLDivElement>(null);
+
+  // Helper function to normalize a date to UTC midnight for consistent comparison
+  const normalizeToUTCMidnight = (date: Date | string): string => {
+    const d = date instanceof Date ? new Date(date) : new Date(date);
+    // Normalize to UTC midnight to avoid timezone issues when comparing dates
+    const utcDate = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+    return utcDate.toISOString().split('T')[0];
+  };
 
   // Transform plan data into WeeklyPlanData format
   const weeklyData: WeeklyPlanData = useMemo(() => {
     const start = startDate instanceof Date ? startDate : new Date(startDate);
-    start.setHours(0, 0, 0, 0);
+    // Normalize to UTC midnight to avoid timezone shifts
+    start.setUTCHours(0, 0, 0, 0);
     const end = addDays(start, 6); // Default to 7 days
     const days = eachDayOfInterval({ start, end });
 
@@ -43,12 +53,11 @@ export function PrintManager({ plan, startDate }: PrintManagerProps) {
       startDate: start,
       days: days.map((date) => {
         const dayName = format(date, 'EEEE'); // Full day name
-        const dateStr = date.toISOString().split('T')[0];
+        const dateStr = normalizeToUTCMidnight(date);
 
         // Get meals for this day
         const dayItems = plan.items.filter((item) => {
-          const itemDate = item.date instanceof Date ? item.date : new Date(item.date);
-          const itemDateStr = itemDate.toISOString().split('T')[0];
+          const itemDateStr = normalizeToUTCMidnight(item.date);
           return itemDateStr === dateStr;
         });
 
@@ -199,6 +208,35 @@ export function PrintManager({ plan, startDate }: PrintManagerProps) {
                 </div>
               </div>
 
+              {/* Density */}
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium">Layout Density</label>
+                <div className="flex gap-2">
+                  <button
+                    id="density-comfortable"
+                    onClick={() => setDensity('comfortable')}
+                    className={`px-4 py-2 text-sm rounded-md border transition-colors min-h-[44px] ${
+                      density === 'comfortable'
+                        ? 'bg-primary-500 text-white border-primary-500'
+                        : 'bg-white border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    Comfortable
+                  </button>
+                  <button
+                    id="density-compact"
+                    onClick={() => setDensity('compact')}
+                    className={`px-4 py-2 text-sm rounded-md border transition-colors min-h-[44px] ${
+                      density === 'compact'
+                        ? 'bg-primary-500 text-white border-primary-500'
+                        : 'bg-white border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    Compact
+                  </button>
+                </div>
+              </div>
+
               {/* Print Button */}
               <div className="flex items-end">
                 <Button onClick={handlePrint} className="gap-2">
@@ -209,13 +247,14 @@ export function PrintManager({ plan, startDate }: PrintManagerProps) {
             </div>
 
             {/* Preview */}
-            <div className="border border-gray-200 rounded-lg p-4 bg-gray-50 overflow-auto">
+            <div className="flex-1 rounded-lg bg-gray-200/70 p-6 overflow-y-auto w-full flex justify-center">
               <div ref={printRef}>
                 <WeeklySheet
                   data={weeklyData}
                   variant={template}
                   viewMode={viewMode}
                   paperSize={paperSize}
+                  density={density}
                 />
               </div>
             </div>
