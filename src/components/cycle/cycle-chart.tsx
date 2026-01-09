@@ -369,7 +369,7 @@ export function CycleChart({ phaseData, cycleLength, lastPeriodDate, onPhaseHove
             
             {/* Phase Background Areas - Clickable regions for deep dive */}
             {/* Using dynamic phase boundaries with 0.5 offset for seamless coverage (prevents white gaps) */}
-            {/* isFront={false} ensures backgrounds stay behind lines and dots */}
+            {/* Keep phase backgrounds behind lines/dots (ReferenceArea is rendered behind by default) */}
             <ReferenceArea
               x1={0.5}
               x2={phaseBoundaries.menstrualEnd}
@@ -377,7 +377,6 @@ export function CycleChart({ phaseData, cycleLength, lastPeriodDate, onPhaseHove
               fillOpacity={0.15}
               stroke={PHASE_COLORS.menstrual}
               strokeOpacity={0.3}
-              isFront={false}
               onClick={() => handlePhaseClick('menstrual')}
               style={{ cursor: 'pointer' }}
               pointerEvents="auto"
@@ -389,7 +388,6 @@ export function CycleChart({ phaseData, cycleLength, lastPeriodDate, onPhaseHove
               fillOpacity={0.15}
               stroke={PHASE_COLORS.follicular}
               strokeOpacity={0.3}
-              isFront={false}
               onClick={() => handlePhaseClick('follicular')}
               style={{ cursor: 'pointer' }}
               pointerEvents="auto"
@@ -401,7 +399,6 @@ export function CycleChart({ phaseData, cycleLength, lastPeriodDate, onPhaseHove
               fillOpacity={0.15}
               stroke={PHASE_COLORS.ovulation}
               strokeOpacity={0.3}
-              isFront={false}
               onClick={() => handlePhaseClick('ovulation')}
               style={{ cursor: 'pointer' }}
               pointerEvents="auto"
@@ -413,7 +410,6 @@ export function CycleChart({ phaseData, cycleLength, lastPeriodDate, onPhaseHove
               fillOpacity={0.15}
               stroke={PHASE_COLORS.luteal}
               strokeOpacity={0.3}
-              isFront={false}
               onClick={() => handlePhaseClick('luteal')}
               style={{ cursor: 'pointer' }}
               pointerEvents="auto"

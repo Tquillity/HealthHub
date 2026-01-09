@@ -12,6 +12,10 @@ export default [
       '**/.turbo/',
       '**/.next/',
       '**/node_modules/',
+      // PWA / Workbox artifacts can be generated during build and should not be linted
+      'public/sw*.js',
+      'public/workbox-*.js',
+      'public/*worker*.js',
     ],
   },
   js.configs.recommended,

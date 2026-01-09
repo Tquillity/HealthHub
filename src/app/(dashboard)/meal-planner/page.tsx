@@ -3,8 +3,9 @@ import { getProfile } from '@/actions/profile-actions';
 import MealBoard from '@/components/meals/meal-board';
 import { MealPlanGenerator } from '@/components/meals/meal-plan-generator';
 import { MealPlannerSettings } from '@/components/meals/meal-planner-settings';
+import { PrintManager } from '@/components/printables/print-manager';
 import { Button } from '@/components/ui/button';
-import { ShoppingCart, RotateCcw } from 'lucide-react';
+import { ShoppingCart } from 'lucide-react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
@@ -32,6 +33,7 @@ export default async function MealPlannerPage() {
             initialDuration={user.mealPlanDuration}
             initialStartDate={user.mealPlanStartDate}
           />
+          <PrintManager plan={plan} startDate={startDate} />
           <MealPlanGenerator />
           <Link href="/groceries">
             <Button className="gap-2">

@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { updateProfile, getProfile } from '@/actions/profile-actions';
+import { updateProfile } from '@/actions/profile-actions';
 import { Settings, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
 import { useUIStore } from '@/lib/store';
@@ -14,6 +14,12 @@ interface MealPlannerSettingsProps {
   initialStartDate?: string | null;
 }
 
+type MealPlanDuration = '1week' | '2weeks' | '1month';
+
+const DEFAULT_DURATION: MealPlanDuration = '1week';
+const isMealPlanDuration = (value: string): value is MealPlanDuration =>
+  value === '1week' || value === '2weeks' || value === '1month';
+
 export function MealPlannerSettings({
   initialDuration = '1week',
   initialStartDate = null,
@@ -22,7 +28,9 @@ export function MealPlannerSettings({
   const showToast = useUIStore((state) => state.showToast);
   const [showDialog, setShowDialog] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [duration, setDuration] = useState<string>(initialDuration || '1week');
+  const [duration, setDuration] = useState<MealPlanDuration>(
+    initialDuration && isMealPlanDuration(initialDuration) ? initialDuration : DEFAULT_DURATION,
+  );
   const [startDate, setStartDate] = useState<string>(
     initialStartDate || new Date().toISOString().split('T')[0]
   );
@@ -40,11 +48,13 @@ export function MealPlannerSettings({
         setStartDate(today.toISOString().split('T')[0]);
         break;
       case 'nextWeek':
-        const nextWeek = new Date(today);
-        nextWeek.setDate(today.getDate() + (7 - today.getDay() + 1)); // Next Monday
-        setDuration('1week');
-        setUseToday(false);
-        setStartDate(nextWeek.toISOString().split('T')[0]);
+        {
+          const nextWeek = new Date(today);
+          nextWeek.setDate(today.getDate() + (7 - today.getDay() + 1)); // Next Monday
+          setDuration('1week');
+          setUseToday(false);
+          setStartDate(nextWeek.toISOString().split('T')[0]);
+        }
         break;
       case 'thisMonth':
         setDuration('1month');
@@ -65,27 +75,12 @@ export function MealPlannerSettings({
     setIsSaving(false);
 
     if (result.success) {
-      showToast({
-        id: 'meal-planner-settings-success',
-        message: 'Meal planner settings saved successfully!',
-        type: 'success',
-      });
+      showToast('Meal planner settings saved successfully!', 'success');
       setShowDialog(false);
       router.refresh();
     } else {
-      showToast({
-        id: 'meal-planner-settings-error',
-        message: result.error || 'Failed to save settings',
-        type: 'error',
-      });
+      showToast(result.error || 'Failed to save settings', 'error');
     }
-  };
-
-  const handleJumpToToday = () => {
-    const today = new Date().toISOString().split('T')[0];
-    setStartDate(today);
-    setUseToday(true);
-    router.refresh();
   };
 
   return (
@@ -150,11 +145,13 @@ export function MealPlannerSettings({
                   Plan Duration
                 </label>
                 <div className="flex gap-2">
-                  {[
-                    { value: '1week', label: '1 Week' },
-                    { value: '2weeks', label: '2 Weeks' },
-                    { value: '1month', label: '1 Month' },
-                  ].map((option) => (
+                  {(
+                    [
+                      { value: '1week', label: '1 Week' },
+                      { value: '2weeks', label: '2 Weeks' },
+                      { value: '1month', label: '1 Month' },
+                    ] as const
+                  ).map((option) => (
                     <button
                       key={option.value}
                       type="button"

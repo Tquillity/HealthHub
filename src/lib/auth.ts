@@ -13,13 +13,14 @@ export const auth = betterAuth({
   },
   socialProviders: {
     google: {
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      // These env vars are optional in dev; Better-Auth types require strings even when provider is disabled.
+      clientId: process.env.GOOGLE_CLIENT_ID ?? '',
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? '',
       enabled: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
     },
     x: {
-      clientId: process.env.X_CLIENT_ID,
-      clientSecret: process.env.X_CLIENT_SECRET,
+      clientId: process.env.X_CLIENT_ID ?? '',
+      clientSecret: process.env.X_CLIENT_SECRET ?? '',
       enabled: !!(process.env.X_CLIENT_ID && process.env.X_CLIENT_SECRET),
     },
   },

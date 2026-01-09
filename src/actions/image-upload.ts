@@ -39,8 +39,29 @@ export async function uploadImage(formData: FormData): Promise<{ success: boolea
     const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
     if (blobToken) {
       try {
-        // Dynamic import to avoid errors if package not installed
-        const { put } = await import('@vercel/blob');
+        // IMPORTANT:
+        // Next.js/webpack can try to resolve static `import('@vercel/blob')` at build time (even inside try/catch),
+        // which would fail builds when `@vercel/blob` is not installed.
+        //
+        // We intentionally use an *un-analyzable* runtime import so this remains an optional dependency:
+        // - If `@vercel/blob` is installed, the import succeeds and we upload to Blob.
+        // - If it is NOT installed, this throws and we fall back to local storage (dev) or a clear error message.
+        const runtimeImport = new Function(
+          'm',
+          'return import(m)',
+        ) as unknown as (moduleName: string) => Promise<unknown>;
+
+        // Do not reference `import('@vercel/blob')` types here; the module is optional and may not be installed.
+        // We only rely on the minimal `put()` contract we need.
+        const vercelBlob = (await runtimeImport('@vercel/blob')) as {
+          put: (
+            pathname: string,
+            body: Buffer,
+            options: { access: 'public' | 'private'; contentType?: string },
+          ) => Promise<{ url: string }>;
+        };
+
+        const { put } = vercelBlob;
         
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);

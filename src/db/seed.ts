@@ -654,25 +654,15 @@ async function seed() {
  * Ported from Food-Heaven project for HealthHub
  */
 
-// Type-safe interface for recommendation content
-interface RecommendationContent {
-  foods_to_eat?: string[];
-  foods_to_avoid?: string[];
-  workout_types?: string[];
-  guidance?: string;
-}
-
 async function seedExperts(prisma: PrismaClient) {
   console.log('👩‍⚕️ Seeding experts and phase recommendations...');
 
   // Expert A: Dr. Mindy Pelz
-  // @ts-expect-error - Prisma Client types may need TypeScript server restart after schema regeneration
   let drMindyPelz = await prisma.expert.findFirst({
     where: { name: 'Dr. Mindy Pelz' },
   });
 
   if (!drMindyPelz) {
-    // @ts-expect-error - Prisma Client types may need TypeScript server restart after schema regeneration
     drMindyPelz = await prisma.expert.create({
       data: {
         name: 'Dr. Mindy Pelz',
@@ -780,7 +770,6 @@ async function seedExperts(prisma: PrismaClient) {
   ];
 
   for (const rec of mindyRecommendations) {
-    // @ts-expect-error - Prisma Client types may need TypeScript server restart after schema regeneration
     const existingRec = await prisma.phaseRecommendation.findFirst({
       where: {
         expertId: rec.expertId,
@@ -790,7 +779,6 @@ async function seedExperts(prisma: PrismaClient) {
     });
 
     if (existingRec) {
-      // @ts-expect-error - Prisma Client types may need TypeScript server restart after schema regeneration
       await prisma.phaseRecommendation.update({
         where: { id: existingRec.id },
         data: {
@@ -800,7 +788,6 @@ async function seedExperts(prisma: PrismaClient) {
       });
       console.log(`  🔄 Updated: ${rec.phase} - ${rec.category}`);
     } else {
-      // @ts-expect-error - Prisma Client types may need TypeScript server restart after schema regeneration
       await prisma.phaseRecommendation.create({
         data: {
           expertId: rec.expertId,
@@ -815,13 +802,11 @@ async function seedExperts(prisma: PrismaClient) {
   }
 
   // Expert B: Dr. Stacy Sims
-  // @ts-expect-error - Prisma Client types may need TypeScript server restart after schema regeneration
   let drStacySims = await prisma.expert.findFirst({
     where: { name: 'Dr. Stacy Sims' },
   });
 
   if (!drStacySims) {
-    // @ts-expect-error - Prisma Client types may need TypeScript server restart after schema regeneration
     drStacySims = await prisma.expert.create({
       data: {
         name: 'Dr. Stacy Sims',
@@ -834,7 +819,6 @@ async function seedExperts(prisma: PrismaClient) {
   } else {
     // Update credentials if they exist but are outdated
     if (drStacySims.credentials !== 'PhD, Exercise Physiologist & Nutrition Scientist') {
-      // @ts-expect-error - Prisma Client types may need TypeScript server restart after schema regeneration
       await prisma.expert.update({
         where: { id: drStacySims.id },
         data: {
@@ -914,7 +898,6 @@ async function seedExperts(prisma: PrismaClient) {
   ];
 
   for (const rec of stacyRecommendations) {
-    // @ts-expect-error - Prisma Client types may need TypeScript server restart after schema regeneration
     const existingRec = await prisma.phaseRecommendation.findFirst({
       where: {
         expertId: rec.expertId,
@@ -924,7 +907,6 @@ async function seedExperts(prisma: PrismaClient) {
     });
 
     if (existingRec) {
-      // @ts-expect-error - Prisma Client types may need TypeScript server restart after schema regeneration
       await prisma.phaseRecommendation.update({
         where: { id: existingRec.id },
         data: {
@@ -934,7 +916,6 @@ async function seedExperts(prisma: PrismaClient) {
       });
       console.log(`  🔄 Updated: ${rec.phase} - ${rec.category}`);
     } else {
-      // @ts-expect-error - Prisma Client types may need TypeScript server restart after schema regeneration
       await prisma.phaseRecommendation.create({
         data: {
           expertId: rec.expertId,

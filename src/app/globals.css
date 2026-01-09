@@ -25,3 +25,78 @@
   --color-wellness-800: #166534;
   --color-wellness-900: #14532d;
 }
+
+/* --- PRINTABLE ENGINE --- */
+@media screen {
+  .print-container {
+    background: #f3f4f6; /* gray-100 */
+    min-height: 100%;
+    padding: 2rem;
+    display: flex;
+    /* Always stack pages vertically in preview (no horizontal "row" layout) */
+    flex-direction: column;
+    align-items: center;
+    /* Space between pages must be OUTSIDE the accent border */
+    gap: 3.5rem;
+  }
+
+  .print-page {
+    background: white;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    /* Paper should have square edges in preview */
+    border-radius: 0;
+    overflow: hidden;
+    /* Accent border should not overlap adjacent pages */
+    border: 3px solid var(--color-primary-300);
+  }
+}
+
+@media print {
+  @page {
+    size: auto;
+    margin: 0mm;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    background: white;
+    overflow: visible !important;
+  }
+
+  /* Hide Next.js Layout elements */
+  aside, header, footer, nav, .fixed, .sticky {
+    display: none !important;
+  }
+  
+  /* Ensure dialog content is visible and takes over */
+  [role="dialog"] {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    background: white !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    transform: none !important;
+    overflow: visible !important;
+  }
+
+  /* Specific targets for react-to-print */
+  .print-container {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    background: white;
+  }
+
+  .print-page {
+    box-shadow: none;
+    border: none !important;
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    page-break-after: always;
+  }
+}

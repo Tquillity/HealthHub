@@ -105,7 +105,99 @@ WHERE table_name = 'journal_entry'
 AND column_name IN ('gratitudeEntries', 'goalsAchieved', 'symptomsPhysical');
 ```
 
+**CRITICAL: PostgreSQL Case Sensitivity Issue**
+
+🛑 **ALWAYS add `@@map("table_name")` to Prisma models when the database table name is lowercase.**
+
+PostgreSQL stores unquoted table names in lowercase (e.g., `session`, `user`, `account`), but Prisma model names are PascalCase (e.g., `Session`, `User`, `Account`). Without explicit mapping, Prisma will look for `Session` (capitalized) but the database has `session` (lowercase), causing errors like:
+
+```
+The table `public.Session` does not exist in the current database.
+```
+
+**Fix:** Add `@@map("table_name")` to every model that corresponds to a lowercase database table:
+
+```prisma
+model Session {
+  // ... fields
+  @@map("session")  // Maps Prisma model "Session" to database table "session"
+}
+
+model User {
+  // ... fields
+  @@map("user")  // Maps Prisma model "User" to database table "user"
+}
+```
+
+**When to add `@@map`:**
+- Always check the actual database table names using Postgres MCP
+- If the database table is lowercase and the Prisma model is PascalCase, add `@@map`
+- This is especially critical for Better-Auth models (User, Session, Account, Verification)
+
+**Common affected models:**
+- `Session` → `@@map("session")`
+- `User` → `@@map("user")`
+- `Account` → `@@map("account")`
+- `Verification` → `@@map("verification")`
+
 ### 5.2 Web Research via Brave Search MCP
+
+### 5.3 Next.js 16: `middleware.ts` renamed to `proxy.ts` (Deprecated Convention)
+
+Next.js 16.1+ deprecates the `middleware.ts` file convention and replaces it with `proxy.ts`. If you see warnings like:
+
+```
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead.
+```
+
+**Fix:** rename `src/middleware.ts` → `src/proxy.ts` and export a `proxy()` function.
+
+**Codemod:** run the official Next.js codemod:
+- `npx @next/codemod@canary middleware-to-proxy .`
+
+Reference: [Next.js “Renaming Middleware to Proxy”](https://nextjs.org/docs/messages/middleware-to-proxy)
+
+### 5.4 Better-Auth + Prisma: Required Schema Invariants (Do Not Break)
+
+These issues have caused repeated production-blocking crashes in this repo. If you change auth models, you MUST keep these invariants:
+
+- **`Session.token` must be `@unique`**
+  - Better-Auth updates sessions by `token` (e.g., `prisma.session.update({ where: { token } })`).
+  - Prisma only allows that if `token` is part of `SessionWhereUniqueInput`.
+  - **Rule:** keep `token String @unique` in the `Session` model and ensure the DB has a unique index.
+
+- **Auth models MUST match DB columns**
+  - If the database has `createdAt` / `updatedAt` (common on `session`, `account`, `expert`), the Prisma models must include them with `@default(now())` / `@updatedAt`.
+
+- **After ANY Prisma schema change**
+  - Run `npx prisma db push`
+  - Run `npm run db:generate`
+  - **Fully restart** `next dev` (do not rely on Fast Refresh)
+  - If you renamed proxy/middleware files or see odd dev build state, also delete `.next/` before restarting.
+
+### 5.5 TypeScript: Never Include `.next/dev/types/**` in `tsconfig.json`
+
+Next’s `.next/dev/types/**` files are ephemeral and can disappear whenever `.next/` is cleared.
+Including them causes TypeScript “File not found” errors.
+
+- **Rule:** Do NOT include `.next/dev/types/**/*.ts` in `tsconfig.json`
+- **Recommended:** Exclude `.next` entirely in `tsconfig.json` and keep only `.next/types/**/*.ts` if needed.
+
+### 5.6 Next.js Dev: “Failed to find Server Action” (Stale Build/Client)
+
+If you see:
+
+```
+Error: Failed to find Server Action "…". This request might be from an older or newer deployment.
+```
+
+This is typically a **stale dev build / old client bundle** after changes (especially Server Actions).
+
+**Fix (dev):**
+- Stop all running `next dev` processes
+- Delete `.next/`
+- Restart `npm run dev`
+- Hard refresh the browser (Ctrl+Shift+R) / clear site data if needed
 
 **Use `@brave-search` MCP for real-time information gathering and research.**
 

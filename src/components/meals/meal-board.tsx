@@ -25,6 +25,7 @@ type PlanItem = {
 type Plan = {
   id: string;
   startDate: Date | string;
+  endDate?: Date | string;
   items: PlanItem[];
 };
 
@@ -98,9 +99,8 @@ function DaySlot({
           <span className="block truncate font-medium">{item.recipe.name}</span>
           {!isPastDay && (
             <button
-              className="cursor-pointer"
               onClick={() => removeMealFromPlan(item.id)}
-              className="absolute right-1 top-1 opacity-0 transition-opacity group-hover:opacity-100"
+              className="absolute right-1 top-1 cursor-pointer opacity-0 transition-opacity group-hover:opacity-100"
               aria-label="Remove meal"
             >
               <Trash2 className="h-3 w-3 text-red-400 hover:text-red-600" />
@@ -139,14 +139,17 @@ export default function MealBoard({
 }) {
   const router = useRouter();
   const startDate = startDateProp ? new Date(startDateProp) : new Date(plan.startDate);
-  const endDate = endDateProp ? new Date(endDateProp) : new Date(plan.endDate);
+  const endDate = endDateProp
+    ? new Date(endDateProp)
+    : plan.endDate
+      ? new Date(plan.endDate)
+      : addDays(startDate, 6);
   
   // Calculate number of days to show
   let daysToShow = 7;
   if (duration === '2weeks') daysToShow = 14;
   if (duration === '1month') daysToShow = 30;
   
-  const today = startOfDay(new Date());
   const allDays = Array.from({ length: daysToShow }).map((_, i) =>
     addDays(startDate, i)
   );
@@ -180,7 +183,9 @@ export default function MealBoard({
   };
 
   return (
-    <DndContext onDragEnd={handleDragEnd}>
+    // dnd-kit generates accessibility IDs (e.g. aria-describedby) that can differ between SSR and client.
+    // Providing a stable DndContext id prevents hydration mismatches in Next.js.
+    <DndContext id="meal-planner-dnd" onDragEnd={handleDragEnd}>
       <div className="flex h-[calc(100vh-200px)] flex-col gap-6 lg:flex-row">
         {/* Sidebar */}
         <div className="w-full shrink-0 pr-2 lg:w-64">

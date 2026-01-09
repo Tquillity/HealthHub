@@ -117,25 +117,41 @@ export async function inviteMember(data: z.infer<typeof InviteMemberSchema>) {
       return { success: false, error: 'User is already a member of this household' };
     }
 
-    // Create invitation using Better-Auth's organization API or direct database creation
+    // Create invitation using Better-Auth's organization API (when available) or direct database creation.
+    //
+    // Note: Better-Auth's `auth.api` is plugin-shaped and can vary by version/config.
+    // We feature-detect `createInvitation` to keep this action compatible even when the method
+    // is not present (or not typed) and fall back to a Prisma insert.
     try {
-      // Try Better-Auth API first (if available)
-      const invitation = await auth.api.createInvitation({
-        headers: await headers(),
-        body: {
-          email: validated.email,
-          organizationId: membership.organizationId,
-          role: validated.role,
-        },
-      });
+      const api = auth.api as unknown as {
+        createInvitation?: (args: {
+          headers: Headers;
+          body: {
+            email: string;
+            organizationId: string;
+            role?: string;
+          };
+        }) => Promise<unknown>;
+      };
 
-      if (invitation) {
-        revalidatePath('/profile/household');
-        return { success: true, data: invitation };
+      if (api.createInvitation) {
+        const invitation = await api.createInvitation({
+          headers: await headers(),
+          body: {
+            email: validated.email,
+            organizationId: membership.organizationId,
+            role: validated.role,
+          },
+        });
+
+        if (invitation) {
+          revalidatePath('/profile/household');
+          return { success: true, data: invitation };
+        }
       }
-    } catch (apiError) {
-      // If API method doesn't exist, create invitation directly in database
-      console.log('Better-Auth API method not available, creating invitation directly');
+    } catch {
+      // Fall through to DB-backed invitation creation
+      console.log('Better-Auth invitation API not available, creating invitation directly');
     }
 
     // Fallback: Create invitation directly in database
@@ -158,7 +174,8 @@ export async function inviteMember(data: z.infer<typeof InviteMemberSchema>) {
     return { success: true, data: invitation };
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return { success: false, error: error.errors[0]?.message || 'Validation failed' };
+      // Zod v4 uses `issues` (Zod v3 used `errors`)
+      return { success: false, error: error.issues?.[0]?.message || 'Validation failed' };
     }
     console.error('Error inviting member:', error);
     return { success: false, error: 'Failed to invite member' };

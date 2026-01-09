@@ -52,6 +52,11 @@ ts-debug.log*
 .env*.development
 .env*.production
 
+# PWA / Workbox generated artifacts (generated at build time)
+/public/sw*.js
+/public/workbox-*.js
+/public/*worker*.js
+
 # Vercel / Netlify / Cloudflare
 .vercel
 .netlify

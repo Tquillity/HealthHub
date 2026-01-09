@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Plus, Trash2, Upload, X } from 'lucide-react';
-import { createRoutine, updateRoutine, type Routine } from '@/actions/routine-actions';
+import { createRoutine, updateRoutine } from '@/actions/routine-actions';
 import { uploadImage } from '@/actions/image-upload';
+import type { Routine } from '@prisma/client';
 
 interface RoutineStep {
   step: number;
@@ -123,7 +124,11 @@ export function RoutineRichForm({ routine, onSuccess, onCancel }: RoutineRichFor
     }
   };
 
-  const updateStep = (index: number, field: keyof RoutineStep, value: string | number) => {
+  const updateStep = (
+    index: number,
+    field: keyof RoutineStep,
+    value: string | number | undefined,
+  ) => {
     const updated = [...steps];
     updated[index] = { ...updated[index], [field]: value };
     setSteps(updated);
@@ -169,7 +174,6 @@ export function RoutineRichForm({ routine, onSuccess, onCancel }: RoutineRichFor
     }
 
     const routineData = {
-      ...(isEditing && { id: routine.id }),
       name: formData.name,
       description: formData.description || undefined,
       category: formData.category || undefined,
@@ -188,7 +192,7 @@ export function RoutineRichForm({ routine, onSuccess, onCancel }: RoutineRichFor
     };
 
     const result = isEditing
-      ? await updateRoutine(routineData)
+      ? await updateRoutine({ ...routineData, id: routine!.id })
       : await createRoutine(routineData);
 
     if (result.success) {

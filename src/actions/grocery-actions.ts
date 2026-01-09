@@ -4,7 +4,6 @@ import { prisma } from '@/lib/db';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { revalidatePath } from 'next/cache';
-import { startOfWeek, endOfWeek } from 'date-fns';
 
 // Type for aggregated grocery item (matches GroceryListClient expectations)
 export interface GroceryItem {
@@ -17,7 +16,8 @@ export interface GroceryItem {
     recipeName: string;
     quantity: number;
     mealType: string;
-    date: Date;
+    // Must be serializable across the Server→Client boundary
+    date: string;
   }>;
 }
 
@@ -137,7 +137,7 @@ export async function getGroceryList(
             recipeName: recipe.name,
             quantity: adjustedQuantity,
             mealType: item.mealType,
-            date: item.date,
+            date: item.date.toISOString(),
           });
         } else {
           ingredientMap.set(key, {
@@ -149,7 +149,7 @@ export async function getGroceryList(
                 recipeName: recipe.name,
                 quantity: adjustedQuantity,
                 mealType: item.mealType,
-                date: item.date,
+                date: item.date.toISOString(),
               },
             ],
           });
@@ -187,7 +187,7 @@ export async function getGroceryList(
           recipeName: 'Manual Entry',
           quantity: normalized.quantity,
           mealType: 'other',
-          date: item.sourceDate || new Date(),
+          date: (item.sourceDate ?? new Date()).toISOString(),
         });
       } else {
         ingredientMap.set(key, {
@@ -201,7 +201,7 @@ export async function getGroceryList(
               recipeName: 'Manual Entry',
               quantity: normalized.quantity,
               mealType: 'other',
-              date: item.sourceDate || new Date(),
+              date: (item.sourceDate ?? new Date()).toISOString(),
             },
           ],
         });
