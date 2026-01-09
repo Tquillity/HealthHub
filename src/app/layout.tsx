@@ -19,6 +19,8 @@ export const metadata: Metadata = {
   other: {
     'mobile-web-app-capable': 'yes',
   },
+  // Suppress CSS preload warning - CSS is loaded and used immediately
+  // This is a Next.js optimization that sometimes triggers false warnings
 };
 
 export const viewport: Viewport = {

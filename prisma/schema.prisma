@@ -72,17 +72,18 @@ model Verification {
 }
 
 model Organization {
-  id                String             @id
+  id                String                @id
   name              String
-  slug              String             @unique
+  slug              String                @unique
   logo              String?
-  createdAt         DateTime           @default(now())
+  createdAt         DateTime              @default(now())
   metadata          String?
   members           Member[]
   invitations       Invitation[]
   recipes           Recipe[]
   routines          Routine[]
   mealPlans         MealPlan[]
+  mealPlanTemplates MealPlanTemplate[]
   shoppingListItems ShoppingListItem[]
   @@map("organization")
 }
@@ -113,38 +114,39 @@ model Invitation {
 }
 
 model Recipe {
-  id             String         @id @default(cuid())
-  name           String
-  description    String?
-  imageUrl       String?
-  imageUrls      String[]
-  videoUrl       String?
-  prepTime       Int?
-  cookTime       Int?
-  servings       Int?
-  category       String?
-  difficulty     String?
-  cuisine        String?
-  calories       Float?
-  protein        Float?
-  carbs          Float?
-  fat            Float?
-  fiber          Float?
-  sugar          Float?
-  sodium         Float?
-  tags           String[]
-  dietaryTags    String[]
-  leanRole       String?
-  isSystem       Boolean        @default(false)
-  isSecret       Boolean        @default(false)
-  isPrivate      Boolean        @default(false)
-  organizationId String?
-  organization   Organization?  @relation(fields: [organizationId], references: [id])
-  ingredients    Ingredient[]
-  instructions   Instruction[]
-  mealPlanItems  MealPlanItem[]
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  id                    String                  @id @default(cuid())
+  name                  String
+  description           String?
+  imageUrl              String?
+  imageUrls             String[]
+  videoUrl              String?
+  prepTime              Int?
+  cookTime              Int?
+  servings              Int?
+  category              String?
+  difficulty            String?
+  cuisine               String?
+  calories              Float?
+  protein               Float?
+  carbs                 Float?
+  fat                   Float?
+  fiber                 Float?
+  sugar                 Float?
+  sodium                Float?
+  tags                  String[]
+  dietaryTags           String[]
+  leanRole              String?
+  isSystem              Boolean                 @default(false)
+  isSecret              Boolean                 @default(false)
+  isPrivate             Boolean                 @default(false)
+  organizationId        String?
+  organization          Organization?           @relation(fields: [organizationId], references: [id])
+  ingredients           Ingredient[]
+  instructions          Instruction[]
+  mealPlanItems         MealPlanItem[]
+  mealPlanTemplateItems MealPlanTemplateItem[]
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
   @@map("recipe")
 }
 
@@ -216,6 +218,33 @@ model MealPlanItem {
   mealPlan   MealPlan @relation(fields: [mealPlanId], references: [id], onDelete: Cascade)
   recipe     Recipe   @relation(fields: [recipeId], references: [id])
   @@map("meal_plan_item")
+}
+
+model MealPlanTemplate {
+  id             String                @id @default(cuid())
+  name           String
+  description    String?
+  organizationId String
+  createdById    String
+  isPublic       Boolean               @default(false)
+  shareToken     String?               @unique
+  items          MealPlanTemplateItem[]
+  organization   Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  @@map("meal_plan_template")
+}
+
+model MealPlanTemplateItem {
+  id                String           @id @default(cuid())
+  templateId        String
+  recipeId          String
+  dayOffset         Int              // Days from start (0 = first day, 1 = second day, etc.)
+  mealType          String
+  servings          Int              @default(4)
+  template          MealPlanTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  recipe            Recipe            @relation(fields: [recipeId], references: [id])
+  @@map("meal_plan_template_item")
 }
 
 model ShoppingListItem {
