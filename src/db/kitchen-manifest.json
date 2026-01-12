@@ -936,10 +936,10 @@
           "notes": null
         },
         {
-          "name": "Kokosfett (smält/mjukt)",
+          "name": "Kokosfett",
           "quantity": 2.0,
           "unit": "msk",
-          "notes": null
+          "notes": "Smält eller mjukt"
         },
         {
           "name": "Havssalt",
@@ -971,7 +971,7 @@
         },
         {
           "stepNumber": 3,
-          "text": "Blanda i en bunke: nötmjöl, sötning, vanilj, kokosfett och salt. Arbeta ihop till en deg."
+          "text": "Smält kokosfettet (eller låt det bli mjukt vid rumstemperatur). Blanda i en bunke: nötmjöl, sötning, vanilj, smält/mjukt kokosfett och salt. Arbeta ihop till en deg."
         },
         {
           "stepNumber": 4,
@@ -1239,7 +1239,7 @@
       ],
       "ingredients": [
         {
-          "name": "Gul eller röd lök",
+          "name": "Gul lök",
           "quantity": 2,
           "unit": "st"
         },
@@ -1496,7 +1496,13 @@
           "unit": "msk"
         },
         {
-          "name": "Salt och peppar",
+          "name": "Salt",
+          "quantity": 1,
+          "unit": "krm",
+          "notes": "Efter smak"
+        },
+        {
+          "name": "Peppar",
           "quantity": 1,
           "unit": "krm",
           "notes": "Efter smak"

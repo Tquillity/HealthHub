@@ -4,6 +4,8 @@ import { prisma } from '@/lib/db';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { revalidatePath } from 'next/cache';
+import { parseIngredientAlternatives, normalizePatternKey } from '@/lib/ingredient-alternatives';
+import { resolveIngredientChoice } from './ingredient-preference-actions';
 
 // Type for aggregated grocery item (matches GroceryListClient expectations)
 export interface GroceryItem {
@@ -12,6 +14,7 @@ export interface GroceryItem {
   unit: string;
   totalQuantity: number;
   isChecked?: boolean; // Only for ShoppingListItem entries
+  isStaple?: boolean; // New flag for Skafferi (Pantry) items
   recipes: Array<{
     recipeName: string;
     quantity: number;
@@ -97,6 +100,7 @@ export async function getGroceryList(
             servings: true,
             ingredients: {
               select: {
+                id: true,
                 name: true,
                 quantity: true,
                 unit: true,
@@ -116,6 +120,37 @@ export async function getGroceryList(
     // 2. Processing data in a single pass
     // 3. Unit normalization requires complex logic that's difficult in pure SQL
     // For 500+ meals, consider a database view or materialized view for further optimization
+    
+    // Collect all ingredient IDs to batch-fetch alternatives
+    const allIngredientIds = new Set<string>();
+    for (const item of mealPlanItems) {
+      for (const ingredient of item.recipe.ingredients) {
+        allIngredientIds.add(ingredient.id);
+      }
+    }
+    
+    // Batch-fetch all alternatives at once (more efficient than per-ingredient queries)
+    const alternativesMap = new Map<string, string[]>();
+    try {
+      const allAlternatives = await prisma.ingredientAlternative.findMany({
+        where: { ingredientId: { in: Array.from(allIngredientIds) } },
+        select: { ingredientId: true, name: true, order: true },
+        orderBy: { order: 'asc' },
+      });
+      
+      // Group alternatives by ingredient ID
+      for (const alt of allAlternatives) {
+        if (!alternativesMap.has(alt.ingredientId)) {
+          alternativesMap.set(alt.ingredientId, []);
+        }
+        alternativesMap.get(alt.ingredientId)!.push(alt.name);
+      }
+    } catch (error) {
+      // If alternatives table doesn't exist or relation fails, continue without alternatives
+      // This is a graceful fallback - we'll use name parsing instead
+      console.warn('Could not fetch alternatives from database, using name parsing fallback');
+    }
+    
     const ingredientMap = new Map<string, GroceryItem>();
 
     for (const item of mealPlanItems) {
@@ -124,14 +159,44 @@ export async function getGroceryList(
       const servingsMultiplier = item.servings / (recipe.servings || 1);
 
       for (const ingredient of recipe.ingredients) {
+        // Get stored alternatives from the batch-fetched map
+        const storedAlternatives = alternativesMap.get(ingredient.id) || [];
+        
+        // Handle ingredient alternatives: parse from name or use stored alternatives
+        const parsed = parseIngredientAlternatives(ingredient.name);
+        const allAlternatives = storedAlternatives.length > 0 
+          ? storedAlternatives 
+          : parsed.alternatives;
+        
+        // Resolve which ingredient to use based on user preference or default
+        const resolvedName = allAlternatives.length > 0
+          ? await resolveIngredientChoice(session.user.id, parsed.name, allAlternatives)
+          : ingredient.name;
+        
+        // Skip excluded items (like water) - they should never appear on grocery lists
+        if (isExcludedItem(resolvedName)) {
+          continue;
+        }
+
         // Normalize unit for better aggregation (cups→ml, oz→g, etc.)
         const normalized = normalizeUnit(ingredient.quantity * servingsMultiplier, ingredient.unit);
-        const key = `${ingredient.name.toLowerCase()}_${normalized.unit.toLowerCase()}`;
+        const isStaple = isStapleItem(resolvedName);
+        
+        // Normalize ingredient name to handle variations (plural/singular, parenthetical notes)
+        const normalizedName = normalizeIngredientName(resolvedName);
+        
+        // For staples, merge by normalized name only (not unit) since staples are typically "have it or don't"
+        // For non-staples, merge by normalized name + unit to prevent incorrect merging
+        const key = isStaple 
+          ? normalizedName
+          : `${normalizedName}_${normalized.unit.toLowerCase()}`;
         
         const adjustedQuantity = normalized.quantity;
 
         if (ingredientMap.has(key)) {
           const existing = ingredientMap.get(key)!;
+          // For staples, we sum quantities but keep the most common unit representation
+          // For non-staples, we sum quantities with the same normalized unit
           existing.totalQuantity += adjustedQuantity;
           existing.recipes.push({
             recipeName: recipe.name,
@@ -141,9 +206,10 @@ export async function getGroceryList(
           });
         } else {
           ingredientMap.set(key, {
-            name: ingredient.name.charAt(0).toUpperCase() + ingredient.name.slice(1),
+            name: resolvedName.charAt(0).toUpperCase() + resolvedName.slice(1),
             unit: normalized.unit,
             totalQuantity: adjustedQuantity,
+            isStaple,
             recipes: [
               {
                 recipeName: recipe.name,
@@ -171,8 +237,21 @@ export async function getGroceryList(
     // Add shopping list items to the map (they merge with meal plan items if same name+unit)
     // ShoppingListItem entries take precedence for checked state and are included in aggregation
     for (const item of shoppingListItems) {
+      // Skip excluded items (like water) - they should never appear on grocery lists
+      if (isExcludedItem(item.name)) {
+        continue;
+      }
+
       const normalized = normalizeUnit(item.quantity, item.unit);
-      const key = `${item.name.toLowerCase()}_${normalized.unit.toLowerCase()}`;
+      const isStaple = isStapleItem(item.name);
+      
+      // Normalize ingredient name to handle variations (plural/singular, parenthetical notes)
+      const normalizedName = normalizeIngredientName(item.name);
+      
+      // For staples, merge by normalized name only; for non-staples, merge by normalized name + unit
+      const key = isStaple
+        ? normalizedName
+        : `${normalizedName}_${normalized.unit.toLowerCase()}`;
       
       if (ingredientMap.has(key)) {
         const existing = ingredientMap.get(key)!;
@@ -181,6 +260,10 @@ export async function getGroceryList(
         if (!existing.id && item.id) {
           existing.id = item.id;
           existing.isChecked = item.isChecked;
+        }
+        // Ensure isStaple flag is set if not already
+        if (isStaple) {
+          existing.isStaple = true;
         }
         // Add a "manual" recipe entry for shopping list items
         existing.recipes.push({
@@ -196,6 +279,7 @@ export async function getGroceryList(
           unit: normalized.unit,
           totalQuantity: normalized.quantity,
           isChecked: item.isChecked, // Include checked state
+          isStaple,
           recipes: [
             {
               recipeName: 'Manual Entry',
@@ -392,11 +476,110 @@ export async function addScaledIngredientsToGroceryList(
 }
 
 /**
+ * Excluded keywords - items that should NEVER appear on grocery lists
+ * These are items everyone has at home (like water) or shouldn't be purchased
+ */
+const EXCLUDED_KEYWORDS = [
+  'vatten', 'water', 'kokande vatten', 'boiling water'
+];
+
+/**
+ * Normalize ingredient names to handle variations, plural/singular, and parenthetical notes
+ * This helps merge items like "Gula Lökar" and "Gul Lök" (same color, plural/singular) 
+ * or "Kokosolja" and "Kokosolja (Till Chips)" (parenthetical note removal)
+ * 
+ * Examples:
+ * - "Gula Lökar" → "gul lök" (plural normalized, but color preserved)
+ * - "Gul Lök" → "gul lök" (color preserved)
+ * - "Kokosolja (Till Chips)" → "kokosolja" (parenthetical removed)
+ * - "Citron" → "citron" (stays separate from "Citronsaft" which becomes "citronsaft")
+ * 
+ * NOTE: We preserve color and state descriptors (gul/röd lök, färsk timjan) 
+ * as these represent different ingredients.
+ * 
+ * @param name - Original ingredient name
+ * @returns Normalized name for comparison
+ */
+function normalizeIngredientName(name: string): string {
+  let normalized = name.trim();
+  
+  // Remove parenthetical notes like "(Till Chips)", "(färsk)", "(kallt)", etc.
+  // These are typically usage notes, not part of the core ingredient identity
+  normalized = normalized.replace(/\s*\([^)]*\)/g, '').trim();
+  
+  // Convert to lowercase for comparison
+  normalized = normalized.toLowerCase();
+  
+  // Handle common Swedish plural patterns
+  // -ar -> remove -ar (e.g., "lökar" -> "lök")
+  // -er -> remove -er (e.g., "citroner" -> "citron")
+  // -or -> remove -or (e.g., "morötter" -> "morot")
+  
+  // Common Swedish plural endings (apply in order)
+  if (normalized.endsWith('ar')) {
+    normalized = normalized.slice(0, -2);
+  } else if (normalized.endsWith('er')) {
+    normalized = normalized.slice(0, -2);
+  } else if (normalized.endsWith('or')) {
+    normalized = normalized.slice(0, -2);
+  }
+  
+  // NOTE: We do NOT remove color/state descriptors because:
+  // - "Gul lök" (yellow onion) vs "Röd lök" (red onion) are different ingredients
+  // - "Färsk timjan" (fresh thyme) vs dried timjan are different ingredients
+  // - These distinctions matter for cooking and shopping
+  
+  return normalized.trim();
+}
+
+/**
+ * Staple keywords for Skafferi (Pantry) detection
+ * These are items typically kept in stock and don't need to be bought every time
+ */
+const STAPLE_KEYWORDS = [
+  // Current items
+  'salt', 'peppar', 'pepper', 'olja', 'oil', 'chiliflakes', 'chili', 
+  'vinäger', 'vinegar', 'socker', 'sugar', 'buljong', 'bouillon', 
+  'honung', 'honey', 'smör', 'butter', 'ghee', 'citron', 'lemon', 
+  'lime', 'vitlök', 'garlic', 'lök', 'onion',
+  
+  // New spices/kryddor
+  'vanilj', 'vanilla', 'saffran', 'saffron', 'pepparkakskrydda',
+  'krydda', 'spice', 'kanel', 'cinnamon', 'kardemumma', 'cardamom',
+  'kryddnejlika', 'clove', 'nejlika', 'ingefära', 'ginger',
+  'lagerblad', 'bay leaf', 'curry', 'sambal',
+  
+  // New pantry items
+  'bakpulver', 'baking powder', 'bikarbonat', 'baking soda',
+  'tomatpuré', 'tomato purée', 'sojasås', 'soy sauce', 'fisksås', 'fish sauce',
+  'maizena', 'cornstarch', 'majsstärkelse', 'vetemjöl', 'flour',
+  'strösocker', 'granulated sugar'
+];
+
+/**
+ * Check if an ingredient should be excluded from grocery lists
+ */
+function isExcludedItem(name: string): boolean {
+  const lowerName = name.toLowerCase();
+  return EXCLUDED_KEYWORDS.some(keyword => lowerName.includes(keyword));
+}
+
+/**
+ * Check if an ingredient name indicates a staple (Skafferi) item
+ */
+function isStapleItem(name: string): boolean {
+  const lowerName = name.toLowerCase();
+  return STAPLE_KEYWORDS.some(keyword => lowerName.includes(keyword));
+}
+
+/**
  * Normalize units to standard forms for better aggregation
  * 
  * Converts common volumes (tsp, tbsp, cup, fl oz, etc.) to 'ml' and 
  * weights (oz, lb, kg) to 'g' to enable merging of duplicate ingredients
  * with different unit representations (e.g., "1 cup Rice" and "200ml Rice").
+ * 
+ * Supports both English and Swedish units (msk, tsk, dl, nypa, st).
  * 
  * Non-standard units (piece, whole, etc.) are kept as-is.
  * 
@@ -407,8 +590,9 @@ export async function addScaledIngredientsToGroceryList(
 function normalizeUnit(quantity: number, unit: string): { quantity: number; unit: string } {
   const lowerUnit = unit.toLowerCase().trim();
   
-  // Volume conversions to ml
+  // Volume conversions to ml (includes Swedish units)
   const volumeConversions: Record<string, number> = {
+    // English
     'tsp': 4.92892,
     'teaspoon': 4.92892,
     'teaspoons': 4.92892,
@@ -429,6 +613,11 @@ function normalizeUnit(quantity: number, unit: string): { quantity: number; unit
     'liter': 1000,
     'liters': 1000,
     'l': 1000,
+    // Swedish
+    'krm': 1, // kryddmått (1 ml)
+    'tsk': 5, // tesked (teaspoon, 5 ml)
+    'msk': 15, // matsked (tablespoon, 15 ml)
+    'dl': 100, // deciliter (100 ml)
   };
   
   // Weight conversions to g
@@ -443,6 +632,7 @@ function normalizeUnit(quantity: number, unit: string): { quantity: number; unit
     'kg': 1000,
     'kilogram': 1000,
     'kilograms': 1000,
+    'g': 1,
   };
   
   // Check if it's a volume unit
@@ -466,8 +656,9 @@ function normalizeUnit(quantity: number, unit: string): { quantity: number; unit
     return { quantity, unit: lowerUnit };
   }
   
-  // For other units (piece, whole, etc.), keep original
-  return { quantity, unit };
+  // For other units (piece, whole, st, nypa, etc.), keep original
+  // "st" = styck (piece), "nypa" = pinch
+  return { quantity, unit: lowerUnit || 'st' };
 }
 
 /**

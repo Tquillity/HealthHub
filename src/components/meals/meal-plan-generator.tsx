@@ -219,10 +219,12 @@ export function MealPlanGenerator({ onGenerate }: MealPlanGeneratorProps) {
 
               {/* Avoid Ingredients */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
+                <label htmlFor="meal-plan-avoid-ingredients" className="block text-sm font-medium text-gray-700 mb-3">
                   Avoid Ingredients (comma-separated)
                 </label>
                 <Input
+                  id="meal-plan-avoid-ingredients"
+                  name="meal-plan-avoid-ingredients"
                   value={formData.avoidIngredients}
                   onChange={(e) => setFormData({ ...formData, avoidIngredients: e.target.value })}
                   placeholder="e.g., peanuts, shellfish, soy"

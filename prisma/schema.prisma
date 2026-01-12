@@ -8,28 +8,30 @@ datasource db {
 }
 
 model User {
-  id                  String    @id @default(cuid())
-  name                String
-  email               String    @unique
-  emailVerified       Boolean?
-  image               String?
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
-  role                String    @default("user")
-  sessions            Session[]
-  accounts            Account[]
-  energyLevel         String?
-  dietaryRestrictions String[]
-  healthGoals         String[]
-  timezone            String    @default("UTC")
-  enableCycleTracking Boolean   @default(false)
-  cycleLength         Int       @default(28)
-  lastPeriodDate      DateTime?
-  focusPreference     String?
-  mealPlanDuration    String?
-  mealPlanStartDate   DateTime?
-  members             Member[]
-  journalEntries      JournalEntry[]
+  id                    String                     @id @default(cuid())
+  name                  String
+  email                 String                     @unique
+  emailVerified         Boolean?
+  image                 String?
+  createdAt             DateTime                   @default(now())
+  updatedAt             DateTime                   @updatedAt
+  role                  String                     @default("user")
+  sessions              Session[]
+  accounts              Account[]
+  energyLevel           String?
+  dietaryRestrictions   String[]
+  healthGoals           String[]
+  timezone              String                     @default("UTC")
+  enableCycleTracking   Boolean                    @default(false)
+  cycleLength           Int                        @default(28)
+  lastPeriodDate        DateTime?
+  focusPreference       String?
+  mealPlanDuration      String?
+  mealPlanStartDate     DateTime?
+  members               Member[]
+  journalEntries        JournalEntry[]
+  ingredientPreferences UserIngredientPreference[]
+
   @@map("user")
 }
 
@@ -43,6 +45,7 @@ model Session {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
   @@map("session")
 }
@@ -59,6 +62,7 @@ model Account {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
   @@map("account")
 }
@@ -68,15 +72,16 @@ model Verification {
   identifier String
   value      String
   expiresAt  DateTime
+
   @@map("verification")
 }
 
 model Organization {
-  id                String                @id
+  id                String             @id
   name              String
-  slug              String                @unique
+  slug              String             @unique
   logo              String?
-  createdAt         DateTime              @default(now())
+  createdAt         DateTime           @default(now())
   metadata          String?
   members           Member[]
   invitations       Invitation[]
@@ -85,6 +90,7 @@ model Organization {
   mealPlans         MealPlan[]
   mealPlanTemplates MealPlanTemplate[]
   shoppingListItems ShoppingListItem[]
+
   @@map("organization")
 }
 
@@ -96,6 +102,7 @@ model Member {
   createdAt      DateTime     @default(now())
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([organizationId])
   @@index([userId])
   @@map("member")
@@ -110,11 +117,12 @@ model Invitation {
   expiresAt      DateTime
   inviterId      String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
   @@map("invitation")
 }
 
 model Recipe {
-  id                    String                  @id @default(cuid())
+  id                    String                 @id @default(cuid())
   name                  String
   description           String?
   imageUrl              String?
@@ -136,28 +144,32 @@ model Recipe {
   tags                  String[]
   dietaryTags           String[]
   leanRole              String?
-  isSystem              Boolean                 @default(false)
-  isSecret              Boolean                 @default(false)
-  isPrivate             Boolean                 @default(false)
+  isSystem              Boolean                @default(false)
+  isSecret              Boolean                @default(false)
+  isPrivate             Boolean                @default(false)
+  isHhChefsVerified     Boolean                @default(false)
   organizationId        String?
-  organization          Organization?           @relation(fields: [organizationId], references: [id])
+  organization          Organization?          @relation(fields: [organizationId], references: [id])
   ingredients           Ingredient[]
   instructions          Instruction[]
   mealPlanItems         MealPlanItem[]
   mealPlanTemplateItems MealPlanTemplateItem[]
-  createdAt             DateTime                @default(now())
-  updatedAt             DateTime                @updatedAt
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+
   @@map("recipe")
 }
 
 model Ingredient {
-  id       String  @id @default(cuid())
-  name     String
-  quantity Float
-  unit     String
-  notes    String?
-  recipeId String
-  recipe   Recipe  @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  id           String                  @id @default(cuid())
+  name         String
+  quantity     Float
+  unit         String
+  notes        String?
+  recipeId     String
+  recipe       Recipe                  @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  alternatives IngredientAlternative[]
+
   @@map("ingredient")
 }
 
@@ -167,6 +179,7 @@ model Instruction {
   text       String
   recipeId   String
   recipe     Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
   @@map("instruction")
 }
 
@@ -192,6 +205,7 @@ model Routine {
   organization      Organization? @relation(fields: [organizationId], references: [id])
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
+
   @@map("routine")
 }
 
@@ -204,6 +218,7 @@ model MealPlan {
   items          MealPlanItem[]
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
+
   @@map("meal_plan")
 }
 
@@ -217,33 +232,36 @@ model MealPlanItem {
   isCooked   Boolean  @default(false)
   mealPlan   MealPlan @relation(fields: [mealPlanId], references: [id], onDelete: Cascade)
   recipe     Recipe   @relation(fields: [recipeId], references: [id])
+
   @@map("meal_plan_item")
 }
 
 model MealPlanTemplate {
-  id             String                @id @default(cuid())
+  id             String                 @id @default(cuid())
   name           String
   description    String?
   organizationId String
   createdById    String
-  isPublic       Boolean               @default(false)
-  shareToken     String?               @unique
+  isPublic       Boolean                @default(false)
+  shareToken     String?                @unique
   items          MealPlanTemplateItem[]
-  organization   Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  createdAt      DateTime              @default(now())
-  updatedAt      DateTime              @updatedAt
+  organization   Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
   @@map("meal_plan_template")
 }
 
 model MealPlanTemplateItem {
-  id                String           @id @default(cuid())
-  templateId        String
-  recipeId          String
-  dayOffset         Int              // Days from start (0 = first day, 1 = second day, etc.)
-  mealType          String
-  servings          Int              @default(4)
-  template          MealPlanTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  recipe            Recipe            @relation(fields: [recipeId], references: [id])
+  id         String           @id @default(cuid())
+  templateId String
+  recipeId   String
+  dayOffset  Int // Days from start (0 = first day, 1 = second day, etc.)
+  mealType   String
+  servings   Int              @default(4)
+  template   MealPlanTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  recipe     Recipe           @relation(fields: [recipeId], references: [id])
+
   @@map("meal_plan_template_item")
 }
 
@@ -261,6 +279,7 @@ model ShoppingListItem {
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
+
   @@map("shopping_list_item")
 }
 
@@ -284,6 +303,7 @@ model JournalEntry {
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+
   @@unique([userId, date])
   @@map("journal_entry")
 }
@@ -306,6 +326,7 @@ model EducationalResource {
   likes       Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
   @@map("educational_resource")
 }
 
@@ -318,6 +339,7 @@ model Expert {
   createdAt       DateTime              @default(now())
   updatedAt       DateTime              @updatedAt
   recommendations PhaseRecommendation[]
+
   @@map("expert")
 }
 
@@ -331,5 +353,33 @@ model PhaseRecommendation {
   expert    Expert   @relation(fields: [expertId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
   @@map("phase_recommendation")
+}
+
+model IngredientAlternative {
+  id           String     @id @default(cuid())
+  ingredientId String
+  name         String // The alternative ingredient name
+  order        Int        @default(0) // Order in the list (0 = default/first)
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([ingredientId])
+  @@map("ingredient_alternative")
+}
+
+model UserIngredientPreference {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pattern   String // Normalized pattern to match ingredients (e.g., "smör eller kokosolja")
+  preferred String // The preferred alternative name
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, pattern])
+  @@index([userId])
+  @@map("user_ingredient_preference")
 }

@@ -1,6 +1,7 @@
 'use client';
 
-import { DndContext, useDraggable, useDroppable } from '@dnd-kit/core';
+import { useState } from 'react';
+import { DndContext, useDraggable, useDroppable, DragOverlay, defaultDropAnimationSideEffects } from '@dnd-kit/core';
 import { addDays, format, isToday, isPast, startOfDay } from 'date-fns';
 import { Trash2 } from 'lucide-react';
 import { addMealToPlan, removeMealFromPlan } from '@/actions/meal-actions';
@@ -30,22 +31,14 @@ type Plan = {
 };
 
 function DraggableRecipe({ recipe }: { recipe: RecipeLite }) {
-  const { attributes, listeners, setNodeRef, transform } = useDraggable({
+  const { attributes, listeners, setNodeRef } = useDraggable({
     id: `recipe-${recipe.id}`,
     data: { recipeId: recipe.id, type: 'new-meal' },
   });
 
-  const style = transform
-    ? {
-        transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
-        zIndex: 999,
-      }
-    : undefined;
-
   return (
     <div
       ref={setNodeRef}
-      style={style}
       {...listeners}
       {...attributes}
       className="cursor-grab rounded-md border border-gray-200 bg-white p-3 text-sm shadow-sm hover:border-blue-500 active:cursor-grabbing"
@@ -138,6 +131,8 @@ export default function MealBoard({
   useDefaultStart?: boolean;
 }) {
   const router = useRouter();
+  const [activeId, setActiveId] = useState<string | null>(null);
+  
   const startDate = startDateProp ? new Date(startDateProp) : new Date(plan.startDate);
   const endDate = endDateProp
     ? new Date(endDateProp)
@@ -161,11 +156,19 @@ export default function MealBoard({
   
   const mealTypes = ['breakfast', 'lunch', 'dinner'];
 
+  // Find the active recipe for the overlay
+  const activeRecipe = activeId ? recipes.find(r => `recipe-${r.id}` === activeId) : null;
+
+  const handleDragStart = (event: any) => {
+    setActiveId(event.active.id);
+  };
+
   const handleDragEnd = async (event: {
     active: { data: { current?: { type?: string; recipeId?: string } } };
     over: { data: { current?: { date?: string; mealType?: string } } } | null;
   }) => {
     const { active, over } = event;
+    setActiveId(null);
 
     if (over && active?.data?.current?.type === 'new-meal') {
       const recipeId = active.data.current.recipeId as string;
@@ -185,7 +188,7 @@ export default function MealBoard({
   return (
     // dnd-kit generates accessibility IDs (e.g. aria-describedby) that can differ between SSR and client.
     // Providing a stable DndContext id prevents hydration mismatches in Next.js.
-    <DndContext id="meal-planner-dnd" onDragEnd={handleDragEnd}>
+    <DndContext id="meal-planner-dnd" onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <div className="flex h-[calc(100vh-200px)] flex-col gap-6 lg:flex-row">
         {/* Sidebar */}
         <div className="w-full shrink-0 pr-2 lg:w-64">
@@ -275,6 +278,19 @@ export default function MealBoard({
           </div>
         </div>
       </div>
+
+      <DragOverlay dropAnimation={{
+        sideEffects: defaultDropAnimationSideEffects({
+          styles: { active: { opacity: '0.5' } },
+        }),
+      }}>
+        {activeId && activeRecipe ? (
+          <div className="w-56 cursor-grabbing rounded-md border-2 border-blue-500 bg-white p-3 text-sm shadow-xl opacity-90">
+            <p className="truncate font-bold text-blue-600">{activeRecipe.name}</p>
+            <span className="text-xs capitalize text-gray-500">{activeRecipe.category || 'Meal'}</span>
+          </div>
+        ) : null}
+      </DragOverlay>
     </DndContext>
   );
 }

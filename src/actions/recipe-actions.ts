@@ -295,12 +295,14 @@ const CreateRecipeSchema = z.object({
   sodium: z.number().positive().optional(),
   isSecret: z.boolean().default(false), // Only MAIN admin can set this
   isPrivate: z.boolean().default(false), // For future: user's private recipes
+  isHhChefsVerified: z.boolean().default(false), // Only superadmin can set this
   ingredients: z.array(
     z.object({
       name: z.string().min(1),
       quantity: z.number().positive(),
       unit: z.string().min(1),
       notes: z.string().optional(),
+      alternatives: z.array(z.string()).optional(), // Array of alternative ingredient names
     })
   ).min(1, 'At least one ingredient is required'),
   instructions: z.array(
@@ -337,6 +339,11 @@ export async function createRecipe(data: z.infer<typeof CreateRecipeSchema>) {
     const mainAdmin = await isMainAdmin(userId);
     if (data.isSecret && !mainAdmin) {
       return { success: false, error: 'Forbidden: Only MAIN admin can create secret recipes' };
+    }
+    
+    // Only superadmin can set isHhChefsVerified
+    if (data.isHhChefsVerified && !mainAdmin) {
+      return { success: false, error: 'Forbidden: Only superadmin can verify recipes' };
     }
 
     // Get user's organization
@@ -399,18 +406,33 @@ export async function createRecipe(data: z.infer<typeof CreateRecipeSchema>) {
           isSystem: false,
           isSecret: validated.isSecret || false,
           isPrivate: validated.isPrivate || false,
+          isHhChefsVerified: validated.isHhChefsVerified || false,
         },
       });
 
-      await tx.ingredient.createMany({
-        data: validated.ingredients.map((ing) => ({
-          recipeId: newRecipe.id,
-          name: ing.name,
-          quantity: ing.quantity,
-          unit: ing.unit,
-          notes: ing.notes || null,
-        })),
-      });
+      // Create ingredients and their alternatives
+      for (const ing of validated.ingredients) {
+        const ingredient = await tx.ingredient.create({
+          data: {
+            recipeId: newRecipe.id,
+            name: ing.name,
+            quantity: ing.quantity,
+            unit: ing.unit,
+            notes: ing.notes || null,
+          },
+        });
+
+        // Create alternatives if provided
+        if (ing.alternatives && ing.alternatives.length > 0) {
+          await tx.ingredientAlternative.createMany({
+            data: ing.alternatives.map((alt, index) => ({
+              ingredientId: ingredient.id,
+              name: alt,
+              order: index + 1,
+            })),
+          });
+        }
+      }
 
       await tx.instruction.createMany({
         data: validated.instructions.map((inst) => ({
@@ -450,6 +472,7 @@ const UpdateRecipeSchema = CreateRecipeSchema.partial().extend({
       quantity: z.number().positive(),
       unit: z.string().min(1),
       notes: z.string().optional(),
+      alternatives: z.array(z.string()).optional(), // Array of alternative ingredient names
     })
   ).optional(), // Optional for updates - can be empty array
   instructions: z.array(
@@ -525,6 +548,13 @@ export async function updateRecipe(data: z.infer<typeof UpdateRecipeSchema>) {
         return { success: false, error: 'Forbidden: Only MAIN admin can set secret recipes' };
       }
     }
+    
+    // Only superadmin can set/change isHhChefsVerified
+    if (recipeData.isHhChefsVerified !== undefined && recipeData.isHhChefsVerified !== existingRecipe.isHhChefsVerified) {
+      if (!mainAdmin) {
+        return { success: false, error: 'Forbidden: Only superadmin can verify recipes' };
+      }
+    }
 
     // Allow admins to edit system recipes (to add images, update descriptions, etc.)
     // But prevent changing the isSystem flag itself
@@ -542,31 +572,56 @@ export async function updateRecipe(data: z.infer<typeof UpdateRecipeSchema>) {
     }
 
     // Update recipe
+    // Build update data, only including imageUrl/imageUrls if they were explicitly provided
+    const updateData: any = { ...recipeData };
+    
+    // Only update imageUrl if it was provided in the request
+    if ('imageUrl' in recipeData) {
+      updateData.imageUrl = recipeData.imageUrl && recipeData.imageUrl.trim() !== '' 
+        ? recipeData.imageUrl 
+        : null;
+    }
+    // Only update imageUrls if it was provided in the request
+    if ('imageUrls' in recipeData) {
+      updateData.imageUrls = recipeData.imageUrls && recipeData.imageUrls.length > 0 
+        ? recipeData.imageUrls.filter((url: string) => url && url.trim() !== '')
+        : [];
+    }
+    
     const recipe = await prisma.$transaction(async (tx) => {
       const updatedRecipe = await tx.recipe.update({
         where: { id },
-        data: {
-          ...recipeData,
-          imageUrl: recipeData.imageUrl && recipeData.imageUrl.trim() !== '' ? recipeData.imageUrl : null,
-          imageUrls: recipeData.imageUrls && recipeData.imageUrls.length > 0 
-            ? recipeData.imageUrls.filter((url: string) => url && url.trim() !== '')
-            : [],
-        },
+        data: updateData,
       });
 
       // Update ingredients if provided (including empty arrays to clear all)
       if (ingredients !== undefined) {
+        // Delete existing ingredients (cascade will delete alternatives)
         await tx.ingredient.deleteMany({ where: { recipeId: id } });
         if (ingredients.length > 0) {
-          await tx.ingredient.createMany({
-            data: ingredients.map((ing) => ({
-              recipeId: id,
-              name: ing.name,
-              quantity: ing.quantity,
-              unit: ing.unit,
-              notes: ing.notes || null,
-            })),
-          });
+          // Create ingredients and their alternatives
+          for (const ing of ingredients) {
+            const ingredient = await tx.ingredient.create({
+              data: {
+                recipeId: id,
+                name: ing.name,
+                quantity: ing.quantity,
+                unit: ing.unit,
+                notes: ing.notes || null,
+              },
+            });
+
+            // Create alternatives if provided
+            if (ing.alternatives && ing.alternatives.length > 0) {
+              await tx.ingredientAlternative.createMany({
+                data: ing.alternatives.map((alt, index) => ({
+                  ingredientId: ingredient.id,
+                  name: alt,
+                  order: index + 1,
+                })),
+              });
+            }
+          }
         }
       }
 

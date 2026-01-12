@@ -39,6 +39,7 @@ export default async function EditRecipePage({
   }
 
   const recipe = result.data;
+  const isSuperadmin = user?.role === 'superadmin';
 
   // Allow admins to edit system recipes
   // System recipes can be edited by admins to add images, update descriptions, etc.
@@ -60,7 +61,7 @@ export default async function EditRecipePage({
         </p>
       </div>
 
-      <RecipeForm key={recipe.id} recipe={recipe} />
+      <RecipeForm key={recipe.id} recipe={recipe} isSuperadmin={isSuperadmin} />
     </div>
   );
 }

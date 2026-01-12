@@ -5,9 +5,10 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useUIStore } from '@/lib/store';
-import { X, Plus, Trash2, Upload } from 'lucide-react';
+import { X, Plus, Trash2, Upload, AlertCircle, Calculator } from 'lucide-react';
 import { createRecipe, updateRecipe, type RecipeWithDetails } from '@/actions/recipe-actions';
 import { uploadImage } from '@/actions/image-upload';
+import { getUnitValidationMessage, getSuggestedUnit, shouldUseWeightOrVolume, getEstimatedWeight } from '@/lib/ingredient-unit-validation';
 
 interface Ingredient {
   name: string;
@@ -25,9 +26,10 @@ interface RecipeFormProps {
   recipe?: RecipeWithDetails;
   onSuccess?: () => void;
   onCancel?: () => void;
+  isSuperadmin?: boolean;
 }
 
-export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
+export function RecipeForm({ recipe, onSuccess, onCancel, isSuperadmin = false }: RecipeFormProps) {
   const router = useRouter();
   const showToast = useUIStore((state) => state.showToast);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -54,6 +56,7 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
     sugar: recipe?.sugar?.toString() || '',
     sodium: recipe?.sodium?.toString() || '',
     isSecret: recipe?.isSecret || false,
+    isHhChefsVerified: recipe?.isHhChefsVerified || false,
   });
 
   const [imagePreview, setImagePreview] = useState<string | null>(recipe?.imageUrl || null);
@@ -105,6 +108,7 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
         leanRole: recipe.leanRole || '',
         dietaryTags: recipe.dietaryTags?.join(', ') || '',
         isSecret: recipe.isSecret || false,
+        isHhChefsVerified: recipe.isHhChefsVerified || false,
         calories: recipe.calories != null ? recipe.calories.toString() : '',
         protein: recipe.protein != null ? recipe.protein.toString() : '',
         carbs: recipe.carbs != null ? recipe.carbs.toString() : '',
@@ -279,6 +283,21 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
     if (instructions.length === 0 || instructions.some((inst) => !inst.text.trim())) {
       newErrors.instructions = 'At least one instruction is required';
     }
+    
+    // Check for unit validation warnings
+    const unitWarnings: string[] = [];
+    ingredients.forEach((ing, idx) => {
+      if (ing.name && ing.unit) {
+        const validation = getUnitValidationMessage(ing.name, ing.unit);
+        if (!validation.isValid) {
+          unitWarnings.push(`${ing.name}: ${validation.message}`);
+        }
+      }
+    });
+    
+    if (unitWarnings.length > 0) {
+      newErrors.ingredients = `Please fix unit issues: ${unitWarnings.join('; ')}`;
+    }
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -305,6 +324,7 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
       // `isPrivate` is a required field in the recipe creation schema. HealthHub does not expose a "private"
       // recipe toggle yet, so we preserve existing value when editing and default to false when creating.
       isPrivate: recipe?.isPrivate ?? false,
+      isHhChefsVerified: formData.isHhChefsVerified,
       calories: formData.calories ? parseFloat(formData.calories) : undefined,
       protein: formData.protein ? parseFloat(formData.protein) : undefined,
       carbs: formData.carbs ? parseFloat(formData.carbs) : undefined,
@@ -352,6 +372,49 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
     const updated = [...ingredients];
     updated[index] = { ...updated[index], [field]: value };
     setIngredients(updated);
+    
+    // Real-time unit validation: Check if "st" is used for vegetables that should use g/ml
+    // This triggers warnings in the UI to guide users toward standardized units for better
+    // grocery list aggregation accuracy. Validation happens on name or unit field changes.
+    if (field === 'name' || field === 'unit') {
+      const ingredient = updated[index];
+      if (ingredient.name && ingredient.unit) {
+        const validation = getUnitValidationMessage(ingredient.name, ingredient.unit);
+        if (!validation.isValid) {
+          setIngredientWarnings(prev => ({ ...prev, [index]: validation.message || '' }));
+        } else {
+          setIngredientWarnings(prev => {
+            const newWarnings = { ...prev };
+            delete newWarnings[index];
+            return newWarnings;
+          });
+        }
+      } else {
+        setIngredientWarnings(prev => {
+          const newWarnings = { ...prev };
+          delete newWarnings[index];
+          return newWarnings;
+        });
+      }
+    }
+  };
+  
+  const convertToSuggestedUnit = (index: number) => {
+    const ingredient = ingredients[index];
+    if (!ingredient.name) return;
+    
+    const suggested = getSuggestedUnit(ingredient.name);
+    const updated = [...ingredients];
+    updated[index] = { ...ingredient, unit: suggested };
+    setIngredients(updated);
+    
+    // Clear warning
+    setIngredientWarnings(prev => {
+      const newWarnings = { ...prev };
+      delete newWarnings[index];
+      return newWarnings;
+    });
+    setShowConverter(prev => ({ ...prev, [index]: false }));
   };
 
   const addInstruction = () => {
@@ -407,7 +470,7 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="recipe-image-section" className="block text-sm font-medium text-gray-700 mb-2">
               Recipe Image
             </label>
             <div className="flex flex-col gap-2">
@@ -641,6 +704,23 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
             </label>
           </div>
 
+          {isSuperadmin && (
+            <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 p-3">
+              <input
+                type="checkbox"
+                id="recipe-is-hh-chefs-verified"
+                name="recipe-is-hh-chefs-verified"
+                checked={formData.isHhChefsVerified}
+                onChange={(e) => setFormData({ ...formData, isHhChefsVerified: e.target.checked })}
+                className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-600"
+              />
+              <label htmlFor="recipe-is-hh-chefs-verified" className="text-sm font-medium text-gray-700">
+                <span className="font-semibold text-amber-900">HH Chefs Verified</span>
+                <span className="ml-2 text-xs text-amber-700">(100% verified by HealthHub)</span>
+              </label>
+            </div>
+          )}
+
           <div>
             <label htmlFor="recipe-prep-time" className="block text-sm font-medium text-gray-700 mb-2">
               Prep Time (minutes)
@@ -816,7 +896,8 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
         )}
         <div className="flex flex-col gap-4">
           {ingredients.map((ingredient, index) => (
-            <div key={index} className="grid grid-cols-12 gap-2 items-start">
+            <div key={index} className="flex flex-col gap-2">
+              <div className="grid grid-cols-12 gap-2 items-start">
               <div className="col-span-4">
                 <label htmlFor={`ingredient-name-${index}`} className="sr-only">
                   Ingredient {index + 1} name
@@ -895,7 +976,64 @@ export function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormProps) {
                   </Button>
                 )}
               </div>
-            </div>
+              </div>
+              {/* Unit Validation Warning */}
+              {ingredientWarnings[index] && (
+                <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm text-amber-800">{ingredientWarnings[index]}</p>
+                    {shouldUseWeightOrVolume(ingredient.name) && (
+                      <div className="mt-2 flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => convertToSuggestedUnit(index)}
+                          className="text-xs gap-1"
+                        >
+                          <Calculator className="h-3 w-3" />
+                          Convert to {getSuggestedUnit(ingredient.name)}
+                        </Button>
+                        <button
+                          type="button"
+                          onClick={() => setShowConverter(prev => ({ ...prev, [index]: !prev[index] }))}
+                          className="text-xs text-amber-700 hover:text-amber-900 underline"
+                        >
+                          {showConverter[index] ? 'Hide' : 'Show'} converter tool
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {/* Converter Tool */}
+                {showConverter[index] && shouldUseWeightOrVolume(ingredient.name) && (
+                  <div className="mt-3 pt-3 border-t border-amber-200">
+                    <p className="text-xs font-medium text-amber-900 mb-2">Quick Converter:</p>
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-amber-700">
+                        {ingredient.quantity} st ≈
+                      </span>
+                      <span className="font-semibold text-amber-900">
+                        {ingredient.quantity > 0 ? (
+                          getSuggestedUnit(ingredient.name) === 'g' 
+                            ? `${Math.round(ingredient.quantity * getEstimatedWeight(ingredient.name))} g (estimate)`
+                            : `${Math.round(ingredient.quantity * 150)} ml (estimate)`
+                        ) : 'Enter quantity'}
+                      </span>
+                      <span className="text-xs text-amber-600">
+                        ({getSuggestedUnit(ingredient.name) === 'g' ? `${getEstimatedWeight(ingredient.name)}g` : '150ml'} per piece)
+                      </span>
+                    </div>
+                    <p className="text-xs text-amber-600 mt-1">
+                      💡 Tip: Weigh your ingredients for accurate measurements!
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
           ))}
         </div>
       </div>

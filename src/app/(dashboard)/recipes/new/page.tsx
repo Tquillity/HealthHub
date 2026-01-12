@@ -26,6 +26,8 @@ export default async function NewRecipePage() {
     redirect('/recipes');
   }
 
+  const isSuperadmin = user?.role === 'superadmin';
+
   return (
     <div className="container mx-auto max-w-4xl p-6">
       <Link
@@ -43,7 +45,7 @@ export default async function NewRecipePage() {
         </p>
       </div>
 
-      <RecipeForm />
+      <RecipeForm isSuperadmin={isSuperadmin} />
     </div>
   );
 }
