@@ -704,6 +704,10 @@ export function RecipeForm({ recipe, onSuccess, onCancel, isSuperadmin = false }
             </label>
           </div>
 
+          {/* HH Chefs Verification Toggle - Only visible to superadmin users
+              This allows superadmins to mark recipes as "HH Chefs Verified" indicating
+              that the recipe has been 100% verified by the HealthHub team for accuracy,
+              ingredient correctness, and quality standards. */}
           {isSuperadmin && (
             <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 p-3">
               <input

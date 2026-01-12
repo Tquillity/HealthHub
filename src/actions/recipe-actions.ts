@@ -295,7 +295,7 @@ const CreateRecipeSchema = z.object({
   sodium: z.number().positive().optional(),
   isSecret: z.boolean().default(false), // Only MAIN admin can set this
   isPrivate: z.boolean().default(false), // For future: user's private recipes
-  isHhChefsVerified: z.boolean().default(false), // Only superadmin can set this
+  isHhChefsVerified: z.boolean().default(false), // HH Chefs verification status - only superadmin can set to true to mark recipes as 100% verified by HealthHub
   ingredients: z.array(
     z.object({
       name: z.string().min(1),
@@ -342,6 +342,7 @@ export async function createRecipe(data: z.infer<typeof CreateRecipeSchema>) {
     }
     
     // Only superadmin can set isHhChefsVerified
+    // This flag marks recipes as "HH Chefs Verified" - indicating 100% verification by HealthHub team
     if (data.isHhChefsVerified && !mainAdmin) {
       return { success: false, error: 'Forbidden: Only superadmin can verify recipes' };
     }
@@ -550,6 +551,8 @@ export async function updateRecipe(data: z.infer<typeof UpdateRecipeSchema>) {
     }
     
     // Only superadmin can set/change isHhChefsVerified
+    // This flag marks recipes as "HH Chefs Verified" - indicating 100% verification by HealthHub team
+    // Prevents unauthorized users from marking recipes as verified
     if (recipeData.isHhChefsVerified !== undefined && recipeData.isHhChefsVerified !== existingRecipe.isHhChefsVerified) {
       if (!mainAdmin) {
         return { success: false, error: 'Forbidden: Only superadmin can verify recipes' };
