@@ -500,6 +500,19 @@ const EXCLUDED_KEYWORDS = [
  * @param name - Original ingredient name
  * @returns Normalized name for comparison
  */
+/**
+ * Words where the ending is part of the base word, not a plural suffix
+ * These should NOT have their endings removed during normalization
+ */
+const BASE_WORD_EXCEPTIONS = new Set([
+  'peppar', 'socker', 'smör', 'vatten', 'vinäger', 'buljong',
+  'chili', 'timjan', 'oregano', 'basilika', 'persilja', 'dill',
+  'koriander', 'kummin', 'nejlika', 'kanel', 'gurkmeja', 'ingefära',
+  'paprika', 'curry', 'kardemumma', 'vanilj', 'saffran', 'muskot',
+  'citron', 'limon', 'apelsin', 'ananas', 'avokado', 'banan',
+  'tomat', 'gurka', 'aubergine', 'broccoli', 'spenat', 'sallad',
+]);
+
 function normalizeIngredientName(name: string): string {
   let normalized = name.trim();
   
@@ -510,18 +523,30 @@ function normalizeIngredientName(name: string): string {
   // Convert to lowercase for comparison
   normalized = normalized.toLowerCase();
   
-  // Handle common Swedish plural patterns
-  // -ar -> remove -ar (e.g., "lökar" -> "lök")
-  // -er -> remove -er (e.g., "citroner" -> "citron")
-  // -or -> remove -or (e.g., "morötter" -> "morot")
+  // Handle common Swedish plural patterns ONLY if:
+  // 1. The word is not in our exception list (base words like "peppar", "socker")
+  // 2. Removing the ending results in a word at least 3 characters long
+  // 3. The word without ending is not obviously corrupted (e.g., "pepp" from "peppar")
   
-  // Common Swedish plural endings (apply in order)
-  if (normalized.endsWith('ar')) {
-    normalized = normalized.slice(0, -2);
-  } else if (normalized.endsWith('er')) {
-    normalized = normalized.slice(0, -2);
-  } else if (normalized.endsWith('or')) {
-    normalized = normalized.slice(0, -2);
+  // Common Swedish plural endings (apply in order, with validation)
+  if (normalized.endsWith('ar') && !BASE_WORD_EXCEPTIONS.has(normalized)) {
+    const withoutEnding = normalized.slice(0, -2);
+    // Only remove if the result is at least 3 chars and not obviously wrong
+    if (withoutEnding.length >= 3) {
+      normalized = withoutEnding;
+    }
+  } else if (normalized.endsWith('er') && !BASE_WORD_EXCEPTIONS.has(normalized)) {
+    const withoutEnding = normalized.slice(0, -2);
+    // Only remove if the result is at least 3 chars and not obviously wrong
+    if (withoutEnding.length >= 3) {
+      normalized = withoutEnding;
+    }
+  } else if (normalized.endsWith('or') && !BASE_WORD_EXCEPTIONS.has(normalized)) {
+    const withoutEnding = normalized.slice(0, -2);
+    // Only remove if the result is at least 3 chars and not obviously wrong
+    if (withoutEnding.length >= 3) {
+      normalized = withoutEnding;
+    }
   }
   
   // NOTE: We do NOT remove color/state descriptors because:
