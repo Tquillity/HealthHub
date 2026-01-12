@@ -68,7 +68,7 @@ export function RecipeForm({ recipe, onSuccess, onCancel, isSuperadmin = false }
 
   const [ingredients, setIngredients] = useState<Ingredient[]>(
     recipe?.ingredients && recipe.ingredients.length > 0
-      ? recipe.ingredients.map((ing) => ({
+      ? recipe.ingredients.map((ing: { name: string; quantity: number; unit: string; notes?: string | null }) => ({
           name: ing.name,
           quantity: ing.quantity,
           unit: ing.unit,
@@ -79,7 +79,7 @@ export function RecipeForm({ recipe, onSuccess, onCancel, isSuperadmin = false }
 
   const [instructions, setInstructions] = useState<Instruction[]>(
     recipe?.instructions && recipe.instructions.length > 0
-      ? recipe.instructions.map((inst) => ({
+      ? recipe.instructions.map((inst: { stepNumber: number; text: string }) => ({
           stepNumber: inst.stepNumber,
           text: inst.text,
         }))
@@ -88,6 +88,8 @@ export function RecipeForm({ recipe, onSuccess, onCancel, isSuperadmin = false }
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [ingredientWarnings, setIngredientWarnings] = useState<Record<number, string>>({});
+  const [showConverter, setShowConverter] = useState<Record<number, boolean>>({});
 
   // Update form data when recipe prop changes (important for editing)
   // Use recipe.id as dependency to ensure it runs when editing a different recipe
@@ -126,7 +128,7 @@ export function RecipeForm({ recipe, onSuccess, onCancel, isSuperadmin = false }
       // Ensure we always have at least one row, even if recipe has no ingredients
       if (recipe.ingredients && recipe.ingredients.length > 0) {
         setIngredients(
-          recipe.ingredients.map((ing) => ({
+          recipe.ingredients.map((ing: { name: string; quantity: number; unit: string; notes?: string | null }) => ({
             name: ing.name || '',
             quantity: ing.quantity || 0,
             unit: (ing.unit || '').trim(),
@@ -142,7 +144,7 @@ export function RecipeForm({ recipe, onSuccess, onCancel, isSuperadmin = false }
       // Ensure we always have at least one row, even if recipe has no instructions
       if (recipe.instructions && recipe.instructions.length > 0) {
         setInstructions(
-          recipe.instructions.map((inst) => ({
+          recipe.instructions.map((inst: { stepNumber: number; text: string }) => ({
             stepNumber: inst.stepNumber,
             text: inst.text,
           }))
@@ -315,11 +317,11 @@ export function RecipeForm({ recipe, onSuccess, onCancel, isSuperadmin = false }
       cookTime: formData.cookTime ? parseInt(formData.cookTime) : undefined,
       servings: formData.servings ? parseInt(formData.servings) : undefined,
       category: formData.category || undefined,
-      tags: formData.tags.split(',').map((t) => t.trim()).filter(Boolean),
+      tags: formData.tags.split(',').map((t: string) => t.trim()).filter(Boolean),
       difficulty: formData.difficulty as 'easy' | 'medium' | 'hard' | undefined,
       cuisine: formData.cuisine || undefined,
       leanRole: formData.leanRole || undefined,
-      dietaryTags: formData.dietaryTags.split(',').map((t) => t.trim()).filter(Boolean),
+      dietaryTags: formData.dietaryTags.split(',').map((t: string) => t.trim()).filter(Boolean),
       isSecret: formData.isSecret,
       // `isPrivate` is a required field in the recipe creation schema. HealthHub does not expose a "private"
       // recipe toggle yet, so we preserve existing value when editing and default to false when creating.

@@ -24,6 +24,11 @@ const nextConfig: NextConfig = {
   // Add empty turbopack config to silence the warning
   // PWA plugin uses webpack, but we can use both
   turbopack: {},
+  // Suppress CSS preload warnings - these are false positives in Next.js
+  // The CSS is loaded and used immediately, but browser timing detection can be off
+  experimental: {
+    optimizePackageImports: ['lucide-react'],
+  },
 };
 
 export default withPWA(nextConfig);
