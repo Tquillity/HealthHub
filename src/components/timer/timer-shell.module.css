@@ -1,0 +1,235 @@
+.pomozenPage {
+  --theme-primary: #a84b4b;
+  --theme-secondary: #c96565;
+  --theme-bg: #a84b4b;
+  --surface-border: rgba(255, 255, 255, 0.12);
+  --surface-border-soft: rgba(255, 255, 255, 0.08);
+  --surface-panel: rgba(0, 0, 0, 0.28);
+  --surface-panel-soft: rgba(255, 255, 255, 0.055);
+  --surface-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+  background-color: var(--theme-bg);
+  transition: background-color 0.5s ease;
+}
+
+.pomozenPage :global(.app-surface) {
+  position: relative;
+  z-index: 0;
+  isolation: isolate;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.08),
+      rgba(255, 255, 255, 0.02)
+    ),
+    var(--surface-panel);
+  border: 1px solid var(--surface-border);
+  box-shadow: var(--surface-shadow);
+}
+
+.pomozenPage :global(.app-subsurface) {
+  background: var(--surface-panel-soft);
+  border: 1px solid var(--surface-border-soft);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.pomozenPage :global(.app-eyebrow) {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.58);
+}
+
+.pomozenPage :global(.app-card-title) {
+  font-size: clamp(1.125rem, 1rem + 0.75vw, 1.375rem);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  font-weight: 700;
+  color: white;
+}
+
+.pomozenPage :global(.app-body-copy) {
+  font-size: 0.9rem;
+  line-height: 1.65;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.pomozenPage :global(.app-metric-card) {
+  min-width: 0;
+  border-radius: 1rem;
+  padding: 0.75rem;
+  text-align: center;
+  background: var(--surface-panel-soft);
+  border: 1px solid var(--surface-border-soft);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.pomozenPage :global(.app-metric-value) {
+  font-size: clamp(1rem, 0.85rem + 0.55vw, 1.3rem);
+  line-height: 1.05;
+  font-weight: 700;
+  color: white;
+}
+
+.pomozenPage :global(.app-metric-label) {
+  margin-top: 0.35rem;
+  font-size: 0.625rem;
+  line-height: 1.3;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.46);
+}
+
+.pomozenPage :global(.app-segmented) {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--surface-border-soft);
+  border-radius: 1rem;
+  padding: 0.25rem;
+}
+
+.pomozenPage :global(.app-modal-shell) {
+  border: 1px solid var(--surface-border);
+  box-shadow: 0 32px 90px rgba(0, 0, 0, 0.36);
+}
+
+.pomozenPage :global(.app-modal-header) {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--surface-border-soft);
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.16),
+    rgba(0, 0, 0, 0.08)
+  );
+}
+
+.pomozenPage :global(.app-modal-body) {
+  padding: 1.25rem;
+}
+
+.pomozenPage :global(.app-modal-stack) {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.pomozenPage :global(.app-modal-section) {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.pomozenPage :global(.app-modal-section-title) {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.pomozenPage :global(.app-divider) {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.pomozenPage :global(:where(button, [role='button'], a, input, select, textarea, summary):focus),
+.pomozenPage :global(:where(button, [role='button'], a, input, select, textarea, summary):focus-visible) {
+  outline: 3px solid rgba(255, 255, 255, 0.98) !important;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 6px rgba(15, 23, 42, 0.45) !important;
+}
+
+@keyframes flash {
+  0%,
+  100% {
+    opacity: 0;
+  }
+
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.pomozenPage :global(.animate-flash) {
+  position: fixed;
+  inset: 0;
+  background-color: white;
+  pointer-events: none;
+  z-index: 100;
+  opacity: 0;
+  animation: flash 1s ease-in-out;
+}
+
+.pomozenPage :global(.custom-scrollbar) {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+}
+
+.pomozenPage :global(.custom-scrollbar::-webkit-scrollbar) {
+  width: 6px;
+  height: 6px;
+}
+
+.pomozenPage :global(.custom-scrollbar::-webkit-scrollbar-track) {
+  background: transparent;
+}
+
+.pomozenPage :global(.custom-scrollbar::-webkit-scrollbar-thumb) {
+  background-color: rgba(255, 255, 255, 0.3);
+  border-radius: 10px;
+}
+
+.pomozenPage :global(.custom-scrollbar::-webkit-scrollbar-thumb:hover) {
+  background-color: rgba(255, 255, 255, 0.5);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pomozenPage {
+    transition: none;
+  }
+
+  .pomozenPage :global(*),
+  .pomozenPage :global(*::before),
+  .pomozenPage :global(*::after) {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media (min-width: 640px) {
+  .pomozenPage :global(.app-metric-card) {
+    padding: 0.875rem;
+  }
+
+  .pomozenPage :global(.app-modal-header) {
+    padding: 1rem 1.5rem;
+  }
+
+  .pomozenPage :global(.app-modal-body) {
+    padding: 1.5rem;
+  }
+}
+
+@media (max-height: 820px) {
+  .pomozenPage :global(.app-shell) {
+    gap: 0.625rem;
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+  }
+
+  .pomozenPage :global(.timer-readout) {
+    margin-bottom: 0.5rem;
+  }
+
+  .pomozenPage :global(.goal-card),
+  .pomozenPage :global(.task-board) {
+    padding-top: 0.875rem;
+    padding-bottom: 0.875rem;
+  }
+
+  .pomozenPage :global(.app-footer) {
+    padding-bottom: 0.5rem;
+  }
+}

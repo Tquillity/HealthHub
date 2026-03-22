@@ -21,6 +21,52 @@ interface GetRecipesParams {
   page?: number;
 }
 
+async function getSessionUserIdForRecipeReads() {
+  try {
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+
+    return session?.user.id ?? null;
+  } catch (error) {
+    console.error('Failed to resolve recipe read session:', error);
+    return null;
+  }
+}
+
+async function buildRecipeVisibilityFilter(
+  userId: string | null
+): Promise<Prisma.RecipeWhereInput> {
+  if (!userId) {
+    return {
+      isSystem: true,
+      isSecret: false,
+      isPrivate: false,
+    };
+  }
+
+  const membership = await prisma.member.findFirst({
+    where: { userId },
+    select: { organizationId: true },
+  });
+  const orgId = membership?.organizationId || null;
+  const mainAdmin = await isMainAdmin(userId);
+
+  return {
+    AND: [
+      {
+        OR: [
+          { isSystem: true },
+          ...(orgId ? [{ organizationId: orgId }] : []),
+          ...(mainAdmin ? [{ isSecret: true }] : []),
+        ],
+      },
+      ...(mainAdmin ? [] : [{ isSecret: false }]),
+      { isPrivate: false },
+    ],
+  };
+}
+
 export async function getRecipes({
   query,
   category,
@@ -31,45 +77,8 @@ export async function getRecipes({
   page = 1,
 }: GetRecipesParams) {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-
-    if (!session) throw new Error('Unauthorized');
-
-    // Get user's organization to filter recipes
-    const userId = session.user.id;
-    const membership = await prisma.member.findFirst({
-      where: { userId },
-      select: { organizationId: true },
-    });
-    const orgId = membership?.organizationId || null;
-
-    // Check if user is MAIN admin (only MAIN admin can see secret recipes)
-    const mainAdmin = await isMainAdmin(userId);
-
-    // Build base visibility filter
-    // Secret recipes: only visible to MAIN admin
-    // Private recipes: only visible to owner (future feature)
-    // System recipes: visible to everyone
-    // Organization recipes: visible to organization members
-    const visibilityFilter: Prisma.RecipeWhereInput = {
-      AND: [
-        {
-          OR: [
-            { isSystem: true },
-            ...(orgId ? [{ organizationId: orgId }] : []),
-            // Secret recipes only for MAIN admin
-            ...(mainAdmin ? [{ isSecret: true }] : []),
-            // Private recipes for owner (future: add userId field to Recipe)
-          ],
-        },
-        // Exclude secret recipes if not MAIN admin
-        ...(mainAdmin ? [] : [{ isSecret: false }]),
-        // Exclude private recipes (will be handled when userId field is added)
-        { isPrivate: false },
-      ],
-    };
+    const userId = await getSessionUserIdForRecipeReads();
+    const visibilityFilter = await buildRecipeVisibilityFilter(userId);
 
     // Build where clause combining visibility with search/filter criteria
     const filterConditions: Prisma.RecipeWhereInput[] = [visibilityFilter];
@@ -134,29 +143,15 @@ export async function getRecipes({
  */
 export async function getRecipeCategories() {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-
-    if (!session) throw new Error('Unauthorized');
-
-    // Get user's organization to filter categories
-    const userId = session.user.id;
-    const membership = await prisma.member.findFirst({
-      where: { userId },
-      select: { organizationId: true },
-    });
-    const orgId = membership?.organizationId || null;
+    const userId = await getSessionUserIdForRecipeReads();
+    const visibilityFilter = await buildRecipeVisibilityFilter(userId);
 
     // Get categories from system recipes and user's organization recipes
     const categories = await prisma.recipe.groupBy({
       by: ['category'],
       where: {
+        AND: [visibilityFilter],
         category: { not: null },
-        OR: [
-          { isSystem: true },
-          ...(orgId ? [{ organizationId: orgId }] : []),
-        ],
       },
     });
 
@@ -175,58 +170,36 @@ export async function getRecipeCategories() {
  */
 export async function getRecipeFilterOptions() {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-
-    if (!session) throw new Error('Unauthorized');
-
-    const userId = session.user.id;
-    const membership = await prisma.member.findFirst({
-      where: { userId },
-      select: { organizationId: true },
-    });
-    const orgId = membership?.organizationId || null;
+    const userId = await getSessionUserIdForRecipeReads();
+    const visibilityFilter = await buildRecipeVisibilityFilter(userId);
 
     const [difficulties, cuisines, dietaryTags, leanRoles] = await Promise.all([
       prisma.recipe.findMany({
         where: {
+          AND: [visibilityFilter],
           difficulty: { not: null },
-          OR: [
-            { isSystem: true },
-            ...(orgId ? [{ organizationId: orgId }] : []),
-          ],
         },
         select: { difficulty: true },
         distinct: ['difficulty'],
       }),
       prisma.recipe.findMany({
         where: {
+          AND: [visibilityFilter],
           cuisine: { not: null },
-          OR: [
-            { isSystem: true },
-            ...(orgId ? [{ organizationId: orgId }] : []),
-          ],
         },
         select: { cuisine: true },
         distinct: ['cuisine'],
       }),
       prisma.recipe.findMany({
         where: {
-          OR: [
-            { isSystem: true },
-            ...(orgId ? [{ organizationId: orgId }] : []),
-          ],
+          AND: [visibilityFilter],
         },
         select: { dietaryTags: true },
       }),
       prisma.recipe.findMany({
         where: {
+          AND: [visibilityFilter],
           leanRole: { not: null },
-          OR: [
-            { isSystem: true },
-            ...(orgId ? [{ organizationId: orgId }] : []),
-          ],
         },
         select: { leanRole: true },
         distinct: ['leanRole'],
@@ -666,19 +639,13 @@ export async function updateRecipe(data: z.infer<typeof UpdateRecipeSchema>) {
  */
 export async function getRecipe(id: string) {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
+    const userId = await getSessionUserIdForRecipeReads();
+    const visibilityFilter = await buildRecipeVisibilityFilter(userId);
 
-    if (!session) {
-      return { success: false, error: 'Unauthorized', data: null };
-    }
-
-    const userId = session.user.id;
-    const mainAdmin = await isMainAdmin(userId);
-
-    const recipe = await prisma.recipe.findUnique({
-      where: { id },
+    const recipe = await prisma.recipe.findFirst({
+      where: {
+        AND: [{ id }, visibilityFilter],
+      },
       include: {
         ingredients: true,
         instructions: { orderBy: { stepNumber: 'asc' } },
@@ -686,17 +653,6 @@ export async function getRecipe(id: string) {
     });
 
     if (!recipe) {
-      return { success: false, error: 'Recipe not found', data: null };
-    }
-
-    // Check secret recipe access - only MAIN admin can see secret recipes
-    if (recipe.isSecret && !mainAdmin) {
-      return { success: false, error: 'Recipe not found', data: null };
-    }
-
-    // Check private recipe access (future: check if user is owner)
-    if (recipe.isPrivate) {
-      // TODO: When userId field is added to Recipe, check if user is owner
       return { success: false, error: 'Recipe not found', data: null };
     }
 

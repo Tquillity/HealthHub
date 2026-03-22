@@ -28,6 +28,7 @@ model User {
   focusPreference       String?
   mealPlanDuration      String?
   mealPlanStartDate     DateTime?
+  isPremium             Boolean                    @default(false) @map("is_premium")
   members               Member[]
   journalEntries        JournalEntry[]
   ingredientPreferences UserIngredientPreference[]

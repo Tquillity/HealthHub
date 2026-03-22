@@ -553,7 +553,7 @@ export async function saveMealPlanAsTemplate(
     if (error instanceof z.ZodError) {
       return {
         success: false,
-        error: error.errors[0]?.message || 'Validation error',
+        error: error.issues[0]?.message || 'Validation error',
       };
     }
     console.error('Error saving template:', error);
@@ -840,14 +840,29 @@ export async function applyMealPlanTemplate(
       return { success: false, error: 'Meal plan not found' };
     }
 
-    // Calculate the base date
-    const baseDate = new Date(startDate);
-    baseDate.setHours(0, 0, 0, 0);
+    // Calculate the base date in UTC to avoid timezone mismatches
+    // startDate is expected to be in YYYY-MM-DD format (from client) or ISO string
+    // Parse as UTC to ensure consistent behavior across timezones
+    let baseDateUTC: Date;
+    if (startDate.includes('T')) {
+      // Already an ISO string, parse directly
+      baseDateUTC = new Date(startDate);
+      // Normalize to UTC midnight
+      baseDateUTC = new Date(Date.UTC(
+        baseDateUTC.getUTCFullYear(),
+        baseDateUTC.getUTCMonth(),
+        baseDateUTC.getUTCDate()
+      ));
+    } else {
+      // YYYY-MM-DD format, append UTC midnight
+      baseDateUTC = new Date(startDate + 'T00:00:00.000Z');
+    }
 
     // Create meal plan items from template
     const itemsToCreate = template.items.map((item) => {
-      const itemDate = new Date(baseDate);
-      itemDate.setDate(itemDate.getDate() + item.dayOffset);
+      // Add day offset in UTC to maintain timezone consistency
+      const itemDate = new Date(baseDateUTC);
+      itemDate.setUTCDate(itemDate.getUTCDate() + item.dayOffset);
 
       return {
         mealPlanId: planId,
@@ -947,7 +962,7 @@ export async function updateMealPlanTemplate(
     if (error instanceof z.ZodError) {
       return {
         success: false,
-        error: error.errors[0]?.message || 'Validation error',
+        error: error.issues[0]?.message || 'Validation error',
       };
     }
     console.error('Error updating template:', error);

@@ -2,7 +2,6 @@
 
 import { useState, useRef, useMemo } from 'react';
 import { useReactToPrint } from 'react-to-print';
-import type { ContentNode } from 'react-to-print/lib/types/ContentNode';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { WeeklySheet } from './weekly-sheet';
@@ -115,7 +114,7 @@ export function PrintManager({ plan, startDate }: PrintManagerProps) {
 
   const handlePrint = useReactToPrint({
     // react-to-print v3 uses `contentRef` instead of the older `content` callback.
-    contentRef: printRef as unknown as React.RefObject<ContentNode>,
+    contentRef: printRef,
     documentTitle: `Meal Plan - ${format(new Date(startDate), 'MMM d, yyyy')}`,
   });
 

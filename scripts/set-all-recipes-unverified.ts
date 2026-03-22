@@ -15,7 +15,7 @@ if (!connectionString) {
 }
 
 const pool = new Pool({ connectionString });
-const adapter = new PrismaPg(pool);
+const adapter = new PrismaPg(pool as ConstructorParameters<typeof PrismaPg>[0]);
 const prisma = new PrismaClient({ adapter });
 
 async function setAllRecipesUnverified() {

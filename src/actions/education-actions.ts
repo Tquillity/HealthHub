@@ -19,15 +19,17 @@ export async function getEducationalResources({
   difficulty,
 }: GetEducationalResourcesParams = {}) {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-
-    if (!session) {
-      return { success: false, error: 'Unauthorized', data: [] };
-    }
-
-    const where: any = {};
+    const where: {
+      OR?: Array<
+        | { title: { contains: string; mode: 'insensitive' } }
+        | { content: { contains: string; mode: 'insensitive' } }
+        | { excerpt: { contains: string; mode: 'insensitive' } }
+        | { tags: { hasSome: string[] } }
+      >;
+      category?: string;
+      featured?: boolean;
+      difficulty?: string;
+    } = {};
 
     if (query) {
       where.OR = [
@@ -64,14 +66,6 @@ export async function getEducationalResources({
 
 export async function getResourceById(id: string) {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-
-    if (!session) {
-      return { success: false, error: 'Unauthorized', data: null };
-    }
-
     const resource = await prisma.educationalResource.findUnique({
       where: { id },
     });

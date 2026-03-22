@@ -12,32 +12,41 @@ import type { Session } from 'better-auth/types';
  * This bypasses the database connection (prisma) that would crash in Edge Runtime.
  */
 export async function proxy(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+
   // Use REST-based session check to avoid Edge Runtime Node.js module issues
   // This makes an HTTP request to the auth API endpoint instead of importing auth directly
-  const { data: session } = await betterFetch<Session>('/api/auth/get-session', {
-    baseURL: request.nextUrl.origin,
-    headers: {
-      cookie: request.headers.get('cookie') || '',
-    },
-  });
+  let session: Session | null = null;
+  try {
+    const result = await betterFetch<Session>('/api/auth/get-session', {
+      baseURL: request.nextUrl.origin,
+      headers: {
+        cookie: request.headers.get('cookie') || '',
+      },
+    });
+
+    session = result.data ?? null;
+  } catch (error) {
+    console.error('Proxy session lookup failed:', error);
+  }
 
   const isAuthRoute =
-    request.nextUrl.pathname.startsWith('/sign-in') ||
-    request.nextUrl.pathname.startsWith('/sign-up');
+    pathname.startsWith('/sign-in') || pathname.startsWith('/sign-up');
 
-  const isDashboardRoute =
-    request.nextUrl.pathname.startsWith('/dashboard') ||
-    request.nextUrl.pathname.startsWith('/recipes') ||
-    request.nextUrl.pathname.startsWith('/meal-planner') ||
-    request.nextUrl.pathname.startsWith('/routines') ||
-    request.nextUrl.pathname.startsWith('/journal') ||
-    request.nextUrl.pathname.startsWith('/groceries') ||
-    request.nextUrl.pathname.startsWith('/cycle') ||
-    request.nextUrl.pathname.startsWith('/learn') ||
-    request.nextUrl.pathname.startsWith('/profile');
+  const isProtectedRecipeRoute =
+    pathname === '/recipes/new' || /^\/recipes\/[^/]+\/edit\/?$/.test(pathname);
+  const isProtectedRoute =
+    pathname.startsWith('/dashboard') ||
+    pathname.startsWith('/meal-planner') ||
+    pathname.startsWith('/routines') ||
+    pathname.startsWith('/journal') ||
+    pathname.startsWith('/groceries') ||
+    pathname.startsWith('/cycle') ||
+    pathname.startsWith('/profile') ||
+    isProtectedRecipeRoute;
 
   // Redirect unauthenticated users away from protected routes
-  if (!session && isDashboardRoute) {
+  if (!session && isProtectedRoute) {
     return NextResponse.redirect(new URL('/sign-in', request.url));
   }
 
@@ -58,7 +67,6 @@ export const config = {
     '/journal/:path*',
     '/groceries/:path*',
     '/cycle/:path*',
-    '/learn/:path*',
     '/profile/:path*',
     '/sign-in',
     '/sign-up',

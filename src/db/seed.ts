@@ -71,7 +71,7 @@ async function seed() {
 
   // Create a standard PostgreSQL pool for local scripts
   const pool = new Pool({ connectionString });
-  const adapter = new PrismaPg(pool);
+  const adapter = new PrismaPg(pool as ConstructorParameters<typeof PrismaPg>[0]);
   const prisma = new PrismaClient({ adapter });
   
   try {

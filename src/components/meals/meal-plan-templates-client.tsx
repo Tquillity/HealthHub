@@ -159,13 +159,21 @@ export function MealPlanTemplatesClient({
         return;
       }
 
+      // Create date string in YYYY-MM-DD format using local date components
+      // This ensures the template starts from "today" in the user's local timezone
+      // Using local date components prevents timezone conversion issues
       const today = new Date();
       today.setHours(0, 0, 0, 0);
+      // Use local date components, not UTC, to preserve the user's "today"
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      const dateString = `${year}-${month}-${day}`;
 
       const result = await applyMealPlanTemplate(
         template.id,
         planResult.plan.id,
-        today.toISOString()
+        dateString
       );
 
       setApplyingTemplate(null);

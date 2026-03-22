@@ -31,7 +31,7 @@ const createPrismaClient = () => {
     console.error('❌ [Prisma Pool] Unexpected error on idle client:', err);
   });
 
-  const adapter = new PrismaPg(pool);
+  const adapter = new PrismaPg(pool as ConstructorParameters<typeof PrismaPg>[0]);
 
   console.log('🔌 [Prisma] Initializing client with standard PG adapter');
 

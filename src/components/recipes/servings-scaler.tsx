@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Minus, Plus, ShoppingCart } from 'lucide-react';
 import { addScaledIngredientsToGroceryList } from '@/actions/grocery-actions';
@@ -18,6 +19,7 @@ interface ServingsScalerProps {
   defaultServings: number;
   ingredients: Ingredient[];
   recipeId?: string;
+  canAddToGroceryList?: boolean;
 }
 
 function AddToGroceryButton({
@@ -60,6 +62,7 @@ export function ServingsScaler({
   defaultServings,
   ingredients,
   recipeId,
+  canAddToGroceryList = false,
 }: ServingsScalerProps) {
   const initialServings = defaultServings || 4;
   const [servings, setServings] = useState(initialServings);
@@ -118,14 +121,29 @@ export function ServingsScaler({
         <p className="mb-4 text-center text-xs text-gray-400">
           Scaling for {servings} servings
         </p>
-        <AddToGroceryButton
-          ingredients={ingredients.map((ing) => ({
-            name: ing.name,
-            quantity: scale(ing.quantity),
-            unit: ing.unit,
-          }))}
-          recipeId={recipeId}
-        />
+        {canAddToGroceryList ? (
+          <AddToGroceryButton
+            ingredients={ingredients.map((ing) => ({
+              name: ing.name,
+              quantity: scale(ing.quantity),
+              unit: ing.unit,
+            }))}
+            recipeId={recipeId}
+          />
+        ) : (
+          <div className="flex flex-col gap-3">
+            <Button className="w-full gap-2" variant="outline" disabled>
+              <ShoppingCart className="h-4 w-4" />
+              Add to Grocery List
+            </Button>
+            <Link
+              href="/sign-in"
+              className="text-center text-sm font-medium text-primary-600 hover:text-primary-700"
+            >
+              Sign in to save ingredients to your grocery list
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -153,6 +153,55 @@ export async function getGroceryList(
     
     const ingredientMap = new Map<string, GroceryItem>();
 
+    // First pass: Collect all ingredients that need resolution and batch resolve them
+    // This prevents sequential async calls in nested loops, improving performance for large meal plans
+    interface IngredientResolutionTask {
+      ingredientId: string;
+      itemId: string;
+      parsed: ReturnType<typeof parseIngredientAlternatives>;
+      allAlternatives: string[];
+    }
+
+    const resolutionTasks: IngredientResolutionTask[] = [];
+
+    for (const item of mealPlanItems) {
+      const recipe = item.recipe;
+      for (const ingredient of recipe.ingredients) {
+        // Get stored alternatives from the batch-fetched map
+        const storedAlternatives = alternativesMap.get(ingredient.id) || [];
+        
+        // Handle ingredient alternatives: parse from name or use stored alternatives
+        const parsed = parseIngredientAlternatives(ingredient.name);
+        const allAlternatives = storedAlternatives.length > 0 
+          ? storedAlternatives 
+          : parsed.alternatives;
+        
+        // Only add to resolution tasks if there are alternatives to resolve
+        if (allAlternatives.length > 0) {
+          resolutionTasks.push({
+            ingredientId: ingredient.id,
+            itemId: item.id,
+            parsed,
+            allAlternatives,
+          });
+        }
+      }
+    }
+
+    // Batch resolve all ingredient choices concurrently using Promise.all
+    // This dramatically improves performance for meal plans with many recipes/ingredients
+    const resolutionPromises = resolutionTasks.map(task =>
+      resolveIngredientChoice(session.user.id, task.parsed.name, task.allAlternatives)
+    );
+    const resolvedNames = await Promise.all(resolutionPromises);
+
+    // Create a map of item+ingredient IDs to resolved names for quick lookup
+    const resolvedNameMap = new Map<string, string>();
+    resolutionTasks.forEach((task, idx) => {
+      resolvedNameMap.set(`${task.itemId}-${task.ingredientId}`, resolvedNames[idx]);
+    });
+
+    // Second pass: Process all ingredients using pre-resolved names
     for (const item of mealPlanItems) {
       const recipe = item.recipe;
       // Calculate servings multiplier to scale ingredient quantities
@@ -168,9 +217,9 @@ export async function getGroceryList(
           ? storedAlternatives 
           : parsed.alternatives;
         
-        // Resolve which ingredient to use based on user preference or default
+        // Get resolved name from map or use ingredient name directly
         const resolvedName = allAlternatives.length > 0
-          ? await resolveIngredientChoice(session.user.id, parsed.name, allAlternatives)
+          ? resolvedNameMap.get(`${item.id}-${ingredient.id}`) || ingredient.name
           : ingredient.name;
         
         // Skip excluded items (like water) - they should never appear on grocery lists
