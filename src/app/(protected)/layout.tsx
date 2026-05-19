@@ -13,6 +13,7 @@ import {
   Sparkles,
   GraduationCap,
   Moon,
+  Timer,
 } from 'lucide-react';
 
 export default async function DashboardLayout({
@@ -38,6 +39,7 @@ export default async function DashboardLayout({
 
   const navItems = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+    { name: 'Focus Timer', href: '/timer', icon: Timer },
     { name: 'Recipes', href: '/recipes', icon: UtensilsCrossed },
     { name: 'Meal Planner', href: '/meal-planner', icon: CalendarDays },
     { name: 'Routines', href: '/routines', icon: Sparkles },

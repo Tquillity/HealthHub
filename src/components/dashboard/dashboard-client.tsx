@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Sparkles, UtensilsCrossed, BookOpen } from 'lucide-react';
+import { Sparkles, UtensilsCrossed, BookOpen, Timer } from 'lucide-react';
 import type { Routine, Recipe } from '@prisma/client';
 
 interface DashboardClientProps {
@@ -59,20 +59,26 @@ export function DashboardClient({
               Quick Actions
             </h2>
             <div className="flex flex-col gap-3">
-              <Link href="/routines" className="block">
+              <Link href="/timer" className="block">
                 <Button className="w-full gap-2 bg-primary-600 hover:bg-primary-700">
+                  <Timer className="h-4 w-4" />
+                  Focus Now
+                </Button>
+              </Link>
+              <Link href="/routines" className="block">
+                <Button className="w-full gap-2 bg-wellness-500 hover:bg-wellness-600 text-white">
                   <Sparkles className="h-4 w-4" />
                   Try Routine Lottery
                 </Button>
               </Link>
               <Link href="/meal-planner" className="block">
-                <Button className="w-full gap-2 bg-wellness-500 hover:bg-wellness-600 text-white">
+                <Button className="w-full gap-2 bg-gray-600 hover:bg-gray-700 text-white">
                   <UtensilsCrossed className="h-4 w-4" />
                   Plan Meals
                 </Button>
               </Link>
               <Link href="/recipes" className="block">
-                <Button className="w-full gap-2 bg-gray-600 hover:bg-gray-700 text-white">
+                <Button className="w-full gap-2" variant="outline">
                   <BookOpen className="h-4 w-4" />
                   Browse Recipes
                 </Button>
@@ -81,7 +87,7 @@ export function DashboardClient({
           </div>
 
           {/* Health Tips */}
-          <div className="rounded-lg p-6 border border-primary-100 bg-gradient-to-br from-primary-50 to-wellness-50">
+          <div className="rounded-lg p-6 border border-primary-100 bg-linear-to-br from-primary-50 to-wellness-50">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               Today's Tip
             </h3>
