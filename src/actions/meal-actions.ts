@@ -6,6 +6,7 @@ import { headers } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { endOfWeek, startOfWeek, addDays, eachDayOfInterval } from 'date-fns';
 import { z } from 'zod';
+import type { Prisma } from '@prisma/client';
 import { randomBytes } from 'crypto';
 
 export async function getWeeklyPlan(date?: Date) {
@@ -18,11 +19,14 @@ export async function getWeeklyPlan(date?: Date) {
   // Get user preferences (with fallback for fields that might not exist yet)
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
+    select: {
+      mealPlanDuration: true,
+      mealPlanStartDate: true,
+    },
   });
-  
-  // Extract meal planner preferences (with type safety)
-  const mealPlanDuration = (user as any)?.mealPlanDuration || null;
-  const mealPlanStartDate = (user as any)?.mealPlanStartDate || null;
+
+  const mealPlanDuration = user?.mealPlanDuration ?? null;
+  const mealPlanStartDate = user?.mealPlanStartDate ?? null;
 
   const membership = await prisma.member.findFirst({
     where: { userId: session.user.id },
@@ -157,7 +161,7 @@ export async function removeMealFromPlan(itemId: string) {
     });
     revalidatePath('/meal-planner');
     return { success: true };
-  } catch (e) {
+  } catch {
     return { success: false };
   }
 }
@@ -208,8 +212,6 @@ export async function generateMealPlan(data: {
       ...(user?.dietaryRestrictions || []),
       ...data.dietaryRestrictions,
     ];
-    const allHealthGoals = [...(user?.healthGoals || []), ...data.healthGoals];
-
     // Calculate week dates
     const weekStart = new Date(data.weekStart);
     weekStart.setHours(0, 0, 0, 0);
@@ -256,7 +258,7 @@ export async function generateMealPlan(data: {
     }
 
     // Build recipe filter
-    const recipeWhere: any = {
+    const recipeWhere: Prisma.RecipeWhereInput = {
       OR: [{ isSystem: true }, { organizationId: membership.organizationId }],
     };
 

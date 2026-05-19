@@ -17,6 +17,7 @@
 
 import { useState, useEffect } from 'react';
 import { CyclePhase } from '@/lib/cycle-calculator';
+import type { PhaseRecommendationWithExpert } from '@/types/cycle';
 import { getRecommendationsByPhase } from '@/actions/cycle-actions';
 import { getDietaryRecommendations } from '@/lib/dietary-recommendations';
 import { Sparkles, Loader2, Activity } from 'lucide-react';
@@ -26,6 +27,30 @@ interface InsightCenterProps {
   currentPhase: CyclePhase;
   isHovering: boolean;
   mode?: 'lifestyle' | 'clinical'; // Mode toggle for UI complexity
+}
+
+interface RecommendationContent {
+  guidance?: string;
+  workout_types?: string[];
+  foods_to_eat?: string[];
+}
+
+function getRecommendationContent(
+  content: PhaseRecommendationWithExpert['content']
+): RecommendationContent {
+  if (!content || typeof content !== 'object' || Array.isArray(content)) {
+    return {};
+  }
+  const record = content as Record<string, unknown>;
+  return {
+    guidance: typeof record.guidance === 'string' ? record.guidance : undefined,
+    workout_types: Array.isArray(record.workout_types)
+      ? record.workout_types.filter((x): x is string => typeof x === 'string')
+      : undefined,
+    foods_to_eat: Array.isArray(record.foods_to_eat)
+      ? record.foods_to_eat.filter((x): x is string => typeof x === 'string')
+      : undefined,
+  };
 }
 
 const PHASE_NAMES: Record<CyclePhase, string> = {
@@ -43,7 +68,7 @@ const PHASE_DESCRIPTIONS: Record<CyclePhase, string> = {
 };
 
 export function InsightCenter({ activePhase, currentPhase, isHovering, mode = 'lifestyle' }: InsightCenterProps) {
-  const [recommendations, setRecommendations] = useState<any[]>([]);
+  const [recommendations, setRecommendations] = useState<PhaseRecommendationWithExpert[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -71,6 +96,9 @@ export function InsightCenter({ activePhase, currentPhase, isHovering, mode = 'l
 
   const dietaryRecs = getDietaryRecommendations(activePhase);
   const topRecommendation = recommendations.length > 0 ? recommendations[0] : null;
+  const topContent = topRecommendation
+    ? getRecommendationContent(topRecommendation.content)
+    : null;
 
   return (
     <div
@@ -150,23 +178,21 @@ export function InsightCenter({ activePhase, currentPhase, isHovering, mode = 'l
                 Top Tip from {topRecommendation.expert.name}
               </span>
             </div>
-            {topRecommendation.content.guidance && (
+            {topContent?.guidance && (
               <p className="text-sm text-gray-800 leading-relaxed italic">
-                "{topRecommendation.content.guidance}"
+                "{topContent.guidance}"
               </p>
             )}
-            {topRecommendation.content.workout_types &&
-              topRecommendation.content.workout_types.length > 0 && (
+            {topContent?.workout_types && topContent.workout_types.length > 0 && (
                 <p className="text-sm text-gray-800 leading-relaxed mt-2">
                   <span className="font-medium">Recommended:</span>{' '}
-                  {topRecommendation.content.workout_types[0]}
+                  {topContent.workout_types[0]}
                 </p>
               )}
-            {topRecommendation.content.foods_to_eat &&
-              topRecommendation.content.foods_to_eat.length > 0 && (
+            {topContent?.foods_to_eat && topContent.foods_to_eat.length > 0 && (
                 <p className="text-sm text-gray-800 leading-relaxed mt-2">
                   <span className="font-medium">Focus on:</span>{' '}
-                  {topRecommendation.content.foods_to_eat[0]}
+                  {topContent.foods_to_eat[0]}
                 </p>
               )}
           </div>

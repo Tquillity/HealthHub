@@ -184,7 +184,7 @@ export function MealPlanTemplatesClient({
       } else {
         alert(result.error || 'Failed to apply template');
       }
-    } catch (error) {
+    } catch {
       setApplyingTemplate(null);
       alert('Failed to load current meal plan. Please try again.');
     }

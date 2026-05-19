@@ -20,7 +20,8 @@
  */
 
 import { useState, useEffect } from 'react';
-import { CyclePhase, CyclePhaseResult, calculateCyclePhase } from '@/lib/cycle-calculator';
+import { CyclePhase, CyclePhaseResult } from '@/lib/cycle-calculator';
+import type { FocusPreference, PhaseRecommendationWithExpert } from '@/types/cycle';
 import { useQueryState, parseAsString } from 'nuqs';
 import { FocusPreferenceSelector } from './focus-preference-selector';
 import { CycleChart } from './cycle-chart';
@@ -28,21 +29,20 @@ import { InsightCenter } from './insight-center';
 import { JournalQuickLook } from './journal-quick-look';
 import { RecommendationCard } from './recommendation-card';
 import { PhaseDeepDive } from './phase-deep-dive';
-import { PhaseDrawer } from './phase-drawer';
 import { ModeToggle } from './mode-toggle';
 import { Card } from '@/components/ui/card';
-import { Calendar, Sparkles, Settings } from 'lucide-react';
-import { differenceInDays, format } from 'date-fns';
+import { Calendar, Sparkles } from 'lucide-react';
+import { differenceInDays } from 'date-fns';
 import { getPhaseTheme } from '@/lib/phase-theme';
 import { getJournalSnippet } from '@/actions/journal-actions';
 
 interface CyclePageClientProps {
   phaseData: CyclePhaseResult;
-  recommendations: any[];
+  recommendations: PhaseRecommendationWithExpert[];
   userPreference: {
-    focusPreference: 'hormonal' | 'workout' | 'both';
+    focusPreference: FocusPreference;
     cycleLength: number;
-    lastPeriodDate: Date; // Required for date calculations
+    lastPeriodDate: Date;
   };
 }
 
@@ -78,7 +78,7 @@ export function CyclePageClient({
     'selectedDate',
     parseAsString
   );
-  const [mode, setMode] = useQueryState(
+  const [mode] = useQueryState(
     'mode',
     parseAsString.withDefault('lifestyle')
   );
@@ -118,17 +118,6 @@ export function CyclePageClient({
     setView('summary');
   };
 
-  // Detect mobile viewport
-  const [isMobile, setIsMobile] = useState(false);
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 1024); // lg breakpoint
-    };
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
   // View orchestrator: Determine if we should show detail view or summary view
   // If view is 'detail', default to current phase if no phase is selected
   const effectivePhase = (urlPhase as CyclePhase) || (view === 'detail' ? phaseData.currentPhase : null);
@@ -141,7 +130,7 @@ export function CyclePageClient({
     energy: number | null;
     notesSnippet: string | null;
   } | null>(null);
-  const [snippetLoading, setSnippetLoading] = useState(false);
+  const [, setSnippetLoading] = useState(false);
   const [selectedDateObj, setSelectedDateObj] = useState<Date | null>(null);
   const [selectedDatePhase, setSelectedDatePhase] = useState<CyclePhase | null>(null);
 
@@ -209,7 +198,7 @@ export function CyclePageClient({
   }, [selectedDate, userPreference.lastPeriodDate, userPreference.cycleLength]);
 
   // Handle day click from chart
-  const handleDayClick = (date: Date, day: number) => {
+  const handleDayClick = (date: Date, _day: number) => {
     const dateStr = date.toISOString().split('T')[0];
     setSelectedDate(dateStr);
   };
@@ -402,7 +391,7 @@ export function CyclePageClient({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {recommendations.map((recommendation: any) => (
+            {recommendations.map((recommendation) => (
               <RecommendationCard key={recommendation.id} recommendation={recommendation} />
             ))}
           </div>

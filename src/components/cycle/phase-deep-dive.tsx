@@ -20,7 +20,8 @@ import { getPhaseRecommendations } from '@/actions/cycle-actions';
 import { getDietaryRecommendations } from '@/lib/dietary-recommendations';
 import { RecommendationCard } from './recommendation-card';
 import { Card } from '@/components/ui/card';
-import { X, Sparkles, Heart, Dumbbell, Utensils, ArrowLeft } from 'lucide-react';
+import { Sparkles, Heart, Utensils, ArrowLeft } from 'lucide-react';
+import type { PhaseRecommendationWithExpert } from '@/types/cycle';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 import { useQueryState, parseAsString } from 'nuqs';
@@ -83,7 +84,7 @@ export function PhaseDeepDive({
   focusPreference,
   onClose,
 }: PhaseDeepDiveProps) {
-  const [recommendations, setRecommendations] = useState<any[]>([]);
+  const [recommendations, setRecommendations] = useState<PhaseRecommendationWithExpert[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

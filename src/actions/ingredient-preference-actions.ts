@@ -1,9 +1,23 @@
 'use server';
 
+import { z } from 'zod';
 import { prisma } from '@/lib/db';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { parseIngredientAlternatives, normalizePatternKey } from '@/lib/ingredient-alternatives';
+
+const SetPreferenceSchema = z.object({
+  pattern: z.string().min(1),
+  preferred: z.string().min(1),
+});
+
+const ResolveIngredientSchema = z.object({
+  userId: z.string().min(1),
+  ingredientName: z.string().min(1),
+  alternatives: z.array(z.string()),
+});
+
+const PatternSchema = z.string().min(1);
 
 /**
  * Get user's ingredient preferences
@@ -26,7 +40,6 @@ export async function getUserIngredientPreferences() {
       },
     });
 
-    // Convert to a map for easy lookup
     const preferenceMap = new Map<string, string>();
     for (const pref of preferences) {
       preferenceMap.set(pref.pattern, pref.preferred);
@@ -55,21 +68,22 @@ export async function setIngredientPreference(
       return { success: false, error: 'Unauthorized' };
     }
 
-    // Upsert the preference
+    const validated = SetPreferenceSchema.parse({ pattern, preferred });
+
     await prisma.userIngredientPreference.upsert({
       where: {
         userId_pattern: {
           userId: session.user.id,
-          pattern: pattern,
+          pattern: validated.pattern,
         },
       },
       create: {
         userId: session.user.id,
-        pattern: pattern,
-        preferred: preferred,
+        pattern: validated.pattern,
+        preferred: validated.preferred,
       },
       update: {
-        preferred: preferred,
+        preferred: validated.preferred,
       },
     });
 
@@ -82,10 +96,6 @@ export async function setIngredientPreference(
 
 /**
  * Resolve which ingredient to use from alternatives based on user preference
- * Returns the preferred choice or the default (first option)
- * 
- * This is a helper function that can be called from within server actions
- * It requires the userId to be passed in (not a server action itself)
  */
 export async function resolveIngredientChoice(
   userId: string,
@@ -93,44 +103,46 @@ export async function resolveIngredientChoice(
   alternatives: string[]
 ): Promise<string> {
   try {
-    if (!userId || alternatives.length === 0) {
-      // No alternatives or no userId, return default (first option)
-      return ingredientName;
+    const validated = ResolveIngredientSchema.parse({
+      userId,
+      ingredientName,
+      alternatives,
+    });
+
+    if (validated.alternatives.length === 0) {
+      return validated.ingredientName;
     }
 
-    // Generate pattern key for lookup
-    const patternKey = normalizePatternKey(ingredientName, alternatives);
+    const patternKey = normalizePatternKey(
+      validated.ingredientName,
+      validated.alternatives
+    );
 
-    // Check user preference
     const preference = await prisma.userIngredientPreference.findUnique({
       where: {
         userId_pattern: {
-          userId: userId,
+          userId: validated.userId,
           pattern: patternKey,
         },
       },
     });
 
     if (preference) {
-      // Validate that the preferred option is in the alternatives list
-      const allOptions = [ingredientName, ...alternatives];
+      const allOptions = [validated.ingredientName, ...validated.alternatives];
       if (allOptions.includes(preference.preferred)) {
         return preference.preferred;
       }
     }
 
-    // No preference or invalid preference, return default (first option)
-    return ingredientName;
+    return validated.ingredientName;
   } catch (error) {
     console.error('Error resolving ingredient choice:', error);
-    // On error, return default
     return ingredientName;
   }
 }
 
 /**
  * Get all available alternatives for an ingredient pattern
- * Used for displaying options in UI
  */
 export async function getIngredientAlternatives(pattern: string) {
   try {
@@ -142,16 +154,16 @@ export async function getIngredientAlternatives(pattern: string) {
       return { success: false, error: 'Unauthorized', data: null };
     }
 
-    // Find all ingredients with this pattern
-    // This is a simplified version - in practice, you might want to cache this
+    const validatedPattern = PatternSchema.parse(pattern);
+
     const ingredients = await prisma.ingredient.findMany({
       where: {
         OR: [
-          { name: { contains: pattern, mode: 'insensitive' } },
+          { name: { contains: validatedPattern, mode: 'insensitive' } },
           {
             alternatives: {
               some: {
-                name: { contains: pattern, mode: 'insensitive' },
+                name: { contains: validatedPattern, mode: 'insensitive' },
               },
             },
           },
@@ -162,19 +174,17 @@ export async function getIngredientAlternatives(pattern: string) {
           orderBy: { order: 'asc' },
         },
       },
-      take: 10, // Limit results
+      take: 10,
     });
 
-    // Extract unique alternatives
     const allAlternatives = new Set<string>();
     for (const ing of ingredients) {
       const parsed = parseIngredientAlternatives(ing.name);
       if (parsed.alternatives.length > 0) {
         allAlternatives.add(parsed.name);
-        parsed.alternatives.forEach(alt => allAlternatives.add(alt));
+        parsed.alternatives.forEach((alt) => allAlternatives.add(alt));
       }
-      // Also check stored alternatives
-      ing.alternatives.forEach(alt => allAlternatives.add(alt.name));
+      ing.alternatives.forEach((alt) => allAlternatives.add(alt.name));
     }
 
     return {
@@ -187,4 +197,3 @@ export async function getIngredientAlternatives(pattern: string) {
     return { success: false, error: 'Failed to fetch alternatives', data: null };
   }
 }
-

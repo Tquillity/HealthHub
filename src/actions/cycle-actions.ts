@@ -1,94 +1,95 @@
 'use server';
 
+import { z } from 'zod';
 import { prisma } from '@/lib/db';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { calculateCyclePhase } from '@/lib/cycle-calculator';
+import {
+  phaseRecommendationWithExpertInclude,
+  type FocusPreference,
+} from '@/types/cycle';
+
+const FocusPreferenceSchema = z.enum(['hormonal', 'workout', 'both']);
+const PhaseSchema = z.enum(['menstrual', 'follicular', 'ovulation', 'luteal']);
+const ExpertIdSchema = z.string().min(1);
+const UpdateFocusPreferenceSchema = z.object({
+  focusPreference: FocusPreferenceSchema,
+});
+const GetPhaseRecommendationsSchema = z.object({
+  phase: PhaseSchema,
+  focusPreference: FocusPreferenceSchema,
+});
+
+const cycleUserSelect = {
+  enableCycleTracking: true,
+  cycleLength: true,
+  lastPeriodDate: true,
+  focusPreference: true,
+} as const;
+
+function categoryFilterForFocus(focusPreference: string | null | undefined): string[] {
+  if (focusPreference === 'workout') {
+    return ['exercise'];
+  }
+  if (focusPreference === 'hormonal') {
+    return ['nutrition', 'fasting'];
+  }
+  return ['nutrition', 'fasting', 'exercise'];
+}
+
+function parseFocusPreference(value: string | null | undefined): FocusPreference {
+  const parsed = FocusPreferenceSchema.safeParse(value);
+  return parsed.success ? parsed.data : 'both';
+}
+
+async function requireSession() {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+  return session;
+}
 
 /**
  * Server Action: Get Cycle Dashboard Data
- * 
- * Aggregates cycle tracking data for the authenticated user's dashboard.
- * 
- * Flow:
- * 1. Authenticates user session
- * 2. Fetches user's cycle tracking preferences (enableCycleTracking, cycleLength, lastPeriodDate, focusPreference)
- * 3. If not configured, returns 'not_configured' status
- * 4. Calculates current menstrual cycle phase using cycle-calculator utility
- * 5. Filters recommendations by:
- *    - Current phase (menstrual/follicular/ovulation/luteal)
- *    - User's focus preference:
- *      * 'workout' → only exercise recommendations
- *      * 'hormonal' → nutrition and fasting recommendations
- *      * 'both' → all categories (nutrition, fasting, exercise)
- * 6. Returns phase data, filtered recommendations, and user preferences
- * 
- * @returns Dashboard data with status: 'active' | 'not_configured' | 'error'
  */
 export async function getCycleDashboard() {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
+    const session = await requireSession();
 
     if (!session) {
-      return { success: false, error: 'Unauthorized', status: 'not_configured' };
+      return { success: false, error: 'Unauthorized', status: 'not_configured' as const };
     }
 
-    // Fetch user profile with cycle tracking fields
-    // Note: Using type assertion for cycle tracking fields until TypeScript server picks up regenerated Prisma types
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-    }) as any;
+      select: cycleUserSelect,
+    });
 
     if (!user) {
-      return { success: false, error: 'User not found', status: 'not_configured' };
+      return { success: false, error: 'User not found', status: 'not_configured' as const };
     }
 
-    // Check if cycle tracking is enabled and lastPeriodDate exists
     if (!user.enableCycleTracking || !user.lastPeriodDate) {
-      return { 
-        success: true, 
-        status: 'not_configured',
+      return {
+        success: true,
+        status: 'not_configured' as const,
         error: null,
       };
     }
 
-    // Calculate current phase
     const cycleLength = user.cycleLength ?? 28;
     const phaseData = calculateCyclePhase(user.lastPeriodDate, cycleLength);
+    const categoryFilter = categoryFilterForFocus(user.focusPreference);
 
-    // Build category filter based on focus preference
-    const categoryFilter: string[] = [];
-    if (user.focusPreference === 'workout') {
-      categoryFilter.push('exercise');
-    } else if (user.focusPreference === 'hormonal') {
-      categoryFilter.push('nutrition', 'fasting');
-    } else {
-      // 'both' - fetch all categories
-      categoryFilter.push('nutrition', 'fasting', 'exercise');
-    }
-
-    // Fetch recommendations for current phase
-    // Note: Using type assertion until TypeScript server picks up regenerated Prisma types
-    const recommendations = await (prisma as any).phaseRecommendation.findMany({
+    const recommendations = await prisma.phaseRecommendation.findMany({
       where: {
         phase: phaseData.currentPhase,
         category: {
           in: categoryFilter,
         },
       },
-      include: {
-        expert: {
-          select: {
-            id: true,
-            name: true,
-            credentials: true,
-            website: true,
-            focusAreas: true,
-          },
-        },
-      },
+      include: phaseRecommendationWithExpertInclude,
       orderBy: {
         createdAt: 'asc',
       },
@@ -96,43 +97,37 @@ export async function getCycleDashboard() {
 
     return {
       success: true,
-      status: 'active',
+      status: 'active' as const,
       phaseData,
       recommendations,
       userPreference: {
-        focusPreference: user.focusPreference ?? 'both',
+        focusPreference: parseFocusPreference(user.focusPreference),
         cycleLength,
       },
       error: null,
     };
   } catch (error) {
     console.error('Error fetching cycle dashboard:', error);
-    return { 
-      success: false, 
-      error: 'Failed to fetch cycle dashboard', 
-      status: 'error' 
+    return {
+      success: false,
+      error: 'Failed to fetch cycle dashboard',
+      status: 'error' as const,
     };
   }
 }
 
 /**
  * Server Action: Get All Experts
- * 
- * Fetches a list of all experts in the database.
- * 
- * @returns List of all experts with their basic information
  */
 export async function getAllExperts() {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
+    const session = await requireSession();
 
     if (!session) {
       return { success: false, error: 'Unauthorized', data: null };
     }
 
-    const experts = await (prisma as any).expert.findMany({
+    const experts = await prisma.expert.findMany({
       orderBy: { name: 'asc' },
     });
 
@@ -145,36 +140,28 @@ export async function getAllExperts() {
 
 /**
  * Server Action: Get Expert with Recommendations
- * 
- * Fetches a specific expert and all their recommendations.
- * 
- * @param expertId - The ID of the expert to fetch
- * @returns Expert details with all their recommendations
  */
 export async function getExpertWithRecommendations(expertId: string) {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
+    const session = await requireSession();
 
     if (!session) {
       return { success: false, error: 'Unauthorized', data: null };
     }
 
-    const expert = await (prisma as any).expert.findUnique({
-      where: { id: expertId },
+    const validatedId = ExpertIdSchema.parse(expertId);
+
+    const expert = await prisma.expert.findUnique({
+      where: { id: validatedId },
     });
 
     if (!expert) {
       return { success: false, error: 'Expert not found', data: null };
     }
 
-    const recommendations = await (prisma as any).phaseRecommendation.findMany({
-      where: { expertId },
-      orderBy: [
-        { phase: 'asc' },
-        { category: 'asc' },
-      ],
+    const recommendations = await prisma.phaseRecommendation.findMany({
+      where: { expertId: validatedId },
+      orderBy: [{ phase: 'asc' }, { category: 'asc' }],
     });
 
     return {
@@ -193,39 +180,21 @@ export async function getExpertWithRecommendations(expertId: string) {
 
 /**
  * Server Action: Get Recommendations by Expert ID
- * 
- * Fetches all recommendations for a specific expert.
- * 
- * @param expertId - The ID of the expert
- * @returns List of all recommendations for the expert
  */
 export async function getRecommendationsByExpert(expertId: string) {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
+    const session = await requireSession();
 
     if (!session) {
       return { success: false, error: 'Unauthorized', data: null };
     }
 
-    const recommendations = await (prisma as any).phaseRecommendation.findMany({
-      where: { expertId },
-      include: {
-        expert: {
-          select: {
-            id: true,
-            name: true,
-            credentials: true,
-            website: true,
-            focusAreas: true,
-          },
-        },
-      },
-      orderBy: [
-        { phase: 'asc' },
-        { category: 'asc' },
-      ],
+    const validatedId = ExpertIdSchema.parse(expertId);
+
+    const recommendations = await prisma.phaseRecommendation.findMany({
+      where: { expertId: validatedId },
+      include: phaseRecommendationWithExpertInclude,
+      orderBy: [{ phase: 'asc' }, { category: 'asc' }],
     });
 
     return { success: true, data: recommendations, error: null };
@@ -237,60 +206,36 @@ export async function getRecommendationsByExpert(expertId: string) {
 
 /**
  * Server Action: Get Recommendations by Phase
- * 
- * Fetches all recommendations for a specific phase, filtered by user's focus preference.
- * 
- * @param phase - The cycle phase (menstrual, follicular, ovulation, luteal)
- * @returns List of recommendations for the phase
  */
 export async function getRecommendationsByPhase(phase: string) {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
+    const session = await requireSession();
 
     if (!session) {
       return { success: false, error: 'Unauthorized', data: null };
     }
 
-    // Get user's focus preference
+    const validatedPhase = PhaseSchema.parse(phase);
+
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-    }) as any;
+      select: { focusPreference: true },
+    });
 
     if (!user) {
       return { success: false, error: 'User not found', data: null };
     }
 
-    // Build category filter based on focus preference
-    const categoryFilter: string[] = [];
-    if (user.focusPreference === 'workout') {
-      categoryFilter.push('exercise');
-    } else if (user.focusPreference === 'hormonal') {
-      categoryFilter.push('nutrition', 'fasting');
-    } else {
-      // 'both' - fetch all categories
-      categoryFilter.push('nutrition', 'fasting', 'exercise');
-    }
+    const categoryFilter = categoryFilterForFocus(user.focusPreference);
 
-    const recommendations = await (prisma as any).phaseRecommendation.findMany({
+    const recommendations = await prisma.phaseRecommendation.findMany({
       where: {
-        phase,
+        phase: validatedPhase,
         category: {
           in: categoryFilter,
         },
       },
-      include: {
-        expert: {
-          select: {
-            id: true,
-            name: true,
-            credentials: true,
-            website: true,
-            focusAreas: true,
-          },
-        },
-      },
+      include: phaseRecommendationWithExpertInclude,
       orderBy: {
         createdAt: 'asc',
       },
@@ -305,54 +250,29 @@ export async function getRecommendationsByPhase(phase: string) {
 
 /**
  * Server Action: Get Phase Recommendations
- * 
- * Fetches recommendations for a specific phase, filtered by focus preference.
- * This is a convenience function that accepts focusPreference as a parameter
- * rather than fetching it from the user profile.
- * 
- * @param phase - The cycle phase (menstrual, follicular, ovulation, luteal)
- * @param focusPreference - The focus preference ('hormonal', 'workout', or 'both')
- * @returns List of recommendations for the phase
  */
-export async function getPhaseRecommendations(phase: string, focusPreference: 'hormonal' | 'workout' | 'both') {
+export async function getPhaseRecommendations(
+  phase: string,
+  focusPreference: FocusPreference
+) {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
+    const session = await requireSession();
 
     if (!session) {
       return { success: false, error: 'Unauthorized', recommendations: null };
     }
 
-    // Build category filter based on focus preference
-    const categoryFilter: string[] = [];
-    if (focusPreference === 'workout') {
-      categoryFilter.push('exercise');
-    } else if (focusPreference === 'hormonal') {
-      categoryFilter.push('nutrition', 'fasting');
-    } else {
-      // 'both' - fetch all categories
-      categoryFilter.push('nutrition', 'fasting', 'exercise');
-    }
+    const validated = GetPhaseRecommendationsSchema.parse({ phase, focusPreference });
+    const categoryFilter = categoryFilterForFocus(validated.focusPreference);
 
-    const recommendations = await (prisma as any).phaseRecommendation.findMany({
+    const recommendations = await prisma.phaseRecommendation.findMany({
       where: {
-        phase,
+        phase: validated.phase,
         category: {
           in: categoryFilter,
         },
       },
-      include: {
-        expert: {
-          select: {
-            id: true,
-            name: true,
-            credentials: true,
-            website: true,
-            focusAreas: true,
-          },
-        },
-      },
+      include: phaseRecommendationWithExpertInclude,
       orderBy: {
         createdAt: 'asc',
       },
@@ -367,27 +287,22 @@ export async function getPhaseRecommendations(phase: string, focusPreference: 'h
 
 /**
  * Server Action: Update User Focus Preference
- * 
- * Updates only the focus preference without requiring a full profile update.
- * 
- * @param focusPreference - The new focus preference ('hormonal', 'workout', or 'both')
- * @returns Success status
  */
-export async function updateFocusPreference(focusPreference: 'hormonal' | 'workout' | 'both') {
+export async function updateFocusPreference(focusPreference: FocusPreference) {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
+    const session = await requireSession();
 
     if (!session) {
       return { success: false, error: 'Unauthorized' };
     }
 
+    const validated = UpdateFocusPreferenceSchema.parse({ focusPreference });
+
     await prisma.user.update({
       where: { id: session.user.id },
       data: {
-        focusPreference,
-      } as any,
+        focusPreference: validated.focusPreference,
+      },
     });
 
     return { success: true, error: null };
@@ -396,4 +311,3 @@ export async function updateFocusPreference(focusPreference: 'hormonal' | 'worko
     return { success: false, error: 'Failed to update focus preference' };
   }
 }
-

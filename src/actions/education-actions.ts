@@ -1,35 +1,29 @@
 'use server';
 
+import { z } from 'zod';
+import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 
-interface GetEducationalResourcesParams {
-  query?: string;
-  category?: string;
-  featured?: boolean;
-  difficulty?: string;
-}
+const GetEducationalResourcesSchema = z.object({
+  query: z.string().optional(),
+  category: z.string().optional(),
+  featured: z.coerce.boolean().optional(),
+  difficulty: z.string().optional(),
+});
 
-export async function getEducationalResources({
-  query,
-  category,
-  featured,
-  difficulty,
-}: GetEducationalResourcesParams = {}) {
+const ResourceIdSchema = z.string().min(1);
+
+export async function getEducationalResources(
+  params: z.input<typeof GetEducationalResourcesSchema> = {}
+) {
   try {
-    const where: {
-      OR?: Array<
-        | { title: { contains: string; mode: 'insensitive' } }
-        | { content: { contains: string; mode: 'insensitive' } }
-        | { excerpt: { contains: string; mode: 'insensitive' } }
-        | { tags: { hasSome: string[] } }
-      >;
-      category?: string;
-      featured?: boolean;
-      difficulty?: string;
-    } = {};
+    const { query, category, featured, difficulty } =
+      GetEducationalResourcesSchema.parse(params);
+
+    const where: Prisma.EducationalResourceWhereInput = {};
 
     if (query) {
       where.OR = [
@@ -66,17 +60,18 @@ export async function getEducationalResources({
 
 export async function getResourceById(id: string) {
   try {
+    const validatedId = ResourceIdSchema.parse(id);
+
     const resource = await prisma.educationalResource.findUnique({
-      where: { id },
+      where: { id: validatedId },
     });
 
     if (!resource) {
       return { success: false, error: 'Resource not found', data: null };
     }
 
-    // Increment view count
     await prisma.educationalResource.update({
-      where: { id },
+      where: { id: validatedId },
       data: { viewCount: { increment: 1 } },
     });
 
@@ -97,22 +92,23 @@ export async function toggleResourceLike(id: string) {
       return { success: false, error: 'Unauthorized' };
     }
 
+    const validatedId = ResourceIdSchema.parse(id);
+
     const resource = await prisma.educationalResource.findUnique({
-      where: { id },
+      where: { id: validatedId },
     });
 
     if (!resource) {
       return { success: false, error: 'Resource not found' };
     }
 
-    // Increment likes (simple implementation - in production you'd track per-user likes)
     const updated = await prisma.educationalResource.update({
-      where: { id },
+      where: { id: validatedId },
       data: { likes: { increment: 1 } },
     });
 
     revalidatePath('/learn');
-    revalidatePath(`/learn/${id}`);
+    revalidatePath(`/learn/${validatedId}`);
     return { success: true, data: updated };
   } catch (error) {
     console.error('Error toggling like:', error);

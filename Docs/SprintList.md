@@ -37,7 +37,7 @@
 - [x] Terms: cycle/expert wellness disclaimer (QC pass 3)  
 - [x] jcodemunch `/index` after rules (see Appendix A for latest counts)  
 
-**Ready to commit:** Sprint 0 stabilizers + Sprint 1 scaffolding (see suggested message in §9).
+**Ready to commit:** Sprint 1 Zod + ESLint close-out (see §9 suggested commit).
 
 **After pulling `.cursor/rules/` on another machine:** run **`/index`** (jcodemunch full reindex).
 
@@ -553,6 +553,17 @@ eslint-config-next, remove unused Neon adapter. Dedup timer cn helper.
 ESLint 103 → 98 (safe batch). Update Docs/SprintList.md.
 ```
 
+### Suggested commit (Sprint 1 Zod + ESLint — QC approved)
+
+```
+chore: add Zod to remaining actions and reduce ESLint debt
+
+Validate grocery, cycle, education, image-upload, and ingredient-preference
+server actions. Add src/types/cycle.ts; remove prisma any casts in cycle-actions.
+ESLint 98 → 10 (0 errors). Document ESLint policy in AGENTS.md; keep tsconfig
+S0-2 (.next/types only).
+```
+
 ### Risk register
 
 | Risk | Mitigation |
@@ -562,6 +573,10 @@ ESLint 103 → 98 (safe batch). Update Docs/SprintList.md.
 | Prisma schema drift | `@postgres` MCP verify before `db push` |
 | AdSense rejection | Legal review + substantive public content |
 | ESLint autofix breaks behavior | Manual review; no autofix on `cycle-actions.ts` |
+| `tsconfig.json` `.next/dev/types` regression | **Fixed** — include only `.next/types/**/*.ts` (S0-2); do not re-add dev types |
+| `react-refresh` warnings (10) | Accepted; documented in `AGENTS.md` § ESLint |
+| `scripts/**` ESLint ignore | Maintenance scripts excluded from lint scope |
+| `grocery-actions.ts` ~842 LOC | Boundary Zod only; file split deferred |
 
 ### Definition of Done (per sprint)
 
@@ -596,26 +611,25 @@ pnpm dev
 
 ## Next Immediate Actions
 
-**Sprint 0 + scaffolding: complete.** Commit when ready (see §9 suggested message).
+**Sprint 0 + Sprint 1: complete.** Commit when ready (see §9).
 
-**Sprint 1 — start here:**
+**Sprint 2 — start here:**
 
-- [ ] **S0-7b / S1-9** — ESLint batch 2 (`any` in actions, cycle UI); target &lt;20 problems or CI allowlist
-- [ ] **S2-1** — Zod on `grocery-actions`, `cycle-actions`, `education-actions`, `image-upload`, `ingredient-preference-actions`
 - [ ] **S5-1** — GitHub Actions CI (`lint` + `tsc` + `build`)
 - [ ] **S3-3** — PWA icons (`public/logo192.png`, `public/logo512.png`)
 - [ ] Optional: **`/pro`** premium stub page (S7-4)
 
 ---
 
-## Appendix A — Live codebase snapshot (2026-05-19, post Sprint 0)
+## Appendix A — Live codebase snapshot (2026-05-19, post Sprint 1 Zod/ESLint)
 
 | Metric | Value |
 |--------|-------|
-| ESLint | **98** problems (87 errors, 11 warnings) — was 103 pre–Sprint 0 |
+| ESLint | **10** problems (0 errors, 10 warnings) — was 98 pre–Sprint 1 |
 | TypeScript | `tsc --noEmit` passes |
-| jcodemunch | 166 files, 996 symbols (after `/index`) |
-| Action files | 11 total; 6 with Zod, 5 without |
+| Build | `pnpm build` passes |
+| jcodemunch | **167** files, **1026** symbols (post Sprint 1 `/index`) |
+| Action files | 11 total; **11 with Zod** |
 | Route groups | `(auth)`, `(protected)`, `(public)`, `(standalone)` |
 | Timer route | `/timer` → `(standalone)/timer/page.tsx` |
 | Journal client | `src/components/journal/journal-page-client.tsx` |
@@ -634,9 +648,9 @@ pnpm dev
 | Dashboard | `/dashboard` | Good |
 | Meal planner | `/meal-planner`, templates | Strong |
 | Groceries | `/groceries` | Strong (large actions) |
-| Routines | `/routines` | Good (lint debt) |
+| Routines | `/routines` | Good |
 | Journal (encrypted) | `/journal` | Good |
-| Cycle + experts | `/cycle` | Strong (type debt) |
+| Cycle + experts | `/cycle` | Strong |
 | Profile / household | `/profile`, `/profile/household` | Good |
 | Premium | `User.isPremium` only | Not implemented |
 | AdSense | — | Not implemented |

@@ -4,7 +4,7 @@ import { useState, useMemo, useTransition, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { CheckSquare, Printer, Download, Plus, ChevronDown, ChevronUp } from 'lucide-react';
+import { Printer, Download, Plus, ChevronDown, ChevronUp } from 'lucide-react';
 import { toggleShoppingItem, addShoppingItem } from '@/actions/grocery-actions';
 
 interface GroceryItem {
@@ -34,7 +34,7 @@ export function GroceryListClient({
   weekEnd,
 }: GroceryListClientProps) {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
   const [sortBy, setSortBy] = useState<'name' | 'category'>('name');
   const [newItemName, setNewItemName] = useState('');
   const [isAddingItem, setIsAddingItem] = useState(false);
@@ -70,8 +70,21 @@ export function GroceryListClient({
   
   // Initialize checked state from items that have isChecked: true
   const initialChecked = useMemo(() => {
+    const sorted = [...initialItems];
+    if (sortBy === 'category') {
+      sorted.sort((a, b) => {
+        const categoryA = getCategory(a.name);
+        const categoryB = getCategory(b.name);
+        if (categoryA === categoryB) {
+          return a.name.localeCompare(b.name);
+        }
+        return categoryA.localeCompare(categoryB);
+      });
+    } else {
+      sorted.sort((a, b) => a.name.localeCompare(b.name));
+    }
     const checked = new Set<string>();
-    getSortedItems().forEach((item, index) => {
+    sorted.forEach((item, index) => {
       const category = sortBy === 'category' ? getCategory(item.name) : 'All Items';
       const itemKey = item.id || `${category}-${index}`;
       if (item.isChecked) {

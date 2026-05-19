@@ -159,8 +159,8 @@ export default function MealBoard({
   // Find the active recipe for the overlay
   const activeRecipe = activeId ? recipes.find(r => `recipe-${r.id}` === activeId) : null;
 
-  const handleDragStart = (event: any) => {
-    setActiveId(event.active.id);
+  const handleDragStart = (event: { active: { id: string | number } }) => {
+    setActiveId(String(event.active.id));
   };
 
   const handleDragEnd = async (event: {

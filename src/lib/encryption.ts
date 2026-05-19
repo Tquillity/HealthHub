@@ -79,7 +79,7 @@ export function decrypt(encryptedText: string | null | undefined): string | null
     
     // We include the `salt` segment for forward/backward compatibility with existing stored values,
     // even though this implementation derives the key from a fixed salt.
-    const [_saltBase64, ivBase64, tagBase64, encrypted] = parts;
+    const [, ivBase64, tagBase64, encrypted] = parts;
     
     const iv = Buffer.from(ivBase64, 'base64');
     const tag = Buffer.from(tagBase64, 'base64');

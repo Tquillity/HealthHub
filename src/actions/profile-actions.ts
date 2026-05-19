@@ -75,8 +75,10 @@ export async function updateProfile(data: z.infer<typeof UpdateProfileSchema>) {
       dietaryRestrictions: updatedUser.dietaryRestrictions,
       healthGoals: updatedUser.healthGoals,
       timezone: updatedUser.timezone,
-      mealPlanDuration: (updatedUser as any).mealPlanDuration || null,
-      mealPlanStartDate: (updatedUser as any).mealPlanStartDate || null,
+      mealPlanDuration: updatedUser.mealPlanDuration ?? null,
+      mealPlanStartDate: updatedUser.mealPlanStartDate
+        ? updatedUser.mealPlanStartDate.toISOString()
+        : null,
       enableCycleTracking: updatedUser.enableCycleTracking,
       cycleLength: updatedUser.cycleLength,
       lastPeriodDate: updatedUser.lastPeriodDate ? updatedUser.lastPeriodDate.toISOString() : null,
@@ -123,8 +125,10 @@ export async function getProfile() {
       dietaryRestrictions: user.dietaryRestrictions,
       healthGoals: user.healthGoals,
       timezone: user.timezone,
-      mealPlanDuration: (user as any).mealPlanDuration || null,
-      mealPlanStartDate: (user as any).mealPlanStartDate || null,
+      mealPlanDuration: user.mealPlanDuration ?? null,
+      mealPlanStartDate: user.mealPlanStartDate
+        ? user.mealPlanStartDate.toISOString()
+        : null,
       enableCycleTracking: user.enableCycleTracking,
       cycleLength: user.cycleLength,
       lastPeriodDate: user.lastPeriodDate ? user.lastPeriodDate.toISOString() : null,

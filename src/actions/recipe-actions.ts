@@ -21,6 +21,27 @@ interface GetRecipesParams {
   page?: number;
 }
 
+function preprocessRecipeInput<T extends { imageUrl?: string | null; imageUrls?: string[] | null }>(
+  data: T
+): T {
+  const processed = { ...data } as T & { imageUrl?: string; imageUrls?: string[] };
+  if (
+    !processed.imageUrl ||
+    (typeof processed.imageUrl === 'string' && processed.imageUrl.trim() === '')
+  ) {
+    delete processed.imageUrl;
+  }
+  if (Array.isArray(processed.imageUrls)) {
+    processed.imageUrls = processed.imageUrls.filter(
+      (url): url is string => typeof url === 'string' && url.trim() !== ''
+    );
+    if (processed.imageUrls.length === 0) {
+      delete processed.imageUrls;
+    }
+  }
+  return processed as T;
+}
+
 async function getSessionUserIdForRecipeReads() {
   try {
     const session = await auth.api.getSession({
@@ -74,7 +95,7 @@ export async function getRecipes({
   cuisine,
   dietaryTags,
   leanRole,
-  page = 1,
+  page: _page = 1,
 }: GetRecipesParams) {
   try {
     const userId = await getSessionUserIdForRecipeReads();
@@ -330,25 +351,7 @@ export async function createRecipe(data: z.infer<typeof CreateRecipeSchema>) {
       return { success: false, error: 'No household found' };
     }
 
-    // Preprocess data: filter out empty strings from imageUrls and handle empty imageUrl
-    const processedData: any = {
-      ...data,
-      imageUrl: data.imageUrl && typeof data.imageUrl === 'string' && data.imageUrl.trim() !== '' ? data.imageUrl : undefined,
-      imageUrls: Array.isArray(data.imageUrls) 
-        ? data.imageUrls.filter((url: any) => url && typeof url === 'string' && url.trim() !== '')
-        : undefined,
-    };
-    
-    // Remove imageUrl/imageUrls if they're empty or invalid
-    if (processedData.imageUrl === '' || !processedData.imageUrl) {
-      delete processedData.imageUrl;
-    }
-    if (!processedData.imageUrls || processedData.imageUrls.length === 0) {
-      delete processedData.imageUrls;
-    }
-
-    // Validate input
-    const validated = CreateRecipeSchema.parse(processedData);
+    const validated = CreateRecipeSchema.parse(preprocessRecipeInput(data));
 
     // Create recipe with ingredients and instructions
     const recipe = await prisma.$transaction(async (tx) => {
@@ -424,7 +427,7 @@ export async function createRecipe(data: z.infer<typeof CreateRecipeSchema>) {
   } catch (error) {
     console.error('Error creating recipe:', error);
     if (error instanceof z.ZodError) {
-      return { success: false, error: (error as any).errors[0]?.message || 'Validation failed' };
+      return { success: false, error: error.issues[0]?.message || 'Validation failed' };
     }
     // Handle other error types
     if (error instanceof Error) {
@@ -479,24 +482,7 @@ export async function updateRecipe(data: z.infer<typeof UpdateRecipeSchema>) {
       return { success: false, error: 'Forbidden: Admin access required' };
     }
 
-    // Preprocess data: filter out empty strings from imageUrls and handle empty imageUrl
-    const processedData: any = {
-      ...data,
-      imageUrl: data.imageUrl && typeof data.imageUrl === 'string' && data.imageUrl.trim() !== '' ? data.imageUrl : undefined,
-      imageUrls: Array.isArray(data.imageUrls) 
-        ? data.imageUrls.filter((url: any) => url && typeof url === 'string' && url.trim() !== '')
-        : undefined,
-    };
-    
-    // Remove imageUrl/imageUrls if they're empty or invalid
-    if (processedData.imageUrl === '' || !processedData.imageUrl) {
-      delete processedData.imageUrl;
-    }
-    if (!processedData.imageUrls || processedData.imageUrls.length === 0) {
-      delete processedData.imageUrls;
-    }
-
-    // Validate input
+    const processedData = preprocessRecipeInput(data);
     const validated = UpdateRecipeSchema.parse(processedData);
     const { id, ingredients, instructions, ...recipeData } = validated;
 
@@ -537,19 +523,20 @@ export async function updateRecipe(data: z.infer<typeof UpdateRecipeSchema>) {
     if (existingRecipe.isSystem) {
       // Prevent changing isSystem flag on system recipes
       // Check processedData since isSystem is not in the schema
-      const isSystemValue = 'isSystem' in processedData ? processedData.isSystem : undefined;
+      const isSystemValue =
+        'isSystem' in data && typeof data.isSystem === 'boolean' ? data.isSystem : undefined;
       if (isSystemValue !== undefined && isSystemValue !== existingRecipe.isSystem) {
         return { success: false, error: 'Cannot change isSystem flag on system recipes' };
       }
       // Remove isSystem from update data to prevent accidental changes (if it somehow got through)
       if ('isSystem' in recipeData) {
-        delete (recipeData as any).isSystem;
+        delete (recipeData as Record<string, unknown>).isSystem;
       }
     }
 
     // Update recipe
     // Build update data, only including imageUrl/imageUrls if they were explicitly provided
-    const updateData: any = { ...recipeData };
+    const updateData: Prisma.RecipeUpdateInput = { ...recipeData };
     
     // Only update imageUrl if it was provided in the request
     if ('imageUrl' in recipeData) {
@@ -624,7 +611,7 @@ export async function updateRecipe(data: z.infer<typeof UpdateRecipeSchema>) {
   } catch (error) {
     console.error('Error updating recipe:', error);
     if (error instanceof z.ZodError) {
-      return { success: false, error: (error as any).errors[0]?.message || 'Validation failed' };
+      return { success: false, error: error.issues[0]?.message || 'Validation failed' };
     }
     // Handle other error types
     if (error instanceof Error) {

@@ -135,22 +135,27 @@ function mergeChartData(
   });
 }
 
-/**
- * Get phase boundaries for ReferenceArea
- * Using 0.5 offsets to ensure seamless coverage between phases
- */
-function getPhaseBoundaries(cycleLength: number) {
-  const menstrualEnd = PHASE_LENGTHS.MENSTRUAL;
-  const follicularEnd = PHASE_LENGTHS.MENSTRUAL + PHASE_LENGTHS.FOLLICULAR;
-  const ovulationEnd = PHASE_LENGTHS.MENSTRUAL + PHASE_LENGTHS.FOLLICULAR + PHASE_LENGTHS.OVULATION;
-  const lutealEnd = cycleLength;
+interface ChartDataPoint {
+  day: number;
+  intensity?: number;
+  estrogen?: number;
+  progesterone?: number;
+  lh?: number;
+  fsh?: number;
+  testosterone?: number;
+  isCurrentDay?: boolean;
+}
 
-  return [
-    { phase: 'menstrual' as CyclePhase, start: 0.5, end: menstrualEnd + 0.5 },
-    { phase: 'follicular' as CyclePhase, start: menstrualEnd + 0.5, end: follicularEnd + 0.5 },
-    { phase: 'ovulation' as CyclePhase, start: follicularEnd + 0.5, end: ovulationEnd + 0.5 },
-    { phase: 'luteal' as CyclePhase, start: ovulationEnd + 0.5, end: lutealEnd + 0.5 },
-  ];
+interface ChartTooltipPayloadItem {
+  payload: ChartDataPoint;
+}
+
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: readonly ChartTooltipPayloadItem[];
+  label?: string | number;
+  onPhaseHover?: (phase: CyclePhase | null) => void;
+  visibleSeries: SeriesType[];
 }
 
 /**
@@ -160,7 +165,7 @@ function getPhaseBoundaries(cycleLength: number) {
  * Shows: day number, current phase name, energy level, hormone levels (only visible ones), and "Today" indicator.
  * Also triggers onPhaseHover callback to update hovered phase state.
  */
-const CustomTooltip = ({ active, payload, label, onPhaseHover, visibleSeries }: any) => {
+const CustomTooltip = ({ active, payload, label, onPhaseHover, visibleSeries }: CustomTooltipProps) => {
   useEffect(() => {
     if (active && payload && payload.length) {
       const day = payload[0].payload.day;
@@ -202,7 +207,7 @@ const CustomTooltip = ({ active, payload, label, onPhaseHover, visibleSeries }: 
     const testosterone = data.testosterone;
 
     // Check if any hormone is visible
-    const hasVisibleHormones = visibleSeries?.some((s: SeriesType) => 
+    const hasVisibleHormones = visibleSeries?.some((s) =>
       ['estrogen', 'progesterone', 'lh', 'fsh', 'testosterone'].includes(s)
     );
 
@@ -445,7 +450,17 @@ export function CycleChart({ phaseData, cycleLength, lastPeriodDate, onPhaseHove
                 label={{ value: 'Hormone Level (%)', angle: 90, position: 'insideRight', style: { fill: '#6b7280' } }}
               />
             )}
-            <Tooltip content={(props) => <CustomTooltip {...props} onPhaseHover={onPhaseHover} visibleSeries={visibleSeries} />} />
+            <Tooltip
+              content={(props) => (
+                <CustomTooltip
+                  active={props.active}
+                  payload={props.payload as CustomTooltipProps['payload']}
+                  label={props.label}
+                  onPhaseHover={onPhaseHover}
+                  visibleSeries={visibleSeries}
+                />
+              )}
+            />
             
             {/* Today Marker - Vertical Reference Line with Enhanced Visibility */}
             <ReferenceLine
@@ -453,7 +468,7 @@ export function CycleChart({ phaseData, cycleLength, lastPeriodDate, onPhaseHove
               stroke="#1f2937"
               strokeWidth={3}
               strokeDasharray="5 5"
-              label={({ viewBox }: any) => {
+              label={({ viewBox }: { viewBox?: { x?: number } }) => {
                 if (!viewBox || viewBox.x === undefined) return null;
                 // Position label in the top margin area (above chart plot area)
                 const labelY = -12; // Position in the top margin area, adjusted for better visibility
@@ -496,7 +511,13 @@ export function CycleChart({ phaseData, cycleLength, lastPeriodDate, onPhaseHove
                 dataKey="intensity"
                 stroke="#6366f1"
                 strokeWidth={3}
-              dot={(props: any) => {
+              dot={(rawProps) => {
+                const props = rawProps as {
+                  key?: string | number;
+                  cx?: number;
+                  cy?: number;
+                  payload?: ChartDataPoint;
+                };
                 const day = props.payload?.day;
                 const isCurrentDay = props.payload?.isCurrentDay;
                 const date = day ? getDateForDay(day) : null;
@@ -563,7 +584,7 @@ export function CycleChart({ phaseData, cycleLength, lastPeriodDate, onPhaseHove
                   return (
                     <g
                       key={props.key}
-                      onClick={() => handleDayClick(day)}
+                      onClick={() => day !== undefined && handleDayClick(day)}
                       style={{ cursor: 'pointer' }}
                     >
                       <circle

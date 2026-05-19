@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Button } from '@/components/ui/button';
 import { Edit, Trash2, ArrowUpDown } from 'lucide-react';
 import type { RecipeWithDetails } from '@/actions/recipe-actions';
 
@@ -47,13 +46,11 @@ export function RecipeListView({
           valA = (a.category || '').toLowerCase();
           valB = (b.category || '').toLowerCase();
           break;
-        case 'leanRole':
-          // Safely access leanRole - handle both direct property and nested object
-          const leanRoleA = (a as any).leanInfo?.leanRole || a.leanRole || '';
-          const leanRoleB = (b as any).leanInfo?.leanRole || b.leanRole || '';
-          valA = (leanRoleA || '').toLowerCase();
-          valB = (leanRoleB || '').toLowerCase();
+        case 'leanRole': {
+          valA = (a.leanRole || '').toLowerCase();
+          valB = (b.leanRole || '').toLowerCase();
           break;
+        }
         case 'totalTime':
           valA = (a.prepTime || 0) + (a.cookTime || 0);
           valB = (b.prepTime || 0) + (b.cookTime || 0);
@@ -81,7 +78,7 @@ export function RecipeListView({
 
   // Helper to safely get leanRole
   const getLeanRole = (recipe: RecipeWithDetails): string => {
-    return (recipe as any).leanInfo?.leanRole || recipe.leanRole || '';
+    return recipe.leanRole || '';
   };
 
   const getCategoryColor = (category?: string | null) => {

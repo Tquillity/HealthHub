@@ -288,7 +288,7 @@ export function RecipeForm({ recipe, onSuccess, onCancel, isSuperadmin = false }
     
     // Check for unit validation warnings
     const unitWarnings: string[] = [];
-    ingredients.forEach((ing, idx) => {
+    ingredients.forEach((ing) => {
       if (ing.name && ing.unit) {
         const validation = getUnitValidationMessage(ing.name, ing.unit);
         if (!validation.isValid) {

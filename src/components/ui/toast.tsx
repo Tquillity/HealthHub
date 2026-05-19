@@ -28,14 +28,14 @@ export function ToastContainer() {
               : 'border-primary-200 bg-primary-50 text-primary-800'
           }`}
         >
-          {toast.type === 'success' && <CheckCircle className="h-5 w-5 flex-shrink-0" />}
-          {toast.type === 'error' && <AlertCircle className="h-5 w-5 flex-shrink-0" />}
-          {toast.type === 'warning' && <AlertTriangle className="h-5 w-5 flex-shrink-0" />}
-          {toast.type === 'info' && <Info className="h-5 w-5 flex-shrink-0" />}
+          {toast.type === 'success' && <CheckCircle className="h-5 w-5 shrink-0" />}
+          {toast.type === 'error' && <AlertCircle className="h-5 w-5 shrink-0" />}
+          {toast.type === 'warning' && <AlertTriangle className="h-5 w-5 shrink-0" />}
+          {toast.type === 'info' && <Info className="h-5 w-5 shrink-0" />}
           <p className="flex-1 text-sm font-medium">{toast.message}</p>
           <button
             onClick={() => removeToast(toast.id)}
-            className="flex-shrink-0 text-gray-400 hover:text-gray-600"
+            className="shrink-0 text-gray-400 hover:text-gray-600"
             aria-label="Close toast"
           >
             <X className="h-4 w-4" />

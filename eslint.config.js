@@ -16,6 +16,7 @@ export default [
       'public/sw*.js',
       'public/workbox-*.js',
       'public/*worker*.js',
+      'scripts/**',
     ],
   },
   js.configs.recommended,

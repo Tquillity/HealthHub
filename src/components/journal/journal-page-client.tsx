@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { JournalClient } from '@/components/journal/journal-client';
 import { JournalCalendar } from '@/components/journal/journal-calendar';
 import { JournalAnalytics } from '@/components/journal/journal-analytics';
 import { JournalEntryDetail } from '@/components/journal/journal-entry-detail';
-import { getJournalEntryByDate, deleteJournalEntry } from '@/actions/journal-actions';
+import { getJournalEntryByDate } from '@/actions/journal-actions';
 import type { JournalEntry } from '@prisma/client';
 
 interface JournalPageClientProps {
@@ -18,7 +18,7 @@ export default function JournalPageClient({ initialEntries }: JournalPageClientP
   const [activeTab, setActiveTab] = useState<'calendar' | 'form' | 'analytics'>('calendar');
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<JournalEntry | null>(null);
-  const [entries, setEntries] = useState(initialEntries);
+  const [entries] = useState(initialEntries);
   const [showEntryDetail, setShowEntryDetail] = useState(false);
 
   const handleDateSelect = async (date: string) => {
@@ -48,18 +48,6 @@ export default function JournalPageClient({ initialEntries }: JournalPageClientP
   const handleEditEntry = () => {
     setShowEntryDetail(false);
     setActiveTab('form');
-  };
-
-  const handleDeleteEntry = async () => {
-    if (selectedEntry) {
-      const result = await deleteJournalEntry(selectedEntry.date.toISOString().split('T')[0]);
-      if (result.success) {
-        setEntries(entries.filter((e) => e.id !== selectedEntry.id));
-        setShowEntryDetail(false);
-        setSelectedEntry(null);
-        router.refresh();
-      }
-    }
   };
 
   const handleEntrySaved = () => {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { format, startOfMonth, endOfMonth, getDaysInMonth, addMonths, subMonths, isSameDay } from 'date-fns';
+import { format, startOfMonth, getDaysInMonth, isSameDay } from 'date-fns';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { JournalEntry } from '@prisma/client';
 
@@ -48,7 +48,6 @@ export function JournalCalendar({
   };
 
   const monthStart = startOfMonth(currentMonth);
-  const monthEnd = endOfMonth(currentMonth);
   const daysInMonth = getDaysInMonth(currentMonth);
   const startingDayOfWeek = monthStart.getDay();
 

@@ -1,6 +1,7 @@
 'use server';
 
 import { z } from 'zod';
+import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
@@ -134,7 +135,7 @@ export async function updateRoutine(data: z.input<typeof UpdateRoutineSchema>) {
     }
 
     // Prepare update data
-    const dataToUpdate: any = {};
+    const dataToUpdate: Prisma.RoutineUpdateInput = {};
     if (updateData.name !== undefined) dataToUpdate.name = updateData.name;
     if (updateData.description !== undefined) dataToUpdate.description = updateData.description || null;
     if (updateData.category !== undefined) dataToUpdate.category = updateData.category || null;
@@ -271,7 +272,7 @@ export async function drawLottery(filters: {
     }
 
     // Build where clause
-    const where: any = {
+    const where: Prisma.RoutineWhereInput = {
       OR: [
         { organizationId: membership.organizationId },
         { isSystem: true },

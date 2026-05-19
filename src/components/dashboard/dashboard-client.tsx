@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Sparkles, UtensilsCrossed, BookOpen, Timer } from 'lucide-react';
-import type { Routine, Recipe } from '@prisma/client';
+import type { Routine } from '@prisma/client';
 
 interface DashboardClientProps {
   recentRoutines: Routine[];
@@ -32,7 +32,7 @@ export function DashboardClient({
   // Use useState and useEffect to avoid hydration mismatch
   // Select tip based on day of week for consistent server/client rendering
   // This ensures the same tip is shown on server and client for the same day
-  const [randomTip, setRandomTip] = useState(() => {
+  const [randomTip] = useState(() => {
     // Use day of week to select tip consistently (changes daily, not on each render)
     const dayOfWeek = new Date().getDay();
     const tipIndex = dayOfWeek % healthTips.length;

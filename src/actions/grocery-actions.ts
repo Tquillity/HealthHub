@@ -1,11 +1,46 @@
 'use server';
 
+import { z } from 'zod';
 import { prisma } from '@/lib/db';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { revalidatePath } from 'next/cache';
-import { parseIngredientAlternatives, normalizePatternKey } from '@/lib/ingredient-alternatives';
+import { parseIngredientAlternatives } from '@/lib/ingredient-alternatives';
 import { resolveIngredientChoice } from './ingredient-preference-actions';
+
+const GroceryListParamsSchema = z.object({
+  organizationId: z.string().min(1),
+  startDate: z.coerce.date(),
+  endDate: z.coerce.date(),
+});
+
+const ToggleShoppingItemSchema = z.object({
+  itemKey: z.string().min(1),
+  isChecked: z.boolean(),
+});
+
+const AddShoppingItemSchema = z.object({
+  name: z.string().min(1),
+  quantity: z.number().positive(),
+  unit: z.string().min(1),
+});
+
+const ScaledIngredientSchema = z.object({
+  name: z.string().min(1),
+  quantity: z.number(),
+  unit: z.string().min(1),
+});
+
+const AddScaledIngredientsSchema = z.object({
+  ingredients: z.array(ScaledIngredientSchema).min(1),
+  sourceRecipeId: z.string().min(1).optional(),
+});
+
+const MealPlansParamsSchema = z.object({
+  organizationId: z.string().min(1),
+  startDate: z.coerce.date(),
+  endDate: z.coerce.date(),
+});
 
 // Type for aggregated grocery item (matches GroceryListClient expectations)
 export interface GroceryItem {
@@ -50,6 +85,15 @@ export async function getGroceryList(
   'use server';
 
   try {
+    const validated = GroceryListParamsSchema.parse({
+      organizationId,
+      startDate,
+      endDate,
+    });
+    organizationId = validated.organizationId;
+    startDate = validated.startDate;
+    endDate = validated.endDate;
+
     // Security check: Verify user belongs to the organization
     const session = await auth.api.getSession({
       headers: await headers(),
@@ -145,7 +189,7 @@ export async function getGroceryList(
         }
         alternativesMap.get(alt.ingredientId)!.push(alt.name);
       }
-    } catch (error) {
+    } catch {
       // If alternatives table doesn't exist or relation fails, continue without alternatives
       // This is a graceful fallback - we'll use name parsing instead
       console.warn('Could not fetch alternatives from database, using name parsing fallback');
@@ -377,6 +421,8 @@ export async function toggleShoppingItem(
   'use server';
 
   try {
+    const validated = ToggleShoppingItemSchema.parse({ itemKey, isChecked });
+
     const session = await auth.api.getSession({
       headers: await headers(),
     });
@@ -395,7 +441,7 @@ export async function toggleShoppingItem(
     }
 
     // Item key format: "meal-plan_0" or actual ShoppingListItem ID
-    if (itemKey.startsWith('meal-plan_')) {
+    if (validated.itemKey.startsWith('meal-plan_')) {
       // This is a meal plan item - we can't persist its checked state directly
       // Instead, we could create a ShoppingListItem for it, but for now just return success
       // The UI will handle local state for meal plan items
@@ -404,8 +450,8 @@ export async function toggleShoppingItem(
 
     // Update ShoppingListItem
     await prisma.shoppingListItem.update({
-      where: { id: itemKey },
-      data: { isChecked },
+      where: { id: validated.itemKey },
+      data: { isChecked: validated.isChecked },
     });
 
     revalidatePath('/groceries');
@@ -435,6 +481,8 @@ export async function addShoppingItem(
   'use server';
 
   try {
+    const validated = AddShoppingItemSchema.parse({ name, quantity, unit });
+
     const session = await auth.api.getSession({
       headers: await headers(),
     });
@@ -455,9 +503,9 @@ export async function addShoppingItem(
     await prisma.shoppingListItem.create({
       data: {
         organizationId: membership.organizationId,
-        name,
-        quantity,
-        unit,
+        name: validated.name,
+        quantity: validated.quantity,
+        unit: validated.unit,
         category: 'Other',
         source: 'manual',
         isChecked: false,
@@ -480,6 +528,11 @@ export async function addScaledIngredientsToGroceryList(
   sourceRecipeId?: string
 ) {
   try {
+    const validated = AddScaledIngredientsSchema.parse({
+      ingredients,
+      sourceRecipeId,
+    });
+
     const session = await auth.api.getSession({
       headers: await headers(),
     });
@@ -499,7 +552,7 @@ export async function addScaledIngredientsToGroceryList(
 
     // Create ShoppingListItem entries for each ingredient
     const items = await Promise.all(
-      ingredients.map((ingredient) =>
+      validated.ingredients.map((ingredient) =>
         prisma.shoppingListItem.create({
           data: {
             organizationId: membership.organizationId,
@@ -508,7 +561,7 @@ export async function addScaledIngredientsToGroceryList(
             unit: ingredient.unit,
             category: categorizeIngredient(ingredient.name),
             source: 'recipe-scaler',
-            sourceRecipeId: sourceRecipeId || null,
+            sourceRecipeId: validated.sourceRecipeId ?? null,
             sourceDate: new Date(),
             isChecked: false,
           },
@@ -773,6 +826,12 @@ export async function getMealPlans(
   'use server';
 
   try {
+    const validated = MealPlansParamsSchema.parse({
+      organizationId,
+      startDate,
+      endDate,
+    });
+
     // Security check: Verify user belongs to the organization
     const session = await auth.api.getSession({
       headers: await headers(),
@@ -788,7 +847,7 @@ export async function getMealPlans(
     const membership = await prisma.member.findFirst({
       where: {
         userId: session.user.id,
-        organizationId: organizationId,
+        organizationId: validated.organizationId,
       },
     });
 
@@ -801,12 +860,12 @@ export async function getMealPlans(
 
     const mealPlans = await prisma.mealPlan.findMany({
       where: {
-        organizationId: organizationId,
+        organizationId: validated.organizationId,
         startDate: {
-          lte: endDate,
+          lte: validated.endDate,
         },
         endDate: {
-          gte: startDate,
+          gte: validated.startDate,
         },
       },
       include: {

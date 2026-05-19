@@ -14,7 +14,7 @@ interface RecipeDetailClientProps {
 export function RecipeDetailClient({ recipeId }: RecipeDetailClientProps) {
   const router = useRouter();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [, setIsDeleting] = useState(false);
 
   const handleDelete = async () => {
     setIsDeleting(true);

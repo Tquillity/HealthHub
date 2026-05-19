@@ -5,8 +5,7 @@ import { useRouter } from 'next/navigation';
 import { parseAsString, useQueryState } from 'nuqs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { createRoutine, updateRoutine, drawLottery } from '@/actions/routine-actions';
-import { useUIStore } from '@/lib/store';
+import { drawLottery } from '@/actions/routine-actions';
 import { Plus, Sparkles, X } from 'lucide-react';
 import type { Routine } from '@prisma/client';
 import { RoutineCard } from './routine-card';
@@ -19,8 +18,7 @@ interface RoutinesClientProps {
 
 export function RoutinesClient({ routines: initialRoutines }: RoutinesClientProps) {
   const router = useRouter();
-  const showToast = useUIStore((state) => state.showToast);
-  const [routines, setRoutines] = useState(initialRoutines);
+  const [routines] = useState(initialRoutines);
 
   // Get filter params from URL
   const [query] = useQueryState('q', parseAsString.withDefault(''));
@@ -47,7 +45,6 @@ export function RoutinesClient({ routines: initialRoutines }: RoutinesClientProp
   }, [routines, query, category, energyLevel, context, difficulty, duration]);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showLotteryDialog, setShowLotteryDialog] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [lotteryResults, setLotteryResults] = useState<Routine[]>([]);
   const [lotterySpinning, setLotterySpinning] = useState(false);
   const [lotteryEnergy, setLotteryEnergy] = useState<'low' | 'medium' | 'high'>('medium');
@@ -57,49 +54,6 @@ export function RoutinesClient({ routines: initialRoutines }: RoutinesClientProp
   const [lotteryDuration, setLotteryDuration] = useState<string>('');
   const [lotteryDifficulty, setLotteryDifficulty] = useState<string>('');
   const [editingRoutine, setEditingRoutine] = useState<Routine | null>(null);
-
-  // Form state
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    category: '',
-    frequency: '',
-    energyLevel: 'medium' as 'low' | 'medium' | 'high',
-    estimatedTime: 15,
-  });
-
-  const handleCreateRoutine = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-
-    const result = editingRoutine
-      ? await updateRoutine({ id: editingRoutine.id, ...formData })
-      : await createRoutine(formData);
-
-    if (result.success && result.data) {
-      if (editingRoutine) {
-        setRoutines(routines.map((r) => (r.id === editingRoutine.id ? result.data! : r)));
-      } else {
-        setRoutines([result.data, ...routines]);
-      }
-      setShowCreateDialog(false);
-      setEditingRoutine(null);
-      setFormData({
-        name: '',
-        description: '',
-        category: '',
-        frequency: '',
-        energyLevel: 'medium',
-        estimatedTime: 15,
-      });
-      showToast(editingRoutine ? 'Routine updated successfully!' : 'Routine created successfully!', 'success');
-      router.refresh();
-    } else {
-      showToast(result.error || 'Failed to save routine', 'error');
-    }
-
-    setIsSubmitting(false);
-  };
 
   const handleDrawLottery = async () => {
     setLotterySpinning(true);
@@ -173,14 +127,6 @@ export function RoutinesClient({ routines: initialRoutines }: RoutinesClientProp
                 onClick={() => {
                   setShowCreateDialog(false);
                   setEditingRoutine(null);
-                  setFormData({
-                    name: '',
-                    description: '',
-                    category: '',
-                    frequency: '',
-                    energyLevel: 'medium',
-                    estimatedTime: 15,
-                  });
                 }}
                 className="text-gray-400 hover:text-gray-600"
               >

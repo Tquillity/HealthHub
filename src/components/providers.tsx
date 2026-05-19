@@ -11,7 +11,7 @@ export function Providers({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (process.env.NODE_ENV === 'development') {
       const originalWarn = console.warn;
-      console.warn = (...args: any[]) => {
+      console.warn = (...args: unknown[]) => {
         const message = args[0]?.toString() || '';
         // Filter out CSS preload warnings
         if (message.includes('preloaded using link preload but not used')) {

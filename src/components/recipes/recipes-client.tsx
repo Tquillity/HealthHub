@@ -23,8 +23,8 @@ export function RecipesClient({
   recipes: initialRecipes,
   categories,
   isAdmin,
-  initialQuery,
-  initialCategory,
+  initialQuery: _initialQuery,
+  initialCategory: _initialCategory,
 }: RecipesClientProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'gallery' | 'list'>('gallery');
@@ -42,7 +42,7 @@ export function RecipesClient({
   
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [recipeToDelete, setRecipeToDelete] = useState<RecipeWithDetails | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [, setIsDeleting] = useState(false);
 
   const handleDelete = (recipe: RecipeWithDetails) => {
     if (!isAdmin) return;

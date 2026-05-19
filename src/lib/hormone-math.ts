@@ -90,9 +90,6 @@ export interface HormoneCurve {
  * @returns Estrogen level (0-100 normalized scale)
  */
 function calculateEstrogen(day: number, cycleLength: number = 28): number {
-  const normalizedDay = day / cycleLength;
-  const ovulationDay = 14 / cycleLength; // Approximate ovulation at day 14 of 28-day cycle
-  
   // First peak: Sharp rise to 95% around Day 13
   if (day <= 13) {
     // 4th-degree polynomial rise
@@ -180,7 +177,7 @@ function calculateProgesterone(day: number, cycleLength: number = 28): number {
  * @param cycleLength - Total cycle length (default 28)
  * @returns LH level (0-100 normalized scale)
  */
-function calculateLH(day: number, cycleLength: number = 28): number {
+function calculateLH(day: number, _cycleLength: number = 28): number {
   // Ovulation Phase starts at: MENSTRUAL (5) + FOLLICULAR (9) + 1 = Day 15
   const ovulationStart = PHASE_LENGTHS.MENSTRUAL + PHASE_LENGTHS.FOLLICULAR + 1; // Day 15
   // LH surge occurs 24-36h (1-1.5 days) before ovulation = Day 13.5
@@ -216,7 +213,7 @@ function calculateLH(day: number, cycleLength: number = 28): number {
  * @param cycleLength - Total cycle length (default 28)
  * @returns FSH level (0-100 normalized scale)
  */
-function calculateFSH(day: number, cycleLength: number = 28): number {
+function calculateFSH(day: number, _cycleLength: number = 28): number {
   // First peak: Menstrual recruitment (Day 1-3)
   if (day <= 3) {
     const x = day / 3; // 0 to 1
@@ -259,7 +256,7 @@ function calculateFSH(day: number, cycleLength: number = 28): number {
  * @param cycleLength - Total cycle length (default 28)
  * @returns Testosterone level (0-100 normalized scale)
  */
-function calculateTestosterone(day: number, cycleLength: number = 28): number {
+function calculateTestosterone(day: number, _cycleLength: number = 28): number {
   // Low baseline during Menstrual and early Follicular (Day 1-10)
   if (day <= 10) {
     return 10;

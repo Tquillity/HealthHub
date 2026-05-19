@@ -121,6 +121,27 @@ src/
 - **@postgres**: schema verification, column types, persistence debugging
 - **@brave-search**: library versions and breaking changes (not codebase search)
 
+## ESLint
+
+**Target:** `pnpm lint` must report **0 errors**. Keep warnings low and intentional.
+
+**Accepted warnings**
+
+- `react-refresh/only-export-components` on App Router pages/layouts that export `metadata` or `viewport` alongside the default component (see `Docs/SprintList.md` risk register).
+
+**Scope**
+
+- `scripts/**` is excluded from ESLint (maintenance scripts, not app bundle).
+
+**TypeScript config (do not “fix” lint with bad includes)**
+
+- Never add `.next/dev/types/**` to `tsconfig.json` — use `.next/types/**/*.ts` only (S0-2).
+- After `rm -rf .next`, run `pnpm exec tsc --noEmit` to confirm types still resolve.
+
+**After large changes**
+
+- Run **`/index`** (jcodemunch full reindex) when adding shared modules under `src/types/` or refactoring many action files.
+
 ## Common commands
 
 ```bash
