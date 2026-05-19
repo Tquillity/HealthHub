@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    # Team convention: feature branches use Feature/* (e.g. Feature/AutomaticGeneration)
+    branches: [main, master, "Feature/**"]
+  pull_request:
+
+# Cancel in-progress runs for the same branch/PR when new commits are pushed
+concurrency:
+  group: healthhub-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    env:
+      # Dummy values for build-time only. No database connection is required
+      # for lint, tsc, or production build in this project. Public app routes
+      # use `export const dynamic = 'force-dynamic'` where Prisma is involved.
+      DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci?sslmode=disable"
+      BETTER_AUTH_SECRET: "ci-build-secret-minimum-32-characters-long-for-ci"
+      BETTER_AUTH_URL: "http://localhost:3000"
+      NEXT_PUBLIC_BETTER_AUTH_URL: "http://localhost:3000"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.17.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # postinstall runs `prisma generate` — schema codegen only, no DB connection.
+      # If postinstall ever fails in CI, use:
+      #   pnpm install --frozen-lockfile --ignore-scripts
+      #   pnpm db:generate
+      - run: pnpm exec tsc --noEmit
+      - run: pnpm lint
+      - run: pnpm build

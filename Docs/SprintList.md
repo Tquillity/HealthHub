@@ -370,13 +370,11 @@ Refactor actions to use it (incremental, file per PR).
 - Cookie consent banner if AdSense + analytics added.
 - GDPR/CCPA mention if EU/CA users expected.
 
-### S3-3 — PWA icons
+### S3-3 — PWA icons ✅ (Sprint 2–3)
 
-Per `PWA_SETUP.md`: ensure `public/logo192.png`, `public/logo512.png` exist.
+Committed `public/logo192.png` and `public/logo512.png` (`#2563eb` + “HH” mark). Manifest paths unchanged.
 
-**Generate (example):** export a 512×512 HealthHub mark from your design tool, then resize to 192×192; or use `pnpm dlx sharp-cli` / an online PWA icon generator. Place both under `public/`.
-
-**Verify:** Production build → Application tab → manifest icons load.
+**Maintenance:** See `PWA_SETUP.md` for regeneration and verification (`pnpm build` → DevTools → Application → Manifest).
 
 ### S3-4 — Metadata
 
@@ -432,27 +430,11 @@ Per `PWA_SETUP.md`: ensure `public/logo192.png`, `public/logo512.png` exist.
 | S5-2 | Unit tests (critical paths) | P2 | L | S5-1 |
 | S5-3 | E2E smoke (Playwright) | P3 | L | S5-1 |
 
-### S5-1 — CI workflow
+### S5-1 — CI workflow ✅ (Sprint 2–3)
 
-**File:** `.github/workflows/ci.yml`
+**File:** `.github/workflows/ci.yml` — push/PR on `main`, `master`, `Feature/**`; concurrency group; placeholder `DATABASE_URL` + `BETTER_AUTH_*`; steps: frozen `pnpm install`, `tsc --noEmit`, `lint`, `build` (webpack).
 
-```yaml
-on: [push, pull_request]
-jobs:
-  quality:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: '20', cache: 'pnpm' }
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm exec tsc --noEmit
-      - run: pnpm lint
-      - run: pnpm build
-```
-
-**Acceptance:** PR cannot merge with lint/tsc/build failures (branch protection recommended).
+**Acceptance:** Workflow green on push/PR; local `pnpm lint`, `tsc --noEmit`, and `pnpm build` pass.
 
 ### S5-2 — Test matrix
 
@@ -479,11 +461,11 @@ jobs:
 | S7-5 | Observability | P3 | M | Sentry or OpenTelemetry; structured server logs |
 | S7-6 | Stripe / premium | P3 | XL | Wire `User.isPremium`; webhook |
 
-### S7-4 — Premium stub (quick win in Sprint 4)
+### S7-4 — Premium stub ✅ (Sprint 2–3)
 
-**Route:** `src/app/(public)/pro/page.tsx` — “Coming soon: ad-free experience, cloud timer sync, …”
+**Route:** `src/app/(public)/pro/page.tsx` — coming soon; **core tools stay free** + “always remain free” commitment section.
 
-**Update:** `public-nav.tsx` “Go Pro” → `/pro` (not `/sign-up`).
+**Nav:** `public-nav.tsx` — **Sign Up** → `/sign-up`, **Go Pro** → `/pro`.
 
 ---
 
@@ -574,7 +556,9 @@ S0-2 (.next/types only).
 | AdSense rejection | Legal review + substantive public content |
 | ESLint autofix breaks behavior | Manual review; no autofix on `cycle-actions.ts` |
 | `tsconfig.json` `.next/dev/types` regression | **Fixed** — include only `.next/types/**/*.ts` (S0-2); do not re-add dev types |
-| `react-refresh` warnings (10) | Accepted; documented in `AGENTS.md` § ESLint |
+| `react-refresh` warnings (~10–11) | Accepted; documented in `AGENTS.md` § ESLint |
+| CI placeholder env vars | Dummy `DATABASE_URL` + `BETTER_AUTH_*` only; no real secrets or DB in CI |
+| PWA icon assets | Committed PNGs under `public/`; not hotlinked placeholders |
 | `scripts/**` ESLint ignore | Maintenance scripts excluded from lint scope |
 | `grocery-actions.ts` ~842 LOC | Boundary Zod only; file split deferred |
 
@@ -611,29 +595,32 @@ pnpm dev
 
 ## Next Immediate Actions
 
-**Sprint 0 + Sprint 1: complete.** Commit when ready (see §9).
+**Sprint 0–3 (CI, PWA, Pro stub): complete.** Commit when ready (see §9).
 
-**Sprint 2 — start here:**
+**Sprint 4+ — start here:**
 
-- [ ] **S5-1** — GitHub Actions CI (`lint` + `tsc` + `build`)
-- [ ] **S3-3** — PWA icons (`public/logo192.png`, `public/logo512.png`)
-- [ ] Optional: **`/pro`** premium stub page (S7-4)
+- [ ] **S3-4** — Metadata / OG for `/`, `/timer`, public routes
+- [ ] **S4-1** — Mobile protected nav (hamburger + drawer)
+- [ ] **S5-2** — Vitest on Zod schemas / cycle calculator
 
 ---
 
-## Appendix A — Live codebase snapshot (2026-05-19, post Sprint 1 Zod/ESLint)
+## Appendix A — Live codebase snapshot (2026-05-19, post Sprint 2–3 CI/PWA/Pro)
 
 | Metric | Value |
 |--------|-------|
-| ESLint | **10** problems (0 errors, 10 warnings) — was 98 pre–Sprint 1 |
+| ESLint | **11** problems (0 errors, 11 warnings) — was 98 pre–Sprint 1 |
 | TypeScript | `tsc --noEmit` passes |
 | Build | `pnpm build` passes |
-| jcodemunch | **167** files, **1026** symbols (post Sprint 1 `/index`) |
+| CI | `.github/workflows/ci.yml` — `quality` job: `tsc`, `lint`, `build` |
+| PWA icons | `public/logo192.png`, `public/logo512.png` (committed PNGs) |
+| jcodemunch | **169** files, **1029** symbols (post Sprint 2–3 `/index`) |
 | Action files | 11 total; **11 with Zod** |
 | Route groups | `(auth)`, `(protected)`, `(public)`, `(standalone)` |
 | Timer route | `/timer` → `(standalone)/timer/page.tsx` |
 | Journal client | `src/components/journal/journal-page-client.tsx` |
 | Legal | `/privacy`, `/terms` live |
+| Premium stub | `/pro` — coming soon; core features free |
 | Lockfiles | `pnpm-lock.yaml` only (`package-lock.json` untracked) |
 | `eslint-config-next` | 16.2.6 |
 
@@ -652,9 +639,9 @@ pnpm dev
 | Journal (encrypted) | `/journal` | Good |
 | Cycle + experts | `/cycle` | Strong |
 | Profile / household | `/profile`, `/profile/household` | Good |
-| Premium | `User.isPremium` only | Not implemented |
+| Premium | `/pro` stub; `User.isPremium` in schema | Stub only |
 | AdSense | — | Not implemented |
-| Tests / CI | — | Not implemented |
+| Tests / CI | GitHub Actions (`quality` job) | CI only; no Vitest yet |
 
 ---
 

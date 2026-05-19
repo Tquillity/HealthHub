@@ -70,6 +70,14 @@ export function Footer() {
               </li>
               <li>
                 <Link
+                  href="/pro"
+                  className="text-sm text-gray-600 hover:text-primary-600"
+                >
+                  HealthHub Pro
+                </Link>
+              </li>
+              <li>
+                <Link
                   href="/dashboard"
                   className="text-sm text-gray-600 hover:text-primary-600"
                 >

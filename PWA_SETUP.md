@@ -1,41 +1,48 @@
 # PWA Setup Instructions
 
-## Icons Required
+## Icons
 
-The PWA manifest references two icon files that need to be created:
+Committed app icons live in `public/`:
 
-1. `/public/logo192.png` - 192x192 pixels
-2. `/public/logo512.png` - 512x512 pixels
+| File | Size | Purpose |
+|------|------|---------|
+| `logo512.png` | 512×512 | Master icon (maskable) |
+| `logo192.png` | 192×192 | Smaller launcher icon |
 
-### Quick Setup
+**Design:** `#2563eb` background with a white rounded “HH” mark, aligned with the in-app nav branding.
 
-You can generate these icons using any image editor or online tool:
+**Manifest:** `public/manifest.json` references `/logo192.png` and `/logo512.png`. No hotlinked placeholders — both files must stay in the repo.
 
-1. Create a square logo/icon for HealthHub
-2. Export at 192x192 and 512x512 resolutions
-3. Place both files in the `/public` directory
+### Regenerating icons
 
-### Alternative: Use a placeholder service
+If you update branding, regenerate both sizes and commit them together:
 
-You can temporarily use a placeholder service like:
-- `https://via.placeholder.com/192` for logo192.png
-- `https://via.placeholder.com/512` for logo512.png
+```bash
+# Example: export 512×512 from your design tool, then resize to 192×192.
+# Optional one-off (requires Pillow): adjust paths and run from repo root.
+python3 -c "
+from PIL import Image
+from pathlib import Path
+root = Path('public')
+# ... same draw logic as Sprint 2–3, or load a master SVG/PNG export
+"
+```
 
-Or create simple colored squares with text using an image editor.
+After changing icons, run `pnpm build` and verify in Chrome DevTools → **Application** → **Manifest** (icons load without 404).
 
 ## PWA Configuration
 
 The PWA is configured in `next.config.ts` using `@ducanh2912/next-pwa`.
 
-**Note:** PWA features are disabled in development mode. They will be active in production builds.
+**Note:** PWA features are disabled in development mode. They are active in production builds (`pnpm build` + `pnpm start`).
 
 ## Testing PWA
 
-1. Build the app: `npm run build`
-2. Start production server: `npm start`
+1. Build the app: `pnpm build`
+2. Start production server: `pnpm start`
 3. Open in Chrome/Edge
-4. Check "Application" tab in DevTools for Service Worker
-5. Use "Add to Home Screen" to test install
+4. Check **Application** tab in DevTools for Service Worker
+5. Use **Install** / **Add to Home Screen** to test install
 
 ## X (Twitter) OAuth Setup
 
@@ -53,4 +60,3 @@ To enable X (Twitter) OAuth:
    ```
 
 The OAuth flow is already configured in `src/lib/auth.ts`.
-

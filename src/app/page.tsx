@@ -157,7 +157,11 @@ export default function Home() {
             <Zap className="h-8 w-8 text-purple-500" />
             <h4 className="font-semibold text-gray-900">Free &amp; Fast</h4>
             <p className="text-sm text-gray-500">
-              Core tools are free forever. Sign up to unlock premium features.
+              Core tools stay free — timer, recipes, and learn content.{' '}
+              <Link href="/pro" className="font-medium text-primary-600 hover:text-primary-700">
+                HealthHub Pro
+              </Link>{' '}
+              is an optional upgrade coming later.
             </p>
           </div>
         </div>
@@ -170,8 +174,12 @@ export default function Home() {
             Ready to upgrade your wellness routine?
           </h2>
           <p className="max-w-xl text-white/80">
-            Join HealthHub for meal planning, wellness journaling, cycle
-            tracking, and an ad-free experience across all tools.
+            Join free for meal planning, wellness journaling, cycle tracking,
+            and groceries. Core features stay free — see{' '}
+            <Link href="/pro" className="underline underline-offset-2 hover:text-white">
+              HealthHub Pro
+            </Link>{' '}
+            for optional upgrades coming later.
           </p>
           <div className="flex flex-col gap-4 sm:flex-row">
             <Link href="/sign-up">

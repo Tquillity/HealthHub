@@ -57,6 +57,13 @@ export function PublicNav() {
 
           <Link
             href="/sign-up"
+            className="hidden min-h-[44px] items-center rounded-lg px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 sm:inline-flex sm:px-4"
+          >
+            Sign&nbsp;Up
+          </Link>
+
+          <Link
+            href="/pro"
             className="ml-1 hidden min-h-[44px] items-center rounded-lg bg-primary-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-600 sm:inline-flex"
           >
             Go&nbsp;Pro
