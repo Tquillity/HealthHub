@@ -1,7 +1,6 @@
 'use client';
 
 import { RoutineCard } from './routine-card';
-import { useRouter } from 'next/navigation';
 import type { Routine } from '@prisma/client';
 
 interface RoutinesGridProps {
@@ -9,12 +8,10 @@ interface RoutinesGridProps {
 }
 
 export function RoutinesGrid({ routines }: RoutinesGridProps) {
-  const router = useRouter();
-
   // Note: Admin controls are handled by RoutinesClient parent component
   const isAdmin = false; // This component doesn't need admin check
 
-  const handleEdit = (routine: Routine) => {
+  const handleEdit = (_routine: Routine) => {
     // This will be handled by RoutinesClient
   };
 

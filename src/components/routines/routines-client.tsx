@@ -48,7 +48,6 @@ export function RoutinesClient({ routines: initialRoutines }: RoutinesClientProp
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showLotteryDialog, setShowLotteryDialog] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [lotteryResult, setLotteryResult] = useState<Routine | null>(null);
   const [lotteryResults, setLotteryResults] = useState<Routine[]>([]);
   const [lotterySpinning, setLotterySpinning] = useState(false);
   const [lotteryEnergy, setLotteryEnergy] = useState<'low' | 'medium' | 'high'>('medium');
@@ -104,7 +103,7 @@ export function RoutinesClient({ routines: initialRoutines }: RoutinesClientProp
 
   const handleDrawLottery = async () => {
     setLotterySpinning(true);
-    setLotteryResult(null);
+    setLotteryResults([]);
 
     // Simulate spinning animation
     await new Promise((resolve) => setTimeout(resolve, 1500));
@@ -120,11 +119,7 @@ export function RoutinesClient({ routines: initialRoutines }: RoutinesClientProp
 
     if (result.success && result.data) {
       if (Array.isArray(result.data) && result.data.length > 0) {
-        setLotteryResult(result.data[0]); // Show first result
-        if (result.data.length > 1) {
-          // Store all results for display
-          setLotteryResults(result.data);
-        }
+        setLotteryResults(result.data);
       } else {
         alert('No routines match your criteria. Try adjusting filters.');
       }
@@ -211,146 +206,6 @@ export function RoutinesClient({ routines: initialRoutines }: RoutinesClientProp
         </div>
       )}
 
-      {/* Old Simple Form (kept for reference, but replaced by RoutineRichForm) */}
-      {false && showCreateDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-900">
-                {editingRoutine ? 'Edit Routine' : 'Create Routine'}
-              </h2>
-              <button
-                onClick={() => {
-                  setShowCreateDialog(false);
-                  setEditingRoutine(null);
-                  setFormData({
-                    name: '',
-                    description: '',
-                    category: '',
-                    frequency: '',
-                    energyLevel: 'medium',
-                    estimatedTime: 15,
-                  });
-                }}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateRoutine} className="flex flex-col gap-4">
-              <div>
-                <label htmlFor="routine-create-name" className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Name *
-                </label>
-                <Input
-                  id="routine-create-name"
-                  name="routine-create-name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  required
-                />
-              </div>
-
-              <div>
-                <label htmlFor="routine-create-description" className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Description
-                </label>
-                <Input
-                  id="routine-create-description"
-                  name="routine-create-description"
-                  value={formData.description}
-                  onChange={(e) =>
-                    setFormData({ ...formData, description: e.target.value })
-                  }
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Category
-                  </label>
-                  <Input
-                    value={formData.category}
-                    onChange={(e) =>
-                      setFormData({ ...formData, category: e.target.value })
-                    }
-                    placeholder="e.g., wellness"
-                    className="mt-1"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Frequency
-                  </label>
-                  <Input
-                    value={formData.frequency}
-                    onChange={(e) =>
-                      setFormData({ ...formData, frequency: e.target.value })
-                    }
-                    placeholder="e.g., daily"
-                    className="mt-1"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Energy Level
-                </label>
-                <select
-                  value={formData.energyLevel}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      energyLevel: e.target.value as 'low' | 'medium' | 'high',
-                    })
-                  }
-                  className="mt-1 flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
-                >
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Estimated Time (minutes)
-                </label>
-                <Input
-                  type="number"
-                  min="1"
-                  value={formData.estimatedTime}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      estimatedTime: parseInt(e.target.value) || 15,
-                    })
-                  }
-                  className="mt-1"
-                />
-              </div>
-
-              <div className="flex gap-2 pt-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowCreateDialog(false)}
-                  className="flex-1"
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={isSubmitting} className="flex-1">
-                  {isSubmitting ? 'Creating...' : 'Create'}
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Lottery Dialog */}
       {showLotteryDialog && (
@@ -361,7 +216,7 @@ export function RoutinesClient({ routines: initialRoutines }: RoutinesClientProp
               <button
                 onClick={() => {
                   setShowLotteryDialog(false);
-                  setLotteryResult(null);
+                  setLotteryResults([]);
                 }}
                 className="text-gray-400 hover:text-gray-600"
               >

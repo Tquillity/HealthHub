@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import { useSettingsStore } from '@/lib/pomo-store/useSettingsStore';
 import type { ZenTrack } from '@/lib/pomo-store/useSettingsStore';
 import { useTimeStore } from '@/lib/pomo-store/useTimeStore';
-import { cn } from '@/lib/pomo/utils/cn';
+import { cn } from '@/lib/utils';
 import type { TimerMode } from '@/lib/pomo/types';
 import { Modal } from '../common/Modal';
 import { exportSettingsOnly, importSettingsOnly } from '@/lib/pomo/services/storage.service';

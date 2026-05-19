@@ -6,74 +6,82 @@ export function Footer() {
     <footer className="border-t border-gray-200 bg-white">
       <div className="container mx-auto px-8 py-12">
         <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
-          {/* Brand */}
           <div>
-            <div className="mb-4 flex items-center gap-2 text-xl font-bold text-blue-600">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-xs text-white">
+            <div className="mb-4 flex items-center gap-2 text-xl font-bold text-primary-600">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-600 text-xs font-bold text-white">
                 HH
-              </div>
+              </span>
               HealthHub
             </div>
             <p className="text-sm text-gray-600">
-              Your comprehensive wellness and meal planning companion.
+              Your household wellness hub — focus, nutrition, and evidence-based
+              learning.
             </p>
           </div>
 
-          {/* Quick Links */}
           <div>
-            <h3 className="mb-4 text-sm font-semibold text-gray-900">Quick Links</h3>
+            <h3 className="mb-4 text-sm font-semibold text-gray-900">Explore</h3>
             <ul className="flex flex-col gap-2">
               <li>
-                <Link href="/dashboard" className="text-sm text-gray-600 hover:text-blue-600">
-                  Dashboard
+                <Link
+                  href="/timer"
+                  className="text-sm text-gray-600 hover:text-primary-600"
+                >
+                  Focus Timer
                 </Link>
               </li>
               <li>
-                <Link href="/recipes" className="text-sm text-gray-600 hover:text-blue-600">
+                <Link
+                  href="/recipes"
+                  className="text-sm text-gray-600 hover:text-primary-600"
+                >
                   Recipes
                 </Link>
               </li>
               <li>
-                <Link href="/meal-planner" className="text-sm text-gray-600 hover:text-blue-600">
-                  Meal Planner
-                </Link>
-              </li>
-              <li>
-                <Link href="/routines" className="text-sm text-gray-600 hover:text-blue-600">
-                  Routines
+                <Link
+                  href="/learn"
+                  className="text-sm text-gray-600 hover:text-primary-600"
+                >
+                  Learn
                 </Link>
               </li>
             </ul>
           </div>
 
-          {/* Resources */}
           <div>
-            <h3 className="mb-4 text-sm font-semibold text-gray-900">Resources</h3>
+            <h3 className="mb-4 text-sm font-semibold text-gray-900">Account</h3>
             <ul className="flex flex-col gap-2">
               <li>
-                <Link href="/learn" className="text-sm text-gray-600 hover:text-blue-600">
-                  Educational Content
+                <Link
+                  href="/sign-in"
+                  className="text-sm text-gray-600 hover:text-primary-600"
+                >
+                  Sign In
                 </Link>
               </li>
               <li>
-                <Link href="/journal" className="text-sm text-gray-600 hover:text-blue-600">
-                  Wellness Journal
+                <Link
+                  href="/sign-up"
+                  className="text-sm text-gray-600 hover:text-primary-600"
+                >
+                  Create Account
                 </Link>
               </li>
               <li>
-                <Link href="/groceries" className="text-sm text-gray-600 hover:text-blue-600">
-                  Grocery List
-                </Link>
-              </li>
-              <li>
-                <Link href="/profile" className="text-sm text-gray-600 hover:text-blue-600">
-                  Profile Settings
+                <Link
+                  href="/dashboard"
+                  className="text-sm text-gray-600 hover:text-primary-600"
+                >
+                  Dashboard
                 </Link>
               </li>
             </ul>
+            <p className="mt-3 text-xs text-gray-500">
+              Meal planner, journal, and groceries require sign-in.
+            </p>
           </div>
 
-          {/* Social & Legal */}
           <div>
             <h3 className="mb-4 text-sm font-semibold text-gray-900">Connect</h3>
             <div className="mb-4 flex gap-4">
@@ -125,7 +133,6 @@ export function Footer() {
               <Link href="/privacy" className="hover:text-gray-700">
                 Privacy Policy
               </Link>
-              <span className="mx-2">•</span>
               <Link href="/terms" className="hover:text-gray-700">
                 Terms of Service
               </Link>
@@ -140,4 +147,3 @@ export function Footer() {
     </footer>
   );
 }
-

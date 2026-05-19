@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Modal } from '../common/Modal';
-import { cn } from '@/lib/pomo/utils/cn';
+import { cn } from '@/lib/utils';
 
 interface Props {
   isOpen: boolean;

@@ -6,6 +6,11 @@ node_modules/
 .pnp.js
 .pnp.loader.mjs
 
+# pnpm local store and metadata (never commit)
+.pnpm/
+.pnpm-store/
+**/.pnpm-store/
+
 # Testing
 /coverage
 
@@ -65,6 +70,9 @@ ts-debug.log*
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts
+
+# npm lockfile (project uses pnpm)
+package-lock.json
 
 # Package manager lock files (only commit the one you actually use)
 # 

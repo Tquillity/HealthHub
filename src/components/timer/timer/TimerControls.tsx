@@ -3,7 +3,7 @@
 import { useTimeStore } from '@/lib/pomo-store/useTimeStore';
 import { playClick } from '@/lib/pomo/services/sound.service';
 import { useSettingsStore } from '@/lib/pomo-store/useSettingsStore';
-import { cn } from '@/lib/pomo/utils/cn';
+import { cn } from '@/lib/utils';
 
 export const TimerControls = () => {
   const isRunning = useTimeStore(state => state.isRunning);

@@ -4,7 +4,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { startOfMonth, endOfMonth } from 'date-fns';
 import { decrypt, decryptArray } from '@/lib/encryption';
-import JournalPageClient from '@/app/(dashboard)/journal/journal-page-client';
+import JournalPageClient from '@/components/journal/journal-page-client';
 
 export default async function JournalPage() {
   const session = await auth.api.getSession({

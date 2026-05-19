@@ -97,7 +97,7 @@ export function hasAlternatives(ingredientName: string): boolean {
 /**
  * Get the default choice (first option) from alternatives
  */
-export function getDefaultChoice(ingredientName: string, alternatives: string[]): string {
+export function getDefaultChoice(ingredientName: string, _alternatives: string[]): string {
   return ingredientName; // First option is always the default
 }
 

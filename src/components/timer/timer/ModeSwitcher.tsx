@@ -3,7 +3,7 @@
 import { useTimeStore } from '@/lib/pomo-store/useTimeStore';
 import { playClick } from '@/lib/pomo/services/sound.service';
 import type { TimerMode } from '@/lib/pomo/types';
-import { cn } from '@/lib/pomo/utils/cn';
+import { cn } from '@/lib/utils';
 import { getDuration } from '@/lib/pomo/utils/timerDefaults';
 
 interface ModeSwitcherProps {

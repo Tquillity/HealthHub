@@ -9,8 +9,6 @@
 
 import { useUIStore } from '@/lib/store';
 import { X, CheckCircle, AlertCircle, Info, AlertTriangle } from 'lucide-react';
-import { useEffect } from 'react';
-
 export function ToastContainer() {
   const toasts = useUIStore((state) => state.toasts);
   const removeToast = useUIStore((state) => state.removeToast);

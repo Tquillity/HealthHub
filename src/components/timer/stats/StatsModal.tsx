@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react';
 import { useTimeStore } from '@/lib/pomo-store/useTimeStore';
 import { useSettingsStore } from '@/lib/pomo-store/useSettingsStore';
 import { format, parseISO, startOfMonth, endOfMonth, eachMonthOfInterval, startOfWeek, endOfWeek, addWeeks, addMonths, addYears, eachDayOfInterval, startOfYear, endOfYear } from 'date-fns';
-import { cn } from '@/lib/pomo/utils/cn';
+import { cn } from '@/lib/utils';
 import { Modal } from '../common/Modal';
 import {
   getCurrentStreak,

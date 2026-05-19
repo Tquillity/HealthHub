@@ -1,0 +1,647 @@
+# HealthHub — Master Sprint Roadmap & Implementation Plan
+
+**Last Updated:** 2026-05-19  
+**Status:** Living document — update after every sprint  
+**Source Inputs:** Cursor May 2026 Review + Grok QC Feedback (QC passes 2–3) + `AGENTS.md` + live codebase analysis
+
+---
+
+## Executive Action Plan (one page)
+
+| When | Focus | Exit criteria |
+|------|--------|----------------|
+| **Now (Sprint 0)** | Legal, env, tsconfig, footer, zod, safe lint | `/privacy` + `/terms` live; `.env.example`; lint count falling |
+| **Week 1 (Sprint 1)** | Cursor rules, deps, CI prep, ESLint batch 2 | `.cursor/rules/*.mdc`, `AGENTS.md`, `eslint-config-next@16`, run `/index` |
+| **Week 2 (Sprint 2)** | Zod on all actions, types, journal move done | No action file without Zod; `any` reduced in cycle/recipe |
+| **Week 3+** | SEO, mobile, tests, premium stub | CI green; AdSense-ready content |
+
+**Pre-flight (new developers):**
+
+1. Node ≥20, pnpm 10.x  
+2. `cp .env.example .env` and fill `DATABASE_URL`, `BETTER_AUTH_*`  
+3. `pnpm install && pnpm db:push && pnpm db:seed`  
+4. `pnpm dev` (webpack mode for PWA)
+
+**Sprint 0 implementation status (2026-05-19):**
+
+- [x] S0-1 `.env.example`  
+- [x] S0-2 `tsconfig.json` (removed `.next/dev/types`)  
+- [x] S0-3 `/privacy`, `/terms`  
+- [x] S0-4 Footer guest-friendly (Explore + Account columns)  
+- [x] S0-5 `.gitignore` pnpm store + `package-lock.json`  
+- [x] S0-6 `zod` in `package.json` (run `pnpm install` locally)  
+- [x] S0-7a ESLint batch 1 (safe) — 103 → 99 problems; **S0-7b** (deeper) in Sprint 1  
+- [x] S2-3 Journal client → `src/components/journal/` (early)  
+- [x] Sprint 1 partial: `.cursor/rules/*`, single `AGENTS.md` (merged from `CLAUDE.md`)  
+- [x] Timer `cn` dedup — all timer components use `@/lib/utils`; removed `lib/pomo/utils/cn.ts`  
+- [x] Terms: cycle/expert wellness disclaimer (QC pass 3)  
+- [x] jcodemunch `/index` after rules (see Appendix A for latest counts)  
+
+**Ready to commit:** Sprint 0 stabilizers + Sprint 1 scaffolding (see suggested message in §9).
+
+**After pulling `.cursor/rules/` on another machine:** run **`/index`** (jcodemunch full reindex).
+
+---
+
+## 0. Executive Summary & Prioritization Framework
+
+### Current state → target state
+
+HealthHub is a **production-viable** Next.js 16 wellness super-app: recipes (alternatives + migration scripts), meal planner, groceries, routines, encrypted journal, cycle expert recommendations (Pelz/Sims), Learn hub, and a **production-grade PomoZen timer** (Web Worker + Comlink + Zustand + safe localStorage). Recent Super-App landing + public nav correctly position the product for discovery and AdSense.
+
+**Target state (6–8 weeks):** AdSense/policy-ready public surface, zero lint blockers on CI, Zod on every Server Action, split maintainable action modules, mobile-friendly protected shell, legal pages, `.env.example`, project Cursor rules, basic test + CI gates, and honest premium/monetization UX.
+
+### Prioritization principles
+
+| Order | Principle | Rationale |
+|-------|-----------|-----------|
+| 1 | **Policy & revenue blockers** | Missing `/privacy` / `/terms` blocks AdSense and erodes trust |
+| 2 | **Stability & DX** | `tsconfig`, lockfiles, ESLint, deps — prevent false confidence (`tsc` passes, `lint` fails) |
+| 3 | **Architecture debt** | Zod, `any`, orphan imports, duplicate utilities — reduce regression risk |
+| 4 | **Discoverability** | Caching/metadata on public routes |
+| 5 | **Polish & features** | Mobile nav, timer widget, premium stub, observability |
+
+### Legend
+
+| Field | Values |
+|-------|--------|
+| **Priority** | P0 (this week) · P1 (1–2 weeks) · P2 (3–5 weeks) · P3 (backlog) |
+| **Effort** | S (&lt;2h) · M (2–8h) · L (1–3 days) · XL (3+ days) |
+| **Dependencies** | Task IDs that must complete first |
+
+**Acceptance criteria** = verifiable “done” — not “looks good.”
+
+---
+
+## 1. Immediate Stabilizers (Sprint 0 — 1–2 days, P0)
+
+| ID | Task | Files | Effort | Deps | Acceptance criteria |
+|----|------|-------|--------|------|---------------------|
+| S0-1 | **Add `.env.example`** | `.env.example` (new), `README.md` | S | — | Documents all required/optional env vars with comments; no secrets; README points to copy step |
+| S0-2 | **Fix `tsconfig.json`** | `tsconfig.json` | S | — | Remove `.next/dev/types/**/*.ts` from `include`; keep `.next/types/**/*.ts` only if needed; `pnpm exec tsc --noEmit` still passes after `rm -rf .next` |
+| S0-3 | **Legal pages (v1)** | `src/app/(public)/privacy/page.tsx`, `src/app/(public)/terms/page.tsx` | M | — | Routes return 200; footer links work; placeholders marked “requires legal review” |
+| S0-4 | **Footer guest vs auth links** | `src/components/layout/footer.tsx` | S | S0-3 | Public footer does not link guests to protected-only routes without context; Privacy/Terms resolve |
+| S0-5 | **Commit `.gitignore` pnpm store** | `.gitignore` | S | — | `.pnpm/`, `.pnpm-store/` ignored; Source Control clean of store artifacts |
+| S0-6 | **Add direct `zod` dependency** | `package.json`, `pnpm-lock.yaml` | S | — | `"zod": "^4.x"` in `dependencies`; `pnpm install` succeeds |
+| S0-7a | **ESLint batch 1 (safe only)** | See §1.1 | M | — | Unused vars, dead code, dialog/toast imports; **no** `cycle-actions.ts` or timer stores |
+| S0-7b | **ESLint batch 2** | actions + cycle UI | L | S1-6 | `pnpm lint` exits 0 or &lt;10 documented suppressions |
+
+### S0-1 — `.env.example` (copy-paste template)
+
+```bash
+# Database (Neon PostgreSQL)
+DATABASE_URL="postgresql://user:pass@host/db?sslmode=require"
+
+# Better-Auth (required)
+BETTER_AUTH_SECRET=""          # openssl rand -base64 32
+BETTER_AUTH_URL="http://localhost:3000"
+NEXT_PUBLIC_BETTER_AUTH_URL="http://localhost:3000"
+
+# Journal encryption (required in production; falls back to BETTER_AUTH_SECRET if unset)
+ENCRYPTION_KEY=""
+
+# OAuth (optional)
+GOOGLE_CLIENT_ID=""
+GOOGLE_CLIENT_SECRET=""
+X_CLIENT_ID=""
+X_CLIENT_SECRET=""
+
+# Image upload (optional — Vercel Blob)
+BLOB_READ_WRITE_TOKEN=""
+USE_LOCAL_STORAGE="true"       # dev fallback when no blob token
+
+# Seed script (optional)
+ADMIN_EMAIL="admin@healthhub.com"
+ADMIN_PASSWORD=""
+ADMIN_NAME="Admin User"
+```
+
+**Verify:** New developer can copy `.env.example` → `.env` and run `pnpm install && pnpm db:push && pnpm dev`.
+
+### S0-2 — `tsconfig.json` fix
+
+**Change `include` to:**
+
+```json
+"include": [
+  "next-env.d.ts",
+  "**/*.ts",
+  "**/*.tsx",
+  ".next/types/**/*.ts"
+]
+```
+
+**Why:** `AGENTS.md` forbids `.next/dev/types/**`; including it causes TS “file not found” after `.next` clean.
+
+**Verify:**
+
+```bash
+rm -rf .next && pnpm exec tsc --noEmit
+```
+
+### S0-3 — Legal pages
+
+- Server Components; static content acceptable for v1.
+- Sections: data collection, cookies, third-party ads (placeholder), contact email, last updated.
+- Use `primary` / `wellness` tokens; `flex flex-col gap-*` for lists.
+- Metadata: `title`, `description` per page.
+
+**Verify:** `curl -I localhost:3000/privacy` → 200; footer links work.
+
+### S0-4 — Footer (guest UX)
+
+**Before:** Quick Links pointed guests at `/dashboard`, `/meal-planner`, `/routines` (proxy redirect to sign-in).  
+**After:** **Explore** → `/timer`, `/recipes`, `/learn`; **Account** → sign-in/up + dashboard with note that planner/journal need auth.
+
+### S1.1 — ESLint batch 1 (safe fixes only) — Sprint 0
+
+**Do not** blind `eslint --fix` on `cycle-actions.ts` or timer stores.
+
+| Category | Files | Safe action |
+|----------|-------|-------------|
+| Unused vars | `routines-client.tsx`, `routines-grid.tsx`, `dialog.tsx`, `toast.tsx`, `cycle-calculator.ts`, `hormone-math.ts`, `ingredient-alternatives.ts` | Remove or prefix `_` |
+| Constant binary | `routines-client.tsx` ~L215 | Fix `true &&` dead code |
+| Unused imports | Various UI | Remove |
+
+**Verify:** `pnpm lint` — track error count down from **103** (94 errors, 9 warnings as of 2026-05-19).
+
+---
+
+## 2. Tooling, Hygiene & Cursor Rules (Sprint 1, P1)
+
+| ID | Task | Priority | Effort | Deps |
+|----|------|----------|--------|------|
+| S1-1 | Create `.cursor/rules/server-actions.mdc` | P1 | S | S0-6 |
+| S1-2 | Create `.cursor/rules/prisma-auth.mdc` | P1 | S | — |
+| S1-3 | Create `.cursor/rules/timer-pomo.mdc` | P1 | S | — |
+| S1-4 | Consolidate agent docs → single `AGENTS.md` | P1 | S | S1-1–3 | Done — removed redundant `CLAUDE.md` |
+| S1-6 | Dependency hygiene | P1 | M | — |
+| S1-7 | Single lockfile policy | P1 | S | — |
+| S1-8 | Document `--webpack` in README | P1 | S | — |
+| S1-9 | ESLint batch 2 (`any` in actions) | P1 | L | S0-7a |
+
+### S1-1 — `server-actions.mdc`
+
+```yaml
+---
+description: Server Action conventions — Zod, return shape, no API routes for CRUD
+globs: src/actions/**/*.ts
+alwaysApply: false
+---
+```
+
+**Content (≤50 lines):** `'use server'`; Zod parse before DB; return `{ success, error?, data? }`; use `@/lib/auth` session helper; revalidatePath patterns; no `any`.
+
+### S1-2 — `prisma-auth.mdc`
+
+```yaml
+---
+description: Prisma schema, Better-Auth invariants, @@map, db push workflow
+globs: prisma/**/*,src/lib/auth.ts,src/lib/db.ts,src/proxy.ts
+alwaysApply: false
+---
+```
+
+**Content:** `Session.token @unique`; `@@map` for lowercase tables; verify with `@postgres` MCP; `pnpm db:push` → `pnpm db:generate` → full dev restart.
+
+### S1-3 — `timer-pomo.mdc`
+
+```yaml
+---
+description: PomoZen timer — do not break worker/store contracts
+globs: src/lib/pomo/**/*,src/lib/pomo-store/**/*,src/components/timer/**/*,src/workers/**/*
+alwaysApply: false
+---
+```
+
+**Content:** Local-first; import `cn` from `@/lib/utils` only; no server-side timer state without explicit sprint; Web Worker + Comlink invariants.
+
+### S1-4 — Single agent manifest (done)
+
+**Cursor May 2026:** Use **`AGENTS.md`** at repo root + **`.cursor/rules/*.mdc`** for scoped rules. Do **not** duplicate with `CLAUDE.md`.
+
+Merged former `CLAUDE.md` content into `AGENTS.md`; deleted `CLAUDE.md`.
+
+### S1-6 — Dependency hygiene
+
+| Action | Package / file | Why |
+|--------|----------------|-----|
+| Bump | `eslint-config-next` → match Next 16 | Currently `15.1.0` vs `next@^16` |
+| Remove (if unused) | `@prisma/adapter-neon`, `@neondatabase/serverless` | `src/lib/db.ts` uses `pg` + `@prisma/adapter-pg` only |
+| Add | `zod` direct | Used in 6 action files; was transitive via better-auth |
+| Align | `prisma` / `@prisma/client` versions | Reduce 7.1 vs 7.2 drift |
+
+**Verify:**
+
+```bash
+pnpm install && pnpm lint && pnpm exec tsc --noEmit && pnpm build
+```
+
+### S1-7 — Single lockfile
+
+**Current:** `pnpm-lock.yaml` + `package-lock.json` both present.
+
+```bash
+git rm --cached package-lock.json   # if tracked
+echo "package-lock.json" >> .gitignore   # optional, if team uses pnpm only
+```
+
+**Acceptance:** One canonical lockfile (`pnpm-lock.yaml`); README says `pnpm` only.
+
+### S1-8 — Document `--webpack`
+
+In `README.md`:
+
+> Dev/build use `--webpack` because `@ducanh2912/next-pwa` requires webpack. Turbopack is not the default for this repo.
+
+---
+
+## 3. Validation, Types & Code Quality (Sprint 2, P1)
+
+| ID | Task | Priority | Effort | Deps |
+|----|------|----------|--------|------|
+| S2-1 | Zod on all actions | P1 | L | S0-6 |
+| S2-2 | Replace `any` with Prisma types | P1 | L | S2-1 |
+| S2-3 | Move journal client out of `(dashboard)` | P1 | S | — |
+| S2-4 | Split large action files | P1 | XL | S2-1 |
+| S2-5 | DRY: `cn`, `getSessionUser`, PageHeader | P1 | M | — |
+| S2-6 | Public route caching strategy | P2 | M | S0-3 |
+
+### S2-1 — Zod coverage matrix
+
+| File | Has Zod today? | Sprint 2 action |
+|------|----------------|-----------------|
+| `recipe-actions.ts` | Yes | Tighten schemas; remove `any` in handlers |
+| `meal-actions.ts` | Yes | Same |
+| `journal-actions.ts` | Yes | Same |
+| `profile-actions.ts` | Yes | Same |
+| `household-actions.ts` | Yes | Same |
+| `routine-actions.ts` | Yes | Same |
+| `grocery-actions.ts` | **No** | Add input schemas per exported action |
+| `cycle-actions.ts` | **No** | Add schemas; fix `(prisma as any)` |
+| `education-actions.ts` | **No** | Add query/filter schemas |
+| `image-upload.ts` | **No** | Add file/metadata schema |
+| `ingredient-preference-actions.ts` | **No** | Add schemas (verified: no `zod` import) |
+
+**Acceptance:** Every exported mutation validates with Zod; invalid input returns `{ success: false, error: string }`.
+
+### S2-2 — `any` hotspots
+
+| File | Approach |
+|------|----------|
+| `cycle-actions.ts` | `Prisma.PhaseRecommendationGetPayload`, `ExpertGetPayload`; ensure models in generated client |
+| `recipe-actions.ts` | `Prisma.RecipeUpdateInput`, Zod-inferred types |
+| `cycle-page-client.tsx` | Typed recommendation props from action return type |
+| `meal-actions.ts` | Type `recipeWhere` as `Prisma.RecipeWhereInput` |
+| Pomo stores | Typed `persist` migrate with `unknown` + type guards (not `any`) |
+
+### S2-3 — Journal orphan
+
+**Move:** `src/app/(dashboard)/journal/journal-page-client.tsx` → `src/components/journal/journal-page-client.tsx`
+
+**Update import in:** `src/app/(protected)/journal/page.tsx`
+
+**Delete:** empty `src/app/(dashboard)/` directory
+
+**Verify:** `pnpm exec tsc --noEmit`; journal page loads.
+
+### S2-4 — Split boundaries (suggested)
+
+| Current file | LOC | Split into |
+|--------------|-----|------------|
+| `meal-actions.ts` | ~1038 | `meal-plan-queries.ts`, `meal-plan-mutations.ts`, `meal-auto-fill.ts` |
+| `grocery-actions.ts` | ~842 | `grocery-aggregate.ts`, `grocery-list-mutations.ts` |
+| `recipe-actions.ts` | ~760 | `recipe-queries.ts`, `recipe-mutations.ts` |
+| `recipe-form.tsx` | ~1125 | `recipe-form-fields.tsx`, `recipe-ingredients-section.tsx`, `recipe-instructions-section.tsx` |
+
+**Acceptance:** Reduce largest files below ~600 LOC where practical; barrel re-exports preserve imports. Files &gt;400 LOC need a brief justification comment if kept monolithic.
+
+### S2-3 verify (journal path)
+
+**Was:** `src/app/(dashboard)/journal/journal-page-client.tsx`  
+**Now:** `src/components/journal/journal-page-client.tsx` — completed 2026-05-19
+
+### S2-5 — Shared helpers
+
+**Create `src/lib/session.ts`:**
+
+```typescript
+export async function getSessionUserId(): Promise<string | null> { /* auth.api.getSession + headers */ }
+```
+
+Refactor actions to use it (incremental, file per PR).
+
+**Timer `cn`:** Done — all timer components import `@/lib/utils`; `lib/pomo/utils/cn.ts` removed.
+
+### S2-6 — `force-dynamic` review
+
+**Current public `force-dynamic`:**
+
+- `src/app/(public)/recipes/page.tsx`
+- `src/app/(public)/recipes/[id]/page.tsx`
+- `src/app/(public)/learn/page.tsx`
+- `src/app/(public)/learn/[id]/page.tsx`
+
+**Recommendation:**
+
+| Route | Strategy |
+|-------|----------|
+| Learn list | `unstable_cache` already used — try remove `force-dynamic`; use `revalidate` |
+| Recipe list | ISR `revalidate: 3600` if data is mostly public/system |
+| Detail pages | `generateStaticParams` for top N system items + dynamic fallback |
+
+**Document decision** in each page file comment.
+
+---
+
+## 4. Legal, SEO, PWA & Compliance (Sprint 3, P1–P2)
+
+| ID | Task | Priority | Effort | Deps |
+|----|------|----------|--------|------|
+| S3-1 | Legal content review | P1 | M | S0-3 |
+| S3-2 | Footer + sitemap | P2 | S | S0-3 |
+| S3-3 | PWA icons | P2 | S | — |
+| S3-4 | Metadata / OG | P2 | M | S2-6 |
+| S3-5 | JSON-LD (recipes) | P3 | M | S3-4 |
+
+### S3-1 — Legal v2
+
+- Lawyer review of Privacy + Terms.
+- Cookie consent banner if AdSense + analytics added.
+- GDPR/CCPA mention if EU/CA users expected.
+
+### S3-3 — PWA icons
+
+Per `PWA_SETUP.md`: ensure `public/logo192.png`, `public/logo512.png` exist.
+
+**Generate (example):** export a 512×512 HealthHub mark from your design tool, then resize to 192×192; or use `pnpm dlx sharp-cli` / an online PWA icon generator. Place both under `public/`.
+
+**Verify:** Production build → Application tab → manifest icons load.
+
+### S3-4 — Metadata
+
+| Route | `metadata` needs |
+|-------|------------------|
+| `/` | OG image, description (Super-App) |
+| `/timer` | Standalone layout metadata in `(standalone)/timer/page.tsx` |
+| `/recipes`, `/learn` | Unique titles; canonical URLs |
+
+---
+
+## 5. UI/UX Polish & Mobile (Sprint 4, P2)
+
+| ID | Task | Priority | Effort | Deps |
+|----|------|----------|--------|------|
+| S4-1 | Mobile nav (protected) | P2 | L | — |
+| S4-2 | Timer dashboard widget | P2 | M | — |
+| S4-3 | “Go Pro” → honest CTA | P2 | S | S5-4 stub |
+| S4-4 | Accessibility audit | P2 | M | — |
+| S4-5 | Empty / error states | P2 | M | — |
+
+### S4-1 — Mobile protected nav
+
+**File:** `src/app/(protected)/layout.tsx`
+
+- Add hamburger + sheet/drawer (`md:hidden`).
+- Reuse `NavLink` items from sidebar.
+- `min-h-[44px]` on all items.
+
+### S4-2 — Timer dashboard widget
+
+**File:** `src/components/dashboard/dashboard-client.tsx` (or new `focus-goal-card.tsx` client component)
+
+- Read `pomo-time-storage` / `pomo-settings-storage` from localStorage (read-only).
+- Show today’s pomodoro count vs `dailyGoalPomodoros`.
+- Link to `/timer`.
+- **Do not** sync to DB in this sprint unless S7-2 approved.
+
+### S4-4 — A11y checklist
+
+- [ ] Timer modals: focus trap, `aria-modal`, Esc close
+- [ ] `recipe-form.tsx`: label/`htmlFor` on all fields
+- [ ] Public nav: `aria-current` on active route
+- [ ] Color contrast on landing hero text
+
+---
+
+## 6. Quality Gates & Testing (Sprint 5, P1–P2)
+
+| ID | Task | Priority | Effort | Deps |
+|----|------|----------|--------|------|
+| S5-1 | GitHub Actions CI | P1 | M | S0-7, S1-6 |
+| S5-2 | Unit tests (critical paths) | P2 | L | S5-1 |
+| S5-3 | E2E smoke (Playwright) | P3 | L | S5-1 |
+
+### S5-1 — CI workflow
+
+**File:** `.github/workflows/ci.yml`
+
+```yaml
+on: [push, pull_request]
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20', cache: 'pnpm' }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec tsc --noEmit
+      - run: pnpm lint
+      - run: pnpm build
+```
+
+**Acceptance:** PR cannot merge with lint/tsc/build failures (branch protection recommended).
+
+### S5-2 — Test matrix
+
+| Area | Tool | First tests |
+|------|------|-------------|
+| Grocery aggregate | Vitest | Unit test ingredient merge/normalize |
+| Recipe Zod schemas | Vitest | Invalid input rejected |
+| Cycle calculator | Vitest | Phase boundaries |
+| Auth proxy | Integration optional | Protected route redirect |
+| Timer schedule | Vitest | `timerSchedule.ts` pure functions |
+
+**No tests today** — add `vitest` + `package.json` script `"test": "vitest"`.
+
+---
+
+## 7. Feature Completion & Future-Proofing (Sprint 6+, P2–P3)
+
+| ID | Task | Priority | Effort | Notes |
+|----|------|----------|--------|-------|
+| S7-1 | AdSense integration plan | P3 | L | After S3-1 legal review |
+| S7-2 | Timer optional DB sync (premium) | P3 | XL | New Prisma model `PomodoroDailyStat`; opt-in |
+| S7-3 | Menu ↔ grocery deep link | P3 | L | Per `docs/legacy/food-heaven.md` |
+| S7-4 | Expert cards → Learn | P3 | M | Link `PhaseRecommendation` to `EducationalResource` |
+| S7-5 | Observability | P3 | M | Sentry or OpenTelemetry; structured server logs |
+| S7-6 | Stripe / premium | P3 | XL | Wire `User.isPremium`; webhook |
+
+### S7-4 — Premium stub (quick win in Sprint 4)
+
+**Route:** `src/app/(public)/pro/page.tsx` — “Coming soon: ad-free experience, cloud timer sync, …”
+
+**Update:** `public-nav.tsx` “Go Pro” → `/pro` (not `/sign-up`).
+
+---
+
+## 8. Cross-Cutting & Non-Functional
+
+### Observability & error boundaries (Sprint 1 checklist)
+
+- [ ] Add structured `console.error` prefix in `src/proxy.ts` (already logs failures)  
+- [ ] Ensure feature routes use existing `ErrorBoundary` where client-heavy (timer modals already wrapped)  
+- [ ] Evaluate Sentry (or similar) in Sprint 7 — not blocking Sprint 0  
+
+### Recipe data scripts (reference)
+
+Maintenance scripts in `scripts/` (`parse-recipe-alternatives.ts`, `fix-*.ts`) — document in README; not part of runtime app. Run manually after DB seed.
+
+### Security checklist
+
+| Item | Status | Action |
+|------|--------|--------|
+| `BETTER_AUTH_SECRET` required | OK | Document in `.env.example` |
+| Journal `ENCRYPTION_KEY` | Partial | Document; warn if fallback to auth secret in prod |
+| Proxy REST session | OK | `src/proxy.ts` — do not import Prisma in Edge |
+| `BLOB_READ_WRITE_TOKEN` | Optional | Document local fallback |
+| Auth API route | Required | `src/app/api/auth/[...all]/route.ts` — keep |
+
+### Performance
+
+- `experimental.optimizePackageImports: ['lucide-react']` — already in `next.config.ts`
+- Consider dynamic import for `recharts` on cycle page only
+- Timer worker — already off main thread
+
+### Documentation
+
+| Doc | Action |
+|-----|--------|
+| `README.md` | Super-App positioning, feature list, pnpm-only, env setup |
+| `PWA_SETUP.md` | Keep; link from README |
+| `CLINICAL_VALIDATION_REPORT.md` | Link from cycle feature docs |
+| `docs/legacy/food-heaven.md` | Keep as migration reference |
+
+### DRY / SOC / KISS grades (baseline)
+
+| Principle | Grade | Sprint target |
+|-----------|-------|---------------|
+| DRY | B− | A− after S2-5 |
+| SOC | B | A− after S2-4 |
+| KISS | B+ | Maintain; resist new API routes for CRUD |
+
+---
+
+## 9. Execution Notes
+
+### Progress tracking
+
+- Use checkboxes in this file per sprint.
+- Optional GitHub labels: `sprint-0`, `sprint-1`, … `P0`, `P1`.
+- One PR per task ID where possible (e.g. `S0-3-legal-pages`).
+
+### Suggested commit (Sprint 0 + scaffolding — QC approved)
+
+```
+chore: complete Sprint 0 stabilizers and Sprint 1 scaffolding
+
+Add legal pages, env example, and guest-friendly footer. Fix tsconfig,
+move journal client, add Cursor rules and agent docs. Add zod, bump
+eslint-config-next, remove unused Neon adapter. Dedup timer cn helper.
+ESLint 103 → 98 (safe batch). Update Docs/SprintList.md.
+```
+
+### Risk register
+
+| Risk | Mitigation |
+|------|------------|
+| Timer refactor breaks worker | Follow `timer-pomo.mdc`; test manually; no logic changes in S0 |
+| Large action split breaks imports | Barrel re-exports; one feature per PR |
+| Prisma schema drift | `@postgres` MCP verify before `db push` |
+| AdSense rejection | Legal review + substantive public content |
+| ESLint autofix breaks behavior | Manual review; no autofix on `cycle-actions.ts` |
+
+### Definition of Done (per sprint)
+
+- [ ] All sprint task acceptance criteria met
+- [ ] `pnpm lint` passes
+- [ ] `pnpm exec tsc --noEmit` passes
+- [ ] `pnpm build` passes
+- [ ] No secrets committed
+- [ ] `Docs/SprintList.md` updated (checkboxes + date)
+- [ ] After merge: run `/index` (jcodemunch)
+
+### Post-change commands
+
+```bash
+pnpm install
+pnpm db:push          # if schema changed
+pnpm db:generate
+# Stop dev server, rm -rf .next, restart:
+pnpm dev
+# Browser hard refresh after Server Action changes
+```
+
+### Cursor agent instructions
+
+1. Read `AGENTS.md` + relevant `.cursor/rules/*.mdc`.
+2. Schema work → `@postgres` MCP verify first.
+3. Large merge → `/index` full reindex.
+4. Commit → `/commit` (staged only).
+5. Planning → this file.
+
+---
+
+## Next Immediate Actions
+
+**Sprint 0 + scaffolding: complete.** Commit when ready (see §9 suggested message).
+
+**Sprint 1 — start here:**
+
+- [ ] **S0-7b / S1-9** — ESLint batch 2 (`any` in actions, cycle UI); target &lt;20 problems or CI allowlist
+- [ ] **S2-1** — Zod on `grocery-actions`, `cycle-actions`, `education-actions`, `image-upload`, `ingredient-preference-actions`
+- [ ] **S5-1** — GitHub Actions CI (`lint` + `tsc` + `build`)
+- [ ] **S3-3** — PWA icons (`public/logo192.png`, `public/logo512.png`)
+- [ ] Optional: **`/pro`** premium stub page (S7-4)
+
+---
+
+## Appendix A — Live codebase snapshot (2026-05-19, post Sprint 0)
+
+| Metric | Value |
+|--------|-------|
+| ESLint | **98** problems (87 errors, 11 warnings) — was 103 pre–Sprint 0 |
+| TypeScript | `tsc --noEmit` passes |
+| jcodemunch | 166 files, 996 symbols (after `/index`) |
+| Action files | 11 total; 6 with Zod, 5 without |
+| Route groups | `(auth)`, `(protected)`, `(public)`, `(standalone)` |
+| Timer route | `/timer` → `(standalone)/timer/page.tsx` |
+| Journal client | `src/components/journal/journal-page-client.tsx` |
+| Legal | `/privacy`, `/terms` live |
+| Lockfiles | `pnpm-lock.yaml` only (`package-lock.json` untracked) |
+| `eslint-config-next` | 16.2.6 |
+
+## Appendix B — Feature inventory
+
+| Feature | Route(s) | Maturity |
+|---------|----------|----------|
+| Marketing landing | `/` | Good (post Super-App) |
+| Focus timer (PomoZen) | `/timer` | Excellent (local-first) |
+| Recipes | `/recipes` (public), edit/new (protected) | Strong |
+| Learn | `/learn` | Good |
+| Dashboard | `/dashboard` | Good |
+| Meal planner | `/meal-planner`, templates | Strong |
+| Groceries | `/groceries` | Strong (large actions) |
+| Routines | `/routines` | Good (lint debt) |
+| Journal (encrypted) | `/journal` | Good |
+| Cycle + experts | `/cycle` | Strong (type debt) |
+| Profile / household | `/profile`, `/profile/household` | Good |
+| Premium | `User.isPremium` only | Not implemented |
+| AdSense | — | Not implemented |
+| Tests / CI | — | Not implemented |
+
+---
+
+*End of master roadmap.*

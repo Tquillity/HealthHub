@@ -1,7 +1,7 @@
 'use client';
 
 import { useTimeStore } from '@/lib/pomo-store/useTimeStore';
-import { cn } from '@/lib/pomo/utils/cn';
+import { cn } from '@/lib/utils';
 import {
   getCurrentCycleLabel,
   getCurrentScheduleStep,

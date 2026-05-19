@@ -13,7 +13,7 @@ A comprehensive household wellness application built with the **Next.js 16 + Pos
 ## Getting Started
 
 1.  **Environment Setup**:
-    Copy `.env.example` to `.env` and add your keys:
+    Copy `.env.example` to `.env` and fill in your keys (see comments in that file):
     ```bash
     DATABASE_URL="postgres://..."
     BETTER_AUTH_SECRET="..."
@@ -39,6 +39,13 @@ A comprehensive household wellness application built with the **Next.js 16 + Pos
     ```bash
     pnpm dev
     ```
+    Dev uses `--webpack` because the PWA plugin requires webpack (see `next.config.ts`).
+
+## Agent & sprint docs
+
+- **`AGENTS.md`** — agent instructions (stack, rules, workflow)
+- **`Docs/SprintList.md`** — master roadmap (priorities, acceptance criteria)
+- **`.cursor/rules/*.mdc`** — scoped rules (actions, Prisma/auth, timer)
 
 ## Database Verification
 

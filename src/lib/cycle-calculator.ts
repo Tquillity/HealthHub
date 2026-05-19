@@ -98,7 +98,6 @@ export function calculateCyclePhase(
   // Calculate phase boundaries dynamically
   const menstrualEnd = PHASE_LENGTHS.MENSTRUAL;
   const follicularEnd = ovulationDay - 4; // Follicular ends 4 days before ovulation
-  const ovulationStart = ovulationDay - 3; // Ovulation window starts 3 days before ovulation day
   const ovulationEnd = ovulationDay;
   
   // Determine current phase

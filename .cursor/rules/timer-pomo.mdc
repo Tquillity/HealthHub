@@ -1,0 +1,14 @@
+---
+description: PomoZen timer — local-first, worker, and store invariants
+globs: src/lib/pomo/**/*,src/lib/pomo-store/**/*,src/components/timer/**/*,src/workers/**/*
+alwaysApply: false
+---
+
+# Focus Timer (PomoZen)
+
+- Timer state is **browser local-first** (Zustand + safe localStorage); do not sync to DB without an explicit sprint task.
+- Web Worker + Comlink timing must stay off the main thread (`src/workers/timer.worker.ts`).
+- Import `cn` from `@/lib/utils` only — not `lib/pomo/utils/cn`.
+- UI lives under `src/components/timer/`; route is `(standalone)/timer` at `/timer`.
+- Avoid `useEffect` for initial server data; timer page is client-driven.
+- Do not refactor store contracts casually — run manual timer QA after changes.

@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { cn } from '@/lib/pomo/utils/cn';
+import { cn } from '@/lib/utils';
 
 interface ModalProps {
   isOpen: boolean;
