@@ -5,20 +5,7 @@ import { prisma } from '@/lib/db';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { revalidatePath } from 'next/cache';
-
-const UpdateProfileSchema = z.object({
-  name: z.string().min(1, 'Name is required').optional(),
-  energyLevel: z.enum(['low', 'medium', 'high']).optional(),
-  dietaryRestrictions: z.array(z.string()).optional(),
-  healthGoals: z.array(z.string()).optional(),
-  timezone: z.string().optional(),
-  mealPlanDuration: z.enum(['1week', '2weeks', '1month']).optional(),
-  mealPlanStartDate: z.string().nullable().optional(), // ISO date string or null
-  enableCycleTracking: z.boolean().optional(),
-  cycleLength: z.number().int().min(20).max(45).optional(),
-  lastPeriodDate: z.string().nullable().optional(), // ISO datetime string or null
-  focusPreference: z.enum(['hormonal', 'workout', 'both']).optional(),
-});
+import { UpdateProfileSchema } from '@/lib/validation/profile-schemas';
 
 export async function updateProfile(data: z.infer<typeof UpdateProfileSchema>) {
   try {

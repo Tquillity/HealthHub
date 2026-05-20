@@ -1,7 +1,8 @@
 # HealthHub — Master Sprint Roadmap & Implementation Plan
 
-**Last Updated:** 2026-05-19  
+**Last Updated:** 2026-05-20  
 **Status:** Living document — update after every sprint  
+**Roadmap (phases):** [`Docs/SprintRoadmap.md`](./SprintRoadmap.md)  
 **Source Inputs:** Cursor May 2026 Review + Grok QC Feedback (QC passes 2–3) + `AGENTS.md` + live codebase analysis
 
 ---
@@ -370,6 +371,10 @@ Refactor actions to use it (incremental, file per PR).
 - Cookie consent banner if AdSense + analytics added.
 - GDPR/CCPA mention if EU/CA users expected.
 
+### S3-2 — Sitemap ✅ (Sprint 5)
+
+**File:** `src/app/sitemap.ts` — static public routes via `getMetadataBase()`: `/`, `/timer`, `/recipes`, `/learn`, `/privacy`, `/terms`, `/pro`, `/sign-in`, `/sign-up`. Dynamic recipe/learn IDs deferred until ISR strategy chosen.
+
 ### S3-3 — PWA icons ✅ (Sprint 2–3)
 
 Committed `public/logo192.png` and `public/logo512.png` (`#2563eb` + “HH” mark). Manifest paths unchanged.
@@ -410,20 +415,19 @@ Root `layout.tsx` sets `metadataBase` and title template.
 - Reuses shared nav items; `min-h-[44px]` touch targets; `aria-current`, Esc to close, **Tab focus trap** in drawer
 - Desktop sidebar unchanged
 
-### S4-2 — Timer dashboard widget
+### S4-2 — Timer dashboard widget ✅ (Sprint 5)
 
-**File:** `src/components/dashboard/dashboard-client.tsx` (or new `focus-goal-card.tsx` client component)
+**Files:** `src/components/dashboard/focus-goal-card.tsx`, `src/lib/pomo/utils/dashboard-timer-snapshot.ts`, `dashboard-client.tsx`
 
 - Read `pomo-time-storage` / `pomo-settings-storage` from localStorage (read-only).
-- Show today’s pomodoro count vs `dailyGoalPomodoros`.
-- Link to `/timer`.
+- Show today’s pomodoro count vs `dailyGoalPomodoros`; progress bar + link to `/timer`.
 - **Do not** sync to DB in this sprint unless S7-2 approved.
 
 ### S4-4 — A11y checklist
 
-- [ ] Timer modals: focus trap, `aria-modal`, Esc close
+- [x] Timer modals: focus trap, `aria-modal`, Esc close (existing); close button 44px touch target
 - [ ] `recipe-form.tsx`: label/`htmlFor` on all fields
-- [ ] Public nav: `aria-current` on active route
+- [x] Public nav: `aria-current` on active route; `aria-label="Main"`
 - [ ] Color contrast on landing hero text
 
 ---
@@ -442,15 +446,16 @@ Root `layout.tsx` sets `metadataBase` and title template.
 
 **Acceptance:** Workflow green on push/PR; local `pnpm lint`, `tsc --noEmit`, and `pnpm build` pass.
 
-### S5-2 — Test matrix ✅ (initial, Sprint 4)
+### S5-2 — Test matrix ✅ (Sprint 4 + Sprint 5 expand)
 
 | Area | Tool | Status |
 |------|------|--------|
 | Cycle calculator | Vitest | `src/lib/cycle-calculator.test.ts` (phase boundaries) |
-| Education + grocery Zod | Vitest | `src/lib/validation/*.test.ts` |
+| Education + grocery + profile Zod | Vitest | `src/lib/validation/*.test.ts` |
 | Grocery aggregate | Vitest | Deferred |
 | Auth proxy | Integration | Deferred |
-| Timer schedule | Vitest | Deferred |
+| Timer schedule | Vitest | `src/lib/pomo/utils/timerSchedule.test.ts` |
+| Dashboard timer snapshot | Vitest | `src/lib/pomo/utils/dashboard-timer-snapshot.test.ts` |
 
 **Scripts:** `pnpm test`, `pnpm test:watch`. Schemas extracted to `src/lib/validation/` for testability. **CI runs `pnpm test`** after lint.
 
@@ -479,7 +484,7 @@ Root `layout.tsx` sets `metadataBase` and title template.
 
 ### Observability & error boundaries (Sprint 1 checklist)
 
-- [ ] Add structured `console.error` prefix in `src/proxy.ts` (already logs failures)  
+- [x] Add structured `console.error` prefix in `src/proxy.ts` (`[HealthHub proxy]`)  
 - [ ] Ensure feature routes use existing `ErrorBoundary` where client-heavy (timer modals already wrapped)  
 - [ ] Evaluate Sentry (or similar) in Sprint 7 — not blocking Sprint 0  
 
@@ -603,23 +608,29 @@ pnpm dev
 
 **Sprint 0–4 (CI, PWA, Pro stub, metadata, mobile nav, Vitest): complete.**
 
-**Sprint 5+ — start here:**
+**Sprint 5 (Phase 5 — product polish): mostly complete — verify & merge**
 
-- [ ] **S4-2** — Timer dashboard widget (localStorage read-only)
-- [ ] **S4-4** — Accessibility audit (public nav `aria-current`, timer modals)
+- [x] **S4-2** — Timer dashboard widget (`FocusGoalCard`, read-only localStorage)
+- [x] **S3-2** — Static sitemap (`src/app/sitemap.ts`)
+- [x] **S5-2 expand** — Timer schedule + dashboard snapshot + profile schema tests
+- [x] **S4-4 (partial)** — Public nav `aria-current`; timer modal close touch target
+- [ ] **S4-4 (remainder)** — `recipe-form.tsx` labels, landing hero contrast
 - [ ] **S3-5** — JSON-LD for recipes
-- [ ] **S5-3** — E2E smoke (Playwright)
+- [ ] **S4-5** — Empty / error states
+- [ ] **S5-3** — E2E smoke (Playwright) — defer until more unit coverage
+
+**Phase 6+:** See [`Docs/SprintRoadmap.md`](./SprintRoadmap.md).
 
 ---
 
-## Appendix A — Live codebase snapshot (2026-05-19, post Sprint 4 metadata/mobile/tests)
+## Appendix A — Live codebase snapshot (2026-05-20, post Sprint 5 polish)
 
 | Metric | Value |
 |--------|-------|
 | ESLint | **~18** problems (0 errors, warnings) — react-refresh on metadata pages |
 | TypeScript | `tsc --noEmit` passes |
 | Build | `pnpm build` passes |
-| Tests | Vitest — **13** tests in 2 files (`pnpm test`) |
+| Tests | Vitest — **25+** tests in 4 files (`pnpm test`) |
 | CI | `.github/workflows/ci.yml` — `quality` job: `tsc`, `lint`, **`test`**, `build` |
 | Metadata | `src/lib/site-metadata.ts`; OG default `/logo512.png` |
 | Mobile nav | Protected drawer on `< md` |

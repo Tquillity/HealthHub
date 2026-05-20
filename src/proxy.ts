@@ -27,7 +27,10 @@ export async function proxy(request: NextRequest) {
 
     session = result.data ?? null;
   } catch (error) {
-    console.error('Proxy session lookup failed:', error);
+    console.error('[HealthHub proxy] Session lookup failed:', {
+      pathname,
+      error,
+    });
   }
 
   const isAuthRoute =

@@ -7,6 +7,7 @@ import {
   AddShoppingItemSchema,
   ToggleShoppingItemSchema,
 } from '@/lib/validation/grocery-schemas';
+import { UpdateProfileSchema } from '@/lib/validation/profile-schemas';
 
 describe('GetEducationalResourcesSchema', () => {
   it('accepts an empty filter object', () => {
@@ -66,5 +67,17 @@ describe('ToggleShoppingItemSchema', () => {
     expect(
       ToggleShoppingItemSchema.parse({ itemKey: 'item-1', isChecked: true })
     ).toEqual({ itemKey: 'item-1', isChecked: true });
+  });
+});
+
+describe('UpdateProfileSchema', () => {
+  it('accepts partial profile updates', () => {
+    expect(UpdateProfileSchema.parse({ name: 'Alex' })).toEqual({ name: 'Alex' });
+  });
+
+  it('validates cycle length bounds', () => {
+    expect(UpdateProfileSchema.parse({ cycleLength: 28 })).toEqual({ cycleLength: 28 });
+    expect(() => UpdateProfileSchema.parse({ cycleLength: 19 })).toThrow();
+    expect(() => UpdateProfileSchema.parse({ cycleLength: 46 })).toThrow();
   });
 });

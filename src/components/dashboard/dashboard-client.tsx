@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { FocusGoalCard } from '@/components/dashboard/focus-goal-card';
 import { Sparkles, UtensilsCrossed, BookOpen, Timer } from 'lucide-react';
 import type { Routine } from '@prisma/client';
 
@@ -99,7 +100,7 @@ export function DashboardClient({
 
         {/* Statistics & Recent Routines */}
         <div className="lg:col-span-2 flex flex-col gap-6">
-          {/* Statistics Cards */}
+          <FocusGoalCard />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
               <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-400 mb-3">

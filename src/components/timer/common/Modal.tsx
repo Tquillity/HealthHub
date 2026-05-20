@@ -140,7 +140,7 @@ export const Modal = ({ isOpen, onClose, title, children }: ModalProps) => {
           <h2 id={titleId} className="app-card-title">{title}</h2>
           <button
             onClick={onClose}
-            className="text-white/70 hover:text-white transition-colors p-1.5 hover:bg-white/10 rounded-full"
+            className="flex min-h-[44px] min-w-[44px] items-center justify-center text-white/70 transition-colors hover:bg-white/10 hover:text-white rounded-full p-1.5"
             aria-label="Close"
             title="Close"
           >

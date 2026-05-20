@@ -26,7 +26,7 @@ export function PublicNav() {
           HealthHub
         </Link>
 
-        <nav className="flex items-center gap-1">
+        <nav className="flex items-center gap-1" aria-label="Main">
           {navLinks.map((link) => {
             const isActive =
               pathname === link.href || pathname.startsWith(`${link.href}/`);
@@ -34,6 +34,7 @@ export function PublicNav() {
               <Link
                 key={link.href}
                 href={link.href}
+                aria-current={isActive ? 'page' : undefined}
                 className={cn(
                   'min-h-[44px] rounded-lg px-3 py-2 text-sm font-medium transition-colors sm:px-4',
                   isActive
