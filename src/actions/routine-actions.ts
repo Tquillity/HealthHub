@@ -3,8 +3,7 @@
 import { z } from 'zod';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
-import { auth } from '@/lib/auth';
-import { headers } from 'next/headers';
+import { requireSessionUserId } from '@/lib/session';
 import { revalidatePath } from 'next/cache';
 
 // Zod schemas
@@ -41,17 +40,14 @@ const UpdateRoutineSchema = CreateRoutineSchema.partial().extend({
 
 export async function createRoutine(data: z.input<typeof CreateRoutineSchema>) {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-
-    if (!session) {
-      return { success: false, error: 'Unauthorized' };
+    const authResult = await requireSessionUserId();
+    if (!authResult.ok) {
+      return { success: false, error: authResult.error };
     }
 
     // Get user's organization
     const membership = await prisma.member.findFirst({
-      where: { userId: session.user.id },
+      where: { userId: authResult.userId },
       select: { organizationId: true },
     });
 
@@ -100,17 +96,14 @@ export async function createRoutine(data: z.input<typeof CreateRoutineSchema>) {
 
 export async function updateRoutine(data: z.input<typeof UpdateRoutineSchema>) {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-
-    if (!session) {
-      return { success: false, error: 'Unauthorized' };
+    const authResult = await requireSessionUserId();
+    if (!authResult.ok) {
+      return { success: false, error: authResult.error };
     }
 
     // Get user's organization
     const membership = await prisma.member.findFirst({
-      where: { userId: session.user.id },
+      where: { userId: authResult.userId },
       select: { organizationId: true },
     });
 
@@ -176,12 +169,9 @@ export async function updateRoutine(data: z.input<typeof UpdateRoutineSchema>) {
 
 export async function getRoutine(id: string) {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-
-    if (!session) {
-      return { success: false, error: 'Unauthorized', data: null };
+    const authResult = await requireSessionUserId();
+    if (!authResult.ok) {
+      return { success: false, error: authResult.error, data: null };
     }
 
     const routine = await prisma.routine.findUnique({
@@ -201,17 +191,14 @@ export async function getRoutine(id: string) {
 
 export async function deleteRoutine(id: string) {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-
-    if (!session) {
-      return { success: false, error: 'Unauthorized' };
+    const authResult = await requireSessionUserId();
+    if (!authResult.ok) {
+      return { success: false, error: authResult.error };
     }
 
     // Get user's organization
     const membership = await prisma.member.findFirst({
-      where: { userId: session.user.id },
+      where: { userId: authResult.userId },
       select: { organizationId: true },
     });
 
@@ -253,17 +240,14 @@ export async function drawLottery(filters: {
   difficulty?: string;
 }) {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-
-    if (!session) {
-      return { success: false, error: 'Unauthorized', data: null };
+    const authResult = await requireSessionUserId();
+    if (!authResult.ok) {
+      return { success: false, error: authResult.error, data: null };
     }
 
     // Get user's organization
     const membership = await prisma.member.findFirst({
-      where: { userId: session.user.id },
+      where: { userId: authResult.userId },
       select: { organizationId: true },
     });
 

@@ -5,10 +5,12 @@ import { notFound } from 'next/navigation';
 import { headers } from 'next/headers';
 import { getResourceById } from '@/actions/education-actions';
 import { auth } from '@/lib/auth';
-import { createPageMetadata } from '@/lib/site-metadata';
+import { createPageMetadata, getMetadataBase } from '@/lib/site-metadata';
+import { buildLearnArticleJsonLd } from '@/lib/structured-data/learn-jsonld';
 import { ChevronLeft, Clock, Star, Heart, Eye } from 'lucide-react';
 import { format } from 'date-fns';
 import { LearnDetailClient } from '@/components/learn/learn-detail-client';
+import { AppErrorBoundary } from '@/components/ui/error-boundary';
 
 /**
  * Caching: unstable_cache (tag educational-resources, revalidate 3600).
@@ -78,6 +80,9 @@ export default async function LearnDetailPage({
   }
 
   const resource = result.data;
+  const articleJsonLd = buildLearnArticleJsonLd(resource, {
+    baseUrl: getMetadataBase().toString(),
+  });
 
   const categoryIcons: Record<string, string> = {
     nutrition: '🥗',
@@ -90,6 +95,10 @@ export default async function LearnDetailPage({
 
   return (
     <div className="container mx-auto max-w-4xl p-6">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }}
+      />
       <Link
         href="/learn"
         className="mb-6 flex items-center text-sm text-gray-500 transition-colors hover:text-primary-600"
@@ -203,11 +212,13 @@ export default async function LearnDetailPage({
         </div>
 
         {/* Like Button */}
-        <LearnDetailClient
-          resourceId={resource.id}
-          initialLikes={resource.likes || 0}
-          canLike={canLike}
-        />
+        <AppErrorBoundary sectionLabel="Article actions">
+          <LearnDetailClient
+            resourceId={resource.id}
+            initialLikes={resource.likes || 0}
+            canLike={canLike}
+          />
+        </AppErrorBoundary>
       </article>
     </div>
   );

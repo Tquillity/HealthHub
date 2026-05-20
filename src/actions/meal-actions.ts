@@ -1,8 +1,7 @@
 'use server';
 
 import { prisma } from '@/lib/db';
-import { auth } from '@/lib/auth';
-import { headers } from 'next/headers';
+import { requireSessionUserId } from '@/lib/session';
 import { revalidatePath } from 'next/cache';
 import { endOfWeek, startOfWeek, addDays, eachDayOfInterval } from 'date-fns';
 import { z } from 'zod';
@@ -10,15 +9,12 @@ import type { Prisma } from '@prisma/client';
 import { randomBytes } from 'crypto';
 
 export async function getWeeklyPlan(date?: Date) {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
-
-  if (!session) throw new Error('Unauthorized');
+  const authResult = await requireSessionUserId();
+  if (!authResult.ok) throw new Error('Unauthorized');
 
   // Get user preferences (with fallback for fields that might not exist yet)
   const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
+    where: { id: authResult.userId },
     select: {
       mealPlanDuration: true,
       mealPlanStartDate: true,
@@ -29,7 +25,7 @@ export async function getWeeklyPlan(date?: Date) {
   const mealPlanStartDate = user?.mealPlanStartDate ?? null;
 
   const membership = await prisma.member.findFirst({
-    where: { userId: session.user.id },
+    where: { userId: authResult.userId },
     select: { organizationId: true },
   });
 
@@ -184,16 +180,13 @@ export async function generateMealPlan(data: {
   avoidIngredients: string[];
 }) {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-
-    if (!session) {
-      return { success: false, error: 'Unauthorized' };
+    const authResult = await requireSessionUserId();
+    if (!authResult.ok) {
+      return { success: false, error: authResult.error };
     }
 
     const membership = await prisma.member.findFirst({
-      where: { userId: session.user.id },
+      where: { userId: authResult.userId },
       select: { organizationId: true },
     });
 
@@ -203,7 +196,7 @@ export async function generateMealPlan(data: {
 
     // Get user preferences (from User model)
     const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: authResult.userId },
       select: { dietaryRestrictions: true, healthGoals: true },
     });
 
@@ -404,16 +397,13 @@ export async function generateMealPlan(data: {
  */
 export async function clearAllMeals(planId: string) {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-
-    if (!session) {
-      return { success: false, error: 'Unauthorized' };
+    const authResult = await requireSessionUserId();
+    if (!authResult.ok) {
+      return { success: false, error: authResult.error };
     }
 
     const membership = await prisma.member.findFirst({
-      where: { userId: session.user.id },
+      where: { userId: authResult.userId },
       select: { organizationId: true },
     });
 
@@ -475,18 +465,15 @@ export async function saveMealPlanAsTemplate(
   data: z.infer<typeof SaveTemplateSchema>
 ) {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-
-    if (!session) {
-      return { success: false, error: 'Unauthorized' };
+    const authResult = await requireSessionUserId();
+    if (!authResult.ok) {
+      return { success: false, error: authResult.error };
     }
 
     const validated = SaveTemplateSchema.parse(data);
 
     const membership = await prisma.member.findFirst({
-      where: { userId: session.user.id },
+      where: { userId: authResult.userId },
       select: { organizationId: true },
     });
 
@@ -525,7 +512,7 @@ export async function saveMealPlanAsTemplate(
         name: validated.name,
         description: validated.description || null,
         organizationId: membership.organizationId,
-        createdById: session.user.id,
+        createdById: authResult.userId,
         items: {
           create: plan.items.map((item) => {
             const itemDate = new Date(item.date);
@@ -577,16 +564,13 @@ export async function saveMealPlanAsTemplate(
  */
 export async function getMealPlanTemplates() {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-
-    if (!session) {
-      return { success: false, error: 'Unauthorized' };
+    const authResult = await requireSessionUserId();
+    if (!authResult.ok) {
+      return { success: false, error: authResult.error };
     }
 
     const membership = await prisma.member.findFirst({
-      where: { userId: session.user.id },
+      where: { userId: authResult.userId },
       select: { organizationId: true },
     });
 
@@ -643,16 +627,13 @@ export async function getMealPlanTemplates() {
  */
 export async function deleteMealPlanTemplate(templateId: string) {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-
-    if (!session) {
-      return { success: false, error: 'Unauthorized' };
+    const authResult = await requireSessionUserId();
+    if (!authResult.ok) {
+      return { success: false, error: authResult.error };
     }
 
     const membership = await prisma.member.findFirst({
-      where: { userId: session.user.id },
+      where: { userId: authResult.userId },
       select: { organizationId: true },
     });
 
@@ -699,16 +680,13 @@ export async function deleteMealPlanTemplate(templateId: string) {
  */
 export async function duplicateMealPlanTemplate(templateId: string) {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-
-    if (!session) {
-      return { success: false, error: 'Unauthorized' };
+    const authResult = await requireSessionUserId();
+    if (!authResult.ok) {
+      return { success: false, error: authResult.error };
     }
 
     const membership = await prisma.member.findFirst({
-      where: { userId: session.user.id },
+      where: { userId: authResult.userId },
       select: { organizationId: true },
     });
 
@@ -737,7 +715,7 @@ export async function duplicateMealPlanTemplate(templateId: string) {
         name: `${original.name} (Copy)`,
         description: original.description,
         organizationId: membership.organizationId,
-        createdById: session.user.id,
+        createdById: authResult.userId,
         items: {
           create: original.items.map((item) => ({
             recipeId: item.recipeId,
@@ -798,16 +776,13 @@ export async function applyMealPlanTemplate(
   startDate: string
 ) {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-
-    if (!session) {
-      return { success: false, error: 'Unauthorized' };
+    const authResult = await requireSessionUserId();
+    if (!authResult.ok) {
+      return { success: false, error: authResult.error };
     }
 
     const membership = await prisma.member.findFirst({
-      where: { userId: session.user.id },
+      where: { userId: authResult.userId },
       select: { organizationId: true },
     });
 
@@ -918,18 +893,15 @@ export async function updateMealPlanTemplate(
   data: z.infer<typeof UpdateTemplateSchema>
 ) {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-
-    if (!session) {
-      return { success: false, error: 'Unauthorized' };
+    const authResult = await requireSessionUserId();
+    if (!authResult.ok) {
+      return { success: false, error: authResult.error };
     }
 
     const validated = UpdateTemplateSchema.parse(data);
 
     const membership = await prisma.member.findFirst({
-      where: { userId: session.user.id },
+      where: { userId: authResult.userId },
       select: { organizationId: true },
     });
 
@@ -990,16 +962,13 @@ export async function updateMealPlanTemplate(
  */
 export async function shareMealPlanTemplate(templateId: string) {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-
-    if (!session) {
-      return { success: false, error: 'Unauthorized' };
+    const authResult = await requireSessionUserId();
+    if (!authResult.ok) {
+      return { success: false, error: authResult.error };
     }
 
     const membership = await prisma.member.findFirst({
-      where: { userId: session.user.id },
+      where: { userId: authResult.userId },
       select: { organizationId: true },
     });
 

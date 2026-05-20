@@ -10,11 +10,11 @@
 
 | | |
 |---|---|
-| **Active phase** | **7** (Phase 6 complete) |
-| **Branch baseline** | `feature/phase-6-ux-seo` |
-| **Health** | CI green — `tsc`, `lint`, **30 tests**, `build` |
-| **Just shipped** | EmptyState UX, Recipe JSON-LD, dynamic sitemap, two-tier recipe caching, a11y fixes |
-| **Up next (Phase 7)** | S2-5 session helper · optional action splits · grocery aggregate tests |
+| **Active phase** | **8** (Phase 7 complete) |
+| **Branch baseline** | `feature/next-step` |
+| **Health** | CI green — `tsc`, `lint`, **60+ tests**, `build` |
+| **Just shipped** | Session helper, grocery aggregate lib, action splits, learn SEO, PageHeader, ErrorBoundary |
+| **Up next (Phase 8)** | S3-1 legal v2 · S7-1 AdSense plan · optional meal-actions / recipe-form splits |
 | **Explicitly deferred** | Action file splits (until Phase 7), timer store refactors, Stripe/AdSense, Playwright E2E |
 
 ---

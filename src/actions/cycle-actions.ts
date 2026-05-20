@@ -2,8 +2,7 @@
 
 import { z } from 'zod';
 import { prisma } from '@/lib/db';
-import { auth } from '@/lib/auth';
-import { headers } from 'next/headers';
+import { getServerSession, requireSessionUserId } from '@/lib/session';
 import { calculateCyclePhase } from '@/lib/cycle-calculator';
 import {
   phaseRecommendationWithExpertInclude,
@@ -43,26 +42,19 @@ function parseFocusPreference(value: string | null | undefined): FocusPreference
   return parsed.success ? parsed.data : 'both';
 }
 
-async function requireSession() {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
-  return session;
-}
-
 /**
  * Server Action: Get Cycle Dashboard Data
  */
 export async function getCycleDashboard() {
   try {
-    const session = await requireSession();
-
-    if (!session) {
+    const session = await getServerSession();
+    const userId = session?.user.id;
+    if (!userId) {
       return { success: false, error: 'Unauthorized', status: 'not_configured' as const };
     }
 
     const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: userId },
       select: cycleUserSelect,
     });
 
@@ -121,9 +113,8 @@ export async function getCycleDashboard() {
  */
 export async function getAllExperts() {
   try {
-    const session = await requireSession();
-
-    if (!session) {
+    const session = await getServerSession();
+    if (!session?.user.id) {
       return { success: false, error: 'Unauthorized', data: null };
     }
 
@@ -143,9 +134,8 @@ export async function getAllExperts() {
  */
 export async function getExpertWithRecommendations(expertId: string) {
   try {
-    const session = await requireSession();
-
-    if (!session) {
+    const session = await getServerSession();
+    if (!session?.user.id) {
       return { success: false, error: 'Unauthorized', data: null };
     }
 
@@ -183,9 +173,8 @@ export async function getExpertWithRecommendations(expertId: string) {
  */
 export async function getRecommendationsByExpert(expertId: string) {
   try {
-    const session = await requireSession();
-
-    if (!session) {
+    const session = await getServerSession();
+    if (!session?.user.id) {
       return { success: false, error: 'Unauthorized', data: null };
     }
 
@@ -209,16 +198,16 @@ export async function getRecommendationsByExpert(expertId: string) {
  */
 export async function getRecommendationsByPhase(phase: string) {
   try {
-    const session = await requireSession();
-
-    if (!session) {
+    const session = await getServerSession();
+    const userId = session?.user.id;
+    if (!userId) {
       return { success: false, error: 'Unauthorized', data: null };
     }
 
     const validatedPhase = PhaseSchema.parse(phase);
 
     const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: userId },
       select: { focusPreference: true },
     });
 
@@ -256,9 +245,8 @@ export async function getPhaseRecommendations(
   focusPreference: FocusPreference
 ) {
   try {
-    const session = await requireSession();
-
-    if (!session) {
+    const session = await getServerSession();
+    if (!session?.user.id) {
       return { success: false, error: 'Unauthorized', recommendations: null };
     }
 
@@ -290,16 +278,15 @@ export async function getPhaseRecommendations(
  */
 export async function updateFocusPreference(focusPreference: FocusPreference) {
   try {
-    const session = await requireSession();
-
-    if (!session) {
-      return { success: false, error: 'Unauthorized' };
+    const authResult = await requireSessionUserId();
+    if (!authResult.ok) {
+      return { success: false, error: authResult.error };
     }
 
     const validated = UpdateFocusPreferenceSchema.parse({ focusPreference });
 
     await prisma.user.update({
-      where: { id: session.user.id },
+      where: { id: authResult.userId },
       data: {
         focusPreference: validated.focusPreference,
       },

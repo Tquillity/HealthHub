@@ -2,8 +2,7 @@
 
 import { z } from 'zod';
 import { prisma } from '@/lib/db';
-import { auth } from '@/lib/auth';
-import { headers } from 'next/headers';
+import { requireSessionUserId } from '@/lib/session';
 import { parseIngredientAlternatives, normalizePatternKey } from '@/lib/ingredient-alternatives';
 
 const SetPreferenceSchema = z.object({
@@ -24,16 +23,13 @@ const PatternSchema = z.string().min(1);
  */
 export async function getUserIngredientPreferences() {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-
-    if (!session) {
-      return { success: false, error: 'Unauthorized', data: null };
+    const authResult = await requireSessionUserId();
+    if (!authResult.ok) {
+      return { success: false, error: authResult.error, data: null };
     }
 
     const preferences = await prisma.userIngredientPreference.findMany({
-      where: { userId: session.user.id },
+      where: { userId: authResult.userId },
       select: {
         pattern: true,
         preferred: true,
@@ -60,12 +56,9 @@ export async function setIngredientPreference(
   preferred: string
 ) {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-
-    if (!session) {
-      return { success: false, error: 'Unauthorized' };
+    const authResult = await requireSessionUserId();
+    if (!authResult.ok) {
+      return { success: false, error: authResult.error };
     }
 
     const validated = SetPreferenceSchema.parse({ pattern, preferred });
@@ -73,12 +66,12 @@ export async function setIngredientPreference(
     await prisma.userIngredientPreference.upsert({
       where: {
         userId_pattern: {
-          userId: session.user.id,
+          userId: authResult.userId,
           pattern: validated.pattern,
         },
       },
       create: {
-        userId: session.user.id,
+        userId: authResult.userId,
         pattern: validated.pattern,
         preferred: validated.preferred,
       },
@@ -146,12 +139,9 @@ export async function resolveIngredientChoice(
  */
 export async function getIngredientAlternatives(pattern: string) {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-
-    if (!session) {
-      return { success: false, error: 'Unauthorized', data: null };
+    const authResult = await requireSessionUserId();
+    if (!authResult.ok) {
+      return { success: false, error: authResult.error, data: null };
     }
 
     const validatedPattern = PatternSchema.parse(pattern);

@@ -9,7 +9,10 @@ alwaysApply: false
 - Start every file with `'use server'`.
 - Validate all inputs with Zod before any Prisma call.
 - Return `{ success: boolean; error?: string; data?: T }` from mutations.
-- Use `auth.api.getSession({ headers: await headers() })` for auth; redirect or return error when unauthenticated.
+- Use `@/lib/session` for auth — **do not** call `auth.api.getSession` inline in action files:
+  - Mutations: `requireSessionUserId()` → `{ ok, userId }` or `{ ok: false, error: 'Unauthorized' }`
+  - Optional reads: `getSessionUserId()` → `string | null`
+  - Full session (rare): `getServerSession()`
 - Use Prisma `include`/`select` — no JS-loop joins.
 - Do not use `any`; infer types from Prisma payloads and Zod schemas.
 - Do not create `src/app/api/**/route.ts` for internal CRUD (auth routes excepted).

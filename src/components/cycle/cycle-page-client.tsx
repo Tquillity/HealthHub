@@ -24,7 +24,19 @@ import { CyclePhase, CyclePhaseResult } from '@/lib/cycle-calculator';
 import type { FocusPreference, PhaseRecommendationWithExpert } from '@/types/cycle';
 import { useQueryState, parseAsString } from 'nuqs';
 import { FocusPreferenceSelector } from './focus-preference-selector';
-import { CycleChart } from './cycle-chart';
+import dynamic from 'next/dynamic';
+
+const CycleChart = dynamic(
+  () => import('./cycle-chart').then((mod) => mod.CycleChart),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-64 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-sm text-gray-500">
+        Loading cycle chart…
+      </div>
+    ),
+  }
+);
 import { InsightCenter } from './insight-center';
 import { JournalQuickLook } from './journal-quick-look';
 import { RecommendationCard } from './recommendation-card';

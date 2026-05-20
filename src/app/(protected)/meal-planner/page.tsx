@@ -9,6 +9,8 @@ import { SaveTemplateButton } from '@/components/meals/save-template-button';
 import { Button } from '@/components/ui/button';
 import { ShoppingCart, BookOpen } from 'lucide-react';
 import Link from 'next/link';
+import { PageHeader } from '@/components/ui/page-header';
+import { AppErrorBoundary } from '@/components/ui/error-boundary';
 import { redirect } from 'next/navigation';
 
 export default async function MealPlannerPage() {
@@ -24,14 +26,13 @@ export default async function MealPlannerPage() {
 
   return (
     <div className="flex h-full flex-col p-6">
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Meal Planner</h1>
-          <p className="text-gray-500">
-            Drag recipes onto your schedule or generate a plan.
-          </p>
-        </div>
-        <div className="flex gap-2">
+      <PageHeader
+        className="mb-6"
+        actionsClassName="w-full sm:w-auto sm:max-w-[70%] sm:justify-end"
+        title="Meal Planner"
+        description="Drag recipes onto your schedule or generate a plan."
+        actions={
+          <>
           <MealPlannerSettings
             initialDuration={user.mealPlanDuration}
             initialStartDate={user.mealPlanStartDate}
@@ -52,17 +53,20 @@ export default async function MealPlannerPage() {
               Generate Grocery List
             </Button>
           </Link>
-        </div>
-      </div>
-
-      <MealBoard
-        plan={plan}
-        recipes={recipes}
-        duration={duration}
-        startDate={startDate}
-        endDate={endDate}
-        useDefaultStart={useDefaultStart}
+          </>
+        }
       />
+
+      <AppErrorBoundary sectionLabel="Meal planner">
+        <MealBoard
+          plan={plan}
+          recipes={recipes}
+          duration={duration}
+          startDate={startDate}
+          endDate={endDate}
+          useDefaultStart={useDefaultStart}
+        />
+      </AppErrorBoundary>
     </div>
   );
 }

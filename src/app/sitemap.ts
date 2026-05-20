@@ -1,5 +1,6 @@
 import type { MetadataRoute } from 'next';
 import { getMetadataBase } from '@/lib/site-metadata';
+import { getPublicLearnSitemapEntries } from '@/lib/structured-data/public-learn-sitemap';
 import { getPublicRecipeSitemapEntries } from '@/lib/structured-data/public-recipe-sitemap';
 
 const STATIC_PATHS = [
@@ -33,5 +34,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   }));
 
-  return [...staticEntries, ...recipeEntries];
+  const publicLearn = await getPublicLearnSitemapEntries();
+  const learnEntries: MetadataRoute.Sitemap = publicLearn.map((article) => ({
+    url: new URL(`/learn/${article.id}`, baseUrl).toString(),
+    lastModified: article.updatedAt,
+    changeFrequency: 'monthly',
+    priority: 0.55,
+  }));
+
+  return [...staticEntries, ...recipeEntries, ...learnEntries];
 }

@@ -62,3 +62,23 @@ npx prisma generate
 *   **Logic**: Write Server Actions in `src/actions/`.
 *   **Database**: Modify `prisma/schema.prisma`, then run `pnpm db:push`.
 *   **Components**: Use `shadcn` compatible components in `src/components/ui`.
+
+## Maintenance scripts (`scripts/`)
+
+Run manually after seeding when fixing recipe data (not part of the runtime app):
+
+| Script | Purpose |
+|--------|---------|
+| `scripts/parse-recipe-alternatives.ts` | Parse ingredient alternative patterns |
+| `scripts/fix-*.ts` | One-off recipe corrections |
+| `scripts/set-all-recipes-unverified.ts` | Bulk verification flags |
+
+Example: `pnpm exec tsx scripts/parse-recipe-alternatives.ts`
+
+## Quality gates
+
+```bash
+pnpm lint && pnpm exec tsc --noEmit && pnpm test && pnpm build
+```
+
+Optional E2E smoke (requires dev server + Playwright): see `Docs/Observability.md`.

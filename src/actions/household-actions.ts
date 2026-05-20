@@ -1,8 +1,9 @@
 'use server';
 
 import { headers } from 'next/headers';
-import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { requireSessionUserId } from '@/lib/session';
+import { auth } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
@@ -16,17 +17,14 @@ const InviteMemberSchema = z.object({
  */
 export async function getHouseholdMembers() {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-
-    if (!session) {
-      return { success: false, error: 'Unauthorized' };
+    const authResult = await requireSessionUserId();
+    if (!authResult.ok) {
+      return { success: false, error: authResult.error };
     }
 
     // Get user's organization
     const membership = await prisma.member.findFirst({
-      where: { userId: session.user.id },
+      where: { userId: authResult.userId },
       select: { organizationId: true, role: true },
     });
 
@@ -77,12 +75,9 @@ export async function getHouseholdMembers() {
  */
 export async function inviteMember(data: z.infer<typeof InviteMemberSchema>) {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-
-    if (!session) {
-      return { success: false, error: 'Unauthorized' };
+    const authResult = await requireSessionUserId();
+    if (!authResult.ok) {
+      return { success: false, error: authResult.error };
     }
 
     // Validate input
@@ -90,7 +85,7 @@ export async function inviteMember(data: z.infer<typeof InviteMemberSchema>) {
 
     // Get user's organization
     const membership = await prisma.member.findFirst({
-      where: { userId: session.user.id },
+      where: { userId: authResult.userId },
       select: { organizationId: true, role: true },
     });
 
@@ -166,7 +161,7 @@ export async function inviteMember(data: z.infer<typeof InviteMemberSchema>) {
         role: validated.role || 'member',
         status: 'pending',
         expiresAt,
-        inviterId: session.user.id,
+        inviterId: authResult.userId,
       },
     });
 
@@ -187,17 +182,14 @@ export async function inviteMember(data: z.infer<typeof InviteMemberSchema>) {
  */
 export async function removeMember(memberId: string) {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-
-    if (!session) {
-      return { success: false, error: 'Unauthorized' };
+    const authResult = await requireSessionUserId();
+    if (!authResult.ok) {
+      return { success: false, error: authResult.error };
     }
 
     // Get user's organization and role
     const membership = await prisma.member.findFirst({
-      where: { userId: session.user.id },
+      where: { userId: authResult.userId },
       select: { organizationId: true, role: true },
     });
 
@@ -221,7 +213,7 @@ export async function removeMember(memberId: string) {
     }
 
     // Prevent removing yourself
-    if (memberToRemove.userId === session.user.id) {
+    if (memberToRemove.userId === authResult.userId) {
       return { success: false, error: 'You cannot remove yourself from the household' };
     }
 

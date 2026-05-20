@@ -2,8 +2,7 @@
 
 import { z } from 'zod';
 import { prisma } from '@/lib/db';
-import { auth } from '@/lib/auth';
-import { headers } from 'next/headers';
+import { requireSessionUserId } from '@/lib/session';
 import { revalidatePath } from 'next/cache';
 import { startOfMonth, endOfMonth } from 'date-fns';
 import { encrypt, decrypt, encryptArray, decryptArray } from '@/lib/encryption';
@@ -31,12 +30,9 @@ const CreateJournalSchema = z.object({
 
 export async function logJournalEntry(data: z.infer<typeof CreateJournalSchema>) {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-
-    if (!session) {
-      return { success: false, error: 'Unauthorized' };
+    const authResult = await requireSessionUserId();
+    if (!authResult.ok) {
+      return { success: false, error: authResult.error };
     }
 
     // Validate input
@@ -63,7 +59,7 @@ export async function logJournalEntry(data: z.infer<typeof CreateJournalSchema>)
     const entry = await prisma.journalEntry.upsert({
       where: {
         userId_date: {
-          userId: session.user.id,
+          userId: authResult.userId,
           date: date,
         },
       },
@@ -83,7 +79,7 @@ export async function logJournalEntry(data: z.infer<typeof CreateJournalSchema>)
         symptomsNotes: encryptedSymptomsNotes ?? undefined,
       },
       create: {
-        userId: session.user.id,
+        userId: authResult.userId,
         date: date,
         mood: validated.mood ?? undefined,
         energy: validated.energy ?? undefined,
@@ -129,12 +125,9 @@ export async function logJournalEntry(data: z.infer<typeof CreateJournalSchema>)
 
 export async function getMonthlyStats(month: number, year: number) {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-
-    if (!session) {
-      return { success: false, error: 'Unauthorized', data: null };
+    const authResult = await requireSessionUserId();
+    if (!authResult.ok) {
+      return { success: false, error: authResult.error, data: null };
     }
 
     // Calculate month boundaries
@@ -144,7 +137,7 @@ export async function getMonthlyStats(month: number, year: number) {
     // Fetch all entries for this month
     const entries = await prisma.journalEntry.findMany({
       where: {
-        userId: session.user.id,
+        userId: authResult.userId,
         date: {
           gte: monthStart,
           lte: monthEnd,
@@ -186,12 +179,9 @@ export async function getMonthlyStats(month: number, year: number) {
  */
 export async function getJournalEntryByDate(date: string) {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-
-    if (!session) {
-      return { success: false, error: 'Unauthorized', data: null };
+    const authResult = await requireSessionUserId();
+    if (!authResult.ok) {
+      return { success: false, error: authResult.error, data: null };
     }
 
     const entryDate = new Date(date);
@@ -200,7 +190,7 @@ export async function getJournalEntryByDate(date: string) {
     const entry = await prisma.journalEntry.findUnique({
       where: {
         userId_date: {
-          userId: session.user.id,
+          userId: authResult.userId,
           date: entryDate,
         },
       },
@@ -236,12 +226,9 @@ export async function getJournalEntryByDate(date: string) {
  */
 export async function deleteJournalEntry(date: string) {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-
-    if (!session) {
-      return { success: false, error: 'Unauthorized' };
+    const authResult = await requireSessionUserId();
+    if (!authResult.ok) {
+      return { success: false, error: authResult.error };
     }
 
     const entryDate = new Date(date);
@@ -250,7 +237,7 @@ export async function deleteJournalEntry(date: string) {
     await prisma.journalEntry.delete({
       where: {
         userId_date: {
-          userId: session.user.id,
+          userId: authResult.userId,
           date: entryDate,
         },
       },
@@ -273,12 +260,9 @@ export async function deleteJournalEntry(date: string) {
  */
 export async function getJournalSnippet(date: string) {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-
-    if (!session) {
-      return { success: false, error: 'Unauthorized', data: null };
+    const authResult = await requireSessionUserId();
+    if (!authResult.ok) {
+      return { success: false, error: authResult.error, data: null };
     }
 
     const entryDate = new Date(date);
@@ -288,7 +272,7 @@ export async function getJournalSnippet(date: string) {
     const entry = await prisma.journalEntry.findUnique({
       where: {
         userId_date: {
-          userId: session.user.id,
+          userId: authResult.userId,
           date: entryDate,
         },
       },

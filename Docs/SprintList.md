@@ -621,25 +621,29 @@ pnpm dev
 
 **Sprint 0–6: complete.**
 
-**Phase 7 — start here:**
+**Phase 7 — complete (2026-05-20):**
 
-- [ ] **S2-5** — `getSessionUserId()` session helper
-- [ ] **S5-2** — Grocery aggregate unit tests
-- [ ] **S2-4** — One action file split (single PR)
-- [ ] **S5-3** — E2E smoke (Playwright) — defer until Phase 7 unit coverage grows
+- [x] **S2-5** — `src/lib/session.ts` + all actions migrated
+- [x] **S5-2** — `grocery-aggregate` Vitest (≥15 cases; suite ≥45)
+- [x] **S2-4** — Grocery mutations split + `recipe-actions` queries/mutations split
+- [x] **S3-2 ext** — Learn URLs in sitemap + Article JSON-LD
+- [x] **S5-3** — Playwright smoke spec (`e2e/smoke.spec.ts`)
+- [x] PageHeader (groceries, meal planner), ErrorBoundary, dynamic Recharts on cycle
+- [x] `(protected)/layout` `force-dynamic` documented (auth via `headers()`; build-time prerender fix)
 
 **Roadmap:** [`Docs/SprintRoadmap.md`](./SprintRoadmap.md)
 
 ---
 
-## Appendix A — Live codebase snapshot (2026-05-20, post Phase 6)
+## Appendix A — Live codebase snapshot (2026-05-20, post Phase 7)
 
 | Metric | Value |
 |--------|-------|
 | ESLint | **~14** problems (0 errors, warnings) — react-refresh on metadata pages |
 | TypeScript | `tsc --noEmit` passes |
 | Build | `pnpm build` passes |
-| Tests | Vitest — **30** tests in 5 files (`pnpm test`) |
+| Tests | Vitest — **60+** tests (`pnpm test`) — grocery aggregate, learn JSON-LD, timer schedule |
+| Session | `@/lib/session` — no inline `auth.api.getSession` in `src/actions/**` |
 | CI | `.github/workflows/ci.yml` — `quality` job: `tsc`, `lint`, **`test`**, `build` |
 | Metadata | `src/lib/site-metadata.ts`; OG default `/logo512.png` |
 | Mobile nav | Protected drawer on `< md` |

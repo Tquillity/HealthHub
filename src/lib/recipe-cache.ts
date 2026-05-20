@@ -2,9 +2,8 @@ import { unstable_cache } from 'next/cache';
 import {
   getRecipe,
   getRecipes,
-} from '@/actions/recipe-actions';
-import { auth } from '@/lib/auth';
-import { headers } from 'next/headers';
+} from '@/actions/recipe-queries';
+import { getSessionUserId } from '@/lib/session';
 
 export type RecipeViewerKey = string;
 
@@ -25,14 +24,8 @@ function hashRecipeListParams(params: GetRecipesParams): string {
 }
 
 export async function getRecipeViewerKey(): Promise<RecipeViewerKey> {
-  try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-    return session?.user.id ?? 'guest';
-  } catch {
-    return 'guest';
-  }
+  const userId = await getSessionUserId();
+  return userId ?? 'guest';
 }
 
 export async function getCachedRecipes(

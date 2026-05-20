@@ -3,8 +3,7 @@
 import { z } from 'zod';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
-import { auth } from '@/lib/auth';
-import { headers } from 'next/headers';
+import { requireSessionUserId } from '@/lib/session';
 import { revalidatePath } from 'next/cache';
 import {
   GetEducationalResourcesSchema,
@@ -79,12 +78,9 @@ export async function getResourceById(id: string) {
 
 export async function toggleResourceLike(id: string) {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-
-    if (!session) {
-      return { success: false, error: 'Unauthorized' };
+    const authResult = await requireSessionUserId();
+    if (!authResult.ok) {
+      return { success: false, error: authResult.error };
     }
 
     const validatedId = ResourceIdSchema.parse(id);

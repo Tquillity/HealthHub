@@ -2,19 +2,15 @@
 
 import { z } from 'zod';
 import { prisma } from '@/lib/db';
-import { auth } from '@/lib/auth';
-import { headers } from 'next/headers';
+import { requireSessionUserId } from '@/lib/session';
 import { revalidatePath } from 'next/cache';
 import { UpdateProfileSchema } from '@/lib/validation/profile-schemas';
 
 export async function updateProfile(data: z.infer<typeof UpdateProfileSchema>) {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-
-    if (!session) {
-      return { success: false, error: 'Unauthorized' };
+    const authResult = await requireSessionUserId();
+    if (!authResult.ok) {
+      return { success: false, error: authResult.error };
     }
 
     // Validate input
@@ -22,7 +18,7 @@ export async function updateProfile(data: z.infer<typeof UpdateProfileSchema>) {
 
     // Update user profile
     const updatedUser = await prisma.user.update({
-      where: { id: session.user.id },
+      where: { id: authResult.userId },
       data: {
         ...(validated.name && { name: validated.name }),
         ...(validated.energyLevel && { energyLevel: validated.energyLevel }),
@@ -86,16 +82,13 @@ export async function updateProfile(data: z.infer<typeof UpdateProfileSchema>) {
 
 export async function getProfile() {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-
-    if (!session) {
-      return { success: false, error: 'Unauthorized', data: null };
+    const authResult = await requireSessionUserId();
+    if (!authResult.ok) {
+      return { success: false, error: authResult.error, data: null };
     }
 
     const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: authResult.userId },
     });
 
     if (!user) {

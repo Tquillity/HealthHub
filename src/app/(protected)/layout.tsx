@@ -7,6 +7,15 @@ import { ProtectedMobileNav } from '@/components/layout/protected-mobile-nav';
 import { protectedNavItems } from '@/components/layout/protected-nav-items';
 import { User } from 'lucide-react';
 
+/**
+ * Auth layout reads session via `headers()` on every request. Without this,
+ * Next.js may attempt static prerender of protected routes and fail at build time
+ * (e.g. meal planner calling `getWeeklyPlan` without a cookie). Trade-off:
+ * no static optimization for the `(protected)` segment — acceptable while all
+ * child routes require a signed-in user.
+ */
+export const dynamic = 'force-dynamic';
+
 export default async function DashboardLayout({
   children,
 }: {

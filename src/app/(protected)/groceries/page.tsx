@@ -7,6 +7,8 @@ import { startOfWeek, endOfWeek } from 'date-fns';
 import { Calendar, Users } from 'lucide-react';
 import { GroceryListClient } from '@/components/groceries/grocery-list-client';
 import { EmptyState } from '@/components/ui/empty-state';
+import { PageHeader } from '@/components/ui/page-header';
+import { AppErrorBoundary } from '@/components/ui/error-boundary';
 
 export default async function GroceriesPage({
   searchParams,
@@ -51,12 +53,11 @@ export default async function GroceriesPage({
 
   return (
     <div className="container mx-auto max-w-4xl p-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Grocery List</h1>
-        <p className="mt-1 text-gray-500">
-          Your shopping list for the week
-        </p>
-      </div>
+      <PageHeader
+        className="mb-6"
+        title="Grocery List"
+        description="Your shopping list for the week"
+      />
 
       {items.length === 0 ? (
         <EmptyState
@@ -66,7 +67,9 @@ export default async function GroceriesPage({
           action={{ label: 'Open meal planner', href: '/meal-planner' }}
         />
       ) : (
-        <GroceryListClient items={items} weekStart={start} weekEnd={end} />
+        <AppErrorBoundary sectionLabel="Grocery list">
+          <GroceryListClient items={items} weekStart={start} weekEnd={end} />
+        </AppErrorBoundary>
       )}
     </div>
   );
