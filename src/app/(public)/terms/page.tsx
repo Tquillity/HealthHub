@@ -13,7 +13,7 @@ export default function TermsPage() {
       <h1 className="mt-2 text-3xl font-bold tracking-tight text-gray-900">
         Terms of Service
       </h1>
-      <p className="mt-2 text-sm text-gray-500">Last updated: May 19, 2026</p>
+      <p className="mt-2 text-sm text-gray-500">Last updated: May 20, 2026</p>
 
       <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
         <strong>Draft notice:</strong> These terms are a placeholder. Have
@@ -68,6 +68,30 @@ export default function TermsPage() {
           <p>
             Do not misuse the service, attempt unauthorized access, scrape at
             scale, or upload unlawful content.
+          </p>
+        </section>
+
+        <section className="flex flex-col gap-3">
+          <h2 className="text-lg font-semibold text-gray-900">
+            Advertising and third-party content
+          </h2>
+          <p>
+            We may display third-party advertisements on public pages in the
+            future. Ads are not medical advice. Premium features, when offered,
+            will be described on the pricing page and may be subject to separate
+            billing terms.
+          </p>
+        </section>
+
+        <section className="flex flex-col gap-3">
+          <h2 className="text-lg font-semibold text-gray-900">
+            Premium and subscriptions
+          </h2>
+          <p>
+            Optional paid features may be introduced later. Core wellness tools
+            are intended to remain free as described on our marketing pages.
+            Paid terms, refunds, and cancellation will be disclosed before you
+            are charged.
           </p>
         </section>
 

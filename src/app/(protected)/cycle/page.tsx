@@ -22,8 +22,7 @@
  */
 
 import { redirect } from 'next/navigation';
-import { headers } from 'next/headers';
-import { auth } from '@/lib/auth';
+import { getServerSession } from '@/lib/session';
 import { prisma } from '@/lib/db';
 import { getCycleDashboard } from '@/actions/cycle-actions';
 import { CyclePageClient } from '@/components/cycle/cycle-page-client';
@@ -33,9 +32,7 @@ import { Moon, Settings } from 'lucide-react';
 import Link from 'next/link';
 
 export default async function CyclePage() {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+  const session = await getServerSession();
 
   if (!session) {
     redirect('/sign-in');

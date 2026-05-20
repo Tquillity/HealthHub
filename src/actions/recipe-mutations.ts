@@ -188,7 +188,7 @@ export async function createRecipe(data: z.infer<typeof CreateRecipeSchema>) {
     revalidateTag(`recipe-${userId}-${recipe.id}`, 'max');
     return { success: true, data: recipe };
   } catch (error) {
-    console.error('Error creating recipe:', error);
+    console.error('[HealthHub action] recipe-mutations', 'Error creating recipe:', error);
     if (error instanceof z.ZodError) {
       return { success: false, error: error.issues[0]?.message || 'Validation failed' };
     }
@@ -331,7 +331,7 @@ export async function updateRecipe(data: z.infer<typeof UpdateRecipeSchema>) {
     revalidateTag(`recipe-${userId}-${id}`, 'max');
     return { success: true, data: recipe };
   } catch (error) {
-    console.error('Error updating recipe:', error);
+    console.error('[HealthHub action] recipe-mutations', 'Error updating recipe:', error);
     if (error instanceof z.ZodError) {
       return { success: false, error: error.issues[0]?.message || 'Validation failed' };
     }
@@ -380,7 +380,7 @@ export async function deleteRecipe(id: string) {
     revalidateTag(`recipe-${authResult.userId}-${recipeId}`, 'max');
     return { success: true };
   } catch (error) {
-    console.error('Error deleting recipe:', error);
+    console.error('[HealthHub action] recipe-mutations', 'Error deleting recipe:', error);
     return { success: false, error: 'Failed to delete recipe' };
   }
 }

@@ -2,9 +2,8 @@ import { unstable_cache } from 'next/cache';
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { headers } from 'next/headers';
 import { getResourceById } from '@/actions/education-actions';
-import { auth } from '@/lib/auth';
+import { getServerSession } from '@/lib/session';
 import { createPageMetadata, getMetadataBase } from '@/lib/site-metadata';
 import { buildLearnArticleJsonLd } from '@/lib/structured-data/learn-jsonld';
 import { ChevronLeft, Clock, Star, Heart, Eye } from 'lucide-react';
@@ -71,9 +70,7 @@ export default async function LearnDetailPage({
 
   let canLike = false;
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
+    const session = await getServerSession();
     canLike = Boolean(session);
   } catch (error) {
     console.error('Failed to resolve learn detail session:', error);

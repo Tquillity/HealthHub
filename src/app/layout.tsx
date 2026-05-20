@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { Providers } from '@/components/providers';
+import { CookieConsent } from '@/components/legal/cookie-consent';
 import { ToastContainer } from '@/components/ui/toast';
 import {
   DEFAULT_DESCRIPTION,
@@ -48,6 +49,7 @@ export default function RootLayout({
         <Providers>
           {children}
           <ToastContainer />
+          <CookieConsent />
         </Providers>
       </body>
     </html>

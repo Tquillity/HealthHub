@@ -1,11 +1,22 @@
-# HealthHub — Observability (Phase 7 stub)
+# HealthHub — Observability (Phase 8)
 
 ## Current state
 
 - **Proxy:** Structured errors use `[HealthHub proxy]` prefix in `src/proxy.ts`.
-- **Client surfaces:** `AppErrorBoundary` wraps groceries, meal planner, and learn detail interactions.
-- **Protected layout:** `export const dynamic = 'force-dynamic'` on `src/app/(protected)/layout.tsx` because the layout calls `auth.api.getSession({ headers })` on every request. Without it, Next.js can fail static export of child routes (e.g. meal planner) at build time. Trade-off: no static prerender for the authenticated segment.
-- **CI:** `pnpm lint`, `tsc --noEmit`, `pnpm test`, `pnpm build` on push/PR.
+- **Session:** `@/lib/session` — `getServerSession()`, `getSessionUserId()`, `requireSessionUserId()`.
+- **Client surfaces:** `AppErrorBoundary` on groceries, meal planner, learn detail, routines, journal, recipe forms.
+- **Server actions:** Catch blocks in meal/grocery/recipe action modules use `[HealthHub action]` prefix.
+- **Stripe spike:** `[HealthHub stripe]` in webhook route (log-only).
+- **Protected layout:** `export const dynamic = 'force-dynamic'` on `src/app/(protected)/layout.tsx` because layout reads session via `headers()` on every request.
+- **CI:** `quality` job — `tsc`, `lint`, `test`, `build`. Optional `e2e` job with `continue-on-error: true`.
+
+## Server action logging convention
+
+```typescript
+console.error('[HealthHub action] meal-plan-mutations clearAllMeals:', error);
+```
+
+Use the feature module name after the prefix for grep-friendly logs.
 
 ## Decision record (deferred)
 
@@ -14,7 +25,7 @@
 | **Sentry** | Error grouping, releases, user context | Cost, PII review for health data | Not installed |
 | **OpenTelemetry** | Traces + metrics, vendor-neutral | More setup for Next.js App Router | Not installed |
 
-**Recommendation:** Evaluate Sentry after legal review of health/journal data handling (**S3-1**). Start with server-action `console.error` prefixes and client `AppErrorBoundary` until then.
+**Recommendation:** Evaluate Sentry after legal review of health/journal data handling (**S3-1**).
 
 ## Manual auth proxy checklist
 
@@ -24,11 +35,10 @@
 
 ## E2E smoke
 
-See `e2e/smoke.spec.ts` and `playwright.config.ts`. Run locally:
-
 ```bash
-pnpm exec playwright install chromium
-pnpm exec playwright test
+pnpm test:e2e:install
+pnpm build && pnpm start   # separate terminal
+pnpm test:e2e
 ```
 
-CI wiring is optional until secrets for a test user are available.
+CI: optional `e2e` job — non-blocking until stable.

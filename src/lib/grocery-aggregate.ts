@@ -301,3 +301,56 @@ export function mergeMealPlanIngredientIntoMap(
     recipes: [recipeEntry],
   });
 }
+
+export function mergeShoppingListItemIntoMap(
+  map: Map<string, GroceryItem>,
+  params: {
+    id: string;
+    name: string;
+    quantity: number;
+    unit: string;
+    isChecked: boolean;
+    sourceDate?: Date | null;
+  }
+): void {
+  if (isExcludedItem(params.name)) {
+    return;
+  }
+
+  const normalized = normalizeUnit(params.quantity, params.unit);
+  const isStaple = isStapleItem(params.name);
+  const normalizedName = normalizeIngredientName(params.name);
+  const key = buildAggregationKey(normalizedName, normalized.unit, isStaple);
+  const dateIso = (params.sourceDate ?? new Date()).toISOString();
+
+  const recipeEntry: GroceryRecipeEntry = {
+    recipeName: 'Manual Entry',
+    quantity: normalized.quantity,
+    mealType: 'other',
+    date: dateIso,
+  };
+
+  const existing = map.get(key);
+  if (existing) {
+    existing.totalQuantity += normalized.quantity;
+    if (!existing.id && params.id) {
+      existing.id = params.id;
+      existing.isChecked = params.isChecked;
+    }
+    if (isStaple) {
+      existing.isStaple = true;
+    }
+    existing.recipes.push(recipeEntry);
+    return;
+  }
+
+  map.set(key, {
+    id: params.id,
+    name: capitalizeIngredientName(params.name),
+    unit: normalized.unit,
+    totalQuantity: normalized.quantity,
+    isChecked: params.isChecked,
+    isStaple,
+    recipes: [recipeEntry],
+  });
+}

@@ -15,4 +15,19 @@ test.describe('public smoke', () => {
     await page.goto('/timer');
     await expect(page.locator('body')).toBeVisible();
   });
+
+  test('learn list loads', async ({ page }) => {
+    await page.goto('/learn');
+    await expect(page.locator('body')).toBeVisible();
+  });
+
+  test('privacy page loads', async ({ page }) => {
+    await page.goto('/privacy');
+    await expect(page.getByRole('heading', { name: 'Privacy Policy' })).toBeVisible();
+  });
+
+  test('terms page loads', async ({ page }) => {
+    await page.goto('/terms');
+    await expect(page.getByRole('heading', { name: 'Terms of Service' })).toBeVisible();
+  });
 });

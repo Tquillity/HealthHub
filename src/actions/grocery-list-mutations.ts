@@ -115,7 +115,7 @@ export async function toggleShoppingItem(
     revalidatePath('/groceries');
     return { success: true };
   } catch (error) {
-    console.error('Error toggling shopping item:', error);
+    console.error('[HealthHub action] grocery-list-mutations', 'Error toggling shopping item:', error);
     return { success: false, error: 'Failed to update item' };
   }
 }
@@ -157,7 +157,7 @@ export async function addShoppingItem(
     revalidatePath('/groceries');
     return { success: true };
   } catch (error) {
-    console.error('Error adding shopping item:', error);
+    console.error('[HealthHub action] grocery-list-mutations', 'Error adding shopping item:', error);
     return { success: false, error: 'Failed to add item' };
   }
 }
@@ -207,7 +207,7 @@ export async function addScaledIngredientsToGroceryList(
     revalidatePath('/groceries');
     return { success: true, data: items };
   } catch (error) {
-    console.error('Error adding ingredients to grocery list:', error);
+    console.error('[HealthHub action] grocery-list-mutations', 'Error adding ingredients to grocery list:', error);
     return { success: false, error: 'Failed to add ingredients' };
   }
 }

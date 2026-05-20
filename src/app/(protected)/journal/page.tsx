@@ -1,15 +1,14 @@
 import { redirect } from 'next/navigation';
-import { headers } from 'next/headers';
-import { auth } from '@/lib/auth';
+import { getServerSession } from '@/lib/session';
 import { prisma } from '@/lib/db';
 import { startOfMonth, endOfMonth } from 'date-fns';
 import { decrypt, decryptArray } from '@/lib/encryption';
 import JournalPageClient from '@/components/journal/journal-page-client';
+import { PageHeader } from '@/components/ui/page-header';
+import { AppErrorBoundary } from '@/components/ui/error-boundary';
 
 export default async function JournalPage() {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+  const session = await getServerSession();
 
   if (!session) {
     redirect('/sign-in');
@@ -45,5 +44,16 @@ export default async function JournalPage() {
     symptomsMental: decryptArray(entry.symptomsMental),
   }));
 
-  return <JournalPageClient initialEntries={decryptedEntries} />;
+  return (
+    <div className="p-6">
+      <PageHeader
+        className="mb-6"
+        title="Journal"
+        description="Private encrypted entries for reflection and wellness notes."
+      />
+      <AppErrorBoundary sectionLabel="Journal">
+        <JournalPageClient initialEntries={decryptedEntries} />
+      </AppErrorBoundary>
+    </div>
+  );
 }

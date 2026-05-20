@@ -1,15 +1,13 @@
 import { redirect } from 'next/navigation';
-import { headers } from 'next/headers';
-import { auth } from '@/lib/auth';
+import { getServerSession } from '@/lib/session';
 import { getProfile } from '@/actions/profile-actions';
 import { ProfileClient } from '@/components/profile/profile-client';
-import { User, Users, ChevronRight } from 'lucide-react';
+import { Users, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
+import { PageHeader } from '@/components/ui/page-header';
 
 export default async function ProfilePage() {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+  const session = await getServerSession();
 
   if (!session) {
     redirect('/sign-in');
@@ -29,17 +27,11 @@ export default async function ProfilePage() {
 
   return (
     <div className="p-6">
-      <div className="mb-6 flex items-center gap-3">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-100 text-primary-600">
-          <User className="h-6 w-6" />
-        </div>
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Profile</h1>
-          <p className="text-gray-500">
-            Manage your personal information and preferences
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        className="mb-6"
+        title="Profile"
+        description="Manage your personal information and preferences"
+      />
 
       <div className="flex flex-col gap-6">
         {/* Personal Info Section */}

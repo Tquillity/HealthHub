@@ -1,6 +1,5 @@
-import { auth } from '@/lib/auth';
-import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { getServerSession } from '@/lib/session';
 import { prisma } from '@/lib/db';
 import { getGroceryList } from '@/actions/grocery-actions';
 import { startOfWeek, endOfWeek } from 'date-fns';
@@ -15,10 +14,7 @@ export default async function GroceriesPage({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
-
+  const session = await getServerSession();
   if (!session) redirect('/sign-in');
 
   const params = await searchParams;

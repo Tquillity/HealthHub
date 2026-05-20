@@ -13,7 +13,7 @@ export default function PrivacyPage() {
       <h1 className="mt-2 text-3xl font-bold tracking-tight text-gray-900">
         Privacy Policy
       </h1>
-      <p className="mt-2 text-sm text-gray-500">Last updated: May 19, 2026</p>
+      <p className="mt-2 text-sm text-gray-500">Last updated: May 20, 2026</p>
 
       <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
         <strong>Draft notice:</strong> This policy is a placeholder for
@@ -59,12 +59,53 @@ export default function PrivacyPage() {
 
         <section className="flex flex-col gap-3">
           <h2 className="text-lg font-semibold text-gray-900">
-            Cookies and advertising
+            Health and journal data
           </h2>
           <p>
-            We use essential cookies for sign-in. If we enable third-party
-            advertising (e.g. Google AdSense), we will update this policy and
-            provide consent controls as required.
+            Journal entries may contain sensitive personal information. We encrypt
+            journal content at rest where configured. Cycle preferences and meal
+            data are stored to provide household features. This information is not
+            sold. Do not use HealthHub as a substitute for professional medical
+            advice.
+          </p>
+        </section>
+
+        <section className="flex flex-col gap-3">
+          <h2 className="text-lg font-semibold text-gray-900">Data retention</h2>
+          <p>
+            Account and household data are retained while your account is active.
+            You may request deletion of your account and associated data by
+            contacting us. Server logs are retained for a limited period for
+            security and debugging.
+          </p>
+        </section>
+
+        <section className="flex flex-col gap-3">
+          <h2 className="text-lg font-semibold text-gray-900">
+            Cookies, analytics, and advertising
+          </h2>
+          <p>
+            We use essential cookies for authentication and session management.
+            Our cookie banner lets you accept all cookies or limit use to
+            essential cookies only.
+          </p>
+          <p>
+            If we enable analytics or third-party advertising (e.g. Google
+            AdSense), we will update this policy, list relevant cookies, and load
+            those scripts only after you have been given appropriate choice where
+            required by law.
+          </p>
+        </section>
+
+        <section className="flex flex-col gap-3">
+          <h2 className="text-lg font-semibold text-gray-900">
+            Your rights (GDPR / CCPA)
+          </h2>
+          <p>
+            Depending on where you live, you may have rights to access, correct,
+            delete, or export personal data, and to object to or restrict certain
+            processing. To exercise these rights, contact us at the email below.
+            We will respond within timeframes required by applicable law.
           </p>
         </section>
 

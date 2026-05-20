@@ -1,9 +1,9 @@
 import { redirect, notFound } from 'next/navigation';
-import { headers } from 'next/headers';
-import { auth } from '@/lib/auth';
+import { getServerSession } from '@/lib/session';
 import { prisma } from '@/lib/db';
 import { getRecipe } from '@/actions/recipe-actions';
 import { RecipeForm } from '@/components/recipes/recipe-form';
+import { AppErrorBoundary } from '@/components/ui/error-boundary';
 import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
 
@@ -13,9 +13,7 @@ export default async function EditRecipePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+  const session = await getServerSession();
 
   if (!session) {
     redirect('/sign-in');
@@ -61,7 +59,9 @@ export default async function EditRecipePage({
         </p>
       </div>
 
-      <RecipeForm key={recipe.id} recipe={recipe} isSuperadmin={isSuperadmin} />
+      <AppErrorBoundary sectionLabel="Recipe form">
+        <RecipeForm key={recipe.id} recipe={recipe} isSuperadmin={isSuperadmin} />
+      </AppErrorBoundary>
     </div>
   );
 }

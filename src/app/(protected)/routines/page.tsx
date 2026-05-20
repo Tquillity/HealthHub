@@ -1,14 +1,13 @@
 import { redirect } from 'next/navigation';
-import { headers } from 'next/headers';
-import { auth } from '@/lib/auth';
+import { getServerSession } from '@/lib/session';
 import { prisma } from '@/lib/db';
 import { RoutinesClient } from '@/components/routines/routines-client';
 import { RoutineFilters } from '@/components/routines/routine-filters';
+import { PageHeader } from '@/components/ui/page-header';
+import { AppErrorBoundary } from '@/components/ui/error-boundary';
 
 export default async function RoutinesPage() {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+  const session = await getServerSession();
 
   if (!session) {
     redirect('/sign-in');
@@ -40,19 +39,18 @@ export default async function RoutinesPage() {
 
   return (
     <div className="p-6">
+      <PageHeader
+        className="mb-6"
+        title="Routines"
+        description="Manage your habits and use the lottery to pick what to do next."
+      />
       <div className="mb-6">
-        <div className="mb-4 flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Routines</h1>
-            <p className="mt-1 text-gray-500">
-              Manage your habits and use the lottery to pick what to do next.
-            </p>
-          </div>
-        </div>
         <RoutineFilters />
       </div>
 
-      <RoutinesClient routines={routines} />
+      <AppErrorBoundary sectionLabel="Routines">
+        <RoutinesClient routines={routines} />
+      </AppErrorBoundary>
     </div>
   );
 }

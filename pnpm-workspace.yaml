@@ -1,0 +1,12 @@
+# pnpm 11 project settings (single-package repo; root is always in the workspace).
+# See https://pnpm.io/settings#allowbuilds
+
+allowBuilds:
+  '@prisma/engines': true
+  esbuild: true
+  prisma: true
+  unrs-resolver: true
+  sharp: true
+
+# Active dev: do not block recently published packages (pnpm 11 default is 1440m strict lockfile check).
+minimumReleaseAge: 0

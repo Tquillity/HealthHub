@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation';
-import { headers } from 'next/headers';
-import { auth } from '@/lib/auth';
+import { getServerSession } from '@/lib/session';
 import { NavLink } from '@/components/layout/nav-link';
 import { Footer } from '@/components/layout/footer';
 import { ProtectedMobileNav } from '@/components/layout/protected-mobile-nav';
@@ -23,11 +22,9 @@ export default async function DashboardLayout({
 }) {
   let session;
   try {
-    session = await auth.api.getSession({
-      headers: await headers(),
-    });
+    session = await getServerSession();
   } catch (error) {
-    console.error('Failed to get session:', error);
+    console.error('[HealthHub session] Failed to get session:', error);
     redirect('/sign-in');
   }
 

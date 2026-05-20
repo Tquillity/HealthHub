@@ -310,7 +310,7 @@ In `README.md`:
 
 | Current file | LOC | Split into |
 |--------------|-----|------------|
-| `meal-actions.ts` | ~1038 | `meal-plan-queries.ts`, `meal-plan-mutations.ts`, `meal-auto-fill.ts` |
+| `meal-actions.ts` | ~1038 | `meal-plan-queries.ts`, `meal-plan-mutations.ts`, `meal-auto-fill.ts` (action) + `@/lib/meal-auto-fill` (pure) |
 | `grocery-actions.ts` | ~842 | `grocery-aggregate.ts`, `grocery-list-mutations.ts` |
 | `recipe-actions.ts` | ~760 | `recipe-queries.ts`, `recipe-mutations.ts` |
 | `recipe-form.tsx` | ~1125 | `recipe-form-fields.tsx`, `recipe-ingredients-section.tsx`, `recipe-instructions-section.tsx` |
@@ -631,6 +631,19 @@ pnpm dev
 - [x] PageHeader (groceries, meal planner), ErrorBoundary, dynamic Recharts on cycle
 - [x] `(protected)/layout` `force-dynamic` documented (auth via `headers()`; build-time prerender fix)
 
+**Phase 8 — complete (2026-05-20):**
+
+- [x] **S3-1** — Legal v2 draft + cookie consent (no ad scripts)
+- [x] **S7-1** — `Docs/AdSense.md` integration plan
+- [x] **S2-5 ext** — `src/app/**` uses `@/lib/session` (grep 0 `auth.api.getSession`)
+- [x] **S7-3** — Meal planner → `/groceries?week=`
+- [x] **S2-4** — `meal-actions` split (queries / mutations / auto-fill)
+- [x] **S5-2** — Grocery merge via `mergeMealPlanIngredientIntoMap` / `mergeShoppingListItemIntoMap` + Vitest
+- [x] **S7-4** — Cycle expert cards → Learn category links
+- [x] **S7-6** — Stripe webhook spike + `Docs/Stripe.md`
+- [x] **S7-5** — Action error log prefixes + Observability.md
+- [x] **P2** — ErrorBoundary/PageHeader remainder, `meal-auto-fill` lib tests, Playwright CI (`continue-on-error`)
+
 **Roadmap:** [`Docs/SprintRoadmap.md`](./SprintRoadmap.md)
 
 ---
@@ -642,8 +655,8 @@ pnpm dev
 | ESLint | **~14** problems (0 errors, warnings) — react-refresh on metadata pages |
 | TypeScript | `tsc --noEmit` passes |
 | Build | `pnpm build` passes |
-| Tests | Vitest — **60+** tests (`pnpm test`) — grocery aggregate, learn JSON-LD, timer schedule |
-| Session | `@/lib/session` — no inline `auth.api.getSession` in `src/actions/**` |
+| Tests | Vitest — **76** tests (`pnpm test`) — grocery merge, meal-auto-fill, meal-planner links |
+| Session | `@/lib/session` — no `auth.api.getSession` in `src/actions/**` or `src/app/**` |
 | CI | `.github/workflows/ci.yml` — `quality` job: `tsc`, `lint`, **`test`**, `build` |
 | Metadata | `src/lib/site-metadata.ts`; OG default `/logo512.png` |
 | Mobile nav | Protected drawer on `< md` |
@@ -674,8 +687,9 @@ pnpm dev
 | Cycle + experts | `/cycle` | Strong |
 | Profile / household | `/profile`, `/profile/household` | Good |
 | Premium | `/pro` stub; `User.isPremium` in schema | Stub only |
-| AdSense | — | Not implemented |
-| Tests / CI | GitHub Actions + Vitest (`pnpm test` in CI) | 13 unit tests |
+| AdSense | — | Plan in `Docs/AdSense.md`; gated until legal |
+| Stripe | Webhook spike | `Docs/Stripe.md`; no checkout yet |
+| Tests / CI | Vitest + optional Playwright `e2e` job | 76 unit tests |
 
 ---
 

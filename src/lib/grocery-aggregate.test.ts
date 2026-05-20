@@ -12,6 +12,7 @@ import {
   isExcludedItem,
   isStapleItem,
   mergeMealPlanIngredientIntoMap,
+  mergeShoppingListItemIntoMap,
   normalizeIngredientName,
   normalizeUnit,
   type GroceryItem,
@@ -150,6 +151,113 @@ describe('mergeMealPlanIngredientIntoMap — in-memory list merge', () => {
       recipeName: 'B',
       mealType: 'lunch',
       dateIso: '2026-05-02T00:00:00.000Z',
+    });
+    expect(map.size).toBe(2);
+  });
+
+  it('adds a new row for first occurrence of a produce line', () => {
+    const map = new Map<string, GroceryItem>();
+    mergeMealPlanIngredientIntoMap(map, {
+      displayName: 'gul lök',
+      normalized: { quantity: 2, unit: 'st' },
+      isStaple: false,
+      recipeName: 'Salad',
+      mealType: 'lunch',
+      dateIso: '2026-05-01T00:00:00.000Z',
+    });
+    expect(map.size).toBe(1);
+    expect(map.get('gul lök_st')?.totalQuantity).toBe(2);
+  });
+});
+
+describe('mergeShoppingListItemIntoMap — manual list lines', () => {
+  it('creates a manual entry with id and checked state', () => {
+    const map = new Map<string, GroceryItem>();
+    mergeShoppingListItemIntoMap(map, {
+      id: 'shop-1',
+      name: 'Tomat',
+      quantity: 3,
+      unit: 'st',
+      isChecked: true,
+    });
+    const rows = Array.from(map.values());
+    expect(rows).toHaveLength(1);
+    expect(rows[0].id).toBe('shop-1');
+    expect(rows[0].isChecked).toBe(true);
+    expect(rows[0].recipes[0].recipeName).toBe('Manual Entry');
+  });
+
+  it('merges manual line into existing meal-plan row with same name+unit', () => {
+    const map = new Map<string, GroceryItem>();
+    mergeMealPlanIngredientIntoMap(map, {
+      displayName: 'tomat',
+      normalized: { quantity: 200, unit: 'g' },
+      isStaple: false,
+      recipeName: 'Pasta',
+      mealType: 'dinner',
+      dateIso: '2026-05-01T00:00:00.000Z',
+    });
+    mergeShoppingListItemIntoMap(map, {
+      id: 'shop-2',
+      name: 'Tomat',
+      quantity: 100,
+      unit: 'g',
+      isChecked: false,
+    });
+    expect(map.size).toBe(1);
+    const row = map.get('tomat_g')!;
+    expect(row.totalQuantity).toBe(300);
+    expect(row.id).toBe('shop-2');
+    expect(row.recipes).toHaveLength(2);
+  });
+
+  it('skips water on manual entries', () => {
+    const map = new Map<string, GroceryItem>();
+    mergeShoppingListItemIntoMap(map, {
+      id: 'x',
+      name: 'vatten',
+      quantity: 1,
+      unit: 'l',
+      isChecked: false,
+    });
+    expect(map.size).toBe(0);
+  });
+
+  it('merges staple manual lines by name only', () => {
+    const map = new Map<string, GroceryItem>();
+    mergeShoppingListItemIntoMap(map, {
+      id: 'a',
+      name: 'salt',
+      quantity: 1,
+      unit: 'g',
+      isChecked: false,
+    });
+    mergeShoppingListItemIntoMap(map, {
+      id: 'b',
+      name: 'Salt',
+      quantity: 2,
+      unit: 'ml',
+      isChecked: true,
+    });
+    expect(map.size).toBe(1);
+    expect(map.get('salt')?.totalQuantity).toBe(3);
+  });
+
+  it('keeps separate rows when manual item uses different unit family', () => {
+    const map = new Map<string, GroceryItem>();
+    mergeShoppingListItemIntoMap(map, {
+      id: '1',
+      name: 'tomat',
+      quantity: 1,
+      unit: 'st',
+      isChecked: false,
+    });
+    mergeShoppingListItemIntoMap(map, {
+      id: '2',
+      name: 'tomat',
+      quantity: 100,
+      unit: 'g',
+      isChecked: false,
     });
     expect(map.size).toBe(2);
   });

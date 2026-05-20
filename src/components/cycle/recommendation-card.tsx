@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { ExternalLink } from 'lucide-react';
 import type { Prisma } from '@prisma/client';
 
@@ -158,6 +159,15 @@ export function RecommendationCard({ recommendation }: RecommendationCardProps) 
             <p className="text-sm text-gray-700 leading-relaxed">{content.nutrition}</p>
           </div>
         )}
+      </div>
+
+      <div className="pt-3 border-t border-gray-200">
+        <Link
+          href={`/learn?category=${encodeURIComponent(recommendation.category)}`}
+          className="text-sm font-medium text-primary-600 hover:text-primary-700"
+        >
+          Related in Learn →
+        </Link>
       </div>
 
       {/* Footer */}

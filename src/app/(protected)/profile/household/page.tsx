@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation';
-import { headers } from 'next/headers';
-import { auth } from '@/lib/auth';
+import { getServerSession } from '@/lib/session';
 import { getHouseholdMembers } from '@/actions/household-actions';
 import { HouseholdMemberList } from '@/components/profile/household-member-list';
 import { InviteMemberForm } from '@/components/profile/invite-member-form';
@@ -9,9 +8,7 @@ import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
 
 export default async function HouseholdPage() {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+  const session = await getServerSession();
 
   if (!session) {
     redirect('/sign-in');

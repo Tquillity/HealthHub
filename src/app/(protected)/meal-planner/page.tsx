@@ -9,6 +9,7 @@ import { SaveTemplateButton } from '@/components/meals/save-template-button';
 import { Button } from '@/components/ui/button';
 import { ShoppingCart, BookOpen } from 'lucide-react';
 import Link from 'next/link';
+import { groceriesUrlForWeek } from '@/lib/meal-planner-links';
 import { PageHeader } from '@/components/ui/page-header';
 import { AppErrorBoundary } from '@/components/ui/error-boundary';
 import { redirect } from 'next/navigation';
@@ -47,7 +48,7 @@ export default async function MealPlannerPage() {
               Templates
             </Button>
           </Link>
-          <Link href="/groceries">
+          <Link href={groceriesUrlForWeek(startDate)}>
             <Button className="gap-2 min-h-[44px]">
               <ShoppingCart className="h-4 w-4" />
               Generate Grocery List

@@ -10,12 +10,12 @@
 
 | | |
 |---|---|
-| **Active phase** | **8** (Phase 7 complete) |
+| **Active phase** | **9** (Phase 8 complete) |
 | **Branch baseline** | `feature/next-step` |
-| **Health** | CI green — `tsc`, `lint`, **60+ tests**, `build` |
-| **Just shipped** | Session helper, grocery aggregate lib, action splits, learn SEO, PageHeader, ErrorBoundary |
-| **Up next (Phase 8)** | S3-1 legal v2 · S7-1 AdSense plan · optional meal-actions / recipe-form splits |
-| **Explicitly deferred** | Action file splits (until Phase 7), timer store refactors, Stripe/AdSense, Playwright E2E |
+| **Health** | CI green — `tsc`, `lint`, **76 tests**, `build` |
+| **Just shipped** | Legal v2 + cookie consent, meal-actions split, grocery merge lib, Stripe webhook spike, session in app routes |
+| **Up next (Phase 9)** | `recipe-form` split · live AdSense (post-legal) · production Stripe · authenticated E2E |
+| **Explicitly deferred** | Timer DB sync, Pomo store refactors |
 
 ---
 
@@ -111,7 +111,7 @@ This roadmap prioritizes **user-visible value** and **low architectural risk**. 
 
 ---
 
-## Phase 7 — Architecture debt (current)
+## Phase 7 — Architecture debt ✅ (complete)
 
 | ID | Task | Effort | Risk |
 |----|------|--------|------|
@@ -128,14 +128,19 @@ This roadmap prioritizes **user-visible value** and **low architectural risk**. 
 
 ---
 
-## Phase 8 — Monetization & compliance
+## Phase 8 — Monetization & compliance ✅ (complete)
 
-| ID | Task | Blocker |
-|----|------|---------|
-| S3-1 | Lawyer review of Privacy/Terms | External |
-| S7-1 | AdSense integration plan | S3-1 |
-| S7-6 | Stripe + `User.isPremium` | Product + legal |
-| S7-2 | Timer cloud sync (premium) | S7-6 |
+| ID | Task | Status |
+|----|------|--------|
+| S3-1 | Legal v2 draft + cookie consent | ✅ Internal draft; lawyer review external |
+| S7-1 | AdSense integration plan | ✅ `Docs/AdSense.md` (gated) |
+| S2-4 ext | `meal-actions` split + `@/lib/meal-auto-fill` | ✅ |
+| S2-5 ext | Session in `src/app/**` | ✅ |
+| S7-3 | Meal planner → groceries `?week=` | ✅ |
+| S7-4 | Cycle cards → Learn | ✅ |
+| S7-6 | Stripe webhook spike | ✅ Log-only; no `isPremium` |
+| S7-2 | Timer cloud sync (premium) | Deferred → Phase 9+ |
+| S7-6 prod | Production Stripe checkout | Gated on legal + product |
 
 ---
 

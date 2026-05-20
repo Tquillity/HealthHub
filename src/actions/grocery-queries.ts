@@ -6,12 +6,11 @@ import { requireSessionUserId } from '@/lib/session';
 import { parseIngredientAlternatives } from '@/lib/ingredient-alternatives';
 import { resolveIngredientChoice } from './ingredient-preference-actions';
 import {
-  buildAggregationKey,
-  capitalizeIngredientName,
   isExcludedItem,
-  isStapleItem,
-  normalizeIngredientName,
+  mergeMealPlanIngredientIntoMap,
+  mergeShoppingListItemIntoMap,
   normalizeUnit,
+  isStapleItem,
   type GroceryItem,
   type GroceryListResult,
 } from '@/lib/grocery-aggregate';
@@ -226,51 +225,23 @@ export async function getGroceryList(
           ? resolvedNameMap.get(`${item.id}-${ingredient.id}`) || ingredient.name
           : ingredient.name;
         
-        // Skip excluded items (like water) - they should never appear on grocery lists
         if (isExcludedItem(resolvedName)) {
           continue;
         }
 
-        // Normalize unit for better aggregation (cups→ml, oz→g, etc.)
-        const normalized = normalizeUnit(ingredient.quantity * servingsMultiplier, ingredient.unit);
-        const isStaple = isStapleItem(resolvedName);
-        
-        // Normalize ingredient name to handle variations (plural/singular, parenthetical notes)
-        const normalizedName = normalizeIngredientName(resolvedName);
-        
-        // For staples, merge by normalized name only (not unit) since staples are typically "have it or don't"
-        // For non-staples, merge by normalized name + unit to prevent incorrect merging
-        const key = buildAggregationKey(normalizedName, normalized.unit, isStaple);
-        
-        const adjustedQuantity = normalized.quantity;
+        const normalized = normalizeUnit(
+          ingredient.quantity * servingsMultiplier,
+          ingredient.unit
+        );
 
-        if (ingredientMap.has(key)) {
-          const existing = ingredientMap.get(key)!;
-          // For staples, we sum quantities but keep the most common unit representation
-          // For non-staples, we sum quantities with the same normalized unit
-          existing.totalQuantity += adjustedQuantity;
-          existing.recipes.push({
-            recipeName: recipe.name,
-            quantity: adjustedQuantity,
-            mealType: item.mealType,
-            date: item.date.toISOString(),
-          });
-        } else {
-          ingredientMap.set(key, {
-            name: capitalizeIngredientName(resolvedName),
-            unit: normalized.unit,
-            totalQuantity: adjustedQuantity,
-            isStaple,
-            recipes: [
-              {
-                recipeName: recipe.name,
-                quantity: adjustedQuantity,
-                mealType: item.mealType,
-                date: item.date.toISOString(),
-              },
-            ],
-          });
-        }
+        mergeMealPlanIngredientIntoMap(ingredientMap, {
+          displayName: resolvedName,
+          normalized,
+          isStaple: isStapleItem(resolvedName),
+          recipeName: recipe.name,
+          mealType: item.mealType,
+          dateIso: item.date.toISOString(),
+        });
       }
     }
 
@@ -288,57 +259,14 @@ export async function getGroceryList(
     // Add shopping list items to the map (they merge with meal plan items if same name+unit)
     // ShoppingListItem entries take precedence for checked state and are included in aggregation
     for (const item of shoppingListItems) {
-      // Skip excluded items (like water) - they should never appear on grocery lists
-      if (isExcludedItem(item.name)) {
-        continue;
-      }
-
-      const normalized = normalizeUnit(item.quantity, item.unit);
-      const isStaple = isStapleItem(item.name);
-      
-      // Normalize ingredient name to handle variations (plural/singular, parenthetical notes)
-      const normalizedName = normalizeIngredientName(item.name);
-      
-      // For staples, merge by normalized name only; for non-staples, merge by normalized name + unit
-      const key = buildAggregationKey(normalizedName, normalized.unit, isStaple);
-      
-      if (ingredientMap.has(key)) {
-        const existing = ingredientMap.get(key)!;
-        existing.totalQuantity += normalized.quantity;
-        // Preserve ID and checked state if this is a ShoppingListItem
-        if (!existing.id && item.id) {
-          existing.id = item.id;
-          existing.isChecked = item.isChecked;
-        }
-        // Ensure isStaple flag is set if not already
-        if (isStaple) {
-          existing.isStaple = true;
-        }
-        // Add a "manual" recipe entry for shopping list items
-        existing.recipes.push({
-          recipeName: 'Manual Entry',
-          quantity: normalized.quantity,
-          mealType: 'other',
-          date: (item.sourceDate ?? new Date()).toISOString(),
-        });
-      } else {
-        ingredientMap.set(key, {
-          id: item.id, // Include ShoppingListItem ID for persistence
-          name: capitalizeIngredientName(item.name),
-          unit: normalized.unit,
-          totalQuantity: normalized.quantity,
-          isChecked: item.isChecked, // Include checked state
-          isStaple,
-          recipes: [
-            {
-              recipeName: 'Manual Entry',
-              quantity: normalized.quantity,
-              mealType: 'other',
-              date: (item.sourceDate ?? new Date()).toISOString(),
-            },
-          ],
-        });
-      }
+      mergeShoppingListItemIntoMap(ingredientMap, {
+        id: item.id,
+        name: item.name,
+        quantity: item.quantity,
+        unit: item.unit,
+        isChecked: item.isChecked,
+        sourceDate: item.sourceDate,
+      });
     }
 
     // Convert map to array and sort by name
@@ -351,7 +279,7 @@ export async function getGroceryList(
       data: groceryList,
     };
   } catch (error) {
-    console.error('Error fetching grocery list:', error);
+    console.error('[HealthHub action] grocery-queries', 'Error fetching grocery list:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to fetch grocery list',
@@ -434,7 +362,7 @@ export async function getMealPlans(
       data: mealPlans,
     };
   } catch (error) {
-    console.error('Error fetching meal plans:', error);
+    console.error('[HealthHub action] grocery-queries', 'Error fetching meal plans:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to fetch meal plans',

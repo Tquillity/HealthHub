@@ -77,7 +77,7 @@ export async function getRecipes({
 
     return { success: true, data: recipes };
   } catch (error) {
-    console.error('Failed to get recipes:', error);
+    console.error('[HealthHub action] recipe-queries', 'Failed to get recipes:', error);
     return { success: false, error: 'Failed to fetch recipes' };
   }
 }
@@ -100,7 +100,7 @@ export async function getRecipeCategories() {
       .filter((c): c is string => c !== null)
       .sort();
   } catch (error) {
-    console.error('Failed to get recipe categories:', error);
+    console.error('[HealthHub action] recipe-queries', 'Failed to get recipe categories:', error);
     return [];
   }
 }
@@ -164,7 +164,7 @@ export async function getRecipeFilterOptions() {
         .sort(),
     };
   } catch (error) {
-    console.error('Failed to get filter options:', error);
+    console.error('[HealthHub action] recipe-queries', 'Failed to get filter options:', error);
     return { difficulties: [], cuisines: [], dietaryTags: [], leanRoles: [] };
   }
 }
@@ -190,7 +190,7 @@ export async function getRecipe(id: string) {
 
     return { success: true, data: recipe };
   } catch (error) {
-    console.error('Error fetching recipe:', error);
+    console.error('[HealthHub action] recipe-queries', 'Error fetching recipe:', error);
     return { success: false, error: 'Failed to fetch recipe', data: null };
   }
 }
@@ -209,7 +209,7 @@ export async function getUserRole() {
 
     return { success: true, role: user?.role || 'user' };
   } catch (error) {
-    console.error('Error getting user role:', error);
+    console.error('[HealthHub action] recipe-queries', 'Error getting user role:', error);
     return { success: false, role: null };
   }
 }
