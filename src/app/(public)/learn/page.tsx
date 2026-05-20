@@ -5,7 +5,10 @@ import { LearnClient } from '@/components/learn/learn-client';
 import { createPageMetadata } from '@/lib/site-metadata';
 import { BookOpen } from 'lucide-react';
 
-export const dynamic = 'force-dynamic';
+/**
+ * Caching: unstable_cache (tag educational-resources, revalidate 3600).
+ * force-dynamic removed — Data Cache handles repeat guest traffic.
+ */
 
 export const metadata: Metadata = createPageMetadata({
   title: 'Learn',

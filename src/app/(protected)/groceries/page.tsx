@@ -4,8 +4,9 @@ import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/db';
 import { getGroceryList } from '@/actions/grocery-actions';
 import { startOfWeek, endOfWeek } from 'date-fns';
-import { Calendar } from 'lucide-react';
+import { Calendar, Users } from 'lucide-react';
 import { GroceryListClient } from '@/components/groceries/grocery-list-client';
+import { EmptyState } from '@/components/ui/empty-state';
 
 export default async function GroceriesPage({
   searchParams,
@@ -30,7 +31,16 @@ export default async function GroceriesPage({
   });
 
   if (!membership) {
-    return <div>No household assigned.</div>;
+    return (
+      <div className="container mx-auto max-w-4xl p-6">
+        <EmptyState
+          icon={Users}
+          title="No household assigned"
+          description="Join or create a household to share grocery lists with your family."
+          action={{ label: 'Manage household', href: '/profile/household' }}
+        />
+      </div>
+    );
   }
 
   const start = startOfWeek(date, { weekStartsOn: 1 });
@@ -49,15 +59,12 @@ export default async function GroceriesPage({
       </div>
 
       {items.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-12 text-center">
-          <Calendar className="mx-auto h-12 w-12 text-gray-300" />
-          <h3 className="mt-4 text-lg font-medium text-gray-900">
-            No items needed
-          </h3>
-          <p className="mt-2 text-sm text-gray-500">
-            Add recipes to your Meal Planner to generate a list.
-          </p>
-        </div>
+        <EmptyState
+          icon={Calendar}
+          title="No items needed"
+          description="Add recipes to your meal planner to generate a shopping list for the week."
+          action={{ label: 'Open meal planner', href: '/meal-planner' }}
+        />
       ) : (
         <GroceryListClient items={items} weekStart={start} weekEnd={end} />
       )}

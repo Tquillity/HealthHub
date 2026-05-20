@@ -334,24 +334,19 @@ Refactor actions to use it (incremental, file per PR).
 
 **Timer `cn`:** Done — all timer components import `@/lib/utils`; `lib/pomo/utils/cn.ts` removed.
 
-### S2-6 — `force-dynamic` review
+### S2-6 — Public route caching ✅ (Phase 6)
 
-**Current public `force-dynamic`:**
-
-- `src/app/(public)/recipes/page.tsx`
-- `src/app/(public)/recipes/[id]/page.tsx`
-- `src/app/(public)/learn/page.tsx`
-- `src/app/(public)/learn/[id]/page.tsx`
-
-**Recommendation:**
+**Implemented:**
 
 | Route | Strategy |
 |-------|----------|
-| Learn list | `unstable_cache` already used — try remove `force-dynamic`; use `revalidate` |
-| Recipe list | ISR `revalidate: 3600` if data is mostly public/system |
-| Detail pages | `generateStaticParams` for top N system items + dynamic fallback |
+| `/learn`, `/learn/[id]` | `unstable_cache` (tag `educational-resources`, 1h); **`force-dynamic` removed** |
+| `/recipes`, `/recipes/[id]` | Two-tier `unstable_cache` in `src/lib/recipe-cache.ts` — public keys for guests, `viewerKey` for signed-in |
+| Mutations | `revalidateTag(tag, 'max')` on create/update/delete in `recipe-actions.ts` |
 
-**Document decision** in each page file comment.
+**Trade-off:** logged-in cache hit rate is lower by design (correct org visibility). `generateStaticParams` deferred (org-scoped visibility).
+
+**Page comments:** caching strategy documented in each public recipe/learn page header.
 
 ---
 
@@ -373,7 +368,7 @@ Refactor actions to use it (incremental, file per PR).
 
 ### S3-2 — Sitemap ✅ (Sprint 5)
 
-**File:** `src/app/sitemap.ts` — static public routes via `getMetadataBase()`: `/`, `/timer`, `/recipes`, `/learn`, `/privacy`, `/terms`, `/pro`, `/sign-in`, `/sign-up`. Dynamic recipe/learn IDs deferred until ISR strategy chosen.
+**File:** `src/app/sitemap.ts` — static public routes + **dynamic public system recipe URLs** via `getPublicRecipeSitemapEntries()`. Learn article URLs still deferred.
 
 ### S3-3 — PWA icons ✅ (Sprint 2–3)
 
@@ -423,12 +418,29 @@ Root `layout.tsx` sets `metadataBase` and title template.
 - Show today’s pomodoro count vs `dailyGoalPomodoros`; progress bar + link to `/timer`.
 - **Do not** sync to DB in this sprint unless S7-2 approved.
 
-### S4-4 — A11y checklist
+### S3-5 — JSON-LD (recipes) ✅ (Phase 6)
+
+**Files:** `src/lib/structured-data/recipe-jsonld.ts`, `recipe-jsonld.test.ts`, inject in `(public)/recipes/[id]/page.tsx`
+
+- schema.org `Recipe` with `isAccessibleForFree: true`, nutrition, ingredients, instructions
+- Vitest coverage for duration helper, image URLs, minimal recipe fallback
+
+### S4-4 — A11y checklist ✅ (Phase 6 complete)
 
 - [x] Timer modals: focus trap, `aria-modal`, Esc close (existing); close button 44px touch target
-- [ ] `recipe-form.tsx`: label/`htmlFor` on all fields
+- [x] `recipe-form.tsx`: fieldset/legend for image section; `htmlFor` on URL + additional uploads; aria-labels on icon buttons
 - [x] Public nav: `aria-current` on active route; `aria-label="Main"`
-- [ ] Color contrast on landing hero text
+- [x] Color contrast on landing hero text (`text-primary-50`, stronger outline borders)
+
+### S4-5 — Empty / error states ✅ (Phase 6)
+
+**Files:** `src/components/ui/empty-state.tsx` (default + compact variants)
+
+| Area | Empty state | Errors |
+|------|-------------|--------|
+| Groceries | CTA → meal planner; household empty state | `showToast` in grocery-list-client |
+| Routines | Client-only empty (DB + filtered); clear filters CTA | `showToast` lottery + delete |
+| Meal planner | Sidebar + empty plan banner | `showToast` clear-all |
 
 ---
 
@@ -456,6 +468,7 @@ Root `layout.tsx` sets `metadataBase` and title template.
 | Auth proxy | Integration | Deferred |
 | Timer schedule | Vitest | `src/lib/pomo/utils/timerSchedule.test.ts` |
 | Dashboard timer snapshot | Vitest | `src/lib/pomo/utils/dashboard-timer-snapshot.test.ts` |
+| Recipe JSON-LD | Vitest | `src/lib/structured-data/recipe-jsonld.test.ts` |
 
 **Scripts:** `pnpm test`, `pnpm test:watch`. Schemas extracted to `src/lib/validation/` for testability. **CI runs `pnpm test`** after lint.
 
@@ -606,31 +619,27 @@ pnpm dev
 
 ## Next Immediate Actions
 
-**Sprint 0–4 (CI, PWA, Pro stub, metadata, mobile nav, Vitest): complete.**
+**Sprint 0–6: complete.**
 
-**Sprint 5 (Phase 5 — product polish): mostly complete — verify & merge**
+**Phase 7 — start here:**
 
-- [x] **S4-2** — Timer dashboard widget (`FocusGoalCard`, read-only localStorage)
-- [x] **S3-2** — Static sitemap (`src/app/sitemap.ts`)
-- [x] **S5-2 expand** — Timer schedule + dashboard snapshot + profile schema tests
-- [x] **S4-4 (partial)** — Public nav `aria-current`; timer modal close touch target
-- [ ] **S4-4 (remainder)** — `recipe-form.tsx` labels, landing hero contrast
-- [ ] **S3-5** — JSON-LD for recipes
-- [ ] **S4-5** — Empty / error states
-- [ ] **S5-3** — E2E smoke (Playwright) — defer until more unit coverage
+- [ ] **S2-5** — `getSessionUserId()` session helper
+- [ ] **S5-2** — Grocery aggregate unit tests
+- [ ] **S2-4** — One action file split (single PR)
+- [ ] **S5-3** — E2E smoke (Playwright) — defer until Phase 7 unit coverage grows
 
-**Phase 6+:** See [`Docs/SprintRoadmap.md`](./SprintRoadmap.md).
+**Roadmap:** [`Docs/SprintRoadmap.md`](./SprintRoadmap.md)
 
 ---
 
-## Appendix A — Live codebase snapshot (2026-05-20, post Sprint 5 polish)
+## Appendix A — Live codebase snapshot (2026-05-20, post Phase 6)
 
 | Metric | Value |
 |--------|-------|
-| ESLint | **~18** problems (0 errors, warnings) — react-refresh on metadata pages |
+| ESLint | **~14** problems (0 errors, warnings) — react-refresh on metadata pages |
 | TypeScript | `tsc --noEmit` passes |
 | Build | `pnpm build` passes |
-| Tests | Vitest — **25+** tests in 4 files (`pnpm test`) |
+| Tests | Vitest — **30** tests in 5 files (`pnpm test`) |
 | CI | `.github/workflows/ci.yml` — `quality` job: `tsc`, `lint`, **`test`**, `build` |
 | Metadata | `src/lib/site-metadata.ts`; OG default `/logo512.png` |
 | Mobile nav | Protected drawer on `< md` |

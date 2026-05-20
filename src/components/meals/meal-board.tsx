@@ -3,10 +3,11 @@
 import { useState } from 'react';
 import { DndContext, useDraggable, useDroppable, DragOverlay, defaultDropAnimationSideEffects } from '@dnd-kit/core';
 import { addDays, format, isToday, isPast, startOfDay } from 'date-fns';
-import { Trash2 } from 'lucide-react';
+import { Trash2, UtensilsCrossed } from 'lucide-react';
 import { addMealToPlan, removeMealFromPlan } from '@/actions/meal-actions';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
 import { RotateCcw } from 'lucide-react';
 
 type RecipeLite = {
@@ -185,6 +186,12 @@ export default function MealBoard({
     router.refresh();
   };
 
+  const openMealGenerator = () => {
+    document.getElementById('meal-plan-generator-trigger')?.click();
+  };
+
+  const isPlanEmpty = plan.items.length === 0;
+
   return (
     // dnd-kit generates accessibility IDs (e.g. aria-describedby) that can differ between SSR and client.
     // Providing a stable DndContext id prevents hydration mismatches in Next.js.
@@ -194,16 +201,38 @@ export default function MealBoard({
         <div className="w-full shrink-0 pr-2 lg:w-64">
           <div className="sticky top-0 rounded-xl border border-gray-200 bg-white p-4">
             <h3 className="mb-4 font-bold text-gray-700">Recipes</h3>
+            {recipes.length === 0 ? (
+              <EmptyState
+                variant="compact"
+                icon={UtensilsCrossed}
+                title="No recipes yet"
+                description="Browse or create recipes to drag onto your plan."
+                action={{ label: 'Browse recipes', href: '/recipes' }}
+              />
+            ) : (
             <div className="flex flex-col gap-2 max-h-[calc(100vh-300px)] overflow-y-auto">
               {recipes.map((r) => (
                 <DraggableRecipe key={r.id} recipe={r} />
               ))}
             </div>
+            )}
           </div>
         </div>
 
         {/* Calendar */}
         <div className="min-w-[800px] flex-1 overflow-x-auto">
+          {isPlanEmpty && (
+            <div className="mb-4">
+              <EmptyState
+                variant="compact"
+                icon={UtensilsCrossed}
+                title="Your plan is empty"
+                description="Generate a plan from your preferences or drag recipes from the sidebar."
+                action={{ label: 'Generate meal plan', onClick: openMealGenerator }}
+                secondaryAction={{ label: 'Browse recipes', href: '/recipes' }}
+              />
+            </div>
+          )}
           {/* Header with date range and jump to today */}
           <div className="mb-4 flex items-center justify-between">
             <div className="text-sm text-gray-600">

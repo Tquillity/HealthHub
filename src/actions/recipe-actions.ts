@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { prisma } from '@/lib/db';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 import type { Prisma } from '@prisma/client';
 
 export type RecipeWithDetails = Prisma.RecipeGetPayload<{
@@ -423,6 +423,11 @@ export async function createRecipe(data: z.infer<typeof CreateRecipeSchema>) {
     });
 
     revalidatePath('/recipes');
+    revalidateTag('recipes', 'max');
+    revalidateTag('recipes-public', 'max');
+    revalidateTag(`recipe-public-${recipe.id}`, 'max');
+    revalidateTag(`recipes-${userId}`, 'max');
+    revalidateTag(`recipe-${userId}-${recipe.id}`, 'max');
     return { success: true, data: recipe };
   } catch (error) {
     console.error('Error creating recipe:', error);
@@ -607,6 +612,11 @@ export async function updateRecipe(data: z.infer<typeof UpdateRecipeSchema>) {
 
     revalidatePath('/recipes');
     revalidatePath(`/recipes/${id}`);
+    revalidateTag('recipes', 'max');
+    revalidateTag('recipes-public', 'max');
+    revalidateTag(`recipe-public-${id}`, 'max');
+    revalidateTag(`recipes-${userId}`, 'max');
+    revalidateTag(`recipe-${userId}-${id}`, 'max');
     return { success: true, data: recipe };
   } catch (error) {
     console.error('Error updating recipe:', error);
@@ -683,12 +693,19 @@ export async function deleteRecipe(id: string) {
       return { success: false, error: 'Recipe not found' };
     }
 
+    const recipeId = recipe.id;
+
     // Delete recipe (cascade will handle ingredients and instructions)
     await prisma.recipe.delete({
       where: { id },
     });
 
     revalidatePath('/recipes');
+    revalidateTag('recipes', 'max');
+    revalidateTag('recipes-public', 'max');
+    revalidateTag(`recipe-public-${recipeId}`, 'max');
+    revalidateTag(`recipes-${session.user.id}`, 'max');
+    revalidateTag(`recipe-${session.user.id}-${recipeId}`, 'max');
     return { success: true };
   } catch (error) {
     console.error('Error deleting recipe:', error);

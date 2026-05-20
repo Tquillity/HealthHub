@@ -1,7 +1,7 @@
 # HealthHub — Sprint Roadmap (Living Document)
 
 **Last updated:** 2026-05-20  
-**Baseline:** `main` @ `ee8c96d` and later  
+**Baseline:** `main` + Phase 5–6 on `feature/phase-6-ux-seo`  
 **Companion doc:** [`SprintList.md`](./SprintList.md) (detailed task IDs, acceptance criteria, risk register)
 
 ---
@@ -10,12 +10,12 @@
 
 | | |
 |---|---|
-| **Active phase** | **5 → 6** (Phase 5 deliverables done; remainder folded into Phase 6) |
-| **Branch baseline** | `main` @ `ee8c96d` + Sprint 5 polish (uncommitted) |
-| **Health** | CI green locally — `tsc`, `lint`, **25 tests**, `build` |
-| **Just shipped** | Focus dashboard widget, sitemap, expanded Vitest, proxy logging, partial a11y |
-| **Up next (Phase 6)** | S4-5 empty/error states · S3-5 JSON-LD recipes · S4-4 remainder (recipe-form labels, hero contrast) |
-| **Explicitly deferred** | Action file splits, timer store refactors, Stripe/AdSense, Playwright E2E |
+| **Active phase** | **7** (Phase 6 complete) |
+| **Branch baseline** | `feature/phase-6-ux-seo` |
+| **Health** | CI green — `tsc`, `lint`, **30 tests**, `build` |
+| **Just shipped** | EmptyState UX, Recipe JSON-LD, dynamic sitemap, two-tier recipe caching, a11y fixes |
+| **Up next (Phase 7)** | S2-5 session helper · optional action splits · grocery aggregate tests |
+| **Explicitly deferred** | Action file splits (until Phase 7), timer store refactors, Stripe/AdSense, Playwright E2E |
 
 ---
 
@@ -25,7 +25,7 @@ HealthHub on `main` is **production-viable** with:
 
 - CI: `tsc` → `lint` → **`pnpm test`** → `build`
 - Zod on all Server Actions, metadata/OG, mobile protected nav + focus trap
-- PWA icons, `/pro` stub, Vitest foundation (**25** unit tests)
+- PWA icons, `/pro` stub, Vitest foundation (**30** unit tests)
 
 This roadmap prioritizes **user-visible value** and **low architectural risk**. High-churn refactors (large action splits, timer store typing) and revenue work (AdSense, Stripe) are explicitly deferred.
 
@@ -41,7 +41,7 @@ This roadmap prioritizes **user-visible value** and **low architectural risk**. 
 | **AdSense integration** | Blocked on **S3-1** lawyer-reviewed legal copy |
 | **Full Playwright E2E suite** | Expand unit tests first; E2E after smoke design |
 | **Timer cloud sync (S7-2)** | Premium-tier XL; local-first timer works well today |
-| **JSON-LD everywhere** | Start with recipes (S3-5) after sitemap lands |
+| **JSON-LD everywhere** | Recipes done (S3-5); learn articles deferred |
 
 ---
 
@@ -50,7 +50,7 @@ This roadmap prioritizes **user-visible value** and **low architectural risk**. 
 | Phase | Focus | Duration | Risk | Success criteria |
 |-------|--------|----------|------|------------------|
 | **5** | Product polish + SEO basics | 1 week | **Low** | Dashboard timer widget, sitemap live, a11y pass on public nav + timer modals, 25+ unit tests |
-| **6** | UX depth + SEO | 1–2 weeks | **Low–Med** | Empty/error states, JSON-LD recipes, caching review documented |
+| **6** | UX depth + SEO | 1–2 weeks | **Low–Med** | ✅ Empty states, JSON-LD, two-tier caching |
 | **7** | Architecture (optional) | 2+ weeks | **Med–High** | Session helper, one action file split per PR max |
 | **8** | Monetization prep | When ready | **Med** | Legal v2, AdSense plan, observability |
 
@@ -66,7 +66,7 @@ This roadmap prioritizes **user-visible value** and **low architectural risk**. 
 |----|------|--------|----------------------|
 | S4-2 | Timer dashboard widget | ✅ | `FocusGoalCard` reads `pomo-*-storage` read-only; link to `/timer` |
 | S3-2 | Sitemap | ✅ | `src/app/sitemap.ts` — static public routes via `getMetadataBase()` |
-| S4-4 | Accessibility pass (partial) | 🔄 | Public nav `aria-current`; timer `Modal` 44px close; protected drawer done — remainder → Phase 6 |
+| S4-4 | Accessibility pass | ✅ | Completed in Phase 6 (recipe-form labels, landing contrast) |
 | S5-2 | Expand Vitest | ✅ | `timerSchedule.test.ts`, `dashboard-timer-snapshot.test.ts`, profile schema tests (25 total) |
 | — | Proxy structured logging | ✅ | `[HealthHub proxy]` prefix in `src/proxy.ts` |
 
@@ -78,38 +78,40 @@ This roadmap prioritizes **user-visible value** and **low architectural risk**. 
 - [x] `pnpm test` ≥ 25 tests, CI green
 - [x] No changes to timer worker / Zustand store contracts
 
-### Carried to Phase 6
+### Carried to Phase 6 (done)
 
-- S4-4: `recipe-form.tsx` label audit, landing hero contrast check
-- Dynamic sitemap entries for `/recipes/[id]` when DB-backed ISR strategy is chosen
+- ~~S4-4 remainder~~ ✅
+- ~~Dynamic sitemap recipe URLs~~ ✅
 
 ---
 
-## Phase 6 — UX depth & SEO (current)
+## Phase 6 — UX depth & SEO ✅ (complete)
 
 **Goal:** Polish empty states and structured data; improve public route performance where safe.
 
-| ID | Task | Effort | Risk |
-|----|------|--------|------|
-| S4-5 | Empty / error states | M | Low |
-| S3-5 | JSON-LD for recipes | M | Low |
-| S2-6 | Public route caching review | M | Med |
+| ID | Task | Status | Notes |
+|----|------|--------|-------|
+| S4-4 | A11y remainder | ✅ | `recipe-form` fieldset/labels; landing `text-primary-50` |
+| S4-5 | Empty / error states | ✅ | `EmptyState` component; `useUIStore().showToast` in groceries/routines/meals |
+| S3-5 | JSON-LD recipes | ✅ | `recipe-jsonld.ts` + Rich Results–ready script on detail page |
+| S3-2 ext | Dynamic sitemap | ✅ | Public system `/recipes/[id]` URLs in `sitemap.ts` |
+| S2-6 | Route caching | ✅ | Two-tier `recipe-cache.ts`; learn `force-dynamic` removed |
 
 ### Phase 6 success criteria
 
-- Groceries/routines/meal planner show helpful empty states with CTAs
-- Recipe detail pages emit valid `Recipe` JSON-LD (Rich Results Test)
-- Learn/recipe list caching decision documented per route
+- [x] Groceries/routines/meal planner show helpful empty states with CTAs
+- [x] Recipe detail pages emit valid `Recipe` JSON-LD
+- [x] Learn/recipe caching documented in page comments; `revalidateTag(..., 'max')` on mutations
+- [x] `pnpm test` ≥ 30 tests, CI green
 
-### Implementation hints
+### Caching trade-off (documented)
 
-- **S4-5:** Shared empty-state component; reuse toast patterns for action errors
-- **S3-5:** `src/lib/structured-data/recipe-jsonld.ts` + inject in `recipes/[id]/page.tsx`
-- **S2-6:** Try removing `force-dynamic` on learn list (already cached); document in page comment
+- **Public tier** (`recipe-public-*`, `recipes-public`): high hit rate for guests / SEO
+- **Viewer tier** (`recipe-{userId}-*`): correctness for org-scoped recipes; lower hit rate accepted
 
 ---
 
-## Phase 7 — Architecture debt (when bandwidth allows)
+## Phase 7 — Architecture debt (current)
 
 | ID | Task | Effort | Risk |
 |----|------|--------|------|
@@ -137,12 +139,11 @@ This roadmap prioritizes **user-visible value** and **low architectural risk**. 
 
 ---
 
-## Recommended “Start Monday” sprint (Phase 6)
+## Recommended “Start Monday” sprint (Phase 7)
 
-1. **S4-5** — Empty / error states (groceries, routines, meal planner)
-2. **S3-5** — JSON-LD for recipe detail pages
-3. **S4-4 (remainder)** — `recipe-form.tsx` labels, landing hero contrast
-4. **S2-6** — Public route caching review (document decisions)
+1. **S2-5** — `getSessionUserId()` helper in `src/lib/session.ts`
+2. **S5-2** — Grocery aggregate unit tests
+3. **S2-4** — One action file split (single PR, barrel re-exports)
 
 **Verify locally:**
 
@@ -150,7 +151,15 @@ This roadmap prioritizes **user-visible value** and **low architectural risk**. 
 pnpm lint && pnpm exec tsc --noEmit && pnpm test && pnpm build
 ```
 
-**Manual smoke:** empty grocery list, recipe Rich Results Test, form labels in recipe editor, `/learn` load time.
+---
+
+## Completed Phase 6 sprint ✅
+
+1. **S4-4** — Recipe form labels + landing contrast ✅  
+2. **S4-5** — `EmptyState` + toasts ✅  
+3. **S3-5** — Recipe JSON-LD ✅  
+4. **S3-2 ext** — Dynamic sitemap recipe URLs ✅  
+5. **S2-6** — Two-tier caching ✅  
 
 ---
 

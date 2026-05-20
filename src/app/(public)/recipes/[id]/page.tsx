@@ -4,16 +4,20 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/db';
 import {
-  getRecipe,
   getUserRole,
   type RecipeWithDetails,
 } from '@/actions/recipe-actions';
-import { createPageMetadata } from '@/lib/site-metadata';
+import { getCachedRecipe, getRecipeViewerKey } from '@/lib/recipe-cache';
+import { createPageMetadata, getMetadataBase } from '@/lib/site-metadata';
+import { buildRecipeJsonLd } from '@/lib/structured-data/recipe-jsonld';
 import { ChevronLeft, Clock, Users, ChefHat, BookOpen, Sparkles } from 'lucide-react';
 import { ServingsScaler } from '@/components/recipes/servings-scaler';
 import { RecipeDetailClient } from '@/components/recipes/recipe-detail-client';
 
-export const dynamic = 'force-dynamic';
+/**
+ * Caching: getCachedRecipe uses public tier for guests and viewerKey tier
+ * for signed-in users. JSON-LD emitted for SEO on all visible recipes.
+ */
 
 export async function generateMetadata({
   params,
@@ -21,7 +25,8 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id } = await params;
-  const result = await getRecipe(id);
+  const viewerKey = await getRecipeViewerKey();
+  const result = await getCachedRecipe(id, viewerKey);
 
   if (!result.success || !result.data) {
     return createPageMetadata({
@@ -49,8 +54,9 @@ export default async function RecipeDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const viewerKey = await getRecipeViewerKey();
   const [recipeResult, roleResult] = await Promise.all([
-    getRecipe(id),
+    getCachedRecipe(id, viewerKey),
     getUserRole(),
   ]);
 
@@ -109,9 +115,16 @@ export default async function RecipeDetailPage({
   });
 
   const totalMins = (recipe.prepTime || 0) + (recipe.cookTime || 0);
+  const recipeJsonLd = buildRecipeJsonLd(recipe, {
+    baseUrl: getMetadataBase().toString(),
+  });
 
   return (
     <div className="container mx-auto max-w-6xl p-6">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(recipeJsonLd) }}
+      />
       <Link
         href="/recipes"
         className="mb-6 flex items-center text-sm text-gray-500 transition-colors hover:text-blue-600"

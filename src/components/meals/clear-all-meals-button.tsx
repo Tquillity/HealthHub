@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { clearAllMeals } from '@/actions/meal-actions';
+import { useUIStore } from '@/lib/store';
 import { Trash2, AlertTriangle } from 'lucide-react';
 
 interface ClearAllMealsButtonProps {
@@ -24,6 +25,7 @@ export function ClearAllMealsButton({
   disabled = false,
 }: ClearAllMealsButtonProps) {
   const router = useRouter();
+  const showToast = useUIStore((state) => state.showToast);
   const [showConfirm, setShowConfirm] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
 
@@ -36,7 +38,7 @@ export function ClearAllMealsButton({
       setShowConfirm(false);
       router.refresh();
     } else {
-      alert(result.error || 'Failed to clear meals');
+      showToast(result.error || 'Failed to clear meals', 'error');
     }
   };
 

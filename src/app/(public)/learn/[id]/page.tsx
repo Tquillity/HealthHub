@@ -10,7 +10,10 @@ import { ChevronLeft, Clock, Star, Heart, Eye } from 'lucide-react';
 import { format } from 'date-fns';
 import { LearnDetailClient } from '@/components/learn/learn-detail-client';
 
-export const dynamic = 'force-dynamic';
+/**
+ * Caching: unstable_cache (tag educational-resources, revalidate 3600).
+ * Learn content is not user-scoped; force-dynamic removed.
+ */
 
 export async function generateMetadata({
   params,

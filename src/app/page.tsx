@@ -31,7 +31,7 @@ export default function Home() {
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(255,255,255,0.15),transparent)]" />
 
         <div className="relative mx-auto flex max-w-7xl flex-col items-center gap-8 px-4 py-20 text-center sm:px-6 sm:py-28 lg:px-8 lg:py-36">
-          <p className="rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-xs font-semibold tracking-wide uppercase backdrop-blur-sm sm:text-sm">
+          <p className="rounded-full border border-white/50 bg-white/10 px-4 py-1.5 text-xs font-semibold tracking-wide uppercase text-primary-50 backdrop-blur-sm sm:text-sm">
             Focus &middot; Nourish &middot; Learn
           </p>
 
@@ -39,7 +39,7 @@ export default function Home() {
             Your Household Wellness Hub
           </h1>
 
-          <p className="max-w-xl text-base leading-relaxed text-white/80 sm:text-lg">
+          <p className="max-w-xl text-base leading-relaxed text-primary-50 sm:text-lg">
             A privacy-first super-app that helps you stay focused, eat well, and
             make evidence-based health decisions &mdash; all in one place.
           </p>
@@ -58,7 +58,7 @@ export default function Home() {
               <Button
                 size="lg"
                 variant="outline"
-                className="gap-2 border-white/30 text-white hover:bg-white/10"
+                className="gap-2 border-white/50 text-white hover:bg-white/10"
               >
                 Create Account
                 <ArrowRight className="h-4 w-4" />
@@ -182,7 +182,7 @@ export default function Home() {
           <h2 className="text-2xl font-bold sm:text-3xl">
             Ready to upgrade your wellness routine?
           </h2>
-          <p className="max-w-xl text-white/80">
+          <p className="max-w-xl text-primary-50">
             Join free for meal planning, wellness journaling, cycle tracking,
             and groceries. Core features stay free — see{' '}
             <Link href="/pro" className="underline underline-offset-2 hover:text-white">
@@ -204,7 +204,7 @@ export default function Home() {
               <Button
                 size="lg"
                 variant="outline"
-                className="border-white/30 text-white hover:bg-white/10"
+                className="border-white/50 text-white hover:bg-white/10"
               >
                 Try the Timer First
               </Button>

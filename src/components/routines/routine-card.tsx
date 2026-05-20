@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Edit, Trash2 } from 'lucide-react';
 import { deleteRoutine } from '@/actions/routine-actions';
 import { SafeDeleteModal } from '@/components/ui/safe-delete-modal';
+import { useUIStore } from '@/lib/store';
 import type { Routine } from '@prisma/client';
 
 // Extend Routine type to include optional fields that may not be in generated types yet
@@ -66,6 +67,7 @@ export function RoutineCard({
   showAdminControls = false,
 }: RoutineCardProps) {
   const router = useRouter();
+  const showToast = useUIStore((state) => state.showToast);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const handleDelete = async () => {
@@ -74,7 +76,7 @@ export function RoutineCard({
       setShowDeleteModal(false);
       router.refresh();
     } else {
-      alert(result.error || 'Failed to delete routine');
+      showToast(result.error || 'Failed to delete routine', 'error');
     }
   };
 

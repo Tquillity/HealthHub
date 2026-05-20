@@ -8,6 +8,8 @@ import { Input } from '@/components/ui/input';
 import { drawLottery } from '@/actions/routine-actions';
 import { Plus, Sparkles, X } from 'lucide-react';
 import type { Routine } from '@prisma/client';
+import { EmptyState } from '@/components/ui/empty-state';
+import { useUIStore } from '@/lib/store';
 import { RoutineCard } from './routine-card';
 import { RoutinesGrid } from './routines-grid';
 import { RoutineRichForm } from './routine-rich-form';
@@ -18,15 +20,29 @@ interface RoutinesClientProps {
 
 export function RoutinesClient({ routines: initialRoutines }: RoutinesClientProps) {
   const router = useRouter();
+  const showToast = useUIStore((state) => state.showToast);
   const [routines] = useState(initialRoutines);
 
   // Get filter params from URL
-  const [query] = useQueryState('q', parseAsString.withDefault(''));
-  const [category] = useQueryState('category', parseAsString);
-  const [energyLevel] = useQueryState('energy', parseAsString);
-  const [context] = useQueryState('context', parseAsString);
-  const [difficulty] = useQueryState('difficulty', parseAsString);
-  const [duration] = useQueryState('duration', parseAsString);
+  const [query, setQuery] = useQueryState('q', parseAsString.withDefault(''));
+  const [category, setCategory] = useQueryState('category', parseAsString);
+  const [energyLevel, setEnergyLevel] = useQueryState('energy', parseAsString);
+  const [context, setContext] = useQueryState('context', parseAsString);
+  const [difficulty, setDifficulty] = useQueryState('difficulty', parseAsString);
+  const [duration, setDuration] = useQueryState('duration', parseAsString);
+
+  const hasActiveFilters = Boolean(
+    query || category || energyLevel || context || difficulty || duration
+  );
+
+  const clearFilters = () => {
+    void setQuery(null);
+    void setCategory(null);
+    void setEnergyLevel(null);
+    void setContext(null);
+    void setDifficulty(null);
+    void setDuration(null);
+  };
 
   // Filter routines client-side
   const filteredRoutines = useMemo(() => {
@@ -75,12 +91,12 @@ export function RoutinesClient({ routines: initialRoutines }: RoutinesClientProp
       if (Array.isArray(result.data) && result.data.length > 0) {
         setLotteryResults(result.data);
       } else {
-        alert('No routines match your criteria. Try adjusting filters.');
+        showToast('No routines match your criteria. Try adjusting filters.', 'warning');
       }
     } else if (result.success && (!result.data || (Array.isArray(result.data) && result.data.length === 0))) {
-      alert('No routines match your criteria. Try adjusting filters.');
+      showToast('No routines match your criteria. Try adjusting filters.', 'warning');
     } else {
-      alert(result.error || 'Failed to draw lottery');
+      showToast(result.error || 'Failed to draw lottery', 'error');
     }
 
     setLotterySpinning(false);
@@ -106,13 +122,24 @@ export function RoutinesClient({ routines: initialRoutines }: RoutinesClientProp
       {filteredRoutines.length > 0 ? (
         <RoutinesGrid routines={filteredRoutines} />
       ) : (
-        <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-12 text-center">
-          <Sparkles className="mx-auto h-12 w-12 text-gray-300" />
-          <h3 className="mt-4 text-lg font-medium text-gray-900">No routines found</h3>
-          <p className="mt-2 text-sm text-gray-500">
-            Try adjusting your filters or create a new routine.
-          </p>
-        </div>
+        <EmptyState
+          icon={Sparkles}
+          title={routines.length === 0 ? 'No routines yet' : 'No routines found'}
+          description={
+            routines.length === 0
+              ? 'Create your first routine or spin the lottery when you have habits to pick from.'
+              : 'Try adjusting your filters or create a new routine.'
+          }
+          action={{
+            label: 'Add Routine',
+            onClick: () => setShowCreateDialog(true),
+          }}
+          secondaryAction={
+            hasActiveFilters
+              ? { label: 'Clear filters', onClick: clearFilters }
+              : undefined
+          }
+        />
       )}
 
       {/* Create/Edit Routine Dialog */}

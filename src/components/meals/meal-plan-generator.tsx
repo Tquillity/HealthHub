@@ -92,10 +92,12 @@ export function MealPlanGenerator({ onGenerate }: MealPlanGeneratorProps) {
 
   return (
     <>
-      <Button onClick={() => {
+      <Button
+        id="meal-plan-generator-trigger"
+        onClick={() => {
         setShowDialog(true);
         setError(null);
-      }} className="gap-2" variant="outline">
+      }} className="gap-2 min-h-[44px]" variant="outline">
         <Sparkles className="h-4 w-4" />
         Generate Meal Plan
       </Button>

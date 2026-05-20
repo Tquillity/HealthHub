@@ -1,9 +1,9 @@
 import {
-  getRecipes,
   getRecipeCategories,
   getUserRole,
   type RecipeWithDetails,
 } from '@/actions/recipe-actions';
+import { getCachedRecipes, getRecipeViewerKey } from '@/lib/recipe-cache';
 import { RecipesClient } from '@/components/recipes/recipes-client';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -11,7 +11,11 @@ import type { Metadata } from 'next';
 import { createPageMetadata } from '@/lib/site-metadata';
 import { Plus } from 'lucide-react';
 
-export const dynamic = 'force-dynamic';
+/**
+ * Caching: two-tier Data Cache via unstable_cache in recipe-cache.ts.
+ * Guests use shared public keys; signed-in users use viewerKey-scoped keys
+ * (lower hit rate, correct org visibility). revalidateTag on recipe mutations.
+ */
 
 export const metadata: Metadata = createPageMetadata({
   title: 'Recipes',
@@ -49,8 +53,9 @@ export default async function RecipesPage({ searchParams }: PageProps) {
   let isAdmin = false;
 
   try {
+    const viewerKey = await getRecipeViewerKey();
     const [recipesResult, categoriesResult, roleResult] = await Promise.all([
-      getRecipes({ query, category, difficulty, cuisine, dietaryTags, leanRole }),
+      getCachedRecipes({ query, category, difficulty, cuisine, dietaryTags, leanRole }, viewerKey),
       getRecipeCategories(),
       getUserRole(),
     ]);

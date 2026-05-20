@@ -471,11 +471,10 @@ export function RecipeForm({ recipe, onSuccess, onCancel, isSuperadmin = false }
             />
           </div>
 
-          <div>
-            <label htmlFor="recipe-image-section" className="block text-sm font-medium text-gray-700 mb-2">
+          <fieldset className="flex flex-col gap-2 border-0 p-0">
+            <legend className="mb-2 block text-sm font-medium text-gray-700">
               Recipe Image
-            </label>
-            <div className="flex flex-col gap-2">
+            </legend>
               {imagePreview && (
                 <div className="relative inline-block">
                   <div className="mb-1 text-xs font-medium text-gray-500">Main Image (Card)</div>
@@ -489,6 +488,7 @@ export function RecipeForm({ recipe, onSuccess, onCancel, isSuperadmin = false }
                       type="button"
                       onClick={handleMoveToAdditional}
                       className="cursor-pointer rounded-full bg-blue-500 p-1 text-white hover:bg-blue-600"
+                      aria-label="Move main image to additional images"
                       title="Move to Additional Images"
                     >
                       <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -499,6 +499,7 @@ export function RecipeForm({ recipe, onSuccess, onCancel, isSuperadmin = false }
                       type="button"
                       onClick={handleRemoveImage}
                       className="cursor-pointer rounded-full bg-red-500 p-1 text-white hover:bg-red-600"
+                      aria-label="Remove main recipe image"
                       title="Remove Image"
                     >
                       <X className="h-3 w-3" />
@@ -526,8 +527,10 @@ export function RecipeForm({ recipe, onSuccess, onCancel, isSuperadmin = false }
                 </div>
                 {/* Only show URL input if no image is uploaded, or as an alternative option */}
                 {!imagePreview && (
-                  <div>
-                    <p className="mb-1 text-xs text-gray-500">Or enter an image URL:</p>
+                  <div className="flex flex-col gap-1.5">
+                    <label htmlFor="image-url" className="text-xs font-medium text-gray-500">
+                      Or enter an image URL
+                    </label>
                     <Input
                       id="image-url"
                       name="image-url"
@@ -546,12 +549,11 @@ export function RecipeForm({ recipe, onSuccess, onCancel, isSuperadmin = false }
               {errors.image && (
                 <p className="text-sm text-red-600">{errors.image}</p>
               )}
-            </div>
-          </div>
+          </fieldset>
 
           {/* Additional Images */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="additional-image-upload" className="block text-sm font-medium text-gray-700 mb-2">
               Additional Images
             </label>
             <div className="flex flex-col gap-2">
@@ -569,6 +571,7 @@ export function RecipeForm({ recipe, onSuccess, onCancel, isSuperadmin = false }
                           type="button"
                           onClick={() => handleSetAsMainImage(url, index)}
                           className="cursor-pointer rounded-full bg-green-500 p-1 text-white hover:bg-green-600"
+                          aria-label={`Set additional image ${index + 1} as main image`}
                           title="Set as Main Image"
                         >
                           <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -579,6 +582,7 @@ export function RecipeForm({ recipe, onSuccess, onCancel, isSuperadmin = false }
                           type="button"
                           onClick={() => handleRemoveAdditionalImage(index)}
                           className="cursor-pointer rounded-full bg-red-500 p-1 text-white hover:bg-red-600"
+                          aria-label={`Remove additional image ${index + 1}`}
                           title="Remove Image"
                         >
                           <X className="h-3 w-3" />
@@ -604,7 +608,7 @@ export function RecipeForm({ recipe, onSuccess, onCancel, isSuperadmin = false }
                   }`}
                 >
                   <Upload className="h-4 w-4" />
-                  {isUploadingAdditional ? 'Uploading...' : 'Add Additional Image'}
+                  {isUploadingAdditional ? 'Uploading...' : 'Upload'}
                 </label>
               </div>
               {errors.additionalImages && (
@@ -977,6 +981,7 @@ export function RecipeForm({ recipe, onSuccess, onCancel, isSuperadmin = false }
                     size="sm"
                     onClick={() => removeIngredient(index)}
                     className="w-full"
+                    aria-label={`Remove ingredient ${index + 1}`}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -1083,6 +1088,7 @@ export function RecipeForm({ recipe, onSuccess, onCancel, isSuperadmin = false }
                   variant="outline"
                   size="sm"
                   onClick={() => removeInstruction(index)}
+                  aria-label={`Remove instruction step ${index + 1}`}
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>

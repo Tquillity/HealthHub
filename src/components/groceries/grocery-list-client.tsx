@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Printer, Download, Plus, ChevronDown, ChevronUp } from 'lucide-react';
 import { toggleShoppingItem, addShoppingItem } from '@/actions/grocery-actions';
+import { useUIStore } from '@/lib/store';
 
 interface GroceryItem {
   id?: string; // ShoppingListItem ID if from shopping list
@@ -34,6 +35,7 @@ export function GroceryListClient({
   weekEnd,
 }: GroceryListClientProps) {
   const router = useRouter();
+  const showToast = useUIStore((state) => state.showToast);
   const [, startTransition] = useTransition();
   const [sortBy, setSortBy] = useState<'name' | 'category'>('name');
   const [newItemName, setNewItemName] = useState('');
@@ -129,7 +131,7 @@ export function GroceryListClient({
             reverted.delete(itemKey);
           }
           setOptimisticChecked(reverted);
-          console.error('Failed to persist checked state:', result.error);
+          showToast(result.error || 'Failed to update item', 'error');
         } else {
           // Refresh to get latest state
           router.refresh();
@@ -238,7 +240,7 @@ export function GroceryListClient({
         setNewItemName('');
         router.refresh();
       } else {
-        alert(result.error || 'Failed to add item');
+        showToast(result.error || 'Failed to add item', 'error');
       }
     } finally {
       setIsAddingItem(false);
