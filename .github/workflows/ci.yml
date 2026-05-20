@@ -38,4 +38,5 @@ jobs:
       #   pnpm db:generate
       - run: pnpm exec tsc --noEmit
       - run: pnpm lint
+      - run: pnpm test
       - run: pnpm build

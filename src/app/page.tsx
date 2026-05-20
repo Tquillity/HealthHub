@@ -1,7 +1,9 @@
 import Link from 'next/link';
+import type { Metadata } from 'next';
 import { Button } from '@/components/ui/button';
 import { PublicNav } from '@/components/layout/public-nav';
 import { Footer } from '@/components/layout/footer';
+import { createPageMetadata } from '@/lib/site-metadata';
 import {
   Timer,
   UtensilsCrossed,
@@ -11,6 +13,13 @@ import {
   Wifi,
   Zap,
 } from 'lucide-react';
+
+export const metadata: Metadata = createPageMetadata({
+  title: 'HealthHub',
+  description:
+    'Free household wellness tools: Pomodoro timer, recipes, meal planning, journaling, cycle insights, and evidence-based learning — core features stay free.',
+  path: '/',
+});
 
 export default function Home() {
   return (

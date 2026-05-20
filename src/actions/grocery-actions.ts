@@ -7,22 +7,15 @@ import { headers } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { parseIngredientAlternatives } from '@/lib/ingredient-alternatives';
 import { resolveIngredientChoice } from './ingredient-preference-actions';
+import {
+  AddShoppingItemSchema,
+  ToggleShoppingItemSchema,
+} from '@/lib/validation/grocery-schemas';
 
 const GroceryListParamsSchema = z.object({
   organizationId: z.string().min(1),
   startDate: z.coerce.date(),
   endDate: z.coerce.date(),
-});
-
-const ToggleShoppingItemSchema = z.object({
-  itemKey: z.string().min(1),
-  isChecked: z.boolean(),
-});
-
-const AddShoppingItemSchema = z.object({
-  name: z.string().min(1),
-  quantity: z.number().positive(),
-  unit: z.string().min(1),
 });
 
 const ScaledIngredientSchema = z.object({

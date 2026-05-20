@@ -3,18 +3,9 @@ import { headers } from 'next/headers';
 import { auth } from '@/lib/auth';
 import { NavLink } from '@/components/layout/nav-link';
 import { Footer } from '@/components/layout/footer';
-import {
-  UtensilsCrossed,
-  BookOpen,
-  ShoppingCart,
-  LayoutDashboard,
-  CalendarDays,
-  User,
-  Sparkles,
-  GraduationCap,
-  Moon,
-  Timer,
-} from 'lucide-react';
+import { ProtectedMobileNav } from '@/components/layout/protected-mobile-nav';
+import { protectedNavItems } from '@/components/layout/protected-nav-items';
+import { User } from 'lucide-react';
 
 export default async function DashboardLayout({
   children,
@@ -28,8 +19,6 @@ export default async function DashboardLayout({
     });
   } catch (error) {
     console.error('Failed to get session:', error);
-    // If database connection fails, redirect to sign-in
-    // This prevents the app from crashing on connection errors
     redirect('/sign-in');
   }
 
@@ -37,22 +26,8 @@ export default async function DashboardLayout({
     redirect('/sign-in');
   }
 
-  const navItems = [
-    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-    { name: 'Focus Timer', href: '/timer', icon: Timer },
-    { name: 'Recipes', href: '/recipes', icon: UtensilsCrossed },
-    { name: 'Meal Planner', href: '/meal-planner', icon: CalendarDays },
-    { name: 'Routines', href: '/routines', icon: Sparkles },
-    { name: 'Journal', href: '/journal', icon: BookOpen },
-    { name: 'Cycle', href: '/cycle', icon: Moon },
-    { name: 'Learn', href: '/learn', icon: GraduationCap },
-    { name: 'Groceries', href: '/groceries', icon: ShoppingCart },
-    { name: 'Profile', href: '/profile', icon: User },
-  ];
-
   return (
     <div className="flex min-h-screen bg-gray-50 text-gray-900">
-      {/* Sidebar */}
       <aside className="hidden w-64 flex-col border-r border-gray-200 bg-white p-6 md:flex">
         <div className="mb-8 flex items-center gap-2 px-2 text-xl font-bold text-blue-600">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-xs text-white">
@@ -61,8 +36,8 @@ export default async function DashboardLayout({
           HealthHub
         </div>
 
-        <nav className="flex-1 flex flex-col gap-2">
-          {navItems.map((item) => {
+        <nav className="flex flex-1 flex-col gap-2">
+          {protectedNavItems.map((item) => {
             const Icon = item.icon;
             return (
               <NavLink key={item.name} href={item.href}>
@@ -81,10 +56,15 @@ export default async function DashboardLayout({
         </div>
       </aside>
 
-      {/* Main Content Area */}
       <main className="flex flex-1 flex-col">
-        <header className="flex h-16 items-center justify-between border-b border-gray-200 bg-white px-8">
-          <div className="font-bold text-blue-600 md:hidden">HealthHub</div>
+        <header className="flex h-16 items-center justify-between border-b border-gray-200 bg-white px-4 sm:px-6 md:px-8">
+          <div className="flex items-center gap-2">
+            <ProtectedMobileNav
+              items={protectedNavItems}
+              userName={session.user.name ?? 'Account'}
+            />
+            <div className="font-bold text-blue-600 md:hidden">HealthHub</div>
+          </div>
           <div className="hidden text-sm font-medium text-gray-400 md:block">
             Household Wellness Hub
           </div>
@@ -93,7 +73,7 @@ export default async function DashboardLayout({
           </div>
         </header>
 
-        <div className="flex-1 p-8">{children}</div>
+        <div className="flex-1 p-4 sm:p-6 md:p-8">{children}</div>
 
         <Footer />
       </main>

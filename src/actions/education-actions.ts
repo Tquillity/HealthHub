@@ -6,15 +6,10 @@ import { prisma } from '@/lib/db';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { revalidatePath } from 'next/cache';
-
-const GetEducationalResourcesSchema = z.object({
-  query: z.string().optional(),
-  category: z.string().optional(),
-  featured: z.coerce.boolean().optional(),
-  difficulty: z.string().optional(),
-});
-
-const ResourceIdSchema = z.string().min(1);
+import {
+  GetEducationalResourcesSchema,
+  ResourceIdSchema,
+} from '@/lib/validation/education-schemas';
 
 export async function getEducationalResources(
   params: z.input<typeof GetEducationalResourcesSchema> = {}

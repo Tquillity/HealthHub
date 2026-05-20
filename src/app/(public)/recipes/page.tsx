@@ -7,9 +7,18 @@ import {
 import { RecipesClient } from '@/components/recipes/recipes-client';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import type { Metadata } from 'next';
+import { createPageMetadata } from '@/lib/site-metadata';
 import { Plus } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata: Metadata = createPageMetadata({
+  title: 'Recipes',
+  description:
+    'Browse and save household recipes with ingredients, instructions, and meal-planning friendly details.',
+  path: '/recipes',
+});
 
 interface PageProps {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;

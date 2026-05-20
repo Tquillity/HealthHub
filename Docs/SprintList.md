@@ -376,13 +376,19 @@ Committed `public/logo192.png` and `public/logo512.png` (`#2563eb` + “HH” ma
 
 **Maintenance:** See `PWA_SETUP.md` for regeneration and verification (`pnpm build` → DevTools → Application → Manifest).
 
-### S3-4 — Metadata
+### S3-4 — Metadata ✅ (Sprint 4)
 
-| Route | `metadata` needs |
-|-------|------------------|
-| `/` | OG image, description (Super-App) |
-| `/timer` | Standalone layout metadata in `(standalone)/timer/page.tsx` |
-| `/recipes`, `/learn` | Unique titles; canonical URLs |
+Shared helper: `src/lib/site-metadata.ts` (`createPageMetadata`, `metadataBase`, default OG `/logo512.png`).
+
+| Route | Status |
+|-------|--------|
+| `/` | `createPageMetadata` on landing |
+| `/timer` | OG + Twitter cards |
+| `/recipes`, `/learn` | List page metadata + canonical |
+| `/recipes/[id]`, `/learn/[id]` | `generateMetadata` per item |
+| `/sign-in`, `/sign-up` | Auth layouts; `noIndex` |
+
+Root `layout.tsx` sets `metadataBase` and title template.
 
 ---
 
@@ -396,13 +402,13 @@ Committed `public/logo192.png` and `public/logo512.png` (`#2563eb` + “HH” ma
 | S4-4 | Accessibility audit | P2 | M | — |
 | S4-5 | Empty / error states | P2 | M | — |
 
-### S4-1 — Mobile protected nav
+### S4-1 — Mobile protected nav ✅ (Sprint 4)
 
-**File:** `src/app/(protected)/layout.tsx`
+**Files:** `src/app/(protected)/layout.tsx`, `protected-nav-items.ts`, `protected-mobile-nav.tsx`
 
-- Add hamburger + sheet/drawer (`md:hidden`).
-- Reuse `NavLink` items from sidebar.
-- `min-h-[44px]` on all items.
+- Hamburger + slide-in drawer on `md:hidden`
+- Reuses shared nav items; `min-h-[44px]` touch targets; `aria-current`, Esc to close, **Tab focus trap** in drawer
+- Desktop sidebar unchanged
 
 ### S4-2 — Timer dashboard widget
 
@@ -432,21 +438,21 @@ Committed `public/logo192.png` and `public/logo512.png` (`#2563eb` + “HH” ma
 
 ### S5-1 — CI workflow ✅ (Sprint 2–3)
 
-**File:** `.github/workflows/ci.yml` — push/PR on `main`, `master`, `Feature/**`; concurrency group; placeholder `DATABASE_URL` + `BETTER_AUTH_*`; steps: frozen `pnpm install`, `tsc --noEmit`, `lint`, `build` (webpack).
+**File:** `.github/workflows/ci.yml` — push/PR on `main`, `master`, `Feature/**`; concurrency group; placeholder env vars; steps: frozen `pnpm install`, `tsc --noEmit`, `lint`, **`pnpm test`**, `build` (webpack).
 
 **Acceptance:** Workflow green on push/PR; local `pnpm lint`, `tsc --noEmit`, and `pnpm build` pass.
 
-### S5-2 — Test matrix
+### S5-2 — Test matrix ✅ (initial, Sprint 4)
 
-| Area | Tool | First tests |
-|------|------|-------------|
-| Grocery aggregate | Vitest | Unit test ingredient merge/normalize |
-| Recipe Zod schemas | Vitest | Invalid input rejected |
-| Cycle calculator | Vitest | Phase boundaries |
-| Auth proxy | Integration optional | Protected route redirect |
-| Timer schedule | Vitest | `timerSchedule.ts` pure functions |
+| Area | Tool | Status |
+|------|------|--------|
+| Cycle calculator | Vitest | `src/lib/cycle-calculator.test.ts` (phase boundaries) |
+| Education + grocery Zod | Vitest | `src/lib/validation/*.test.ts` |
+| Grocery aggregate | Vitest | Deferred |
+| Auth proxy | Integration | Deferred |
+| Timer schedule | Vitest | Deferred |
 
-**No tests today** — add `vitest` + `package.json` script `"test": "vitest"`.
+**Scripts:** `pnpm test`, `pnpm test:watch`. Schemas extracted to `src/lib/validation/` for testability. **CI runs `pnpm test`** after lint.
 
 ---
 
@@ -595,26 +601,30 @@ pnpm dev
 
 ## Next Immediate Actions
 
-**Sprint 0–3 (CI, PWA, Pro stub): complete.** Commit when ready (see §9).
+**Sprint 0–4 (CI, PWA, Pro stub, metadata, mobile nav, Vitest): complete.**
 
-**Sprint 4+ — start here:**
+**Sprint 5+ — start here:**
 
-- [ ] **S3-4** — Metadata / OG for `/`, `/timer`, public routes
-- [ ] **S4-1** — Mobile protected nav (hamburger + drawer)
-- [ ] **S5-2** — Vitest on Zod schemas / cycle calculator
+- [ ] **S4-2** — Timer dashboard widget (localStorage read-only)
+- [ ] **S4-4** — Accessibility audit (public nav `aria-current`, timer modals)
+- [ ] **S3-5** — JSON-LD for recipes
+- [ ] **S5-3** — E2E smoke (Playwright)
 
 ---
 
-## Appendix A — Live codebase snapshot (2026-05-19, post Sprint 2–3 CI/PWA/Pro)
+## Appendix A — Live codebase snapshot (2026-05-19, post Sprint 4 metadata/mobile/tests)
 
 | Metric | Value |
 |--------|-------|
-| ESLint | **11** problems (0 errors, 11 warnings) — was 98 pre–Sprint 1 |
+| ESLint | **~18** problems (0 errors, warnings) — react-refresh on metadata pages |
 | TypeScript | `tsc --noEmit` passes |
 | Build | `pnpm build` passes |
-| CI | `.github/workflows/ci.yml` — `quality` job: `tsc`, `lint`, `build` |
+| Tests | Vitest — **13** tests in 2 files (`pnpm test`) |
+| CI | `.github/workflows/ci.yml` — `quality` job: `tsc`, `lint`, **`test`**, `build` |
+| Metadata | `src/lib/site-metadata.ts`; OG default `/logo512.png` |
+| Mobile nav | Protected drawer on `< md` |
 | PWA icons | `public/logo192.png`, `public/logo512.png` (committed PNGs) |
-| jcodemunch | **169** files, **1029** symbols (post Sprint 2–3 `/index`) |
+| jcodemunch | **179** files, **1057** symbols (post Sprint 4 `/index`) |
 | Action files | 11 total; **11 with Zod** |
 | Route groups | `(auth)`, `(protected)`, `(public)`, `(standalone)` |
 | Timer route | `/timer` → `(standalone)/timer/page.tsx` |
@@ -641,7 +651,7 @@ pnpm dev
 | Profile / household | `/profile`, `/profile/household` | Good |
 | Premium | `/pro` stub; `User.isPremium` in schema | Stub only |
 | AdSense | — | Not implemented |
-| Tests / CI | GitHub Actions (`quality` job) | CI only; no Vitest yet |
+| Tests / CI | GitHub Actions + Vitest (`pnpm test` in CI) | 13 unit tests |
 
 ---
 

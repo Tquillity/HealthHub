@@ -1,9 +1,18 @@
 import { unstable_cache } from 'next/cache';
+import type { Metadata } from 'next';
 import { getEducationalResources } from '@/actions/education-actions';
 import { LearnClient } from '@/components/learn/learn-client';
+import { createPageMetadata } from '@/lib/site-metadata';
 import { BookOpen } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata: Metadata = createPageMetadata({
+  title: 'Learn',
+  description:
+    'Evidence-based wellness articles on nutrition, movement, cycle health, and household routines.',
+  path: '/learn',
+});
 
 // Cache educational resources using Next.js 16 Data Cache (persists across requests)
 // This leverages the Next.js 16 cache engine for high-performance PWA

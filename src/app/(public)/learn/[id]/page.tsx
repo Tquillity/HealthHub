@@ -1,14 +1,43 @@
 import { unstable_cache } from 'next/cache';
 import Link from 'next/link';
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { headers } from 'next/headers';
 import { getResourceById } from '@/actions/education-actions';
 import { auth } from '@/lib/auth';
+import { createPageMetadata } from '@/lib/site-metadata';
 import { ChevronLeft, Clock, Star, Heart, Eye } from 'lucide-react';
 import { format } from 'date-fns';
 import { LearnDetailClient } from '@/components/learn/learn-detail-client';
 
 export const dynamic = 'force-dynamic';
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const result = await getResourceById(id);
+
+  if (!result.success || !result.data) {
+    return createPageMetadata({
+      title: 'Article',
+      path: `/learn/${id}`,
+    });
+  }
+
+  const resource = result.data;
+  const description =
+    resource.excerpt?.trim() ||
+    `Read ${resource.title} in the HealthHub Learn hub.`;
+
+  return createPageMetadata({
+    title: resource.title,
+    description,
+    path: `/learn/${id}`,
+  });
+}
 
 // Cache resource fetch using Next.js 16 Data Cache (persists across requests)
 // This leverages the Next.js 16 cache engine for high-performance PWA

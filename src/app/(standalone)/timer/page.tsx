@@ -1,11 +1,13 @@
 import type { Metadata } from 'next';
 import { TimerPageClient } from '@/components/timer/timer-page-client';
+import { createPageMetadata } from '@/lib/site-metadata';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = createPageMetadata({
   title: 'Focus Timer',
   description:
-    'A free Pomodoro timer with offline-friendly task tracking, ambient audio, and customizable focus sessions.',
-};
+    'Free Pomodoro timer with offline-friendly sessions, ambient audio, task tracking, and customizable focus intervals.',
+  path: '/timer',
+});
 
 export default function TimerPage() {
   return <TimerPageClient />;

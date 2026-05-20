@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import Image from 'next/image';
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/db';
 import {
@@ -7,11 +8,40 @@ import {
   getUserRole,
   type RecipeWithDetails,
 } from '@/actions/recipe-actions';
+import { createPageMetadata } from '@/lib/site-metadata';
 import { ChevronLeft, Clock, Users, ChefHat, BookOpen, Sparkles } from 'lucide-react';
 import { ServingsScaler } from '@/components/recipes/servings-scaler';
 import { RecipeDetailClient } from '@/components/recipes/recipe-detail-client';
 
 export const dynamic = 'force-dynamic';
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const result = await getRecipe(id);
+
+  if (!result.success || !result.data) {
+    return createPageMetadata({
+      title: 'Recipe',
+      path: `/recipes/${id}`,
+    });
+  }
+
+  const recipe = result.data;
+  const description =
+    recipe.description?.trim() ||
+    `Ingredients, instructions, and nutrition-friendly details for ${recipe.name}.`;
+
+  return createPageMetadata({
+    title: recipe.name,
+    description,
+    path: `/recipes/${id}`,
+    ogImage: recipe.imageUrl || undefined,
+  });
+}
 
 export default async function RecipeDetailPage({
   params,
