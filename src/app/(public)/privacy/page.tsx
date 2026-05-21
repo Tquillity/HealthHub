@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { isLegalReviewApproved } from '@/lib/legal/review';
 
 export const metadata: Metadata = {
   title: 'Privacy Policy',
@@ -7,6 +8,8 @@ export const metadata: Metadata = {
 };
 
 export default function PrivacyPage() {
+  const approved = isLegalReviewApproved();
+
   return (
     <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
       <p className="text-sm font-medium text-primary-600">Legal</p>
@@ -15,11 +18,13 @@ export default function PrivacyPage() {
       </h1>
       <p className="mt-2 text-sm text-gray-500">Last updated: May 20, 2026</p>
 
-      <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-        <strong>Draft notice:</strong> This policy is a placeholder for
-        engineering and AdSense review. Have qualified legal counsel review
-        before production launch.
-      </div>
+      {!approved ? (
+        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <strong>Draft notice:</strong> This policy is a placeholder for
+          engineering and AdSense review. Have qualified legal counsel review
+          before production launch.
+        </div>
+      ) : null}
 
       <article className="mt-8 flex flex-col gap-8 text-sm leading-relaxed text-gray-700">
         <section className="flex flex-col gap-3">

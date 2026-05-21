@@ -4,6 +4,7 @@ import { getEducationalResources } from '@/actions/education-actions';
 import { LearnClient } from '@/components/learn/learn-client';
 import { createPageMetadata } from '@/lib/site-metadata';
 import { BookOpen } from 'lucide-react';
+import { AdsenseSlot } from '@/components/ads/adsense-slot';
 
 /**
  * Caching: unstable_cache (tag educational-resources, revalidate 3600).
@@ -73,6 +74,11 @@ export default async function LearnPage({
           </p>
         </div>
       </div>
+
+      <AdsenseSlot
+        slotId={process.env.NEXT_PUBLIC_ADSENSE_SLOT_LEARN ?? 'learn-list'}
+        className="mb-6"
+      />
 
       <LearnClient resources={resources} />
     </div>

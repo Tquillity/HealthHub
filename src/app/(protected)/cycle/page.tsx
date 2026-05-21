@@ -27,6 +27,7 @@ import { prisma } from '@/lib/db';
 import { getCycleDashboard } from '@/actions/cycle-actions';
 import { CyclePageClient } from '@/components/cycle/cycle-page-client';
 import { CycleDisclaimer } from '@/components/cycle/cycle-disclaimer';
+import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
 import { Moon, Settings } from 'lucide-react';
 import Link from 'next/link';
@@ -55,17 +56,11 @@ export default async function CyclePage() {
   if (dashboardResult.status === 'not_configured') {
     return (
       <div className="flex flex-col gap-6">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-100 text-primary-600">
-            <Moon className="h-6 w-6" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Cycle Tracker</h1>
-            <p className="text-gray-500">
-              Track your menstrual cycle and get personalized recommendations
-            </p>
-          </div>
-        </div>
+        <PageHeader
+          className="mb-4"
+          title="Cycle Tracker"
+          description="Track your menstrual cycle and get personalized recommendations"
+        />
 
         <div className="rounded-lg border border-gray-200 bg-white p-8 shadow-sm">
           <div className="flex flex-col gap-4 text-center">

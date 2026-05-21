@@ -3,8 +3,8 @@ import { getServerSession } from '@/lib/session';
 import { NavLink } from '@/components/layout/nav-link';
 import { Footer } from '@/components/layout/footer';
 import { ProtectedMobileNav } from '@/components/layout/protected-mobile-nav';
+import { ProtectedNavIcon } from '@/components/layout/protected-nav-icon';
 import { protectedNavItems } from '@/components/layout/protected-nav-items';
-import { User } from 'lucide-react';
 
 /**
  * Auth layout reads session via `headers()` on every request. Without this,
@@ -43,20 +43,17 @@ export default async function DashboardLayout({
         </div>
 
         <nav className="flex flex-1 flex-col gap-2">
-          {protectedNavItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <NavLink key={item.name} href={item.href}>
-                <Icon className="h-4 w-4" />
-                {item.name}
-              </NavLink>
-            );
-          })}
+          {protectedNavItems.map((item) => (
+            <NavLink key={item.name} href={item.href}>
+              <ProtectedNavIcon name={item.icon} className="h-4 w-4" />
+              {item.name}
+            </NavLink>
+          ))}
         </nav>
 
         <div className="mt-auto border-t border-gray-100 pt-4">
           <div className="flex items-center gap-3 px-3 py-2 text-sm font-medium text-gray-500">
-            <User className="h-4 w-4" />
+            <ProtectedNavIcon name="user" className="h-4 w-4" />
             {session.user.name}
           </div>
         </div>

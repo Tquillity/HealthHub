@@ -10,11 +10,11 @@
 
 | | |
 |---|---|
-| **Active phase** | **9** (Phase 8 complete) |
+| **Active phase** | **10** (Phase 9 complete) |
 | **Branch baseline** | `feature/next-step` |
-| **Health** | CI green — `tsc`, `lint`, **76 tests**, `build` |
-| **Just shipped** | Legal v2 + cookie consent, meal-actions split, grocery merge lib, Stripe webhook spike, session in app routes |
-| **Up next (Phase 9)** | `recipe-form` split · live AdSense (post-legal) · production Stripe · authenticated E2E |
+| **Health** | CI green — `tsc`, `lint`, **82+ tests**, `build` |
+| **Just shipped** | Recipe-form split, system-recipe SSG, learn seed, gated AdSense/Stripe, auth E2E scaffold |
+| **Up next (Phase 10)** | Timer DB sync (S7-2) · required auth E2E in CI · Pomo refactors · org-aware static recipes |
 | **Explicitly deferred** | Timer DB sync, Pomo store refactors |
 
 ---

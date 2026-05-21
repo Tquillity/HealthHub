@@ -1,4 +1,4 @@
-# HealthHub — Observability (Phase 8)
+# HealthHub — Observability (Phase 9)
 
 ## Current state
 
@@ -25,7 +25,13 @@ Use the feature module name after the prefix for grep-friendly logs.
 | **Sentry** | Error grouping, releases, user context | Cost, PII review for health data | Not installed |
 | **OpenTelemetry** | Traces + metrics, vendor-neutral | More setup for Next.js App Router | Not installed |
 
-**Recommendation:** Evaluate Sentry after legal review of health/journal data handling (**S3-1**).
+**Phase 9 decision:** **Do not install Sentry** until legal review of health/journal data handling (**S3-1**) completes. Continue with structured `console.error` prefixes and `AppErrorBoundary` for user-facing failures.
+
+**If Sentry is adopted later:**
+
+- Use `@sentry/nextjs` with PII scrubbing for journal fields
+- Gate on `LEGAL_REVIEW_APPROVED` and a dedicated DPA
+- Document release health in this file
 
 ## Manual auth proxy checklist
 

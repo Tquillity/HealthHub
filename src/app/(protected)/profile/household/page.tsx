@@ -3,9 +3,9 @@ import { getServerSession } from '@/lib/session';
 import { getHouseholdMembers } from '@/actions/household-actions';
 import { HouseholdMemberList } from '@/components/profile/household-member-list';
 import { InviteMemberForm } from '@/components/profile/invite-member-form';
-import { Users } from 'lucide-react';
 import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
+import { PageHeader } from '@/components/ui/page-header';
 
 export default async function HouseholdPage() {
   const session = await getServerSession();
@@ -39,17 +39,11 @@ export default async function HouseholdPage() {
         Back to Profile
       </Link>
 
-      <div className="mb-6 flex items-center gap-3">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-100 text-primary-600">
-          <Users className="h-6 w-6" />
-        </div>
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Household</h1>
-          <p className="text-gray-500">
-            Manage your household members and invitations
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        className="mb-6"
+        title="Household"
+        description="Manage your household members and invitations"
+      />
 
       <div className="flex flex-col gap-6">
         {/* Member List */}

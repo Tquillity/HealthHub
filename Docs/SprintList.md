@@ -478,12 +478,12 @@ Root `layout.tsx` sets `metadataBase` and title template.
 
 | ID | Task | Priority | Effort | Notes |
 |----|------|----------|--------|-------|
-| S7-1 | AdSense integration plan | P3 | L | After S3-1 legal review |
-| S7-2 | Timer optional DB sync (premium) | P3 | XL | New Prisma model `PomodoroDailyStat`; opt-in |
-| S7-3 | Menu ↔ grocery deep link | P3 | L | Per `docs/legacy/food-heaven.md` |
-| S7-4 | Expert cards → Learn | P3 | M | Link `PhaseRecommendation` to `EducationalResource` |
-| S7-5 | Observability | P3 | M | Sentry or OpenTelemetry; structured server logs |
-| S7-6 | Stripe / premium | P3 | XL | Wire `User.isPremium`; webhook |
+| S7-1 | AdSense integration plan | P3 | L | ✅ `Docs/AdSense.md` (implementation gated on legal) |
+| S7-2 | Timer optional DB sync (premium) | P3 | XL | Deferred Phase 10+ |
+| S7-3 | Menu ↔ grocery deep link | P3 | L | ✅ Phase 8 |
+| S7-4 | Expert cards → Learn | P3 | M | ✅ Category links Phase 8; seed depth Phase 9 |
+| S7-5 | Observability | P3 | M | Partial — action prefixes; Sentry deferred |
+| S7-6 | Stripe / premium | P3 | XL | Spike Phase 8; production Phase 9 gated |
 
 ### S7-4 — Premium stub ✅ (Sprint 2–3)
 
@@ -498,8 +498,8 @@ Root `layout.tsx` sets `metadataBase` and title template.
 ### Observability & error boundaries (Sprint 1 checklist)
 
 - [x] Add structured `console.error` prefix in `src/proxy.ts` (`[HealthHub proxy]`)  
-- [ ] Ensure feature routes use existing `ErrorBoundary` where client-heavy (timer modals already wrapped)  
-- [ ] Evaluate Sentry (or similar) in Sprint 7 — not blocking Sprint 0  
+- [x] ErrorBoundary on groceries, meal planner, journal, recipes, routines, learn detail (Phase 8–9)  
+- [x] Evaluate Sentry (or similar) — Phase 9 docs-only; install deferred per Observability.md  
 
 ### Recipe data scripts (reference)
 
@@ -644,6 +644,15 @@ pnpm dev
 - [x] **S7-5** — Action error log prefixes + Observability.md
 - [x] **P2** — ErrorBoundary/PageHeader remainder, `meal-auto-fill` lib tests, Playwright CI (`continue-on-error`)
 
+**Phase 9 — complete (2026-05-20):**
+
+- [x] **S2-4** — `recipe-form.tsx` split + `useRecipeForm` hook
+- [x] **S3-2 ext** — `generateStaticParams` for public system recipes only
+- [x] **S7-4 ext** — Learn seed rows per cycle category (`nutrition`, `fasting`, `exercise`)
+- [x] **P2** — Auth E2E scaffolding (`Docs/E2E.md`), UX PageHeader audit, cookie manage prefs
+- [x] **Gated** — `isLegalReviewApproved` gate, `AdsenseSlot` (consent-gated), Stripe checkout + webhook idempotency + `/pro` CTA
+- [x] **S7-5** — Sentry decision documented (deferred) in Observability.md
+
 **Roadmap:** [`Docs/SprintRoadmap.md`](./SprintRoadmap.md)
 
 ---
@@ -655,7 +664,7 @@ pnpm dev
 | ESLint | **~14** problems (0 errors, warnings) — react-refresh on metadata pages |
 | TypeScript | `tsc --noEmit` passes |
 | Build | `pnpm build` passes |
-| Tests | Vitest — **76** tests (`pnpm test`) — grocery merge, meal-auto-fill, meal-planner links |
+| Tests | Vitest — **82+** tests (`pnpm test`) — grocery merge, meal-auto-fill, phase9 gates |
 | Session | `@/lib/session` — no `auth.api.getSession` in `src/actions/**` or `src/app/**` |
 | CI | `.github/workflows/ci.yml` — `quality` job: `tsc`, `lint`, **`test`**, `build` |
 | Metadata | `src/lib/site-metadata.ts`; OG default `/logo512.png` |
@@ -686,10 +695,10 @@ pnpm dev
 | Journal (encrypted) | `/journal` | Good |
 | Cycle + experts | `/cycle` | Strong |
 | Profile / household | `/profile`, `/profile/household` | Good |
-| Premium | `/pro` stub; `User.isPremium` in schema | Stub only |
-| AdSense | — | Plan in `Docs/AdSense.md`; gated until legal |
-| Stripe | Webhook spike | `Docs/Stripe.md`; no checkout yet |
-| Tests / CI | Vitest + optional Playwright `e2e` job | 76 unit tests |
+| Premium | `/pro` + checkout when Stripe env set | `User.isPremium` + webhook |
+| AdSense | `AdsenseSlot` on public learn/recipes | Consent + `NEXT_PUBLIC_ADSENSE_ENABLED` |
+| Stripe | Checkout + webhook idempotency | `stripe_webhook_event` table |
+| Tests / CI | Vitest + optional Playwright `e2e` job | 82+ unit tests; auth E2E optional |
 
 ---
 

@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { ProCheckoutButton } from '@/components/pro/pro-checkout-button';
+import { isStripeConfigured } from '@/lib/stripe';
 import { ArrowRight, Timer, Sparkles } from 'lucide-react';
 
 export const metadata: Metadata = {
@@ -31,6 +33,8 @@ const plannedBenefits = [
 ];
 
 export default function ProPage() {
+  const checkoutEnabled = isStripeConfigured() && Boolean(process.env.STRIPE_PRICE_ID_PRO?.trim());
+
   return (
     <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
       <p className="text-sm font-medium text-primary-600">Premium</p>
@@ -42,10 +46,25 @@ export default function ProPage() {
       </p>
 
       <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
-        <strong>Core features stay free today.</strong> Nothing on this page is
-        for sale yet — HealthHub Pro is a future optional tier with no checkout or
-        payments.
+        <strong>Core features stay free today.</strong> Meal planning, journaling,
+        groceries, cycle tracking, and the timer remain free. Pro is an optional
+        upgrade for extras like ad-free use and cloud sync.
       </div>
+
+      {checkoutEnabled ? (
+        <div className="mt-4 flex flex-col gap-2">
+          <ProCheckoutButton />
+          <p className="text-xs text-gray-500">
+            Secure checkout via Stripe. Sign in first if prompted.
+          </p>
+        </div>
+      ) : (
+        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          Checkout is not configured in this environment. Set{' '}
+          <code className="text-xs">STRIPE_PRICE_ID_PRO</code> and webhook secrets
+          to enable upgrades.
+        </div>
+      )}
 
       <section className="mt-6 flex flex-col gap-2 rounded-lg border border-gray-200 bg-gray-50 px-4 py-4">
         <h2 className="text-base font-semibold text-gray-900">

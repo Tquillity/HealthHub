@@ -17,7 +17,19 @@ import { RecipeDetailClient } from '@/components/recipes/recipe-detail-client';
 /**
  * Caching: getCachedRecipe uses public tier for guests and viewerKey tier
  * for signed-in users. JSON-LD emitted for SEO on all visible recipes.
+ *
+ * Static generation: only `isSystem` public recipes are pre-rendered via
+ * `generateStaticParams`. Household/org-scoped IDs stay dynamic (`dynamicParams`)
+ * so private recipes are never baked into static HTML.
  */
+export const dynamicParams = true;
+
+export async function generateStaticParams() {
+  const { getPublicSystemRecipeIds } = await import(
+    '@/lib/structured-data/public-recipe-sitemap'
+  );
+  return getPublicSystemRecipeIds();
+}
 
 export async function generateMetadata({
   params,

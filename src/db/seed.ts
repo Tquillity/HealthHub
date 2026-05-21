@@ -6,6 +6,11 @@ import * as path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import { hashPassword } from 'better-auth/crypto';
+import {
+  DEFAULT_ADMIN_NAME,
+  resolveAdminEmail,
+  resolveAdminPassword,
+} from '@/lib/admin-credentials';
 // Prisma Client types - may need TypeScript server restart after schema changes
 import { PrismaClient, Prisma } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
@@ -81,15 +86,14 @@ async function seed() {
 
     // 2. Seed Admin User
     console.log('👤 Seeding admin user...');
-    const adminEmail = process.env.ADMIN_EMAIL || 'admin@healthhub.com';
-    const adminPassword = process.env.ADMIN_PASSWORD || 'Admin123!';
-    const adminName = process.env.ADMIN_NAME || 'Admin User';
+    const adminEmail = resolveAdminEmail();
+    const { password: adminPassword, source: passwordSource } = resolveAdminPassword();
+    const adminName = process.env.ADMIN_NAME?.trim() || DEFAULT_ADMIN_NAME;
 
     const existingAdmin = await prisma.user.findUnique({
       where: { email: adminEmail },
     });
 
-    // Better-Auth expects its own password hash format (scrypt: "salt:hexkey")
     const hashedPassword = await hashPassword(adminPassword);
 
     const adminUser =
@@ -99,14 +103,20 @@ async function seed() {
           name: adminName,
           email: adminEmail,
           emailVerified: true,
-          role: 'superadmin', // Use superadmin role for main admin (more secure than env var matching)
+          role: 'superadmin',
           createdAt: new Date(),
           updatedAt: new Date(),
         },
       }));
 
     if (existingAdmin) {
-      console.log(`⚠️ Admin user already exists: ${adminEmail} (repairing password hash if needed)`);
+      console.log(`⚠️ Admin user already exists: ${adminEmail} (repairing password hash)`);
+      if (existingAdmin.role !== 'superadmin') {
+        await prisma.user.update({
+          where: { id: adminUser.id },
+          data: { role: 'superadmin', emailVerified: true },
+        });
+      }
     }
 
     /**
@@ -178,8 +188,9 @@ async function seed() {
     console.log(`✅ Admin credentials ready`);
     console.log(`\n  📧 ADMIN CREDENTIALS:`);
     console.log(`     Email: ${adminEmail}`);
+    console.log(`     Password source: ${passwordSource}`);
     console.log(`     Password: ${adminPassword}`);
-    console.log(`\n  ⚠️  Save these credentials - you'll need them to sign in!\n`);
+    console.log(`\n  ⚠️  Use these exact values at /sign-in (not Admin123! if ADMIN_PASSWORD is set in .env).\n`);
 
     // 3. Load and Seed Recipes
     const manifestPath = path.join(__dirname, 'kitchen-manifest.json');
@@ -499,11 +510,102 @@ async function seed() {
               </ul>
             `,
             excerpt: "Learn how to build a sustainable exercise routine that you'll actually stick to. Discover the 80/20 rule and progressive approach to fitness.",
-            category: 'wellness',
+            category: 'exercise',
             tags: ['fitness', 'routine', 'sustainability', 'motivation'],
             difficulty: 'beginner',
             readTime: 10,
             imageUrl: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800&h=400&fit=crop',
+            featured: false,
+          },
+          {
+            title: 'Cycle-Synced Fasting Basics',
+            content: `
+              <h2>Fasting and your cycle</h2>
+              <p>Intermittent fasting can support metabolic health, but timing matters across menstrual phases. This overview explains when shorter eating windows may feel easier and when to prioritize nourishment instead.</p>
+              <h3>General principles</h3>
+              <ul>
+                <li>Start with 12–13 hour overnight fasts before extending windows</li>
+                <li>Hydrate with water and electrolytes during fasts</li>
+                <li>Stop fasting if you feel dizzy, cold, or unusually fatigued</li>
+              </ul>
+            `,
+            excerpt: 'How to align intermittent fasting with menstrual phases without under-fueling recovery days.',
+            category: 'fasting',
+            tags: ['fasting', 'cycle', 'metabolism'],
+            difficulty: 'intermediate',
+            readTime: 9,
+            imageUrl: 'https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=800&h=400&fit=crop',
+            featured: false,
+          },
+          {
+            title: 'Breaking a Fast Gently',
+            content: `
+              <h2>First meal after fasting</h2>
+              <p>How you break a fast affects digestion and energy. A balanced plate with protein, fiber, and healthy fats helps avoid blood-sugar spikes.</p>
+              <ul>
+                <li>Begin with protein and vegetables before heavy carbs</li>
+                <li>Chew slowly and stop at comfortable fullness</li>
+                <li>Avoid ultra-processed foods as the first meal</li>
+              </ul>
+            `,
+            excerpt: 'Practical tips for your first meal after an overnight or extended fast.',
+            category: 'fasting',
+            tags: ['fasting', 'nutrition', 'meal timing'],
+            difficulty: 'beginner',
+            readTime: 6,
+            imageUrl: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=800&h=400&fit=crop',
+            featured: false,
+          },
+          {
+            title: 'Fasting Safety Checklist',
+            content: `
+              <h2>Who should be cautious</h2>
+              <p>Fasting is not appropriate for everyone. Consult a clinician if you are pregnant, nursing, underweight, or managing diabetes or eating disorders.</p>
+              <ul>
+                <li>Never fast through dizziness or fainting</li>
+                <li>Adjust medications with your doctor if fasting</li>
+                <li>Prioritize sleep and stress recovery alongside fasting</li>
+              </ul>
+            `,
+            excerpt: 'Safety checklist before trying intermittent or extended fasting.',
+            category: 'fasting',
+            tags: ['fasting', 'safety', 'wellness'],
+            difficulty: 'beginner',
+            readTime: 5,
+            imageUrl: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800&h=400&fit=crop',
+            featured: false,
+          },
+          {
+            title: 'Low-Impact Movement for Busy Days',
+            content: `
+              <h2>Movement without a gym</h2>
+              <p>Short walks, mobility flows, and bodyweight circuits keep habit momentum when time is tight.</p>
+              <ul>
+                <li>10-minute walks after meals</li>
+                <li>Desk mobility: neck, hips, and shoulders</li>
+                <li>2 rounds of squats, push-ups, and planks</li>
+              </ul>
+            `,
+            excerpt: 'Low-impact exercise ideas you can finish in under fifteen minutes.',
+            category: 'exercise',
+            tags: ['movement', 'habits', 'low impact'],
+            difficulty: 'beginner',
+            readTime: 7,
+            imageUrl: 'https://images.unsplash.com/photo-1517836357463-d25dfeacbf84?w=800&h=400&fit=crop',
+            featured: false,
+          },
+          {
+            title: 'Strength Training at Home',
+            content: `
+              <h2>Minimal equipment</h2>
+              <p>Resistance bands and dumbbells unlock progressive strength work at home. Focus on compound patterns: squat, hinge, push, pull.</p>
+            `,
+            excerpt: 'Home strength basics with bands or dumbbells for household wellness.',
+            category: 'exercise',
+            tags: ['strength', 'home workout'],
+            difficulty: 'intermediate',
+            readTime: 11,
+            imageUrl: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&h=400&fit=crop',
             featured: false,
           },
           {

@@ -5,8 +5,16 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
 const STORAGE_KEY = 'healthhub-cookie-consent';
+export const COOKIE_CONSENT_REOPEN_EVENT = 'healthhub-cookie-consent-reopen';
 
 type ConsentValue = 'all' | 'essential';
+
+/** Clears stored consent and re-opens the banner (e.g. footer “Manage preferences”). */
+export function openCookiePreferences(): void {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem(STORAGE_KEY);
+  window.dispatchEvent(new CustomEvent(COOKIE_CONSENT_REOPEN_EVENT));
+}
 
 function readConsent(): ConsentValue | null {
   if (typeof window === 'undefined') return null;
@@ -27,21 +35,41 @@ function writeConsent(value: ConsentValue) {
  */
 export function CookieConsent() {
   const [visible, setVisible] = useState(false);
+  const [hasConsent, setHasConsent] = useState(false);
 
   useEffect(() => {
-    if (readConsent() === null) {
+    const sync = () => {
+      const value = readConsent();
+      setHasConsent(value !== null);
+      setVisible(value === null);
+    };
+    sync();
+    const onReopen = () => {
+      setHasConsent(false);
       setVisible(true);
-    }
+    };
+    window.addEventListener(COOKIE_CONSENT_REOPEN_EVENT, onReopen);
+    return () => window.removeEventListener(COOKIE_CONSENT_REOPEN_EVENT, onReopen);
   }, []);
-
-  if (!visible) return null;
 
   const dismiss = (value: ConsentValue) => {
     writeConsent(value);
+    setHasConsent(true);
     setVisible(false);
   };
 
   return (
+    <>
+    {hasConsent && !visible ? (
+      <button
+        type="button"
+        onClick={openCookiePreferences}
+        className="fixed bottom-4 left-4 z-40 min-h-[44px] rounded-md border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+      >
+        Manage cookie preferences
+      </button>
+    ) : null}
+    {visible ? (
     <div
       role="dialog"
       aria-label="Cookie preferences"
@@ -75,5 +103,7 @@ export function CookieConsent() {
         </div>
       </div>
     </div>
+    ) : null}
+    </>
   );
 }

@@ -10,6 +10,7 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 import { createPageMetadata } from '@/lib/site-metadata';
 import { Plus } from 'lucide-react';
+import { AdsenseSlot } from '@/components/ads/adsense-slot';
 
 /**
  * Caching: two-tier Data Cache via unstable_cache in recipe-cache.ts.
@@ -98,6 +99,11 @@ export default async function RecipesPage({ searchParams }: PageProps) {
         isAdmin={isAdmin}
         initialQuery={query}
         initialCategory={category}
+      />
+
+      <AdsenseSlot
+        slotId={process.env.NEXT_PUBLIC_ADSENSE_SLOT_RECIPES ?? 'recipes-footer'}
+        className="mt-8"
       />
     </div>
   );
