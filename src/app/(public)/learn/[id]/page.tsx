@@ -9,6 +9,8 @@ import { buildLearnArticleJsonLd } from '@/lib/structured-data/learn-jsonld';
 import { ChevronLeft, Clock, Star, Heart, Eye } from 'lucide-react';
 import { format } from 'date-fns';
 import { LearnDetailClient } from '@/components/learn/learn-detail-client';
+import { LearnViewTabs } from '@/components/learn/learn-view-tabs';
+import { parseLearnTldr } from '@/lib/validation/education-schemas';
 import { AppErrorBoundary } from '@/components/ui/error-boundary';
 
 /**
@@ -77,6 +79,7 @@ export default async function LearnDetailPage({
   }
 
   const resource = result.data;
+  const hasTldr = Boolean(parseLearnTldr(resource.tldr));
   const articleJsonLd = buildLearnArticleJsonLd(resource, {
     baseUrl: getMetadataBase().toString(),
   });
@@ -98,13 +101,19 @@ export default async function LearnDetailPage({
       />
       <Link
         href="/learn"
-        className="mb-6 flex items-center text-sm text-gray-500 transition-colors hover:text-primary-600"
+        className="mb-6 flex min-h-[44px] items-center text-sm text-gray-500 transition-colors hover:text-primary-600"
       >
         <ChevronLeft className="h-4 w-4" />
         Back to Learn
       </Link>
 
       <article className="rounded-lg border border-gray-200 bg-white p-8 shadow-sm">
+        <LearnViewTabs
+          resourceId={resource.id}
+          active="full"
+          hasTldr={hasTldr}
+        />
+
         {/* Header */}
         <div className="mb-6">
           <div className="mb-4 flex items-center gap-3">

@@ -314,6 +314,8 @@ model EducationalResource {
   title       String
   content     String
   excerpt     String?
+  /// Structured quick-facts card (TLDR). Shape: LearnTldr in education-schemas.
+  tldr        Json?
   category    String
   tags        String[]
   difficulty  String?

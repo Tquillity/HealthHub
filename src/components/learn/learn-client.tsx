@@ -4,8 +4,9 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Input } from '@/components/ui/input';
-import { Clock, Star, Search, BookOpen } from 'lucide-react';
+import { Clock, Star, Search, BookOpen, Zap } from 'lucide-react';
 import type { EducationalResource } from '@prisma/client';
+import { parseLearnTldr } from '@/lib/validation/education-schemas';
 
 interface LearnClientProps {
   resources: EducationalResource[];
@@ -150,58 +151,79 @@ export function LearnClient({ resources: initialResources }: LearnClientProps) {
           </div>
         ) : (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredResources.map((resource) => (
-              <Link
-                key={resource.id}
-                href={`/learn/${resource.id}`}
-                className="group rounded-lg border border-gray-200 bg-white shadow-sm transition-all hover:shadow-md"
-              >
-                {resource.imageUrl && (
-                  <div className="aspect-video w-full overflow-hidden rounded-t-lg bg-gray-100">
-                    <img
-                      src={resource.imageUrl}
-                      alt={resource.title}
-                      className="h-full w-full object-cover transition-transform group-hover:scale-105"
-                    />
-                  </div>
-                )}
-                <div className="p-4">
-                  <div className="mb-2 flex items-center gap-2">
-                    <span className="text-2xl">
-                      {categoryIcons[resource.category?.toLowerCase() || 'default'] ||
-                        categoryIcons.default}
-                    </span>
-                    {resource.category && (
-                      <span className="text-xs font-medium text-gray-500 uppercase">
-                        {resource.category}
-                      </span>
-                    )}
-                    {resource.featured && (
-                      <Star className="ml-auto h-4 w-4 fill-primary-500 text-primary-500" />
-                    )}
-                  </div>
-                  <h3 className="mb-2 text-lg font-semibold text-gray-900 group-hover:text-primary-600">
-                    {resource.title}
-                  </h3>
-                  {resource.excerpt && (
-                    <p className="mb-3 line-clamp-2 text-sm text-gray-600">
-                      {resource.excerpt}
-                    </p>
-                  )}
-                  <div className="flex items-center gap-4 text-xs text-gray-500">
-                    {resource.readTime && (
-                      <div className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        <span>{resource.readTime} min</span>
+            {filteredResources.map((resource) => {
+              const hasTldr = Boolean(parseLearnTldr(resource.tldr));
+              return (
+                <div
+                  key={resource.id}
+                  className="group flex flex-col rounded-lg border border-gray-200 bg-white shadow-sm transition-all hover:shadow-md"
+                >
+                  <Link
+                    href={`/learn/${resource.id}`}
+                    className="flex flex-1 flex-col"
+                  >
+                    {resource.imageUrl && (
+                      <div className="aspect-video w-full overflow-hidden rounded-t-lg bg-gray-100">
+                        <img
+                          src={resource.imageUrl}
+                          alt={resource.title}
+                          className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                        />
                       </div>
                     )}
-                    {resource.difficulty && (
-                      <span className="capitalize">{resource.difficulty}</span>
-                    )}
-                  </div>
+                    <div className="flex flex-1 flex-col p-4">
+                      <div className="mb-2 flex items-center gap-2">
+                        <span className="text-2xl">
+                          {categoryIcons[
+                            resource.category?.toLowerCase() || 'default'
+                          ] || categoryIcons.default}
+                        </span>
+                        {resource.category && (
+                          <span className="text-xs font-medium text-gray-500 uppercase">
+                            {resource.category}
+                          </span>
+                        )}
+                        {resource.featured && (
+                          <Star className="ml-auto h-4 w-4 fill-primary-500 text-primary-500" />
+                        )}
+                      </div>
+                      <h3 className="mb-2 text-lg font-semibold text-gray-900 group-hover:text-primary-600">
+                        {resource.title}
+                      </h3>
+                      {resource.excerpt && (
+                        <p className="mb-3 line-clamp-2 text-sm text-gray-600">
+                          {resource.excerpt}
+                        </p>
+                      )}
+                      <div className="mt-auto flex flex-wrap items-center gap-3 text-xs text-gray-500">
+                        {resource.readTime && (
+                          <div className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            <span>{resource.readTime} min</span>
+                          </div>
+                        )}
+                        {resource.difficulty && (
+                          <span className="capitalize">
+                            {resource.difficulty}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </Link>
+                  {hasTldr ? (
+                    <div className="border-t border-gray-100 px-4 py-2">
+                      <Link
+                        href={`/learn/${resource.id}/tldr`}
+                        className="inline-flex min-h-[44px] items-center gap-1.5 text-xs font-semibold text-primary-700 hover:text-primary-800"
+                      >
+                        <Zap className="h-3.5 w-3.5" aria-hidden />
+                        TLDR quick facts
+                      </Link>
+                    </div>
+                  ) : null}
                 </div>
-              </Link>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

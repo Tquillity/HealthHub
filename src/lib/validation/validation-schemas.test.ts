@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   GetEducationalResourcesSchema,
   ResourceIdSchema,
+  LearnTldrSchema,
+  parseLearnTldr,
 } from '@/lib/validation/education-schemas';
 import {
   AddShoppingItemSchema,
@@ -34,6 +36,39 @@ describe('ResourceIdSchema', () => {
   it('requires a non-empty id', () => {
     expect(ResourceIdSchema.parse('resource-1')).toBe('resource-1');
     expect(() => ResourceIdSchema.parse('')).toThrow();
+  });
+});
+
+describe('LearnTldrSchema / parseLearnTldr', () => {
+  it('parses a full TLDR card payload', () => {
+    const payload = {
+      summary: 'Short bottom line.',
+      whenToTake: 'Morning with breakfast',
+      howToTake: 'Oral capsules with water',
+      portioning: '1 serving as labeled',
+      takeWith: ['Food', 'Water'],
+      avoidWith: ['Nitroglycerin'],
+      keyPoints: ['Stay consistent'],
+      cautions: ['Ask a clinician if pregnant'],
+      duration: 'Daily while needed',
+    };
+    expect(LearnTldrSchema.parse(payload)).toMatchObject(payload);
+    expect(parseLearnTldr(payload)?.summary).toBe('Short bottom line.');
+  });
+
+  it('returns null for empty or invalid values', () => {
+    expect(parseLearnTldr(null)).toBeNull();
+    expect(parseLearnTldr({})).toBeNull();
+    expect(parseLearnTldr({ takeWith: [], avoidWith: [] })).toBeNull();
+    expect(parseLearnTldr('not-an-object')).toBeNull();
+  });
+
+  it('defaults list fields when omitted', () => {
+    const parsed = LearnTldrSchema.parse({ summary: 'Only summary' });
+    expect(parsed.takeWith).toEqual([]);
+    expect(parsed.avoidWith).toEqual([]);
+    expect(parsed.keyPoints).toEqual([]);
+    expect(parsed.cautions).toEqual([]);
   });
 });
 
