@@ -118,6 +118,13 @@
         "pantry-staple",
         "infrastructure"
       ],
+      "dietaryTags": [
+        "Glutenfri",
+        "Vegansk",
+        "Mejerifri",
+        "Växtbaserat",
+        "Nötfritt"
+      ],
       "ingredients": [
         {
           "name": "Solrosfrön",
@@ -227,6 +234,9 @@
         "condiment",
         "no-cook"
       ],
+      "dietaryTags": [
+        "Glutenfri"
+      ],
       "ingredients": [
         {
           "name": "Röd chilifrukt",
@@ -306,6 +316,12 @@
         "vegetarian",
         "condiment",
         "peanut"
+      ],
+      "dietaryTags": [
+        "Vegetariskt",
+        "Vegansk",
+        "Mejerifri",
+        "Växtbaserat"
       ],
       "ingredients": [
         {
@@ -431,6 +447,13 @@
         "gluten-free",
         "dairy-free"
       ],
+      "dietaryTags": [
+        "Paleo",
+        "AIP-vänlig",
+        "Glutenfri",
+        "Mejerifri",
+        "Vegetariskt"
+      ],
       "ingredients": [
         {
           "name": "Sötpotatis",
@@ -516,6 +539,9 @@
         "fish",
         "creamy",
         "comfort-food"
+      ],
+      "dietaryTags": [
+        "Glutenfri"
       ],
       "ingredients": [
         {
@@ -646,6 +672,10 @@
         "batch-friendly",
         "dairy-free",
         "luxury-weekend"
+      ],
+      "dietaryTags": [
+        "Glutenfri",
+        "Mejerifri"
       ],
       "ingredients": [
         {
@@ -832,6 +862,11 @@
         "paleo-friendly",
         "quick"
       ],
+      "dietaryTags": [
+        "Glutenfri",
+        "Vegetariskt",
+        "Paleo"
+      ],
       "ingredients": [
         {
           "name": "Banan",
@@ -915,6 +950,13 @@
         "gluten-free",
         "no-bake",
         "treat"
+      ],
+      "dietaryTags": [
+        "Vegansk",
+        "Glutenfri",
+        "Mejerifri",
+        "Växtbaserat",
+        "Raw"
       ],
       "ingredients": [
         {
@@ -1003,6 +1045,12 @@
         "gluten-free",
         "luxury",
         "party"
+      ],
+      "dietaryTags": [
+        "Vegetariskt",
+        "Glutenfri",
+        "Mejerifri",
+        "Raw"
       ],
       "ingredients": [
         {
@@ -1104,6 +1152,9 @@
         "citrus",
         "party",
         "classic"
+      ],
+      "dietaryTags": [
+        "Vegetariskt"
       ],
       "ingredients": [
         {
@@ -2165,7 +2216,6 @@
         "Paleo",
         "Keto",
         "LCHF",
-        "Mejerifri",
         "Nötfritt"
       ],
       "ingredients": [

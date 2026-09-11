@@ -346,6 +346,35 @@ async function seed() {
             readTime: 8,
             imageUrl: 'https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=800&h=400&fit=crop',
             featured: true,
+            tldr: {
+              summary:
+                'Eat one meal a day fully present—no screens—to improve digestion, portion control, and satisfaction.',
+              whenToTake:
+                'Start with one meal per day at a quiet time (breakfast or dinner works well).',
+              howToTake:
+                'Sit without TV/phone, take three deep breaths before the first bite, chew slowly, and stop when comfortably full.',
+              portioning:
+                'Use hunger/fullness cues rather than a fixed plate size; serve less first and add more only if still hungry.',
+              takeWith: [
+                'A calm place to sit',
+                'A full plate already portioned (avoids mindless refills)',
+                'Water sipped between bites',
+              ],
+              avoidWith: [
+                'Screens or work during the meal',
+                'Eating straight from bags or packaging',
+                'Rushing between meetings',
+              ],
+              keyPoints: [
+                'Presence beats perfect macros for this practice',
+                'Chew thoroughly and notice flavor/texture',
+                'Build the habit with one meal before expanding',
+              ],
+              cautions: [
+                'Not a substitute for clinical care for disordered eating—seek professional support if needed',
+              ],
+              duration: 'Practice daily; benefits build over weeks of consistency.',
+            },
           },
           {
             title: '5-Minute Morning Meditation Routine',
@@ -380,6 +409,35 @@ async function seed() {
             readTime: 5,
             imageUrl: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=400&fit=crop',
             featured: true,
+            tldr: {
+              summary:
+                'Five quiet minutes each morning: breathe, body-scan, set one intention, open eyes.',
+              whenToTake:
+                'Same time each morning, soon after waking—before email or news if possible.',
+              howToTake:
+                'Sit comfortably, close eyes. Min 1 settle; min 2 ten deep breaths; min 3 body scan; min 4 intention; min 5 open eyes slowly.',
+              portioning:
+                'Start with 2–3 minutes if 5 feels long; do not force an empty mind—observe thoughts and return to breath.',
+              takeWith: [
+                'A cushion or stable chair',
+                'A consistent wake time',
+                'A short timer (optional)',
+              ],
+              avoidWith: [
+                'Phone notifications on',
+                'Lying down if you tend to fall asleep',
+                'Judging every thought as failure',
+              ],
+              keyPoints: [
+                'Consistency beats length',
+                'Body scan releases morning tension',
+                'One clear intention frames the day',
+              ],
+              cautions: [
+                'If meditation increases distress, pause and consider guided support from a clinician',
+              ],
+              duration: 'Daily habit; benefits compound over weeks.',
+            },
           },
           {
             title: 'Understanding Your Circadian Rhythm for Better Sleep',
@@ -414,6 +472,35 @@ async function seed() {
             readTime: 12,
             imageUrl: 'https://images.unsplash.com/photo-1541781774459-1dcf1b4b0b8e?w=800&h=400&fit=crop',
             featured: true,
+            tldr: {
+              summary:
+                'Anchor sleep to light and schedule: morning sun, fixed wake time, dim evenings, cool dark room.',
+              whenToTake:
+                'Morning light within ~1 hour of waking; wind-down 2–3 hours before bed; screens off ~1 hour before sleep.',
+              howToTake:
+                'Get outdoor light early, keep a consistent sleep/wake clock (including weekends), dim lights at night, cool the bedroom.',
+              portioning:
+                '10–30 minutes morning daylight; bedroom about 65–68°F (18–20°C); protect a full sleep window rather than “catching up” randomly.',
+              takeWith: [
+                'Morning outdoor light',
+                'A consistent wake time',
+                'Dim warm lighting in the evening',
+              ],
+              avoidWith: [
+                'Bright screens late at night without filters',
+                'Large caffeine late in the day',
+                'Highly variable sleep schedules',
+              ],
+              keyPoints: [
+                'Light is the master cue for melatonin',
+                'Consistency matters more than occasional long sleeps',
+                'Cool, dark rooms support sleep quality',
+              ],
+              cautions: [
+                'Persistent insomnia or suspected sleep disorders need medical evaluation',
+              ],
+              duration: 'Align for 1–2 weeks before judging results; maintain ongoing.',
+            },
           },
           {
             title: 'Stress Management Through Deep Breathing Techniques',
@@ -742,7 +829,16 @@ async function seed() {
             where: { title: resourceData.title },
           });
           if (existing) {
-            console.log(`  ⏭️  Resource already exists: ${resourceData.title}`);
+            // Backfill TLDR (and other structured fields) on re-seed without recreating.
+            if ('tldr' in resourceData && resourceData.tldr != null) {
+              await prisma.educationalResource.update({
+                where: { id: existing.id },
+                data: { tldr: resourceData.tldr },
+              });
+              console.log(`  🔄 Updated TLDR: ${resourceData.title}`);
+            } else {
+              console.log(`  ⏭️  Resource already exists: ${resourceData.title}`);
+            }
             continue;
           }
 

@@ -14,6 +14,8 @@ node_modules/
 # Testing
 /coverage
 /e2e/.auth/
+/test-results/
+/playwright-report/
 
 # Next.js – core build output (covers both Webpack and Turbopack)
 /.next/
@@ -75,23 +77,8 @@ next-env.d.ts
 # npm lockfile (project uses pnpm)
 package-lock.json
 
-# Package manager lock files (only commit the one you actually use)
-# 
-# CURRENT STATE (2026-01-06):
-# - Project uses pnpm (see package.json scripts)
-# - package-lock.json IS TRACKED (not ignored) because pnpm-lock.yaml doesn't exist yet
-# - This ensures dependency reproducibility until pnpm migration is complete
-#
-# MIGRATION STEPS (when ready to switch to pnpm):
-# 1. Run: pnpm install (generates pnpm-lock.yaml)
-# 2. Uncomment the package-lock.json line below
-# 3. Run: git rm --cached package-lock.json (remove from tracking)
-# 4. Commit both changes together
-#
-# For pnpm projects – commit pnpm-lock.yaml, ignore the others
-# package-lock.json    # ← CURRENTLY COMMENTED (package-lock.json is tracked)
-# yarn.lock            # ← uncomment if you ever switch to yarn
-!pnpm-lock.yaml        # ← explicitly allow pnpm-lock.yaml to be committed
+# pnpm-lock.yaml is the only tracked package manager lockfile.
+!pnpm-lock.yaml
 
 # Editor / IDE
 .vscode/

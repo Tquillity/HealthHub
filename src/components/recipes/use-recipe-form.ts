@@ -288,7 +288,10 @@ export function useRecipeForm(
       servings: formData.servings ? parseInt(formData.servings) : undefined,
       category: formData.category || undefined,
       tags: formData.tags.split(',').map((t: string) => t.trim()).filter(Boolean),
-      difficulty: formData.difficulty as 'easy' | 'medium' | 'hard' | undefined,
+      difficulty:
+        formData.difficulty === 'easy' || formData.difficulty === 'medium' || formData.difficulty === 'hard'
+          ? formData.difficulty
+          : undefined,
       cuisine: formData.cuisine || undefined,
       leanRole: formData.leanRole || undefined,
       dietaryTags: formData.dietaryTags.split(',').map((t: string) => t.trim()).filter(Boolean),
@@ -306,7 +309,7 @@ export function useRecipeForm(
       instructions: instructions
         .filter((inst) => inst.text.trim())
         .map((inst, idx) => ({ stepNumber: idx + 1, text: inst.text })),
-    };
+    } satisfies Parameters<typeof createRecipe>[0];
 
     const result = isEditing
       ? await updateRecipe({ ...recipeData, id: recipe!.id })

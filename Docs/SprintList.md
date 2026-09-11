@@ -479,7 +479,7 @@ Root `layout.tsx` sets `metadataBase` and title template.
 | ID | Task | Priority | Effort | Notes |
 |----|------|----------|--------|-------|
 | S7-1 | AdSense integration plan | P3 | L | ✅ `Docs/AdSense.md` (implementation gated on legal) |
-| S7-2 | Timer optional DB sync (premium) | P3 | XL | Deferred Phase 10+ |
+| S7-2 | Timer server persistence (premium) | P3 | XL | ✅ Phase 10 — `pomo_state` + actions |
 | S7-3 | Menu ↔ grocery deep link | P3 | L | ✅ Phase 8 |
 | S7-4 | Expert cards → Learn | P3 | M | ✅ Category links Phase 8; seed depth Phase 9 |
 | S7-5 | Observability | P3 | M | Partial — action prefixes; Sentry deferred |
@@ -653,6 +653,12 @@ pnpm dev
 - [x] **Gated** — `isLegalReviewApproved` gate, `AdsenseSlot` (consent-gated), Stripe checkout + webhook idempotency + `/pro` CTA
 - [x] **S7-5** — Sentry decision documented (deferred) in Observability.md
 
+**Phase 10 — complete (2026-05-21):**
+
+- [x] **S5-3 ext** — Required auth E2E in CI (Postgres service + `db:push` bootstrap)
+- [x] **S7-2** — Server-persistent PomoZen for premium users (`PomoState` + actions)
+- [x] **S7-2 ext** — Dashboard `FocusGoalCard` server read for premium
+
 **Roadmap:** [`Docs/SprintRoadmap.md`](./SprintRoadmap.md)
 
 ---
@@ -664,7 +670,7 @@ pnpm dev
 | ESLint | **~14** problems (0 errors, warnings) — react-refresh on metadata pages |
 | TypeScript | `tsc --noEmit` passes |
 | Build | `pnpm build` passes |
-| Tests | Vitest — **82+** tests (`pnpm test`) — grocery merge, meal-auto-fill, phase9 gates |
+| Tests | Vitest — **91** tests (`pnpm test`) — pomo state schema, server progress |
 | Session | `@/lib/session` — no `auth.api.getSession` in `src/actions/**` or `src/app/**` |
 | CI | `.github/workflows/ci.yml` — `quality` job: `tsc`, `lint`, **`test`**, `build` |
 | Metadata | `src/lib/site-metadata.ts`; OG default `/logo512.png` |

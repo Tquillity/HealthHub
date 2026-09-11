@@ -40,12 +40,6 @@ const createPrismaClient = () => {
     log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
   });
 
-  // Add connection health check
-  client.$connect().catch((err) => {
-    console.error('❌ [Prisma] Failed to connect to database:', err.message);
-    // Don't throw here - let individual queries handle errors
-  });
-
   return client;
 };
 

@@ -32,6 +32,7 @@ model User {
   members               Member[]
   journalEntries        JournalEntry[]
   ingredientPreferences UserIngredientPreference[]
+  pomoState             PomoState?
 
   @@map("user")
 }
@@ -314,6 +315,8 @@ model EducationalResource {
   title       String
   content     String
   excerpt     String?
+  /// Structured quick-facts card (TLDR). Shape: LearnTldr in education-schemas.
+  tldr        Json?
   category    String
   tags        String[]
   difficulty  String?
@@ -383,6 +386,18 @@ model UserIngredientPreference {
   @@unique([userId, pattern])
   @@index([userId])
   @@map("user_ingredient_preference")
+}
+
+/// Premium PomoZen timer state — PostgreSQL source of truth for signed-in Pro users.
+model PomoState {
+  id          String   @id @default(cuid())
+  userId      String   @unique @map("user_id")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payloadJson Json     @map("payload_json")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("pomo_state")
 }
 
 /// Stripe webhook idempotency — one row per processed `event.id`.

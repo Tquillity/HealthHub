@@ -59,19 +59,23 @@ export async function buildRecipeVisibilityFilter(
     };
   }
 
-  const membership = await prisma.member.findFirst({
-    where: { userId },
-    select: { organizationId: true },
-  });
-  const orgId = membership?.organizationId || null;
-  const mainAdmin = await isMainAdmin(userId);
+  const [memberships, user] = await Promise.all([
+    prisma.member.findMany({
+      where: { userId },
+      select: { organizationId: true },
+      orderBy: { organizationId: 'asc' },
+    }),
+    prisma.user.findUnique({ where: { id: userId }, select: { role: true } }),
+  ]);
+  const organizationIds = memberships.map((membership) => membership.organizationId);
+  const mainAdmin = user?.role === 'superadmin';
 
   return {
     AND: [
       {
         OR: [
           { isSystem: true },
-          ...(orgId ? [{ organizationId: orgId }] : []),
+          ...(organizationIds.length ? [{ organizationId: { in: organizationIds } }] : []),
           ...(mainAdmin ? [{ isSecret: true }] : []),
         ],
       },

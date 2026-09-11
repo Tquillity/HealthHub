@@ -3,6 +3,8 @@ import { getMetadataBase } from '@/lib/site-metadata';
 import { getPublicLearnSitemapEntries } from '@/lib/structured-data/public-learn-sitemap';
 import { getPublicRecipeSitemapEntries } from '@/lib/structured-data/public-recipe-sitemap';
 
+export const dynamic = 'force-dynamic';
+
 const STATIC_PATHS = [
   '/',
   '/timer',

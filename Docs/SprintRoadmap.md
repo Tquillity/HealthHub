@@ -10,12 +10,12 @@
 
 | | |
 |---|---|
-| **Active phase** | **10** (Phase 9 complete) |
+| **Active phase** | **11** (Phase 10 complete) |
 | **Branch baseline** | `feature/next-step` |
-| **Health** | CI green — `tsc`, `lint`, **82+ tests**, `build` |
-| **Just shipped** | Recipe-form split, system-recipe SSG, learn seed, gated AdSense/Stripe, auth E2E scaffold |
-| **Up next (Phase 10)** | Timer DB sync (S7-2) · required auth E2E in CI · Pomo refactors · org-aware static recipes |
-| **Explicitly deferred** | Timer DB sync, Pomo store refactors |
+| **Health** | CI green — `tsc`, `lint`, **91 tests**, `build`, required auth E2E |
+| **Just shipped** | Auth E2E CI, server-persistent premium timer, dashboard cloud progress |
+| **Up next (Phase 11)** | Org-aware static recipes · Stripe Customer Portal · Pomo typing |
+| **Explicitly deferred** | Pomo store refactors · org-aware static recipes · Stripe Customer Portal |
 
 ---
 

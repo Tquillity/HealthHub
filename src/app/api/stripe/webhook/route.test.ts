@@ -1,0 +1,151 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import Stripe from 'stripe';
+
+const mocks = vi.hoisted(() => ({
+  process: vi.fn(),
+  subscriptions: vi.fn(),
+  list: vi.fn(),
+}));
+vi.mock('@/lib/stripe-webhook', () => ({ processStripeEvent: mocks.process }));
+vi.mock('stripe', async (importOriginal) => {
+  const { default: StripeClient } =
+    await importOriginal<typeof import('stripe')>();
+  return {
+    default: class extends StripeClient {
+      constructor(key: string) {
+        super(key);
+        this.subscriptions.retrieve = mocks.subscriptions;
+        this.checkout.sessions.list = mocks.list;
+      }
+    },
+  };
+});
+import { POST } from './route';
+
+const secret = 'whsec_fixture';
+function request(type: string, object: object, signatureValid = true) {
+  const payload = JSON.stringify({ id: 'evt_fixture', type, data: { object } });
+  const client = new Stripe('sk_test_fixture');
+  const signature = client.webhooks.generateTestHeaderString({
+    payload,
+    secret,
+  });
+  return new Request('http://localhost/api/stripe/webhook', {
+    method: 'POST',
+    body: payload,
+    headers: { 'stripe-signature': signatureValid ? signature : 'invalid' },
+  });
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.stubEnv('STRIPE_SECRET_KEY', 'sk_test_fixture');
+  vi.stubEnv('STRIPE_WEBHOOK_SECRET', secret);
+  mocks.process.mockResolvedValue({ duplicate: false });
+  mocks.subscriptions.mockResolvedValue({ status: 'active' });
+});
+afterEach(() => vi.unstubAllEnvs());
+
+describe('signed Stripe webhooks', () => {
+  it('rejects an invalid signature before writing to the database', async () => {
+    expect(
+      (await POST(request('customer.subscription.deleted', {}, false))).status
+    ).toBe(400);
+    expect(mocks.process).not.toHaveBeenCalled();
+  });
+
+  it('revokes premium using the subscription metadata', async () => {
+    const response = await POST(
+      request('customer.subscription.deleted', {
+        id: 'sub_fixture',
+        metadata: { userId: 'user_fixture' },
+      })
+    );
+    expect(response.status).toBe(200);
+    expect(mocks.process).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'evt_fixture' }),
+      {
+        userId: 'user_fixture',
+        isPremium: false,
+      }
+    );
+  });
+
+  it('recovers legacy subscriptions through the original checkout metadata', async () => {
+    mocks.list.mockResolvedValue({
+      data: [{ metadata: { userId: 'legacy_user' } }],
+    });
+    const response = await POST(
+      request('customer.subscription.deleted', {
+        id: 'sub_legacy',
+        metadata: {},
+      })
+    );
+    expect(response.status).toBe(200);
+    expect(mocks.list).toHaveBeenCalledWith({
+      subscription: 'sub_legacy',
+      limit: 1,
+    });
+    expect(mocks.process).toHaveBeenCalledWith(expect.anything(), {
+      userId: 'legacy_user',
+      isPremium: false,
+    });
+  });
+
+  it('returns a retryable failure without claiming an unmapped cancellation', async () => {
+    mocks.list.mockResolvedValue({ data: [] });
+    expect(
+      (
+        await POST(
+          request('customer.subscription.deleted', {
+            id: 'sub_missing',
+            metadata: {},
+          })
+        )
+      ).status
+    ).toBe(500);
+    expect(mocks.process).not.toHaveBeenCalled();
+  });
+
+  it('does not reactivate a cancellation when checkout completion arrives late', async () => {
+    mocks.subscriptions.mockResolvedValue({ status: 'canceled' });
+    const response = await POST(
+      request('checkout.session.completed', {
+        mode: 'subscription',
+        payment_status: 'paid',
+        subscription: 'sub_canceled',
+        metadata: { userId: 'user_fixture' },
+      })
+    );
+    expect(response.status).toBe(200);
+    expect(mocks.process).toHaveBeenCalledWith(expect.anything(), {
+      userId: 'user_fixture',
+      isPremium: false,
+    });
+  });
+
+  it('reports database failures as retryable processing errors', async () => {
+    mocks.process.mockRejectedValueOnce(new Error('Database offline'));
+    const response = await POST(
+      request('customer.subscription.deleted', {
+        id: 'sub_fixture',
+        metadata: { userId: 'user_fixture' },
+      })
+    );
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({
+      error: 'Webhook processing failed',
+    });
+  });
+
+  it('acknowledges duplicates without treating them as signature failures', async () => {
+    mocks.process.mockResolvedValue({ duplicate: true });
+    const response = await POST(
+      request('customer.subscription.deleted', {
+        id: 'sub_fixture',
+        metadata: { userId: 'user_fixture' },
+      })
+    );
+    expect(await response.json()).toEqual({ received: true, duplicate: true });
+  });
+});

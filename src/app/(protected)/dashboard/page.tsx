@@ -2,6 +2,8 @@ import { redirect } from 'next/navigation';
 import { getServerSession } from '@/lib/session';
 import { prisma } from '@/lib/db';
 import { DashboardClient } from '@/components/dashboard/dashboard-client';
+import { getPremiumPomoDashboardSnapshot } from '@/actions/pomo-state';
+import { progressFromPomoPayload } from '@/lib/pomo/utils/pomo-server-progress';
 
 export default async function DashboardPage() {
   const session = await getServerSession();
@@ -21,7 +23,7 @@ export default async function DashboardPage() {
   }
 
   // Fetch statistics and recent routines
-  const [routines, routinesCount, recipesCount] = await Promise.all([
+  const [routines, routinesCount, recipesCount, pomoSnapshot] = await Promise.all([
     prisma.routine.findMany({
       where: {
         OR: [
@@ -48,7 +50,13 @@ export default async function DashboardPage() {
         ],
       },
     }),
+    getPremiumPomoDashboardSnapshot(),
   ]);
+
+  const focusGoalProgress =
+    pomoSnapshot.isPremium && pomoSnapshot.payload
+      ? progressFromPomoPayload(pomoSnapshot.payload)
+      : null;
 
   return (
     <div className="max-w-7xl">
@@ -57,6 +65,8 @@ export default async function DashboardPage() {
         routinesCount={routinesCount}
         recipesCount={recipesCount}
         userName={session.user.name}
+        isPremiumCloud={pomoSnapshot.isPremium}
+        focusGoalProgress={focusGoalProgress}
       />
     </div>
   );

@@ -20,6 +20,9 @@ import { useKeyboardShortcuts } from '@/lib/pomo/hooks/useKeyboardShortcuts';
 import { useTheme } from '@/lib/pomo/hooks/useTheme';
 import { useTimerEffects } from '@/lib/pomo/hooks/useTimerEffects';
 import { useWallClockSync } from '@/lib/pomo/hooks/useWallClockSync';
+import { PomoCloudStatusBanner } from '@/components/timer/pomo-cloud-status-banner';
+import { usePomoCloudPersistence } from '@/lib/pomo/hooks/usePomoCloudPersistence';
+import { useSession } from '@/lib/auth-client';
 import type { TimerMode } from '@/lib/pomo/types';
 import { useSettingsStore } from '@/lib/pomo-store/useSettingsStore';
 import { useTimeStore } from '@/lib/pomo-store/useTimeStore';
@@ -49,6 +52,9 @@ export function TimerPageClient() {
   useKeyboardShortcuts();
   useFocusMode();
   useWallClockSync();
+
+  const { data: session, isPending: isSessionPending } = useSession();
+  const cloudPersistence = usePomoCloudPersistence();
 
   const [isMounted, setIsMounted] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -162,7 +168,11 @@ export function TimerPageClient() {
     }
   };
 
-  if (!isMounted) {
+  if (
+    !isMounted ||
+    isSessionPending ||
+    (session?.user && cloudPersistence.status === 'loading')
+  ) {
     return (
       <div
         className={`${styles.pomozenPage} flex min-h-screen w-full items-center justify-center px-6 py-12 text-white`}
@@ -171,7 +181,9 @@ export function TimerPageClient() {
           <p className="app-eyebrow">HealthHub Tool</p>
           <h1 className="mt-3 text-3xl font-bold">Loading Focus Timer</h1>
           <p className="mt-4 text-sm text-white/70">
-            Restoring your local timer settings, tasks, and recent focus history.
+            {session?.user
+              ? 'Loading your cloud timer state…'
+              : 'Restoring your local timer settings, tasks, and recent focus history.'}
           </p>
         </div>
       </div>
@@ -194,8 +206,10 @@ export function TimerPageClient() {
                 Focus Timer
               </h1>
               <p className="mt-3 text-sm leading-relaxed text-white/70 sm:text-base">
-                A public Pomodoro timer with task tracking, ambient audio, and
-                browser-only persistence for offline-friendly focus sessions.
+                A public Pomodoro timer with task tracking and ambient audio.
+                {cloudPersistence.status === 'cloud'
+                  ? ' Pro cloud persistence keeps your progress on HealthHub servers.'
+                  : ' Browser storage for free sessions; upgrade to Pro for cloud persistence.'}
               </p>
             </div>
 
@@ -351,6 +365,13 @@ export function TimerPageClient() {
           {storageError}
         </div>
       )}
+
+      <PomoCloudStatusBanner
+        status={cloudPersistence.status}
+        saveError={cloudPersistence.saveError}
+        lastSavedAt={cloudPersistence.lastSavedAt}
+        onRetry={() => void cloudPersistence.retry()}
+      />
 
       <SwitchModeModal
         isOpen={switchModalState.isOpen}

@@ -26,6 +26,13 @@ export const auth = betterAuth({
   },
   secret: process.env.BETTER_AUTH_SECRET!,
   baseURL: process.env.BETTER_AUTH_URL || 'http://localhost:3000',
+  rateLimit: {
+    customRules: {
+      // The proxy calls this read-only endpoint on navigation. Those requests
+      // share the server IP and must not turn valid sessions into sign-in redirects.
+      '/get-session': false,
+    },
+  },
   plugins: [
     organization(),
   ],

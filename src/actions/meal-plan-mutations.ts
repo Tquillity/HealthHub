@@ -3,9 +3,7 @@
 import { prisma } from '@/lib/db';
 import { requireSessionUserId } from '@/lib/session';
 import { revalidatePath } from 'next/cache';
-import { endOfWeek, startOfWeek, addDays, eachDayOfInterval } from 'date-fns';
 import { z } from 'zod';
-import type { Prisma } from '@prisma/client';
 import { randomBytes } from 'crypto';
 
 export async function addMealToPlan(

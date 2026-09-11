@@ -7,29 +7,15 @@ import {
   getUserRole,
   type RecipeWithDetails,
 } from '@/actions/recipe-actions';
-import { getCachedRecipe, getRecipeViewerKey } from '@/lib/recipe-cache';
+import { getCachedRecipe } from '@/lib/recipe-cache';
 import { createPageMetadata, getMetadataBase } from '@/lib/site-metadata';
 import { buildRecipeJsonLd } from '@/lib/structured-data/recipe-jsonld';
 import { ChevronLeft, Clock, Users, ChefHat, BookOpen, Sparkles } from 'lucide-react';
 import { ServingsScaler } from '@/components/recipes/servings-scaler';
 import { RecipeDetailClient } from '@/components/recipes/recipe-detail-client';
 
-/**
- * Caching: getCachedRecipe uses public tier for guests and viewerKey tier
- * for signed-in users. JSON-LD emitted for SEO on all visible recipes.
- *
- * Static generation: only `isSystem` public recipes are pre-rendered via
- * `generateStaticParams`. Household/org-scoped IDs stay dynamic (`dynamicParams`)
- * so private recipes are never baked into static HTML.
- */
-export const dynamicParams = true;
-
-export async function generateStaticParams() {
-  const { getPublicSystemRecipeIds } = await import(
-    '@/lib/structured-data/public-recipe-sitemap'
-  );
-  return getPublicSystemRecipeIds();
-}
+// Resolve visibility at request time; builds never enumerate recipes from the DB.
+export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({
   params,
@@ -37,13 +23,13 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id } = await params;
-  const viewerKey = await getRecipeViewerKey();
-  const result = await getCachedRecipe(id, viewerKey);
+  const result = await getCachedRecipe(id);
 
   if (!result.success || !result.data) {
     return createPageMetadata({
       title: 'Recipe',
       path: `/recipes/${id}`,
+      noIndex: true,
     });
   }
 
@@ -57,6 +43,7 @@ export async function generateMetadata({
     description,
     path: `/recipes/${id}`,
     ogImage: recipe.imageUrl || undefined,
+    noIndex: !recipe.isSystem || recipe.isSecret || recipe.isPrivate,
   });
 }
 
@@ -66,9 +53,8 @@ export default async function RecipeDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const viewerKey = await getRecipeViewerKey();
   const [recipeResult, roleResult] = await Promise.all([
-    getCachedRecipe(id, viewerKey),
+    getCachedRecipe(id),
     getUserRole(),
   ]);
 
@@ -133,10 +119,12 @@ export default async function RecipeDetailPage({
 
   return (
     <div className="container mx-auto max-w-6xl p-6">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(recipeJsonLd) }}
-      />
+      {recipe.isSystem && !recipe.isSecret && !recipe.isPrivate && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(recipeJsonLd).replace(/</g, '\\u003c') }}
+        />
+      )}
       <Link
         href="/recipes"
         className="mb-6 flex items-center text-sm text-gray-500 transition-colors hover:text-blue-600"

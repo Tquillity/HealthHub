@@ -1,35 +1,60 @@
-# End-to-end tests (Playwright)
+# End-to-end checks
 
-## Public smoke (CI-safe)
+Use Node 22.13 or newer and the pnpm version pinned in `package.json`.
+Playwright starts the production server automatically. Locally it can reuse an
+already running server at `PLAYWRIGHT_BASE_URL`, which defaults to
+`http://localhost:3000`.
 
-Runs without credentials:
+## Run the complete suite locally
+
+Create a disposable PostgreSQL database named `healthhub_e2e` on localhost.
+Set `DATABASE_URL` explicitly to that database before running these commands.
+The fixture script refuses remote hosts or a different database name.
 
 ```bash
-pnpm test:e2e:install
-pnpm build && pnpm start   # separate terminal
+export DATABASE_URL='postgresql://ci:ci@localhost:5432/healthhub_e2e?sslmode=disable'
+export BETTER_AUTH_SECRET='ci-build-secret-minimum-32-characters-long-for-ci'
+export BETTER_AUTH_URL='http://localhost:3000'
+export NEXT_PUBLIC_BETTER_AUTH_URL='http://localhost:3000'
+export PLAYWRIGHT_BASE_URL='http://localhost:3000'
+export ADMIN_EMAIL='admin@healthhub.com'
+export PLAYWRIGHT_TEST_EMAIL='admin@healthhub.com'
+export PLAYWRIGHT_TEST_PASSWORD='Admin123!'
+export PLAYWRIGHT_SEEDED_DB=1
+pnpm install --frozen-lockfile
+pnpm db:push
+pnpm db:repair-admin -- --use-default
+pnpm exec tsx scripts/seed-e2e.ts
+pnpm exec vitest run src/lib/stripe-webhook.test.ts
+pnpm exec playwright install --with-deps chromium
+pnpm build
 pnpm test:e2e
 ```
 
-Specs: `e2e/smoke.spec.ts` (landing, recipes, timer, learn, privacy, terms).
+The credentials above are disposable fixtures. Do not run the repair or seed
+commands against a real household database.
 
-## Authenticated smoke (optional)
+## Coverage and CI
 
-Requires a seeded test user and database:
+The `quality` job runs TypeScript, lint, unit tests, and a production build
+without a live database. The `e2e` job starts PostgreSQL 16, initializes the
+checked-in Prisma schema, creates fixtures, and runs the Stripe transaction and
+browser tests. Both jobs fail the workflow when a check fails.
 
-```env
-PLAYWRIGHT_TEST_EMAIL="test@example.com"
-PLAYWRIGHT_TEST_PASSWORD="..."
-DATABASE_URL="postgresql://..."
-PLAYWRIGHT_BASE_URL="http://localhost:3000"
-```
+Browser checks cover public page content, signed-in dashboard and groceries,
+meal planning, public versus household/secret/private recipe access, recipe
+structured data and noindex metadata, immediate privacy changes after warming
+the guest cache, and TLDR navigation with valid, absent,
+and invalid summaries. Authenticated specs run only in the authenticated
+Playwright project, after its sign-in setup. Another regression test performs
+110 session reads, verifies the dashboard remains accessible, and checks that
+invalid sign-ins are still rate limited.
 
-1. `e2e/auth.setup.ts` signs in and saves `e2e/.auth/user.json`.
-2. `e2e/authenticated.spec.ts` runs with that storage state.
+CI requires both credentials and `PLAYWRIGHT_SEEDED_DB=1`; missing configuration
+fails immediately. Local runs can omit them to run only the public smoke tests.
+CI treats tests that pass only on retry as failures. Failed runs upload
+`test-results/`, including traces from the first failed attempt.
 
-If env vars are missing, setup and specs **skip** with a clear message.
-
-## CI policy
-
-The `e2e` job in `.github/workflows/ci.yml` uses **`continue-on-error: true`** until a stable Neon test database and secrets exist. Do not block phase exit on auth E2E.
-
-When CI DB is stable: remove `continue-on-error` and require green `e2e`.
+Repository branch protection must require the `quality` and `e2e` checks for
+merges. The workflow covers both `Feature/**` and `feature/**` pushes and all
+pull requests.

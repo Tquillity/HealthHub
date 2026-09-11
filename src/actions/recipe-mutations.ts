@@ -3,7 +3,7 @@
 import { z } from 'zod';
 import { prisma } from '@/lib/db';
 import { requireSessionUserId } from '@/lib/session';
-import { revalidatePath, revalidateTag } from 'next/cache';
+import { revalidatePath, revalidateTag, updateTag } from 'next/cache';
 import type { Prisma } from '@prisma/client';
 import { isMainAdmin, preprocessRecipeInput } from './recipe-shared';
 
@@ -181,7 +181,7 @@ export async function createRecipe(data: z.infer<typeof CreateRecipeSchema>) {
     });
 
     revalidatePath('/recipes');
-    revalidateTag('recipes', 'max');
+    updateTag('recipes');
     revalidateTag('recipes-public', 'max');
     revalidateTag(`recipe-public-${recipe.id}`, 'max');
     revalidateTag(`recipes-${userId}`, 'max');
@@ -324,7 +324,7 @@ export async function updateRecipe(data: z.infer<typeof UpdateRecipeSchema>) {
 
     revalidatePath('/recipes');
     revalidatePath(`/recipes/${id}`);
-    revalidateTag('recipes', 'max');
+    updateTag('recipes');
     revalidateTag('recipes-public', 'max');
     revalidateTag(`recipe-public-${id}`, 'max');
     revalidateTag(`recipes-${userId}`, 'max');
@@ -373,7 +373,7 @@ export async function deleteRecipe(id: string) {
     });
 
     revalidatePath('/recipes');
-    revalidateTag('recipes', 'max');
+    updateTag('recipes');
     revalidateTag('recipes-public', 'max');
     revalidateTag(`recipe-public-${recipeId}`, 'max');
     revalidateTag(`recipes-${authResult.userId}`, 'max');

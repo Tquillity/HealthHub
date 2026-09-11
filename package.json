@@ -50,6 +50,7 @@
   },
   "devDependencies": {
     "@ducanh2912/next-pwa": "^10.2.9",
+    "@eslint/js": "^9.39.4",
     "@playwright/test": "^1.60.0",
     "@types/bcryptjs": "^3.0.0",
     "@types/node": "^22.19.19",
@@ -74,7 +75,7 @@
     "*.{js,jsx,ts,tsx,md,json}": "prettier --write"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.13.0"
   },
   "packageManager": "pnpm@11.1.3"
 }

@@ -2,8 +2,7 @@ name: CI
 
 on:
   push:
-    # Team convention: feature branches use Feature/* (e.g. Feature/AutomaticGeneration)
-    branches: [main, master, "Feature/**"]
+    branches: [main, master, "Feature/**", "feature/**"]
   pull_request:
 
 # Cancel in-progress runs for the same branch/PR when new commits are pushed
@@ -14,26 +13,21 @@ concurrency:
 jobs:
   quality:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     env:
       # Dummy values for build-time only. No database connection is required
-      # for lint, tsc, or production build in this project. Public app routes
-      # use `export const dynamic = 'force-dynamic'` where Prisma is involved.
+      # for lint, tsc, or production build. Database routes render on request.
       DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci?sslmode=disable"
       BETTER_AUTH_SECRET: "ci-build-secret-minimum-32-characters-long-for-ci"
       BETTER_AUTH_URL: "http://localhost:3000"
       NEXT_PUBLIC_BETTER_AUTH_URL: "http://localhost:3000"
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
-          cache: pnpm
+          node-version: "22"
+      - uses: pnpm/action-setup@v4
       - run: pnpm install --frozen-lockfile
-      # postinstall runs `prisma generate` — schema codegen only, no DB connection.
-      # If postinstall ever fails in CI, use:
-      #   pnpm install --frozen-lockfile --ignore-scripts
-      #   pnpm db:generate
       - run: pnpm exec tsc --noEmit
       - run: pnpm lint
       - run: pnpm test
@@ -41,29 +35,49 @@ jobs:
 
   e2e:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: quality
-    continue-on-error: true
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: healthhub_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d healthhub_e2e"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     env:
-      DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci?sslmode=disable"
+      DATABASE_URL: "postgresql://ci:ci@localhost:5432/healthhub_e2e?sslmode=disable"
       BETTER_AUTH_SECRET: "ci-build-secret-minimum-32-characters-long-for-ci"
       BETTER_AUTH_URL: "http://localhost:3000"
       NEXT_PUBLIC_BETTER_AUTH_URL: "http://localhost:3000"
+      PLAYWRIGHT_BASE_URL: "http://localhost:3000"
+      PLAYWRIGHT_TEST_EMAIL: "admin@healthhub.com"
+      PLAYWRIGHT_TEST_PASSWORD: "Admin123!"
+      PLAYWRIGHT_SEEDED_DB: "1"
+      ADMIN_EMAIL: "admin@healthhub.com"
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
-          cache: pnpm
+          node-version: "22"
+      - uses: pnpm/action-setup@v4
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install chromium
+      - run: pnpm db:push
+      - run: pnpm db:repair-admin -- --use-default
+      - run: pnpm exec tsx scripts/seed-e2e.ts
+      - run: pnpm exec vitest run src/lib/stripe-webhook.test.ts
+      - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm build
-      - run: pnpm start &
-      - run: |
-          for i in $(seq 1 60); do
-            curl -sf http://localhost:3000 >/dev/null && exit 0
-            sleep 2
-          done
-          echo "Server did not become ready" >&2
-          exit 1
       - run: pnpm test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-results
+          path: test-results/
+          retention-days: 7

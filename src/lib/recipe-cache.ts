@@ -1,82 +1,34 @@
 import { unstable_cache } from 'next/cache';
 import {
-  getRecipe,
-  getRecipes,
-} from '@/actions/recipe-queries';
+  queryRecipe,
+  queryRecipes,
+  type GetRecipesParams,
+} from '@/lib/recipe-data';
+import { buildRecipeVisibilityFilter } from '@/actions/recipe-shared';
 import { getSessionUserId } from '@/lib/session';
 
-export type RecipeViewerKey = string;
+const cacheOptions = { revalidate: 3600, tags: ['recipes'] };
+const cachedRecipes = unstable_cache(
+  queryRecipes,
+  ['recipes-v2'],
+  cacheOptions
+);
+const cachedRecipe = unstable_cache(queryRecipe, ['recipe-v2'], cacheOptions);
 
-type GetRecipesParams = Parameters<typeof getRecipes>[0];
-
-const RECIPE_CACHE_SECONDS = 3600;
-
-function hashRecipeListParams(params: GetRecipesParams): string {
-  return JSON.stringify({
-    query: params.query ?? '',
-    category: params.category ?? '',
-    difficulty: params.difficulty ?? '',
-    cuisine: params.cuisine ?? '',
-    dietaryTags: params.dietaryTags ?? [],
-    leanRole: params.leanRole ?? '',
-    page: params.page ?? 1,
-  });
-}
-
-export async function getRecipeViewerKey(): Promise<RecipeViewerKey> {
-  const userId = await getSessionUserId();
-  return userId ?? 'guest';
-}
-
-export async function getCachedRecipes(
-  params: GetRecipesParams,
-  viewerKey: RecipeViewerKey
-) {
-  const paramsHash = hashRecipeListParams(params);
-
-  if (viewerKey === 'guest') {
-    const cached = unstable_cache(
-      async () => getRecipes(params),
-      [`recipes-public-${paramsHash}`],
-      {
-        revalidate: RECIPE_CACHE_SECONDS,
-        tags: ['recipes', 'recipes-public'],
-      }
-    );
-    return cached();
-  }
-
-  const cached = unstable_cache(
-    async () => getRecipes(params),
-    [`recipes-${viewerKey}-${paramsHash}`],
-    {
-      revalidate: RECIPE_CACHE_SECONDS,
-      tags: ['recipes', `recipes-${viewerKey}`],
-    }
+// Resolve session, membership and role on every request. The resulting visibility
+// filter is a cache argument, so losing household/admin access changes the key.
+export async function getCachedRecipes(params: GetRecipesParams) {
+  const visibility = await buildRecipeVisibilityFilter(
+    await getSessionUserId()
   );
-  return cached();
+  const data = await cachedRecipes(params, visibility);
+  return { success: true, data };
 }
 
-export async function getCachedRecipe(id: string, viewerKey: RecipeViewerKey) {
-  if (viewerKey === 'guest') {
-    const cached = unstable_cache(
-      async () => getRecipe(id),
-      [`recipe-public-${id}`],
-      {
-        revalidate: RECIPE_CACHE_SECONDS,
-        tags: ['recipes', `recipe-public-${id}`],
-      }
-    );
-    return cached();
-  }
-
-  const cached = unstable_cache(
-    async () => getRecipe(id),
-    [`recipe-${viewerKey}-${id}`],
-    {
-      revalidate: RECIPE_CACHE_SECONDS,
-      tags: ['recipes', `recipe-${viewerKey}-${id}`],
-    }
+export async function getCachedRecipe(id: string) {
+  const visibility = await buildRecipeVisibilityFilter(
+    await getSessionUserId()
   );
-  return cached();
+  const data = await cachedRecipe(id, visibility);
+  return { success: Boolean(data), data };
 }

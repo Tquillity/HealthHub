@@ -13,16 +13,33 @@ import {
   POMO_TIME_STORAGE_KEY,
 } from '@/lib/pomo/utils/dashboard-timer-snapshot';
 
-export function FocusGoalCard() {
-  const [progress, setProgress] = useState<{
-    completed: number;
-    goal: number;
-    percent: number;
-    met: boolean;
-    remaining: number;
-  } | null>(null);
+export type FocusGoalServerProgress = {
+  completed: number;
+  goal: number;
+  percent: number;
+  met: boolean;
+  remaining: number;
+};
+
+type FocusGoalCardProps = {
+  isPremiumCloud?: boolean;
+  initialServerProgress?: FocusGoalServerProgress | null;
+};
+
+export function FocusGoalCard({
+  isPremiumCloud = false,
+  initialServerProgress = null,
+}: FocusGoalCardProps) {
+  const [progress, setProgress] = useState<FocusGoalServerProgress | null>(
+    isPremiumCloud ? initialServerProgress : null
+  );
 
   useEffect(() => {
+    if (isPremiumCloud) {
+      setProgress(initialServerProgress);
+      return;
+    }
+
     const refresh = () => {
       if (typeof window === 'undefined') {
         return;
@@ -52,7 +69,7 @@ export function FocusGoalCard() {
       window.removeEventListener('storage', refresh);
       window.removeEventListener('focus', refresh);
     };
-  }, []);
+  }, [initialServerProgress, isPremiumCloud]);
 
   const completed = progress?.completed ?? 0;
   const goal = progress?.goal ?? DEFAULT_DAILY_GOAL_POMODOROS;
@@ -98,7 +115,9 @@ export function FocusGoalCard() {
         />
       </div>
       <p className="mt-2 text-xs text-gray-500">
-        Read-only snapshot from your local timer. Data stays on this device.
+        {isPremiumCloud
+          ? 'Progress from your Pro cloud timer.'
+          : 'Read-only snapshot from your local timer. Data stays on this device.'}
       </p>
     </div>
   );

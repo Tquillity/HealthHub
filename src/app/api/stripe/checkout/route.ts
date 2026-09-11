@@ -36,6 +36,7 @@ export async function POST() {
       cancel_url: `${baseUrl}/pro?checkout=cancel`,
       client_reference_id: session.user.id,
       metadata: { userId: session.user.id },
+      subscription_data: { metadata: { userId: session.user.id } },
     });
 
     if (!checkout.url) {

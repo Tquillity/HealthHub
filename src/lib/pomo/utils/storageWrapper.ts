@@ -1,5 +1,10 @@
 let quotaErrorHandler: (() => void) | null = null;
 let storageErrorWarningShown = false;
+let cloudPersistenceActive = false;
+
+export const setCloudPersistenceActive = (active: boolean) => {
+  cloudPersistenceActive = active;
+};
 
 export const setStorageQuotaErrorHandler = (handler: () => void) => {
   quotaErrorHandler = handler;
@@ -37,6 +42,7 @@ let storageFallbackWarningShown = false;
 
 class SafeStorage implements Storage {
   private storage: Storage;
+  private memory = new MemoryStorage();
 
   constructor() {
     try {
@@ -55,17 +61,21 @@ class SafeStorage implements Storage {
     }
   }
 
+  private backing(): Storage {
+    return cloudPersistenceActive ? this.memory : this.storage;
+  }
+
   get length(): number {
-    return this.storage.length;
+    return this.backing().length;
   }
 
   key(index: number): string | null {
-    return this.storage.key(index);
+    return this.backing().key(index);
   }
 
   getItem(key: string): string | null {
     try {
-      return this.storage.getItem(key);
+      return this.backing().getItem(key);
     } catch {
       return null;
     }
@@ -73,7 +83,7 @@ class SafeStorage implements Storage {
 
   setItem(key: string, value: string): void {
     try {
-      this.storage.setItem(key, value);
+      this.backing().setItem(key, value);
     } catch (error) {
       const err = error as { code?: number; name?: string } | null;
       const isQuotaExceeded =
@@ -98,7 +108,7 @@ class SafeStorage implements Storage {
 
   removeItem(key: string): void {
     try {
-      this.storage.removeItem(key);
+      this.backing().removeItem(key);
     } catch {
       return;
     }
@@ -106,7 +116,7 @@ class SafeStorage implements Storage {
 
   clear(): void {
     try {
-      this.storage.clear();
+      this.backing().clear();
     } catch {
       return;
     }

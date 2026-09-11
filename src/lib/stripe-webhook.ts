@@ -1,25 +1,24 @@
 import { prisma } from '@/lib/db';
 
-export async function isStripeEventProcessed(eventId: string): Promise<boolean> {
-  const row = await prisma.stripeWebhookEvent.findUnique({
-    where: { eventId },
-    select: { id: true },
-  });
-  return Boolean(row);
-}
+export type PremiumChange = { userId: string; isPremium: boolean };
 
-export async function markStripeEventProcessed(
-  eventId: string,
-  eventType: string
-): Promise<void> {
-  await prisma.stripeWebhookEvent.create({
-    data: { eventId, eventType },
-  });
-}
+export async function processStripeEvent(
+  event: { id: string; type: string },
+  premiumChange: PremiumChange | null
+): Promise<{ duplicate: boolean }> {
+  return prisma.$transaction(async (tx) => {
+    const claimed = await tx.stripeWebhookEvent.createMany({
+      data: { eventId: event.id, eventType: event.type },
+      skipDuplicates: true,
+    });
+    if (claimed.count === 0) return { duplicate: true };
 
-export async function setUserPremium(userId: string, isPremium: boolean): Promise<void> {
-  await prisma.user.update({
-    where: { id: userId },
-    data: { isPremium },
+    if (premiumChange) {
+      await tx.user.update({
+        where: { id: premiumChange.userId },
+        data: { isPremium: premiumChange.isPremium },
+      });
+    }
+    return { duplicate: false };
   });
 }
