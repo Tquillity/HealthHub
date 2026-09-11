@@ -1,0 +1,11 @@
+---
+description: Delegate coding work to GPT-6 Astra when the primary model is GPT-5.6 Luna Extra High
+alwaysApply: true
+---
+
+# Coding Delegation
+
+- When the primary model is **GPT-5.6 Luna Extra High**, delegate every coding task that writes or edits repository code to a subagent running **GPT-6 Astra** with **extra-high (`xhigh`) reasoning.
+- Dispatch the Astra subagent before making code edits. The primary model coordinates the work, supplies the relevant context, reviews the result, and handles read-only inspection and final verification.
+- Keep the implementation on the shared worktree so the primary model can review and verify it. Preserve existing user changes; do not reset, discard, or overwrite unrelated work.
+- If GPT-6 Astra at extra-high reasoning is unavailable, report the limitation and pause coding until the requested model configuration is available rather than silently substituting another coding model.
