@@ -4,6 +4,7 @@ import { useTaskStore } from '@/lib/pomo-store/useTaskStore';
 import { useSettingsStore } from '@/lib/pomo-store/useSettingsStore';
 import {
   PomoStatePayloadSchema,
+  sanitizePomoHistory,
   type PomoStatePayload,
 } from '@/lib/pomo/validation/pomo-state-schema';
 
@@ -74,7 +75,8 @@ export const buildExportSnapshot = (): PomoStatePayload => {
       timeLeft: time.timeLeft,
       isRunning: time.isRunning,
       sessionEndAt: time.sessionEndAt,
-      history: time.history,
+      // Legacy/oversized history would make every cloud save fail validation.
+      history: sanitizePomoHistory(time.history) ?? {},
     },
     taskStore: {
       tasks: tasks.tasks,

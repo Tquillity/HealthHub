@@ -2,7 +2,10 @@ import {
   POMO_TIME_STORAGE_KEY,
 } from '@/lib/pomo/utils/dashboard-timer-snapshot';
 import type { PomoStatePayload } from '@/lib/pomo/validation/pomo-state-schema';
-import { PomoStatePayloadSchema } from '@/lib/pomo/validation/pomo-state-schema';
+import {
+  PomoStatePayloadSchema,
+  sanitizePomoPayloadHistory,
+} from '@/lib/pomo/validation/pomo-state-schema';
 
 function unwrapZustandPersist(raw: string | null): unknown {
   if (!raw) return null;
@@ -36,6 +39,6 @@ export function buildPayloadFromLocalStorage(): PomoStatePayload | null {
     version: 3,
   };
 
-  const result = PomoStatePayloadSchema.safeParse(candidate);
+  const result = PomoStatePayloadSchema.safeParse(sanitizePomoPayloadHistory(candidate));
   return result.success ? result.data : null;
 }

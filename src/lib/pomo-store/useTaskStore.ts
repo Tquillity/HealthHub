@@ -4,6 +4,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { Task } from '@/lib/pomo/types';
 import { createSafeStorage } from '@/lib/pomo/utils/storageWrapper';
+import { POMO_LIMITS } from '@/lib/pomo/validation/pomo-state-schema';
 
 interface TaskState {
   tasks: Task[];
@@ -23,15 +24,20 @@ export const useTaskStore = create<TaskState>()(
       tasks: [],
       activeTaskId: null,
 
-      addTask: (title, est) => set((state) => ({
-        tasks: [...state.tasks, {
-          id: crypto.randomUUID(),
-          title: title.trim().slice(0, 100),
-          completed: false,
-          estPomodoros: est,
-          actPomodoros: 0
-        }]
-      })),
+      addTask: (title, est) => set((state) => {
+        // Stay within the cloud payload limits; over-limit lists made every save fail (TIMER-11).
+        const trimmedTitle = title.trim().slice(0, POMO_LIMITS.taskTitleMax);
+        if (!trimmedTitle || state.tasks.length >= POMO_LIMITS.tasksMax) return state;
+        return {
+          tasks: [...state.tasks, {
+            id: crypto.randomUUID(),
+            title: trimmedTitle,
+            completed: false,
+            estPomodoros: est,
+            actPomodoros: 0
+          }]
+        };
+      }),
 
       deleteTask: (id) => set((state) => ({
         tasks: state.tasks.filter((t) => t.id !== id),

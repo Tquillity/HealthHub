@@ -4,8 +4,10 @@ import { prisma } from '@/lib/db';
 import { requireSessionUserId } from '@/lib/session';
 import {
   createDefaultPomoStatePayload,
+  describePomoPayloadIssue,
   normalizePomoStateForPersist,
   PomoStatePayloadSchema,
+  sanitizePomoPayloadHistory,
   type PomoStatePayload,
 } from '@/lib/pomo/validation/pomo-state-schema';
 import { Prisma } from '@prisma/client';
@@ -33,7 +35,9 @@ async function requirePremiumUserId(): Promise<
 }
 
 function parseStoredPayload(raw: unknown): PomoStatePayload {
-  const parsed = PomoStatePayloadSchema.safeParse(raw);
+  // Rows saved before history keys were bounded may hold legacy keys; drop them instead of
+  // falling back to an empty default (which the next save would then persist over real data).
+  const parsed = PomoStatePayloadSchema.safeParse(sanitizePomoPayloadHistory(raw));
   if (parsed.success) {
     return parsed.data;
   }
@@ -74,7 +78,7 @@ export async function savePomoState(
 
     const validated = PomoStatePayloadSchema.safeParse(payload);
     if (!validated.success) {
-      return { success: false, error: 'Invalid timer payload' };
+      return { success: false, error: describePomoPayloadIssue(validated.error) };
     }
 
     const normalized = normalizePomoStateForPersist(validated.data);

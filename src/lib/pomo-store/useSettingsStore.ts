@@ -4,6 +4,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { TimerMode } from '@/lib/pomo/types';
 import { createSafeStorage } from '@/lib/pomo/utils/storageWrapper';
+import { POMO_LIMITS } from '@/lib/pomo/validation/pomo-state-schema';
 
 export type ZenTrack = 'rain' | 'white_noise' | 'forest';
 
@@ -56,6 +57,12 @@ interface SettingsState {
   loadFactoryDefaults: () => void;
   unlockAudio: () => void;
 }
+
+/** Persisted shape across versions (older versions had `savedPreset` / a single `autoStart`). */
+type PersistedSettingsState = Partial<SettingsState> & {
+  savedPreset?: Preset['data'];
+  autoStart?: boolean;
+};
 
 const DEFAULT_THEME_COLORS = {
   pomodoro: '#c15c5c',
@@ -111,10 +118,13 @@ export const useSettingsStore = create<SettingsState>()(
       setZenStrategy: (strategy) => set({ zenStrategy: strategy }),
 
       addPreset: (name) => {
-        const { durations, themeColors, zenTrack, zenVolume, zenStrategy } = get();
+        const { durations, themeColors, zenTrack, zenVolume, zenStrategy, presets } = get();
+        // Stay within the cloud payload limits; an oversized preset made every save fail (TIMER-11).
+        const trimmedName = name.trim().slice(0, POMO_LIMITS.presetNameMax);
+        if (!trimmedName || presets.length >= POMO_LIMITS.presetsMax) return;
         const newPreset: Preset = {
             id: crypto.randomUUID(),
-            name,
+            name: trimmedName,
             data: { durations, themeColors, zenTrack, zenVolume, zenStrategy }
         };
         set((state) => ({ presets: [...state.presets, newPreset] }));
@@ -192,14 +202,13 @@ export const useSettingsStore = create<SettingsState>()(
         notificationsEnabled: state.notificationsEnabled 
       }),
       migrate: (persistedState: unknown, version) => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const state = persistedState as any;
+          const state = (persistedState ?? {}) as PersistedSettingsState;
 
-          let migratedState = state;
+          let migratedState: PersistedSettingsState = state;
 
           if (version === 3) {
             const oldPreset = state.savedPreset;
-            const newPresets = [];
+            const newPresets: Preset[] = [];
             if (oldPreset) {
               newPresets.push({
                 id: 'migrated-legacy-preset',
@@ -226,10 +235,10 @@ export const useSettingsStore = create<SettingsState>()(
                 migratedState.autoStartBreaks ?? legacyAutoStart,
               autoStartPomodoros:
                 migratedState.autoStartPomodoros ?? legacyAutoStart,
-            };
+            } as SettingsState;
           }
 
-          return migratedState;
+          return migratedState as SettingsState;
       }
     }
   )

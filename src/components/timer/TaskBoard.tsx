@@ -8,6 +8,7 @@ import {
   getTaskStatusLabel,
   getTaskVariance,
 } from '@/lib/pomo/utils/taskInsights';
+import { POMO_LIMITS } from '@/lib/pomo/validation/pomo-state-schema';
 
 export const TaskBoard = () => {
   const {
@@ -27,6 +28,7 @@ export const TaskBoard = () => {
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const menuItemsRef = useRef<(HTMLButtonElement | null)[]>([]);
   const planningSummary = getTaskPlanningSummary(tasks);
+  const isAtTaskLimit = tasks.length >= POMO_LIMITS.tasksMax;
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -83,7 +85,7 @@ export const TaskBoard = () => {
 
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim()) return;
+    if (!input.trim() || isAtTaskLimit) return;
     addTask(input, estimate);
     setInput('');
     setEstimate(1);
@@ -179,7 +181,7 @@ export const TaskBoard = () => {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="New task..."
-          maxLength={100}
+          maxLength={POMO_LIMITS.taskTitleMax}
           className="min-w-0 col-span-2 sm:col-span-1 bg-black/20 text-white placeholder-white/60 px-3.5 py-2.5 rounded-xl text-sm border border-white/5 focus:border-white/25 focus:outline-none focus:bg-black/35 transition-all"
         />
         <label htmlFor="new-task-estimate" className="sr-only">Estimated Pomodoros</label>
@@ -197,13 +199,18 @@ export const TaskBoard = () => {
             </option>
           ))}
         </select>
-        <button type="submit" aria-label="Add Task" title="Add Task" className="bg-white/10 hover:bg-white/20 text-white px-4 py-2.5 rounded-xl font-medium cursor-pointer text-sm transition-colors border border-white/5">
+        <button
+          type="submit"
+          aria-label="Add Task"
+          title={isAtTaskLimit ? `Task limit reached (${POMO_LIMITS.tasksMax})` : 'Add Task'}
+          disabled={isAtTaskLimit}
+          className="disabled:opacity-50 bg-white/10 hover:bg-white/20 text-white px-4 py-2.5 rounded-xl font-medium cursor-pointer text-sm transition-colors border border-white/5">
           +
         </button>
       </form>
 
       {/* Task List */}
-      <div className="space-y-2">
+      <div className="flex flex-col gap-2">
         {tasks.length === 0 && (
             <div className="flex min-h-[100px] flex-col items-center justify-center text-white/30 text-sm italic">
                 <p>Stay focused.</p>

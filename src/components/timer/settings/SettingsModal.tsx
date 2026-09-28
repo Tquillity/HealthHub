@@ -9,6 +9,8 @@ import { cn } from '@/lib/utils';
 import type { TimerMode } from '@/lib/pomo/types';
 import { Modal } from '../common/Modal';
 import { exportSettingsOnly, importSettingsOnly } from '@/lib/pomo/services/storage.service';
+import { shouldResetSessionForDurationEdit } from '@/lib/pomo/utils/timerDefaults';
+import { POMO_LIMITS } from '@/lib/pomo/validation/pomo-state-schema';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -51,6 +53,7 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
 
   const resetTimer = useTimeStore(state => state.resetTimer);
   const [presetName, setPresetName] = useState('');
+  const isAtPresetLimit = presets.length >= POMO_LIMITS.presetsMax;
   const settingsFileInputRef = useRef<HTMLInputElement>(null);
   const clearCacheButtonRef = useRef<HTMLButtonElement>(null);
   const [tooltipPosition, setTooltipPosition] = useState<{ top: number; left: number } | null>(null);
@@ -60,7 +63,12 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
   const handleDurationChange = (mode: TimerMode, value: number) => {
     const minutes = Math.min(60, Math.max(1, value));
     updateDuration(mode, minutes);
-    resetTimer();
+    // Only an idle session of the edited mode picks up the new length right away; a running
+    // session (or another mode) keeps its current length and the change applies next time.
+    const { mode: currentMode, isRunning } = useTimeStore.getState();
+    if (shouldResetSessionForDurationEdit(mode, currentMode, isRunning)) {
+      resetTimer();
+    }
   };
 
   const handleDailyGoalChange = (value: number) => {
@@ -68,7 +76,7 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
   };
 
   const handleSavePreset = () => {
-    if (!presetName.trim()) return;
+    if (!presetName.trim() || isAtPresetLimit) return;
     addPreset(presetName);
     setPresetName('');
   };
@@ -324,7 +332,7 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
           </div>
 
           {zenModeEnabled && (
-            <div className="space-y-3 rounded-2xl bg-black/20 p-4 border border-white/10">
+            <div className="flex flex-col gap-3 rounded-2xl bg-black/20 p-4 border border-white/10">
               <div className="flex flex-col gap-2">
                 <label htmlFor="zen-track-select" className="text-sm text-white">Soundscape</label>
                 <select
@@ -391,6 +399,7 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
                     id="preset-name-input"
                     name="preset-name"
                     value={presetName}
+                    maxLength={POMO_LIMITS.presetNameMax}
                     onChange={(e) => setPresetName(e.target.value)}
                     placeholder="Preset Name (e.g. Deep Work)"
                     className="flex-1 bg-white/10 text-white text-sm px-3 py-2.5 rounded-xl border border-white/20 focus:outline-none focus:border-white/50 placeholder-white/30"
@@ -402,9 +411,9 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
                 />
                 <button
                   onClick={handleSavePreset}
-                  disabled={!presetName.trim()}
+                  disabled={!presetName.trim() || isAtPresetLimit}
                   className="bg-white/20 hover:bg-white/30 text-white p-2.5 rounded-xl disabled:opacity-50 transition-colors"
-                  title="Save Current Settings"
+                  title={isAtPresetLimit ? `Preset limit reached (${POMO_LIMITS.presetsMax})` : 'Save Current Settings'}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
                 </button>
@@ -412,7 +421,7 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
 
              {/* Preset List */}
              {presets.length > 0 && (
-                 <div className="max-h-32 overflow-y-auto custom-scrollbar space-y-1 bg-black/20 p-2.5 rounded-2xl">
+                 <div className="max-h-32 overflow-y-auto custom-scrollbar flex flex-col gap-1 bg-black/20 p-2.5 rounded-2xl">
                     {presets.map(p => (
                         <div key={p.id} className="flex justify-between items-center bg-white/5 p-2.5 rounded-xl hover:bg-white/10 transition-colors group">
                             <span className="text-sm text-white truncate">{p.name}</span>

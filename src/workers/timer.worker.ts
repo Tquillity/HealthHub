@@ -1,51 +1,32 @@
 import * as Comlink from 'comlink';
 import type { TimerWorkerAPI } from '@/lib/pomo/types/worker-types';
+import { TIMER_PULSE_MS } from '@/lib/pomo/types/worker-types';
 
+/**
+ * Steady pulse only. The worker does not count time: the store derives the remaining time
+ * from the wall-clock `sessionEndAt` on every pulse, so jitter, throttling or sleep can never
+ * drop or double-count seconds (TIMER-2 / TIMER-5).
+ */
 let timerId: number | null = null;
-let expectedTime: number = 0;
-let lastTickTime: number = 0;
 
 const api: TimerWorkerAPI = {
   start(callback) {
-    if (timerId) return;
-
-    const now = Date.now();
-    lastTickTime = now;
-    expectedTime = now + 1000;
-
-    const tick = () => {
-      const now = Date.now();
-      const drift = now - expectedTime;
-      
-      const elapsedSeconds = Math.floor((now - lastTickTime) / 1000);
-      lastTickTime = now;
-      
-      if (drift > 1000) {
-        expectedTime = now + 1000;
-        callback(elapsedSeconds);
-      } else {
-        callback(elapsedSeconds);
-        expectedTime += 1000;
-      }
-      
-      timerId = self.setTimeout(tick, Math.max(0, 1000 - drift));
-    };
-
-    timerId = self.setTimeout(tick, 1000);
+    if (timerId !== null) return;
+    timerId = self.setInterval(() => {
+      callback(1);
+    }, TIMER_PULSE_MS);
   },
 
   pause() {
-    if (timerId) {
-      self.clearTimeout(timerId);
+    if (timerId !== null) {
+      self.clearInterval(timerId);
       timerId = null;
     }
   },
 
   reset() {
     this.pause();
-    expectedTime = 0;
-    lastTickTime = 0;
-  }
+  },
 };
 
 Comlink.expose(api);
