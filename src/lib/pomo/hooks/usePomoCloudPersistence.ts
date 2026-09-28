@@ -84,6 +84,8 @@ export function usePomoCloudPersistence() {
       return;
     }
 
+    // Stop saving until this user's server state has loaded (covers a direct user switch)
+    deactivateCloud();
     setStatus('loading');
     const result = await getPomoState();
 
