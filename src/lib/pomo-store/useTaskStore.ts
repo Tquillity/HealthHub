@@ -24,47 +24,63 @@ export const useTaskStore = create<TaskState>()(
       tasks: [],
       activeTaskId: null,
 
-      addTask: (title, est) => set((state) => {
-        // Stay within the cloud payload limits; over-limit lists made every save fail (TIMER-11).
-        const trimmedTitle = title.trim().slice(0, POMO_LIMITS.taskTitleMax);
-        if (!trimmedTitle || state.tasks.length >= POMO_LIMITS.tasksMax) return state;
-        return {
-          tasks: [...state.tasks, {
-            id: crypto.randomUUID(),
-            title: trimmedTitle,
-            completed: false,
-            estPomodoros: est,
-            actPomodoros: 0
-          }]
-        };
-      }),
+      addTask: (title, est) =>
+        set((state) => {
+          // Stay within the cloud payload limits; over-limit lists made every save fail (TIMER-11).
+          const trimmedTitle = title.trim().slice(0, POMO_LIMITS.taskTitleMax);
+          if (!trimmedTitle || state.tasks.length >= POMO_LIMITS.tasksMax)
+            return state;
+          return {
+            tasks: [
+              ...state.tasks,
+              {
+                id: crypto.randomUUID(),
+                title: trimmedTitle,
+                completed: false,
+                estPomodoros: est,
+                actPomodoros: 0,
+              },
+            ],
+          };
+        }),
 
-      deleteTask: (id) => set((state) => ({
-        tasks: state.tasks.filter((t) => t.id !== id),
-        activeTaskId: state.activeTaskId === id ? null : state.activeTaskId
-      })),
+      deleteTask: (id) =>
+        set((state) => ({
+          tasks: state.tasks.filter((t) => t.id !== id),
+          activeTaskId: state.activeTaskId === id ? null : state.activeTaskId,
+        })),
 
-      toggleTask: (id) => set((state) => ({
-        tasks: state.tasks.map((t) => t.id === id ? { ...t, completed: !t.completed } : t)
-      })),
+      toggleTask: (id) =>
+        set((state) => ({
+          tasks: state.tasks.map((t) =>
+            t.id === id ? { ...t, completed: !t.completed } : t
+          ),
+        })),
 
       setActiveTask: (id) => set({ activeTaskId: id }),
-      
-      updateActPomo: (id) => set((state) => ({
-        tasks: state.tasks.map((t) => t.id === id ? { ...t, actPomodoros: t.actPomodoros + 1 } : t)
-      })),
+
+      updateActPomo: (id) =>
+        set((state) => ({
+          tasks: state.tasks.map((t) =>
+            t.id === id ? { ...t, actPomodoros: t.actPomodoros + 1 } : t
+          ),
+        })),
 
       clearTasks: () => set({ tasks: [], activeTaskId: null }),
 
-      clearCompletedTasks: () => set((state) => ({
-        tasks: state.tasks.filter((t) => !t.completed),
-        activeTaskId: state.activeTaskId && state.tasks.find(t => t.id === state.activeTaskId)?.completed ? null : state.activeTaskId
-      }))
+      clearCompletedTasks: () =>
+        set((state) => ({
+          tasks: state.tasks.filter((t) => !t.completed),
+          activeTaskId:
+            state.activeTaskId &&
+            state.tasks.find((t) => t.id === state.activeTaskId)?.completed
+              ? null
+              : state.activeTaskId,
+        })),
     }),
-    { 
+    {
       name: 'pomo-tasks-storage',
-      storage: createJSONStorage(() => createSafeStorage())
+      storage: createJSONStorage(() => createSafeStorage()),
     }
   )
 );
-

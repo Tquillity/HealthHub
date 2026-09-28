@@ -10,7 +10,9 @@ export type CloudSaveOutcome =
   | { success: true; updatedAt: string }
   | { success: false; error: string };
 
-export const CLOUD_SAVE_RETRY_DELAYS_MS: readonly number[] = [2000, 5000, 15000];
+export const CLOUD_SAVE_RETRY_DELAYS_MS: readonly number[] = [
+  2000, 5000, 15000,
+];
 
 type TimerHandle = ReturnType<typeof setTimeout>;
 
@@ -32,7 +34,9 @@ export interface CloudSaveRunner {
   cancel: () => void;
 }
 
-export function createCloudSaveRunner(options: CloudSaveRunnerOptions): CloudSaveRunner {
+export function createCloudSaveRunner(
+  options: CloudSaveRunnerOptions
+): CloudSaveRunner {
   const retryDelaysMs = options.retryDelaysMs ?? CLOUD_SAVE_RETRY_DELAYS_MS;
   let failedAttempts = 0;
   let retryTimer: TimerHandle | null = null;

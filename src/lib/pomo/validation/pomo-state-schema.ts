@@ -32,10 +32,18 @@ export const TimeStoreSchema = z.object({
   isRunning: z.boolean().optional(),
   sessionEndAt: z.number().int().min(0).nullable().optional(),
   history: z
-    .record(z.string().regex(POMO_HISTORY_KEY_PATTERN, 'Expected a yyyy-MM-dd day key'), DailyStatsSchema)
-    .refine((history) => Object.keys(history).length <= POMO_LIMITS.historyDaysMax, {
-      message: `History is limited to ${POMO_LIMITS.historyDaysMax} days`,
-    })
+    .record(
+      z
+        .string()
+        .regex(POMO_HISTORY_KEY_PATTERN, 'Expected a yyyy-MM-dd day key'),
+      DailyStatsSchema
+    )
+    .refine(
+      (history) => Object.keys(history).length <= POMO_LIMITS.historyDaysMax,
+      {
+        message: `History is limited to ${POMO_LIMITS.historyDaysMax} days`,
+      }
+    )
     .optional(),
 });
 
@@ -143,7 +151,9 @@ export function createDefaultPomoStatePayload(): PomoStatePayload {
 }
 
 /** Force paused session before persisting to PostgreSQL. */
-export function normalizePomoStateForPersist(payload: PomoStatePayload): PomoStatePayload {
+export function normalizePomoStateForPersist(
+  payload: PomoStatePayload
+): PomoStatePayload {
   return {
     ...payload,
     timeStore: {
@@ -163,7 +173,9 @@ type DailyStatsRecord = z.infer<typeof DailyStatsSchema>;
  * `historyDaysMax` days, so legacy or oversized history cannot make every save fail.
  * Values are passed through unchanged; the schema still validates them.
  */
-export function sanitizePomoHistory(history: unknown): Record<string, DailyStatsRecord> | undefined {
+export function sanitizePomoHistory(
+  history: unknown
+): Record<string, DailyStatsRecord> | undefined {
   if (history === undefined || history === null) return undefined;
   if (typeof history !== 'object' || Array.isArray(history)) return undefined;
 
@@ -184,12 +196,16 @@ export function sanitizePomoHistory(history: unknown): Record<string, DailyStats
 export function sanitizePomoPayloadHistory(raw: unknown): unknown {
   if (!raw || typeof raw !== 'object') return raw;
   const candidate = raw as { timeStore?: unknown };
-  if (!candidate.timeStore || typeof candidate.timeStore !== 'object') return raw;
+  if (!candidate.timeStore || typeof candidate.timeStore !== 'object')
+    return raw;
   const timeStore = candidate.timeStore as { history?: unknown };
   if (timeStore.history === undefined) return raw;
   return {
     ...candidate,
-    timeStore: { ...timeStore, history: sanitizePomoHistory(timeStore.history) },
+    timeStore: {
+      ...timeStore,
+      history: sanitizePomoHistory(timeStore.history),
+    },
   };
 }
 
@@ -198,7 +214,9 @@ export function describePomoPayloadIssue(error: z.ZodError): string {
   const issue = error.issues[0];
   if (!issue) return 'Invalid timer payload';
   const path = issue.path.map((segment) => String(segment)).join('.');
-  return path ? `Invalid timer payload: ${path} (${issue.message})` : `Invalid timer payload (${issue.message})`;
+  return path
+    ? `Invalid timer payload: ${path} (${issue.message})`
+    : `Invalid timer payload (${issue.message})`;
 }
 
 export function parsePomoStatePayload(raw: unknown): PomoStatePayload | null {

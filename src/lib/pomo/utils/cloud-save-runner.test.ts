@@ -45,7 +45,10 @@ describe('createCloudSaveRunner', () => {
 
     await runner.saveNow();
     expect(save).toHaveBeenCalledTimes(1);
-    expect(onError).toHaveBeenLastCalledWith('Failed to save timer state', true);
+    expect(onError).toHaveBeenLastCalledWith(
+      'Failed to save timer state',
+      true
+    );
 
     await vi.advanceTimersByTimeAsync(1999);
     expect(save).toHaveBeenCalledTimes(1);
@@ -58,13 +61,18 @@ describe('createCloudSaveRunner', () => {
   });
 
   it('stops after three retries (no infinite loop)', async () => {
-    const { runner, save, onError } = setup(Array.from({ length: 10 }, () => fail()));
+    const { runner, save, onError } = setup(
+      Array.from({ length: 10 }, () => fail())
+    );
 
     await runner.saveNow();
     await vi.advanceTimersByTimeAsync(60_000);
 
     expect(save).toHaveBeenCalledTimes(4);
-    expect(onError).toHaveBeenLastCalledWith('Failed to save timer state', false);
+    expect(onError).toHaveBeenLastCalledWith(
+      'Failed to save timer state',
+      false
+    );
 
     await vi.advanceTimersByTimeAsync(10 * 60_000);
     expect(save).toHaveBeenCalledTimes(4);

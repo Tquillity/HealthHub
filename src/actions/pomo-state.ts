@@ -12,7 +12,9 @@ import {
 } from '@/lib/pomo/validation/pomo-state-schema';
 import { Prisma } from '@prisma/client';
 
-type ActionResult<T> = { success: true; data: T } | { success: false; error: string };
+type ActionResult<T> =
+  | { success: true; data: T }
+  | { success: false; error: string };
 
 async function requirePremiumUserId(): Promise<
   { ok: true; userId: string } | { ok: false; error: string }
@@ -37,7 +39,9 @@ async function requirePremiumUserId(): Promise<
 function parseStoredPayload(raw: unknown): PomoStatePayload {
   // Rows saved before history keys were bounded may hold legacy keys; drop them instead of
   // falling back to an empty default (which the next save would then persist over real data).
-  const parsed = PomoStatePayloadSchema.safeParse(sanitizePomoPayloadHistory(raw));
+  const parsed = PomoStatePayloadSchema.safeParse(
+    sanitizePomoPayloadHistory(raw)
+  );
   if (parsed.success) {
     return parsed.data;
   }
@@ -78,7 +82,10 @@ export async function savePomoState(
 
     const validated = PomoStatePayloadSchema.safeParse(payload);
     if (!validated.success) {
-      return { success: false, error: describePomoPayloadIssue(validated.error) };
+      return {
+        success: false,
+        error: describePomoPayloadIssue(validated.error),
+      };
     }
 
     const normalized = normalizePomoStateForPersist(validated.data);
@@ -133,7 +140,10 @@ export async function getPremiumPomoDashboardSnapshot(): Promise<{
 
     return { isPremium: true, payload: parseStoredPayload(row.payloadJson) };
   } catch (error) {
-    console.error('[HealthHub action] pomo-state getPremiumPomoDashboardSnapshot:', error);
+    console.error(
+      '[HealthHub action] pomo-state getPremiumPomoDashboardSnapshot:',
+      error
+    );
     return { isPremium: false, payload: null };
   }
 }

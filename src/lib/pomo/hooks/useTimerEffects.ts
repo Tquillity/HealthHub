@@ -9,7 +9,8 @@ import { useTimeStore } from '@/lib/pomo-store/useTimeStore';
 export const useTimerEffects = () => {
   useEffect(() => {
     const unsubscribe = events.on('timer:complete', (completedMode) => {
-      const { soundEnabled, notificationsEnabled } = useSettingsStore.getState();
+      const { soundEnabled, notificationsEnabled } =
+        useSettingsStore.getState();
 
       if (soundEnabled) {
         playAlarm();
@@ -28,7 +29,6 @@ export const useTimerEffects = () => {
           sendNotification('Back to Work!', "Break is over. Let's focus.");
         }
       }
-
     });
 
     return unsubscribe;

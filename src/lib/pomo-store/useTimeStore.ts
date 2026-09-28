@@ -174,7 +174,10 @@ interface TimeState {
 }
 
 type PersistedTimeState = Partial<
-  Pick<TimeState, 'timeLeft' | 'isRunning' | 'mode' | 'pomodorosCompleted' | 'sessionEndAt'>
+  Pick<
+    TimeState,
+    'timeLeft' | 'isRunning' | 'mode' | 'pomodorosCompleted' | 'sessionEndAt'
+  >
 > & {
   history?: Record<string, unknown>;
 };
@@ -261,12 +264,21 @@ export const useTimeStore = create<TimeState>()(
 
         resetTimer: () => {
           const { mode } = get();
-          set({ isRunning: false, timeLeft: getDuration(mode), sessionEndAt: null });
+          set({
+            isRunning: false,
+            timeLeft: getDuration(mode),
+            sessionEndAt: null,
+          });
           stopPulse('reset');
         },
 
         setMode: (mode) => {
-          set({ mode, isRunning: false, timeLeft: getDuration(mode), sessionEndAt: null });
+          set({
+            mode,
+            isRunning: false,
+            timeLeft: getDuration(mode),
+            sessionEndAt: null,
+          });
           stopPulse('reset');
         },
 
@@ -277,7 +289,9 @@ export const useTimeStore = create<TimeState>()(
             mode === 'pomodoro' && targetMode !== 'pomodoro';
 
           set({
-            pomodorosCompleted: shouldIncrement ? pomodorosCompleted + 1 : pomodorosCompleted,
+            pomodorosCompleted: shouldIncrement
+              ? pomodorosCompleted + 1
+              : pomodorosCompleted,
             mode: targetMode,
             isRunning: false,
             timeLeft: getDuration(targetMode),
@@ -337,7 +351,10 @@ export const useTimeStore = create<TimeState>()(
           }
 
           if (sessionEndAt > now) {
-            const syncedTimeLeft = Math.max(1, getRemainingSeconds(sessionEndAt, now));
+            const syncedTimeLeft = Math.max(
+              1,
+              getRemainingSeconds(sessionEndAt, now)
+            );
 
             if (syncedTimeLeft !== get().timeLeft) {
               set({ timeLeft: syncedTimeLeft });
@@ -368,7 +385,8 @@ export const useTimeStore = create<TimeState>()(
 
             lastCompletedMode = currentMode;
             currentMode = completedSessionState.mode;
-            currentPomodorosCompleted = completedSessionState.pomodorosCompleted;
+            currentPomodorosCompleted =
+              completedSessionState.pomodorosCompleted;
             currentHistory = completedSessionState.history;
 
             if (!shouldAutoStartMode(currentMode)) {
@@ -386,7 +404,10 @@ export const useTimeStore = create<TimeState>()(
             iterations += 1;
           }
 
-          const syncedTimeLeft = Math.max(1, getRemainingSeconds(currentSessionEndAt, now));
+          const syncedTimeLeft = Math.max(
+            1,
+            getRemainingSeconds(currentSessionEndAt, now)
+          );
 
           set({
             mode: currentMode,

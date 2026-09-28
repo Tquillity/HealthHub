@@ -18,7 +18,11 @@ import { useSettingsStore } from '@/lib/pomo-store/useSettingsStore';
 import { useTaskStore } from '@/lib/pomo-store/useTaskStore';
 import { useTimeStore } from '@/lib/pomo-store/useTimeStore';
 
-export type PomoCloudPersistenceStatus = 'loading' | 'local' | 'cloud' | 'error';
+export type PomoCloudPersistenceStatus =
+  | 'loading'
+  | 'local'
+  | 'cloud'
+  | 'error';
 
 const PERSIST_DEBOUNCE_MS = 2000;
 
@@ -96,7 +100,9 @@ export function usePomoCloudPersistence() {
     }
 
     // Read local (pre-upgrade) data before anything clears it, so a first cloud sync can import it
-    const localPayload = hasLocalPomoData() ? buildPayloadFromLocalStorage() : null;
+    const localPayload = hasLocalPomoData()
+      ? buildPayloadFromLocalStorage()
+      : null;
 
     cloudActiveRef.current = true;
     setCloudPersistenceActive(true);

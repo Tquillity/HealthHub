@@ -16,7 +16,10 @@ vi.mock('@/lib/pomo/services/worker.service', () => ({
 import { events } from '@/lib/pomo/services/event.service';
 import { useSettingsStore } from '@/lib/pomo-store/useSettingsStore';
 import { useTaskStore } from '@/lib/pomo-store/useTaskStore';
-import { LATE_COMPLETION_CATCH_UP_MS, useTimeStore } from '@/lib/pomo-store/useTimeStore';
+import {
+  LATE_COMPLETION_CATCH_UP_MS,
+  useTimeStore,
+} from '@/lib/pomo-store/useTimeStore';
 
 const START = new Date('2026-09-28T09:00:00.000Z').getTime();
 const MIN = 60_000;
@@ -102,7 +105,9 @@ describe('useTimeStore (wall-clock derived timing)', () => {
     expect(useTimeStore.getState().timeLeft).toBe(25 * 60 - 10);
 
     await useTimeStore.getState().startTimer();
-    expect(useTimeStore.getState().sessionEndAt).toBe(START + 10 * MIN + (25 * 60 - 10) * 1000);
+    expect(useTimeStore.getState().sessionEndAt).toBe(
+      START + 10 * MIN + (25 * 60 - 10) * 1000
+    );
 
     pulseAt(START + 10 * MIN + 5_000);
     expect(useTimeStore.getState().timeLeft).toBe(25 * 60 - 15);
@@ -110,10 +115,22 @@ describe('useTimeStore (wall-clock derived timing)', () => {
 
   it('emits timer:complete after the completed session is recorded (TIMER-6)', async () => {
     useTaskStore.setState({
-      tasks: [{ id: 'task-1', title: 'Write', completed: false, estPomodoros: 2, actPomodoros: 0 }],
+      tasks: [
+        {
+          id: 'task-1',
+          title: 'Write',
+          completed: false,
+          estPomodoros: 2,
+          actPomodoros: 0,
+        },
+      ],
       activeTaskId: 'task-1',
     });
-    const seen: Array<{ mode: string; pomodorosCompleted: number; history: unknown }> = [];
+    const seen: Array<{
+      mode: string;
+      pomodorosCompleted: number;
+      history: unknown;
+    }> = [];
     const unsubscribe = events.on('timer:complete', () => {
       const state = useTimeStore.getState();
       seen.push({
@@ -181,7 +198,10 @@ describe('useTimeStore (wall-clock derived timing)', () => {
   });
 
   it('syncWithWallClock catches up across several auto-started sessions', async () => {
-    useSettingsStore.setState({ autoStartBreaks: true, autoStartPomodoros: true });
+    useSettingsStore.setState({
+      autoStartBreaks: true,
+      autoStartPomodoros: true,
+    });
     await useTimeStore.getState().startTimer();
 
     // 25m pomodoro + 5m short break end, then 10 minutes into the next pomodoro.
@@ -198,7 +218,10 @@ describe('useTimeStore (wall-clock derived timing)', () => {
   });
 
   it('a late pulse after sleep replays missed sessions from the stored deadlines', async () => {
-    useSettingsStore.setState({ autoStartBreaks: true, autoStartPomodoros: true });
+    useSettingsStore.setState({
+      autoStartBreaks: true,
+      autoStartPomodoros: true,
+    });
     await useTimeStore.getState().startTimer();
 
     pulseAt(START + 40 * MIN);
@@ -214,7 +237,10 @@ describe('useTimeStore (wall-clock derived timing)', () => {
   });
 
   it('stops at the first session that does not auto-start when catching up', async () => {
-    useSettingsStore.setState({ autoStartBreaks: true, autoStartPomodoros: false });
+    useSettingsStore.setState({
+      autoStartBreaks: true,
+      autoStartPomodoros: false,
+    });
     await useTimeStore.getState().startTimer();
 
     await useTimeStore.getState().syncWithWallClock(START + 2 * 60 * MIN);

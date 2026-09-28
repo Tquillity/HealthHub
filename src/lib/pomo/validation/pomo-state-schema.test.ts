@@ -51,23 +51,36 @@ describe('pomo state schema', () => {
   });
 
   it('rejects history keys that are not yyyy-MM-dd', () => {
-    for (const key of ['Mon Sep 28 2026', '2026-9-28', '__proto__x', '2026-09-28T00:00']) {
+    for (const key of [
+      'Mon Sep 28 2026',
+      '2026-9-28',
+      '__proto__x',
+      '2026-09-28T00:00',
+    ]) {
       const payload = createDefaultPomoStatePayload();
       payload.timeStore.history = { [key]: stats };
-      expect(PomoStatePayloadSchema.safeParse(payload).success, key).toBe(false);
+      expect(PomoStatePayloadSchema.safeParse(payload).success, key).toBe(
+        false
+      );
     }
   });
 
   it('caps history at the maximum number of days', () => {
     const atLimit = createDefaultPomoStatePayload();
     atLimit.timeStore.history = Object.fromEntries(
-      Array.from({ length: POMO_LIMITS.historyDaysMax }, (_, i) => [day(i), stats])
+      Array.from({ length: POMO_LIMITS.historyDaysMax }, (_, i) => [
+        day(i),
+        stats,
+      ])
     );
     expect(PomoStatePayloadSchema.safeParse(atLimit).success).toBe(true);
 
     const overLimit = createDefaultPomoStatePayload();
     overLimit.timeStore.history = Object.fromEntries(
-      Array.from({ length: POMO_LIMITS.historyDaysMax + 1 }, (_, i) => [day(i), stats])
+      Array.from({ length: POMO_LIMITS.historyDaysMax + 1 }, (_, i) => [
+        day(i),
+        stats,
+      ])
     );
     expect(PomoStatePayloadSchema.safeParse(overLimit).success).toBe(false);
   });
@@ -75,7 +88,12 @@ describe('pomo state schema', () => {
   it('limits task, active task and preset ids to 64 chars', () => {
     const longId = 'x'.repeat(POMO_LIMITS.idMax + 1);
     const okId = 'x'.repeat(POMO_LIMITS.idMax);
-    const task = { title: 't', completed: false, estPomodoros: 1, actPomodoros: 0 };
+    const task = {
+      title: 't',
+      completed: false,
+      estPomodoros: 1,
+      actPomodoros: 0,
+    };
 
     const okPayload = createDefaultPomoStatePayload();
     okPayload.taskStore.tasks = [{ ...task, id: okId }];
@@ -98,7 +116,11 @@ describe('pomo state schema', () => {
           name: 'Deep work',
           data: {
             durations: { pomodoro: 25, short: 5, long: 15 },
-            themeColors: { pomodoro: '#c15c5c', short: '#52a89a', long: '#2c5578' },
+            themeColors: {
+              pomodoro: '#c15c5c',
+              short: '#52a89a',
+              long: '#2c5578',
+            },
             zenTrack: 'rain',
             zenVolume: 0.5,
             zenStrategy: 'always',
@@ -118,7 +140,11 @@ describe('pomo state schema', () => {
           name: 'n'.repeat(POMO_LIMITS.presetNameMax + 10),
           data: {
             durations: { pomodoro: 25, short: 5, long: 15 },
-            themeColors: { pomodoro: '#c15c5c', short: '#52a89a', long: '#2c5578' },
+            themeColors: {
+              pomodoro: '#c15c5c',
+              short: '#52a89a',
+              long: '#2c5578',
+            },
             zenTrack: 'rain',
             zenVolume: 0.5,
             zenStrategy: 'always',
@@ -157,7 +183,9 @@ describe('pomo state schema', () => {
       },
     };
     expect(PomoStatePayloadSchema.safeParse(raw).success).toBe(false);
-    const parsed = PomoStatePayloadSchema.safeParse(sanitizePomoPayloadHistory(raw));
+    const parsed = PomoStatePayloadSchema.safeParse(
+      sanitizePomoPayloadHistory(raw)
+    );
     expect(parsed.success).toBe(true);
     if (!parsed.success) return;
     expect(parsed.data.timeStore.pomodorosCompleted).toBe(42);
