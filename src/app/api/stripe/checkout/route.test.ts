@@ -1,10 +1,13 @@
-import { afterEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
-const mocks = vi.hoisted(() => ({ create: vi.fn() }));
+const mocks = vi.hoisted(() => ({ create: vi.fn(), findUnique: vi.fn() }));
 vi.mock('@/lib/session', () => ({
   getServerSession: vi
     .fn()
     .mockResolvedValue({ user: { id: 'checkout-user' } }),
+}));
+vi.mock('@/lib/db', () => ({
+  prisma: { user: { findUnique: mocks.findUnique } },
 }));
 vi.mock('stripe', () => ({
   default: class {
@@ -13,12 +16,17 @@ vi.mock('stripe', () => ({
 }));
 import { POST } from './route';
 
-afterEach(() => vi.unstubAllEnvs());
-it('stores the user on both Checkout and the resulting subscription', async () => {
+beforeEach(() => {
+  vi.clearAllMocks();
   vi.stubEnv('STRIPE_SECRET_KEY', 'sk_test_fixture');
   vi.stubEnv('STRIPE_WEBHOOK_SECRET', 'whsec_fixture');
   vi.stubEnv('STRIPE_PRICE_ID_PRO', 'price_fixture');
   vi.stubEnv('BETTER_AUTH_URL', 'http://localhost:3000');
+  mocks.findUnique.mockResolvedValue({ isPremium: false });
+});
+afterEach(() => vi.unstubAllEnvs());
+
+it('stores the user on both Checkout and the resulting subscription', async () => {
   mocks.create.mockResolvedValue({
     url: 'https://checkout.stripe.com/fixture',
   });
@@ -30,4 +38,18 @@ it('stores the user on both Checkout and the resulting subscription', async () =
       subscription_data: { metadata: { userId: 'checkout-user' } },
     })
   );
+});
+
+it('refuses a second checkout for an already-premium user', async () => {
+  mocks.findUnique.mockResolvedValue({ isPremium: true });
+  const response = await POST();
+  expect(response.status).toBe(409);
+  expect(await response.json()).toEqual({
+    error: expect.stringContaining('already have an active'),
+  });
+  expect(mocks.findUnique).toHaveBeenCalledWith({
+    where: { id: 'checkout-user' },
+    select: { isPremium: true },
+  });
+  expect(mocks.create).not.toHaveBeenCalled();
 });

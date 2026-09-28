@@ -4,6 +4,7 @@ import {
   hasAlternatives,
   normalizePatternKey,
   parseIngredientAlternatives,
+  resolveIngredientChoiceFromPreferences,
 } from '@/lib/ingredient-alternatives';
 
 describe('parseIngredientAlternatives', () => {
@@ -61,5 +62,34 @@ describe('hasAlternatives', () => {
 describe('getAllOptions', () => {
   it('returns main name plus alternatives', () => {
     expect(getAllOptions('smör', ['kokosolja'])).toEqual(['smör', 'kokosolja']);
+  });
+});
+
+describe('resolveIngredientChoiceFromPreferences', () => {
+  const prefs = new Map([['kokosolja eller smör', 'kokosolja']]);
+
+  it('returns the saved preference for the normalized pattern', () => {
+    expect(
+      resolveIngredientChoiceFromPreferences(prefs, 'smör', ['kokosolja'])
+    ).toBe('kokosolja');
+  });
+
+  it('falls back to the ingredient name without a preference', () => {
+    expect(
+      resolveIngredientChoiceFromPreferences(new Map(), 'smör', ['kokosolja'])
+    ).toBe('smör');
+  });
+
+  it('ignores a stored preference that is not one of the options', () => {
+    const stale = new Map([['kokosolja eller smör', 'olivolja']]);
+    expect(
+      resolveIngredientChoiceFromPreferences(stale, 'smör', ['kokosolja'])
+    ).toBe('smör');
+  });
+
+  it('returns the name unchanged when there are no alternatives', () => {
+    expect(resolveIngredientChoiceFromPreferences(prefs, 'smör', [])).toBe(
+      'smör'
+    );
   });
 });

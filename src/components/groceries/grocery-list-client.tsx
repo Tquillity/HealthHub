@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Printer, Download, Plus, ChevronDown, ChevronUp } from 'lucide-react';
 import { toggleShoppingItem, addShoppingItem } from '@/actions/grocery-actions';
 import { useUIStore } from '@/lib/store';
+import { toCsv } from '@/lib/csv';
 
 interface GroceryItem {
   id?: string; // ShoppingListItem ID if from shopping list
@@ -208,7 +209,7 @@ export function GroceryListClient({
   };
 
   const handleExport = () => {
-    const csvContent = [
+    const csvContent = toCsv([
       ['Item', 'Quantity', 'Unit', 'Recipes'],
       ...getSortedItems().map((item) => [
         item.name,
@@ -216,9 +217,7 @@ export function GroceryListClient({
         item.unit,
         item.recipes.map((r) => r.recipeName).join('; '),
       ]),
-    ]
-      .map((row) => row.map(cell => `"${cell}"`).join(','))
-      .join('\n');
+    ]);
 
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);

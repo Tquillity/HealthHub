@@ -87,6 +87,27 @@ export function normalizePatternKey(ingredientName: string, alternatives: string
 }
 
 /**
+ * Pick the ingredient to use from its alternatives, given the user's saved
+ * preferences (pattern key → preferred option). Pure; the caller loads the
+ * preferences once per request. Falls back to `ingredientName`.
+ */
+export function resolveIngredientChoiceFromPreferences(
+  preferences: ReadonlyMap<string, string>,
+  ingredientName: string,
+  alternatives: string[]
+): string {
+  if (alternatives.length === 0) return ingredientName;
+
+  const preferred = preferences.get(
+    normalizePatternKey(ingredientName, alternatives)
+  );
+  if (preferred && [ingredientName, ...alternatives].includes(preferred)) {
+    return preferred;
+  }
+  return ingredientName;
+}
+
+/**
  * Check if an ingredient name contains alternatives
  */
 export function hasAlternatives(ingredientName: string): boolean {

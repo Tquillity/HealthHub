@@ -12,6 +12,7 @@ import { LearnDetailClient } from '@/components/learn/learn-detail-client';
 import { LearnViewTabs } from '@/components/learn/learn-view-tabs';
 import { parseLearnTldr } from '@/lib/validation/education-schemas';
 import { AppErrorBoundary } from '@/components/ui/error-boundary';
+import { serializeJsonLd } from '@/lib/structured-data/serialize-json-ld';
 
 /**
  * Caching: unstable_cache (tag educational-resources, revalidate 3600).
@@ -97,7 +98,7 @@ export default async function LearnDetailPage({
     <div className="container mx-auto max-w-4xl p-6">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(articleJsonLd) }}
       />
       <Link
         href="/learn"

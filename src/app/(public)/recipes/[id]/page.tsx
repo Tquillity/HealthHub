@@ -10,6 +10,7 @@ import {
 import { getCachedRecipe } from '@/lib/recipe-cache';
 import { createPageMetadata, getMetadataBase } from '@/lib/site-metadata';
 import { buildRecipeJsonLd } from '@/lib/structured-data/recipe-jsonld';
+import { serializeJsonLd } from '@/lib/structured-data/serialize-json-ld';
 import { ChevronLeft, Clock, Users, ChefHat, BookOpen, Sparkles } from 'lucide-react';
 import { ServingsScaler } from '@/components/recipes/servings-scaler';
 import { RecipeDetailClient } from '@/components/recipes/recipe-detail-client';
@@ -122,7 +123,7 @@ export default async function RecipeDetailPage({
       {recipe.isSystem && !recipe.isSecret && !recipe.isPrivate && (
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(recipeJsonLd).replace(/</g, '\\u003c') }}
+          dangerouslySetInnerHTML={{ __html: serializeJsonLd(recipeJsonLd) }}
         />
       )}
       <Link

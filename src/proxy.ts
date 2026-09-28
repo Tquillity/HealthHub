@@ -11,6 +11,16 @@ import type { Session } from 'better-auth/types';
  * Uses REST-based session check via @better-fetch/fetch to avoid Edge Runtime issues.
  * This bypasses the database connection (prisma) that would crash in Edge Runtime.
  */
+/**
+ * Origin for the session lookup. Use the configured BETTER_AUTH_URL so a
+ * spoofed Host header cannot redirect the cookie-bearing request elsewhere;
+ * fall back to the request origin only when it is unset (AUTH-11).
+ */
+function getAuthBaseURL(request: NextRequest): string {
+  const configured = process.env.BETTER_AUTH_URL?.trim().replace(/\/+$/, '');
+  return configured || request.nextUrl.origin;
+}
+
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
@@ -19,7 +29,7 @@ export async function proxy(request: NextRequest) {
   let session: Session | null = null;
   try {
     const result = await betterFetch<Session>('/api/auth/get-session', {
-      baseURL: request.nextUrl.origin,
+      baseURL: getAuthBaseURL(request),
       headers: {
         cookie: request.headers.get('cookie') || '',
       },

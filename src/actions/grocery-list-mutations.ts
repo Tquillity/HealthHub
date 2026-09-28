@@ -15,14 +15,14 @@ import {
 } from '@/lib/validation/grocery-schemas';
 
 const ScaledIngredientSchema = z.object({
-  name: z.string().min(1),
-  quantity: z.number(),
-  unit: z.string().min(1),
+  name: z.string().min(1).max(200),
+  quantity: z.number().positive(),
+  unit: z.string().min(1).max(50),
 });
 
 const AddScaledIngredientsSchema = z.object({
-  ingredients: z.array(ScaledIngredientSchema).min(1),
-  sourceRecipeId: z.string().min(1).optional(),
+  ingredients: z.array(ScaledIngredientSchema).min(1).max(200),
+  sourceRecipeId: z.string().min(1).max(100).optional(),
 });
 
 function categorizeIngredient(name: string): string {

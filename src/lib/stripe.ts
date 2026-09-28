@@ -8,3 +8,12 @@ export function isStripeConfigured(): boolean {
       process.env.STRIPE_WEBHOOK_SECRET?.trim()
   );
 }
+
+/**
+ * Premium is derived from the Stripe subscription status: only `active` and
+ * `trialing` grant access. `past_due`, `unpaid`, `canceled`,
+ * `incomplete_expired`, `paused` and `incomplete` do not.
+ */
+export function isPremiumSubscriptionStatus(status: string): boolean {
+  return status === 'active' || status === 'trialing';
+}

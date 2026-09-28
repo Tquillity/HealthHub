@@ -123,11 +123,17 @@ export function ServingsScaler({
         </p>
         {canAddToGroceryList ? (
           <AddToGroceryButton
-            ingredients={ingredients.map((ing) => ({
-              name: ing.name,
-              quantity: scale(ing.quantity),
-              unit: ing.unit,
-            }))}
+            ingredients={ingredients
+              // Send the unrounded scaled quantity so small amounts don't round
+              // to 0; the server only accepts positive quantities.
+              .map((ing) => ({
+                name: ing.name,
+                quantity: defaultServings
+                  ? (ing.quantity / defaultServings) * servings
+                  : ing.quantity,
+                unit: ing.unit,
+              }))
+              .filter((ing) => ing.quantity > 0)}
             recipeId={recipeId}
           />
         ) : (

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/db';
 import { getServerSession } from '@/lib/session';
 import { isStripeConfigured } from '@/lib/stripe';
 
@@ -19,6 +20,18 @@ export async function POST() {
   const session = await getServerSession();
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { isPremium: true },
+  });
+  if (user?.isPremium) {
+    // Prevent a second, duplicate subscription for an already-premium user.
+    return NextResponse.json(
+      { error: 'You already have an active HealthHub Pro subscription.' },
+      { status: 409 }
+    );
   }
 
   const baseUrl = process.env.BETTER_AUTH_URL ?? process.env.NEXT_PUBLIC_BETTER_AUTH_URL;

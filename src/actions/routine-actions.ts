@@ -5,38 +5,13 @@ import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { requireSessionUserId } from '@/lib/session';
 import { revalidatePath } from 'next/cache';
-
-// Zod schemas
-const CreateRoutineSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  description: z.string().optional(),
-  category: z.string().optional(),
-  frequency: z.string().optional(),
-  energyLevel: z.enum(['low', 'medium', 'high']).default('medium'),
-  estimatedTime: z.number().int().positive().default(15),
-  // Rich metadata
-  imageUrl: z.string().url().optional().or(z.literal('')),
-  context: z.enum(['morning', 'evening', 'anytime']).optional(),
-  duration: z.enum(['5min', '15min', '30min', '60min']).optional(),
-  difficulty: z.enum(['beginner', 'intermediate', 'advanced']).optional(),
-  equipment: z.array(z.string()).default([]),
-  tags: z.array(z.string()).default([]),
-  steps: z.array(
-    z.object({
-      step: z.number().int().positive(),
-      title: z.string().optional(),
-      description: z.string().min(1),
-      duration: z.number().int().positive().optional(),
-      imageUrl: z.string().url().optional().or(z.literal('')),
-    })
-  ).optional(),
-  tips: z.array(z.string()).default([]),
-  contraindications: z.array(z.string()).default([]),
-});
-
-const UpdateRoutineSchema = CreateRoutineSchema.partial().extend({
-  id: z.string().min(1),
-});
+import { buildLotteryWhere, drawRandom } from '@/lib/routine-lottery';
+import {
+  CreateRoutineSchema,
+  LotteryFiltersSchema,
+  RoutineIdSchema,
+  UpdateRoutineSchema,
+} from '@/lib/validation/routine-schemas';
 
 export async function createRoutine(data: z.input<typeof CreateRoutineSchema>) {
   try {
@@ -174,7 +149,7 @@ export async function getRoutine(id: string) {
       return { success: false, error: authResult.error, data: null };
     }
 
-    const parsedId = z.string().min(1).safeParse(id);
+    const parsedId = RoutineIdSchema.safeParse(id);
     if (!parsedId.success) {
       return { success: false, error: 'Routine not found', data: null };
     }
@@ -213,6 +188,11 @@ export async function deleteRoutine(id: string) {
       return { success: false, error: authResult.error };
     }
 
+    const parsedId = RoutineIdSchema.safeParse(id);
+    if (!parsedId.success) {
+      return { success: false, error: 'Routine not found or access denied' };
+    }
+
     // Get user's organization
     const membership = await prisma.member.findFirst({
       where: { userId: authResult.userId },
@@ -226,7 +206,7 @@ export async function deleteRoutine(id: string) {
     // Verify routine belongs to user's organization
     const routine = await prisma.routine.findFirst({
       where: {
-        id,
+        id: parsedId.data,
         organizationId: membership.organizationId,
       },
     });
@@ -237,7 +217,7 @@ export async function deleteRoutine(id: string) {
 
     // Delete routine
     await prisma.routine.delete({
-      where: { id },
+      where: { id: parsedId.data },
     });
 
     revalidatePath('/routines');
@@ -248,6 +228,8 @@ export async function deleteRoutine(id: string) {
   }
 }
 
+// Loose input type on purpose: the client sends select values as strings and
+// LotteryFiltersSchema is the single gate that whitelists them.
 export async function drawLottery(filters: {
   energy?: string;
   maxTime?: number;
@@ -262,6 +244,15 @@ export async function drawLottery(filters: {
       return { success: false, error: authResult.error, data: null };
     }
 
+    const parsed = LotteryFiltersSchema.safeParse(filters);
+    if (!parsed.success) {
+      return {
+        success: false,
+        error: parsed.error.issues[0]?.message || 'Invalid filters',
+        data: null,
+      };
+    }
+
     // Get user's organization
     const membership = await prisma.member.findFirst({
       where: { userId: authResult.userId },
@@ -272,52 +263,16 @@ export async function drawLottery(filters: {
       return { success: false, error: 'No household found', data: null };
     }
 
-    // Build where clause
-    const where: Prisma.RoutineWhereInput = {
-      OR: [
-        { organizationId: membership.organizationId },
-        { isSystem: true },
-      ],
-    };
-
-    if (filters.energy) {
-      where.energyLevel = filters.energy;
-    }
-
-    if (filters.maxTime) {
-      where.estimatedTime = { lte: filters.maxTime };
-    }
-
-    if (filters.context) {
-      where.context = filters.context;
-    }
-
-    if (filters.duration) {
-      where.duration = filters.duration;
-    }
-
-    if (filters.difficulty) {
-      where.difficulty = filters.difficulty;
-    }
-
-    // Fetch candidates matching criteria
+    // Fetch candidates matching the validated, whitelisted criteria
     const candidates = await prisma.routine.findMany({
-      where,
+      where: buildLotteryWhere(parsed.data, membership.organizationId),
     });
 
     if (candidates.length === 0) {
       return { success: true, error: null, data: [] };
     }
 
-    // Randomize selection
-    const count = filters.count || 1;
-    const selected: typeof candidates = [];
-    const shuffled = [...candidates].sort(() => Math.random() - 0.5);
-    
-    for (let i = 0; i < Math.min(count, shuffled.length); i++) {
-      selected.push(shuffled[i]);
-    }
-
+    const selected = drawRandom(candidates, parsed.data.count);
     return { success: true, error: null, data: selected };
   } catch (error) {
     console.error('Error drawing lottery:', error);

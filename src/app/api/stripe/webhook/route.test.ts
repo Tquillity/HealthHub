@@ -124,6 +124,64 @@ describe('signed Stripe webhooks', () => {
     });
   });
 
+  it.each([
+    ['active', true],
+    ['trialing', true],
+    ['past_due', false],
+    ['unpaid', false],
+    ['canceled', false],
+    ['incomplete_expired', false],
+    ['paused', false],
+  ])(
+    'syncs premium from the current status on subscription update (%s)',
+    async (status, isPremium) => {
+      mocks.subscriptions.mockResolvedValue({ status });
+      const response = await POST(
+        request('customer.subscription.updated', {
+          id: 'sub_fixture',
+          status: 'active',
+          metadata: { userId: 'user_fixture' },
+        })
+      );
+      expect(response.status).toBe(200);
+      expect(mocks.subscriptions).toHaveBeenCalledWith('sub_fixture');
+      expect(mocks.process).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'evt_fixture' }),
+        { userId: 'user_fixture', isPremium }
+      );
+    }
+  );
+
+  it('maps legacy subscription updates through the original checkout', async () => {
+    mocks.subscriptions.mockResolvedValue({ status: 'past_due' });
+    mocks.list.mockResolvedValue({
+      data: [{ metadata: {}, client_reference_id: 'legacy_user' }],
+    });
+    const response = await POST(
+      request('customer.subscription.updated', {
+        id: 'sub_legacy',
+        metadata: {},
+      })
+    );
+    expect(response.status).toBe(200);
+    expect(mocks.process).toHaveBeenCalledWith(expect.anything(), {
+      userId: 'legacy_user',
+      isPremium: false,
+    });
+  });
+
+  it('returns a retryable failure for an unmapped subscription update', async () => {
+    mocks.list.mockResolvedValue({ data: [] });
+    const response = await POST(
+      request('customer.subscription.updated', {
+        id: 'sub_missing',
+        metadata: {},
+      })
+    );
+    expect(response.status).toBe(500);
+    expect(mocks.process).not.toHaveBeenCalled();
+  });
+
   it('reports database failures as retryable processing errors', async () => {
     mocks.process.mockRejectedValueOnce(new Error('Database offline'));
     const response = await POST(

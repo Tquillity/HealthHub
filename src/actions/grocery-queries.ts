@@ -3,8 +3,11 @@
 import { z } from 'zod';
 import { prisma } from '@/lib/db';
 import { requireSessionUserId } from '@/lib/session';
-import { parseIngredientAlternatives } from '@/lib/ingredient-alternatives';
-import { resolveIngredientChoice } from './ingredient-preference-actions';
+import {
+  parseIngredientAlternatives,
+  resolveIngredientChoiceFromPreferences,
+} from '@/lib/ingredient-alternatives';
+import { loadUserIngredientPreferenceMap } from '@/lib/ingredient-preferences';
 import {
   isExcludedItem,
   mergeMealPlanIngredientIntoMap,
@@ -191,12 +194,18 @@ export async function getGroceryList(
       }
     }
 
-    // Batch resolve all ingredient choices concurrently using Promise.all
-    // This dramatically improves performance for meal plans with many recipes/ingredients
-    const resolutionPromises = resolutionTasks.map(task =>
-      resolveIngredientChoice(authResult.userId, task.parsed.name, task.allAlternatives)
+    // Load the user's preferences once and resolve every choice in memory (no N+1).
+    const preferences =
+      resolutionTasks.length > 0
+        ? await loadUserIngredientPreferenceMap(authResult.userId)
+        : new Map<string, string>();
+    const resolvedNames = resolutionTasks.map((task) =>
+      resolveIngredientChoiceFromPreferences(
+        preferences,
+        task.parsed.name,
+        task.allAlternatives
+      )
     );
-    const resolvedNames = await Promise.all(resolutionPromises);
 
     // Create a map of item+ingredient IDs to resolved names for quick lookup
     const resolvedNameMap = new Map<string, string>();

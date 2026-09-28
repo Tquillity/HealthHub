@@ -5,9 +5,10 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
-import { hashPassword } from 'better-auth/crypto';
 import {
   DEFAULT_ADMIN_NAME,
+  assertAdminSeedTargetAllowed,
+  ensureSeedAdmin,
   resolveAdminEmail,
   resolveAdminPassword,
 } from '@/lib/admin-credentials';
@@ -74,6 +75,13 @@ async function seed() {
     process.exit(1);
   }
 
+  try {
+    assertAdminSeedTargetAllowed();
+  } catch (error) {
+    console.error(`❌ ${error instanceof Error ? error.message : String(error)}`);
+    process.exit(1);
+  }
+
   // Create a standard PostgreSQL pool for local scripts
   const pool = new Pool({ connectionString });
   const adapter = new PrismaPg(pool as ConstructorParameters<typeof PrismaPg>[0]);
@@ -90,56 +98,15 @@ async function seed() {
     const { password: adminPassword, source: passwordSource } = resolveAdminPassword();
     const adminName = process.env.ADMIN_NAME?.trim() || DEFAULT_ADMIN_NAME;
 
-    const existingAdmin = await prisma.user.findUnique({
-      where: { email: adminEmail },
+    const adminUser = await ensureSeedAdmin(prisma, {
+      email: adminEmail,
+      name: adminName,
+      password: adminPassword,
     });
 
-    const hashedPassword = await hashPassword(adminPassword);
-
-    const adminUser =
-      existingAdmin ??
-      (await prisma.user.create({
-        data: {
-          name: adminName,
-          email: adminEmail,
-          emailVerified: true,
-          role: 'superadmin',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-      }));
-
-    if (existingAdmin) {
+    if (!adminUser.created) {
       console.log(`⚠️ Admin user already exists: ${adminEmail} (repairing password hash)`);
-      if (existingAdmin.role !== 'superadmin') {
-        await prisma.user.update({
-          where: { id: adminUser.id },
-          data: { role: 'superadmin', emailVerified: true },
-        });
-      }
     }
-
-    /**
-     * Ensure credential account exists AND has a valid Better-Auth password hash.
-     * We force-replace any existing credential accounts to avoid duplicates
-     * (Better-Auth may read the "wrong" one if multiple exist).
-     */
-    await prisma.account.deleteMany({
-      where: {
-        userId: adminUser.id,
-        providerId: 'credential',
-      },
-    });
-
-    await prisma.account.create({
-      data: {
-        id: `account_${adminUser.id}`,
-        userId: adminUser.id,
-        accountId: adminUser.id,
-        providerId: 'credential',
-        password: hashedPassword,
-      },
-    });
 
     // Ensure default org + membership exist (safe on re-run)
     const defaultOrgId = `org_${adminUser.id}`;
@@ -189,8 +156,9 @@ async function seed() {
     console.log(`\n  📧 ADMIN CREDENTIALS:`);
     console.log(`     Email: ${adminEmail}`);
     console.log(`     Password source: ${passwordSource}`);
-    console.log(`     Password: ${adminPassword}`);
-    console.log(`\n  ⚠️  Use these exact values at /sign-in (not Admin123! if ADMIN_PASSWORD is set in .env).\n`);
+    console.log(
+      `\n  ⚠️  Sign in at /sign-in with ADMIN_PASSWORD from .env (or the documented local default).\n`
+    );
 
     // 3. Load and Seed Recipes
     const manifestPath = path.join(__dirname, 'kitchen-manifest.json');
