@@ -107,10 +107,14 @@ export async function toggleShoppingItem(
       return { success: true };
     }
 
-    await prisma.shoppingListItem.update({
-      where: { id: validated.itemKey },
+    // Scope the update to the caller's household so foreign item ids are rejected
+    const result = await prisma.shoppingListItem.updateMany({
+      where: { id: validated.itemKey, organizationId: membership.organizationId },
       data: { isChecked: validated.isChecked },
     });
+    if (result.count === 0) {
+      return { success: false, error: 'Item not found' };
+    }
 
     revalidatePath('/groceries');
     return { success: true };

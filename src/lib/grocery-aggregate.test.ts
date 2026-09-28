@@ -79,6 +79,13 @@ describe('isExcludedItem — never list water at home', () => {
     expect(isExcludedItem('gul lök')).toBe(false);
     expect(isExcludedItem('kokosolja')).toBe(false);
   });
+
+  it('keeps groceries that merely contain the word water', () => {
+    expect(isExcludedItem('watermelon')).toBe(false);
+    expect(isExcludedItem('vattenmelon')).toBe(false);
+    expect(isExcludedItem('watercress')).toBe(false);
+    expect(isExcludedItem('ljummet vatten, ca 37°C')).toBe(true);
+  });
 });
 
 describe('isStapleItem — pantry items merge by name only', () => {

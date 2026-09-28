@@ -46,6 +46,27 @@ export const PHASE_LENGTHS = {
 } as const;
 
 /**
+ * Estimated ovulation day: luteal phase is ~14 days, so ovulation falls 14 days before the next period.
+ * Clamped so at least one non-menstrual day precedes it on very short cycles (schema allows 20-45).
+ */
+export function getOvulationDay(cycleLength: number): number {
+  return Math.max(cycleLength - 14, PHASE_LENGTHS.MENSTRUAL + 1);
+}
+
+/**
+ * Phase for a 1-based day of the cycle. Single source of truth for the phase boundaries:
+ * menstrual days 1-5, follicular until 4 days before ovulation, ovulation window
+ * (ovulationDay - 3)..ovulationDay, then luteal.
+ */
+export function getPhaseForDay(day: number, cycleLength: number): CyclePhase {
+  const ovulationDay = getOvulationDay(cycleLength);
+  if (day <= PHASE_LENGTHS.MENSTRUAL) return 'menstrual';
+  if (day <= ovulationDay - 4) return 'follicular';
+  if (day <= ovulationDay) return 'ovulation';
+  return 'luteal';
+}
+
+/**
  * Calculates the current menstrual cycle phase based on last period date and cycle length.
  * 
  * **Variable Phase Logic:**
@@ -79,7 +100,7 @@ export function calculateCyclePhase(
 
   // Handle edge case: Future dates
   if (lastPeriod > today) {
-    const ovulationDay = Math.max(cycleLength - 14, 14); // Ensure minimum ovulation day
+    const ovulationDay = getOvulationDay(cycleLength);
     return { 
       currentPhase: 'follicular', 
       daysIntoCycle: 1, 
@@ -91,26 +112,10 @@ export function calculateCyclePhase(
   const daysDiff = differenceInDays(today, lastPeriod);
   const daysIntoCycle = (daysDiff % cycleLength) + 1;
   
-  // Calculate ovulation day: cycleLength - 14 (luteal phase is ~14 days)
-  // This ensures accuracy across variable cycle lengths
-  const ovulationDay = Math.max(cycleLength - 14, 14); // Minimum day 14 for safety
+  // Ovulation ~14 days before the next period (luteal phase is ~14 days)
+  const ovulationDay = getOvulationDay(cycleLength);
   
-  // Calculate phase boundaries dynamically
-  const menstrualEnd = PHASE_LENGTHS.MENSTRUAL;
-  const follicularEnd = ovulationDay - 4; // Follicular ends 4 days before ovulation
-  const ovulationEnd = ovulationDay;
-  
-  // Determine current phase
-  let currentPhase: CyclePhase = 'luteal';
-  if (daysIntoCycle <= menstrualEnd) {
-    currentPhase = 'menstrual';
-  } else if (daysIntoCycle <= follicularEnd) {
-    currentPhase = 'follicular';
-  } else if (daysIntoCycle <= ovulationEnd) {
-    currentPhase = 'ovulation';
-  } else {
-    currentPhase = 'luteal';
-  }
+  const currentPhase = getPhaseForDay(daysIntoCycle, cycleLength);
 
   // Calculate next period date
   const daysUntilNext = cycleLength - daysIntoCycle;

@@ -79,7 +79,15 @@ class EventService {
    */
   emit<K extends keyof PomoEvents>(event: K, data: PomoEvents[K]) {
     if (!this.listeners[event]) return;
-    this.listeners[event]!.forEach(fn => fn(data));
+    // Isolate listeners: one throwing (e.g. `new Notification()` on Android Chrome) must not
+    // abort the emitter, which for timer:complete would skip recording the finished session.
+    this.listeners[event]!.forEach(fn => {
+      try {
+        fn(data);
+      } catch (error) {
+        console.error(`[PomoZen events] listener for "${String(event)}" failed`, error);
+      }
+    });
   }
 }
 

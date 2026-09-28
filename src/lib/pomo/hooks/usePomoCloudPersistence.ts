@@ -78,27 +78,28 @@ export function usePomoCloudPersistence() {
       return;
     }
 
+    // Read local (pre-upgrade) data before anything clears it, so a first cloud sync can import it
+    const localPayload = hasLocalPomoData() ? buildPayloadFromLocalStorage() : null;
+
     cloudActiveRef.current = true;
     setCloudPersistenceActive(true);
-    clearLocalPomoStorageKeys();
 
     let payload = result.data;
-    if (isEmptyPomoPayload(payload) && hasLocalPomoData()) {
-      const localPayload = buildPayloadFromLocalStorage();
-      if (localPayload) {
-        payload = localPayload;
-      }
+    if (isEmptyPomoPayload(payload) && localPayload) {
+      payload = localPayload;
     }
 
     applyPomoStatePayload(payload);
-    clearLocalPomoStorageKeys();
 
     const saveResult = await savePomoState(payload);
     if (!saveResult.success) {
+      // Keep local keys so the import can be retried on the next load
       setSaveError(saveResult.error ?? 'Save failed');
       setStatus('error');
       return;
     }
+
+    clearLocalPomoStorageKeys();
 
     setSaveError(null);
     setLastSavedAt(saveResult.data.updatedAt);

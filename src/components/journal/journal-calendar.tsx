@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { format, startOfMonth, getDaysInMonth, isSameDay } from 'date-fns';
+import { format, startOfMonth, getDaysInMonth, isSameDay, addMonths, subMonths } from 'date-fns';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { JournalEntry } from '@prisma/client';
 
@@ -18,7 +18,7 @@ export function JournalCalendar({
   onDateSelect,
   onEntryClick,
 }: JournalCalendarProps) {
-  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()));
 
   const getEntryForDate = (date: Date) => {
     return entries.find((entry) => {
@@ -36,15 +36,8 @@ export function JournalCalendar({
   };
 
   const navigateMonth = (direction: 'prev' | 'next') => {
-    setCurrentMonth((prev) => {
-      const newMonth = new Date(prev);
-      if (direction === 'prev') {
-        newMonth.setMonth(prev.getMonth() - 1);
-      } else {
-        newMonth.setMonth(prev.getMonth() + 1);
-      }
-      return newMonth;
-    });
+    // addMonths clamps the day, so Jan 31 -> Feb (setMonth would overflow into March)
+    setCurrentMonth((prev) => (direction === 'prev' ? subMonths(prev, 1) : addMonths(prev, 1)));
   };
 
   const monthStart = startOfMonth(currentMonth);

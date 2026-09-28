@@ -5,6 +5,15 @@ import { requireSessionUserId } from '@/lib/session';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { randomBytes } from 'crypto';
+import { MEAL_TYPES } from '@/lib/meal-auto-fill';
+import { buildRecipeVisibilityFilter } from '@/actions/recipe-shared';
+
+const AddMealToPlanSchema = z.object({
+  planId: z.string().min(1),
+  recipeId: z.string().min(1),
+  date: z.string().refine((value) => !Number.isNaN(new Date(value).getTime()), 'Invalid date'),
+  mealType: z.enum(MEAL_TYPES),
+});
 
 export async function addMealToPlan(
   planId: string,
@@ -13,14 +22,50 @@ export async function addMealToPlan(
   mealType: string
 ) {
   try {
-    const date = new Date(dateStr);
+    const authResult = await requireSessionUserId();
+    if (!authResult.ok) {
+      return { success: false, error: authResult.error };
+    }
+
+    const parsed = AddMealToPlanSchema.safeParse({ planId, recipeId, date: dateStr, mealType });
+    if (!parsed.success) {
+      return { success: false, error: 'Invalid meal data' };
+    }
+    const validated = parsed.data;
+
+    const membership = await prisma.member.findFirst({
+      where: { userId: authResult.userId },
+      select: { organizationId: true },
+    });
+    if (!membership) {
+      return { success: false, error: 'No household found' };
+    }
+
+    const [plan, recipe] = await Promise.all([
+      prisma.mealPlan.findFirst({
+        where: { id: validated.planId, organizationId: membership.organizationId },
+        select: { id: true },
+      }),
+      prisma.recipe.findFirst({
+        where: {
+          AND: [{ id: validated.recipeId }, await buildRecipeVisibilityFilter(authResult.userId)],
+        },
+        select: { id: true },
+      }),
+    ]);
+    if (!plan) {
+      return { success: false, error: 'Meal plan not found' };
+    }
+    if (!recipe) {
+      return { success: false, error: 'Recipe not found' };
+    }
 
     await prisma.mealPlanItem.create({
       data: {
-        mealPlanId: planId,
-        recipeId,
-        date,
-        mealType,
+        mealPlanId: plan.id,
+        recipeId: recipe.id,
+        date: new Date(validated.date),
+        mealType: validated.mealType,
         servings: 4,
       },
     });
@@ -113,17 +158,15 @@ export async function applyMealPlanTemplate(
       };
     });
 
-    // Delete existing items first (optional - could also merge)
-    await prisma.mealPlanItem.deleteMany({
-      where: { mealPlanId: planId },
-    });
-
-    // Create new items from template
-    if (itemsToCreate.length > 0) {
-      await prisma.mealPlanItem.createMany({
+    // Replace existing items atomically so a failed insert cannot leave the plan empty
+    await prisma.$transaction([
+      prisma.mealPlanItem.deleteMany({
+        where: { mealPlanId: planId },
+      }),
+      prisma.mealPlanItem.createMany({
         data: itemsToCreate,
-      });
-    }
+      }),
+    ]);
 
     revalidatePath('/meal-planner');
     return { success: true };
@@ -365,13 +408,37 @@ export async function duplicateMealPlanTemplate(templateId: string) {
  */
 export async function removeMealFromPlan(itemId: string) {
   try {
-    await prisma.mealPlanItem.delete({
-      where: { id: itemId },
+    const authResult = await requireSessionUserId();
+    if (!authResult.ok) {
+      return { success: false, error: authResult.error };
+    }
+
+    const parsed = z.string().min(1).safeParse(itemId);
+    if (!parsed.success) {
+      return { success: false, error: 'Invalid meal item' };
+    }
+
+    const membership = await prisma.member.findFirst({
+      where: { userId: authResult.userId },
+      select: { organizationId: true },
     });
+    if (!membership) {
+      return { success: false, error: 'No household found' };
+    }
+
+    // Scope the delete to the caller's household; deleteMany is a no-op for foreign ids.
+    const result = await prisma.mealPlanItem.deleteMany({
+      where: { id: parsed.data, mealPlan: { organizationId: membership.organizationId } },
+    });
+    if (result.count === 0) {
+      return { success: false, error: 'Meal not found' };
+    }
+
     revalidatePath('/meal-planner');
     return { success: true };
-  } catch {
-    return { success: false };
+  } catch (e) {
+    console.error('[HealthHub action] meal-plan-mutations', e);
+    return { success: false, error: 'Failed to remove meal' };
   }
 }
 

@@ -3,6 +3,7 @@ import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { organization } from 'better-auth/plugins';
 import { prisma } from '@/lib/db';
+import { ensurePersonalHousehold } from '@/lib/household';
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
@@ -31,6 +32,21 @@ export const auth = betterAuth({
       // The proxy calls this read-only endpoint on navigation. Those requests
       // share the server IP and must not turn valid sessions into sign-in redirects.
       '/get-session': false,
+    },
+  },
+  databaseHooks: {
+    user: {
+      create: {
+        // Every household-scoped feature needs a membership; give new accounts a personal household.
+        after: async (user) => {
+          try {
+            await ensurePersonalHousehold(user);
+          } catch (error) {
+            // Never fail sign-up over this; the protected layout retries on the next visit.
+            console.error('[HealthHub auth] Failed to create personal household:', error);
+          }
+        },
+      },
     },
   },
   plugins: [

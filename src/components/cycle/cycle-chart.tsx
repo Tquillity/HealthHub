@@ -37,7 +37,12 @@ import {
   CartesianGrid,
   Dot,
 } from 'recharts';
-import { CyclePhase, CyclePhaseResult, PHASE_LENGTHS } from '@/lib/cycle-calculator';
+import {
+  CyclePhase,
+  CyclePhaseResult,
+  PHASE_LENGTHS,
+  getOvulationDay,
+} from '@/lib/cycle-calculator';
 import { generateHormoneCurves } from '@/lib/hormone-math';
 import { useQueryState } from 'nuqs';
 import { parseAsString } from 'nuqs';
@@ -47,7 +52,6 @@ import { SeriesSelector, getVisibleSeries, SeriesType } from './series-selector'
 interface CycleChartProps {
   phaseData: CyclePhaseResult;
   cycleLength: number;
-  lastPeriodDate: Date; // Required to calculate actual dates for each day
   onPhaseHover?: (phase: CyclePhase | null) => void;
   onPhaseClick?: (phase: CyclePhase) => void;
   onDayClick?: (date: Date, day: number) => void; // New: handle individual day clicks
@@ -271,7 +275,7 @@ const CustomTooltip = ({ active, payload, label, onPhaseHover, visibleSeries }: 
   return null;
 };
 
-export function CycleChart({ phaseData, cycleLength, lastPeriodDate, onPhaseHover, onPhaseClick, onDayClick, mode = 'lifestyle' }: CycleChartProps) {
+export function CycleChart({ phaseData, cycleLength, onPhaseHover, onPhaseClick, onDayClick, mode = 'lifestyle' }: CycleChartProps) {
   const { currentPhase, daysIntoCycle, ovulationDay } = phaseData;
   const router = useRouter();
 
@@ -302,20 +306,21 @@ export function CycleChart({ phaseData, cycleLength, lastPeriodDate, onPhaseHove
   // This ensures ReferenceArea backgrounds align with actual phase calculations
   // Using 0.5 offset for seamless coverage (prevents white gaps between phase zones)
   const phaseBoundaries = useMemo(() => {
-    const calculatedOvulationDay = ovulationDay || Math.max(cycleLength - 14, 14);
-    const menstrualEnd = PHASE_LENGTHS.MENSTRUAL; // Day 5
-    const follicularEnd = calculatedOvulationDay - 4; // Follicular ends 4 days before ovulation
-    const ovulationStart = calculatedOvulationDay - 3; // Ovulation window starts 3 days before ovulation day
-    const ovulationEnd = calculatedOvulationDay;
-    const lutealStart = calculatedOvulationDay + 1; // Luteal starts the day after ovulation
-    
+    const calculatedOvulationDay = ovulationDay || getOvulationDay(cycleLength);
+    const menstrualEnd = PHASE_LENGTHS.MENSTRUAL + 0.5; // End of day 5
+    // Ovulation window covers days (ovulationDay - 3)..ovulationDay; on short cycles it starts right
+    // after menstruation, so the follicular band collapses to zero width instead of going negative.
+    const ovulationStart = Math.max(calculatedOvulationDay - 3 - 0.5, menstrualEnd);
+    const ovulationEnd = calculatedOvulationDay + 0.5;
+
+    // Each day d spans d-0.5..d+0.5, so adjacent bands share an edge (no gap days)
     return {
-      menstrualEnd: menstrualEnd + 0.5, // Day 5.5 (end of day 5)
-      follicularStart: menstrualEnd + 0.5, // Day 5.5 (start of day 6)
-      follicularEnd: follicularEnd + 0.5, // End of follicular phase
-      ovulationStart: ovulationStart + 0.5, // Start of ovulation window
-      ovulationEnd: ovulationEnd + 0.5, // End of ovulation (day ovulationDay.5)
-      lutealStart: lutealStart + 0.5, // Start of luteal (day after ovulation + 0.5)
+      menstrualEnd,
+      follicularStart: menstrualEnd,
+      follicularEnd: ovulationStart,
+      ovulationStart,
+      ovulationEnd,
+      lutealStart: ovulationEnd,
       lutealEnd: cycleLength + 0.5, // End of cycle
     };
   }, [cycleLength, ovulationDay]);
@@ -331,9 +336,12 @@ export function CycleChart({ phaseData, cycleLength, lastPeriodDate, onPhaseHove
   };
 
   // Calculate actual date for a given day in the cycle
+  // Days are positions in the *current* cycle, so count from its start (today minus days elapsed),
+  // not from lastPeriodDate, which can be several cycles ago.
   const getDateForDay = (day: number): Date => {
-    const date = new Date(lastPeriodDate);
-    date.setDate(date.getDate() + (day - 1));
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    date.setDate(date.getDate() - (daysIntoCycle - 1) + (day - 1));
     return date;
   };
 

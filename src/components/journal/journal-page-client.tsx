@@ -18,7 +18,8 @@ export default function JournalPageClient({ initialEntries }: JournalPageClientP
   const [activeTab, setActiveTab] = useState<'calendar' | 'form' | 'analytics'>('calendar');
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<JournalEntry | null>(null);
-  const [entries] = useState(initialEntries);
+  // Read from props so router.refresh() after save/delete shows the new data
+  const entries = initialEntries;
   const [showEntryDetail, setShowEntryDetail] = useState(false);
 
   const handleDateSelect = async (date: string) => {
