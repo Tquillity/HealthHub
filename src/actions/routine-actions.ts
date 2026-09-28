@@ -62,7 +62,10 @@ export async function createRoutine(data: z.input<typeof CreateRoutineSchema>) {
   } catch (error) {
     if (error instanceof z.ZodError) {
       // Zod v4 uses `issues` (Zod v3 used `errors`)
-      return { success: false, error: error.issues?.[0]?.message || 'Validation failed' };
+      return {
+        success: false,
+        error: error.issues?.[0]?.message || 'Validation failed',
+      };
     }
     console.error('Error creating routine:', error);
     return { success: false, error: 'Failed to create routine' };
@@ -105,16 +108,26 @@ export async function updateRoutine(data: z.input<typeof UpdateRoutineSchema>) {
     // Prepare update data
     const dataToUpdate: Prisma.RoutineUpdateInput = {};
     if (updateData.name !== undefined) dataToUpdate.name = updateData.name;
-    if (updateData.description !== undefined) dataToUpdate.description = updateData.description || null;
-    if (updateData.category !== undefined) dataToUpdate.category = updateData.category || null;
-    if (updateData.frequency !== undefined) dataToUpdate.frequency = updateData.frequency || null;
-    if (updateData.energyLevel !== undefined) dataToUpdate.energyLevel = updateData.energyLevel;
-    if (updateData.estimatedTime !== undefined) dataToUpdate.estimatedTime = updateData.estimatedTime;
-    if (updateData.imageUrl !== undefined) dataToUpdate.imageUrl = updateData.imageUrl || null;
-    if (updateData.context !== undefined) dataToUpdate.context = updateData.context || null;
-    if (updateData.duration !== undefined) dataToUpdate.duration = updateData.duration || null;
-    if (updateData.difficulty !== undefined) dataToUpdate.difficulty = updateData.difficulty || null;
-    if (updateData.equipment !== undefined) dataToUpdate.equipment = updateData.equipment;
+    if (updateData.description !== undefined)
+      dataToUpdate.description = updateData.description || null;
+    if (updateData.category !== undefined)
+      dataToUpdate.category = updateData.category || null;
+    if (updateData.frequency !== undefined)
+      dataToUpdate.frequency = updateData.frequency || null;
+    if (updateData.energyLevel !== undefined)
+      dataToUpdate.energyLevel = updateData.energyLevel;
+    if (updateData.estimatedTime !== undefined)
+      dataToUpdate.estimatedTime = updateData.estimatedTime;
+    if (updateData.imageUrl !== undefined)
+      dataToUpdate.imageUrl = updateData.imageUrl || null;
+    if (updateData.context !== undefined)
+      dataToUpdate.context = updateData.context || null;
+    if (updateData.duration !== undefined)
+      dataToUpdate.duration = updateData.duration || null;
+    if (updateData.difficulty !== undefined)
+      dataToUpdate.difficulty = updateData.difficulty || null;
+    if (updateData.equipment !== undefined)
+      dataToUpdate.equipment = updateData.equipment;
     if (updateData.tags !== undefined) dataToUpdate.tags = updateData.tags;
     if (updateData.steps !== undefined) {
       // Prisma `Json?` fields expect `undefined` (omit) instead of `null` for "no value".
@@ -122,7 +135,8 @@ export async function updateRoutine(data: z.input<typeof UpdateRoutineSchema>) {
       dataToUpdate.steps = updateData.steps ?? undefined;
     }
     if (updateData.tips !== undefined) dataToUpdate.tips = updateData.tips;
-    if (updateData.contraindications !== undefined) dataToUpdate.contraindications = updateData.contraindications;
+    if (updateData.contraindications !== undefined)
+      dataToUpdate.contraindications = updateData.contraindications;
 
     // Update routine
     const routine = await prisma.routine.update({
@@ -135,7 +149,10 @@ export async function updateRoutine(data: z.input<typeof UpdateRoutineSchema>) {
   } catch (error) {
     if (error instanceof z.ZodError) {
       // Zod v4 uses `issues` (Zod v3 used `errors`)
-      return { success: false, error: error.issues?.[0]?.message || 'Validation failed' };
+      return {
+        success: false,
+        error: error.issues?.[0]?.message || 'Validation failed',
+      };
     }
     console.error('Error updating routine:', error);
     return { success: false, error: 'Failed to update routine' };
@@ -165,7 +182,9 @@ export async function getRoutine(id: string) {
         id: parsedId.data,
         OR: [
           { isSystem: true },
-          ...(membership ? [{ organizationId: membership.organizationId }] : []),
+          ...(membership
+            ? [{ organizationId: membership.organizationId }]
+            : []),
         ],
       },
     });

@@ -85,5 +85,3 @@ export const config = {
     '/sign-up',
   ],
 };
-
-

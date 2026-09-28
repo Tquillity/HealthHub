@@ -9,12 +9,18 @@ import { isStripeConfigured } from '@/lib/stripe';
  */
 export async function POST() {
   if (!isStripeConfigured()) {
-    return NextResponse.json({ error: 'Stripe not configured' }, { status: 503 });
+    return NextResponse.json(
+      { error: 'Stripe not configured' },
+      { status: 503 }
+    );
   }
 
   const priceId = process.env.STRIPE_PRICE_ID_PRO?.trim();
   if (!priceId) {
-    return NextResponse.json({ error: 'Pro price not configured' }, { status: 503 });
+    return NextResponse.json(
+      { error: 'Pro price not configured' },
+      { status: 503 }
+    );
   }
 
   const session = await getServerSession();
@@ -34,7 +40,8 @@ export async function POST() {
     );
   }
 
-  const baseUrl = process.env.BETTER_AUTH_URL ?? process.env.NEXT_PUBLIC_BETTER_AUTH_URL;
+  const baseUrl =
+    process.env.BETTER_AUTH_URL ?? process.env.NEXT_PUBLIC_BETTER_AUTH_URL;
   if (!baseUrl) {
     return NextResponse.json({ error: 'Missing app URL' }, { status: 503 });
   }

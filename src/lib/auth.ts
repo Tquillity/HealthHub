@@ -47,13 +47,14 @@ export const auth = betterAuth({
             await ensurePersonalHousehold(user);
           } catch (error) {
             // Never fail sign-up over this; the protected layout retries on the next visit.
-            console.error('[HealthHub auth] Failed to create personal household:', error);
+            console.error(
+              '[HealthHub auth] Failed to create personal household:',
+              error
+            );
           }
         },
       },
     },
   },
-  plugins: [
-    organization(),
-  ],
+  plugins: [organization()],
 });

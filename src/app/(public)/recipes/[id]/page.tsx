@@ -3,15 +3,19 @@ import Image from 'next/image';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/db';
-import {
-  getUserRole,
-  type RecipeWithDetails,
-} from '@/actions/recipe-actions';
+import { getUserRole, type RecipeWithDetails } from '@/actions/recipe-actions';
 import { getCachedRecipe } from '@/lib/recipe-cache';
 import { createPageMetadata, getMetadataBase } from '@/lib/site-metadata';
 import { buildRecipeJsonLd } from '@/lib/structured-data/recipe-jsonld';
 import { serializeJsonLd } from '@/lib/structured-data/serialize-json-ld';
-import { ChevronLeft, Clock, Users, ChefHat, BookOpen, Sparkles } from 'lucide-react';
+import {
+  ChevronLeft,
+  Clock,
+  Users,
+  ChefHat,
+  BookOpen,
+  Sparkles,
+} from 'lucide-react';
 import { ServingsScaler } from '@/components/recipes/servings-scaler';
 import { RecipeDetailClient } from '@/components/recipes/recipe-detail-client';
 
@@ -76,7 +80,8 @@ export default async function RecipeDetailPage({
     sodium?: number | null;
   };
 
-  const isAdmin = roleResult.role === 'admin' || roleResult.role === 'superadmin';
+  const isAdmin =
+    roleResult.role === 'admin' || roleResult.role === 'superadmin';
   const canAddToGroceryList = roleResult.success && roleResult.role !== null;
 
   // Find related educational resource
@@ -242,7 +247,9 @@ export default async function RecipeDetailPage({
                 <p className="text-xs font-medium uppercase text-gray-500">
                   Total Time
                 </p>
-                <p className="font-semibold text-gray-900">{totalMins || 0} mins</p>
+                <p className="font-semibold text-gray-900">
+                  {totalMins || 0} mins
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -261,7 +268,10 @@ export default async function RecipeDetailPage({
           </div>
 
           {/* Nutrition Info */}
-          {(recipe.calories || recipe.protein || recipe.carbs || recipe.fat) && (
+          {(recipe.calories ||
+            recipe.protein ||
+            recipe.carbs ||
+            recipe.fat) && (
             <div className="mb-10 rounded-lg border border-gray-200 bg-gray-50 p-6">
               <h3 className="mb-4 text-lg font-semibold text-gray-900">
                 Nutrition (per serving)
@@ -269,7 +279,9 @@ export default async function RecipeDetailPage({
               <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
                 {recipe.calories && (
                   <div>
-                    <p className="text-xs font-medium text-gray-500">Calories</p>
+                    <p className="text-xs font-medium text-gray-500">
+                      Calories
+                    </p>
                     <p className="text-lg font-bold text-gray-900">
                       {Math.round(recipe.calories)}
                     </p>
@@ -366,7 +378,9 @@ export default async function RecipeDetailPage({
                   {step.stepNumber}
                 </div>
                 <div className="absolute left-4 top-8 -bottom-8 w-px bg-gray-200 group-last:hidden" />
-                <p className="pt-1 leading-relaxed text-gray-700">{step.text}</p>
+                <p className="pt-1 leading-relaxed text-gray-700">
+                  {step.text}
+                </p>
               </div>
             ))}
           </div>

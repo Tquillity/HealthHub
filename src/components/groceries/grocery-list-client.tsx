@@ -43,16 +43,49 @@ export function GroceryListClient({
   const [isAddingItem, setIsAddingItem] = useState(false);
   const [isSkafferiExpanded, setIsSkafferiExpanded] = useState(true);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
-  
+
   // Helper functions (defined before useMemo)
   const getCategory = (name: string): string => {
     const lower = name.toLowerCase();
-    if (lower.includes('chicken') || lower.includes('beef') || lower.includes('pork') || lower.includes('meat')) return 'Meat';
-    if (lower.includes('milk') || lower.includes('cheese') || lower.includes('yogurt') || lower.includes('dairy')) return 'Dairy';
-    if (lower.includes('bread') || lower.includes('flour') || lower.includes('pasta')) return 'Bakery';
-    if (lower.includes('apple') || lower.includes('banana') || lower.includes('fruit')) return 'Produce';
-    if (lower.includes('onion') || lower.includes('garlic') || lower.includes('pepper') || lower.includes('vegetable')) return 'Produce';
-    if (lower.includes('oil') || lower.includes('vinegar') || lower.includes('spice')) return 'Pantry';
+    if (
+      lower.includes('chicken') ||
+      lower.includes('beef') ||
+      lower.includes('pork') ||
+      lower.includes('meat')
+    )
+      return 'Meat';
+    if (
+      lower.includes('milk') ||
+      lower.includes('cheese') ||
+      lower.includes('yogurt') ||
+      lower.includes('dairy')
+    )
+      return 'Dairy';
+    if (
+      lower.includes('bread') ||
+      lower.includes('flour') ||
+      lower.includes('pasta')
+    )
+      return 'Bakery';
+    if (
+      lower.includes('apple') ||
+      lower.includes('banana') ||
+      lower.includes('fruit')
+    )
+      return 'Produce';
+    if (
+      lower.includes('onion') ||
+      lower.includes('garlic') ||
+      lower.includes('pepper') ||
+      lower.includes('vegetable')
+    )
+      return 'Produce';
+    if (
+      lower.includes('oil') ||
+      lower.includes('vinegar') ||
+      lower.includes('spice')
+    )
+      return 'Pantry';
     return 'Other';
   };
 
@@ -70,7 +103,7 @@ export function GroceryListClient({
     }
     return sorted.sort((a, b) => a.name.localeCompare(b.name));
   };
-  
+
   // Initialize checked state from items that have isChecked: true
   const initialChecked = useMemo(() => {
     const sorted = [...initialItems];
@@ -88,7 +121,8 @@ export function GroceryListClient({
     }
     const checked = new Set<string>();
     sorted.forEach((item, index) => {
-      const category = sortBy === 'category' ? getCategory(item.name) : 'All Items';
+      const category =
+        sortBy === 'category' ? getCategory(item.name) : 'All Items';
       const itemKey = item.id || `${category}-${index}`;
       if (item.isChecked) {
         checked.add(itemKey);
@@ -96,11 +130,12 @@ export function GroceryListClient({
     });
     return checked;
   }, [initialItems, sortBy]);
-  
+
   // Use state with optimistic updates for instant UI feedback
   // React 19's useOptimistic has type issues, so we use useState + useTransition
-  const [optimisticChecked, setOptimisticChecked] = useState<Set<string>>(initialChecked);
-  
+  const [optimisticChecked, setOptimisticChecked] =
+    useState<Set<string>>(initialChecked);
+
   // Sync optimistic state when initialChecked changes (e.g., after refresh)
   useEffect(() => {
     setOptimisticChecked(initialChecked);
@@ -109,16 +144,16 @@ export function GroceryListClient({
   const toggleItem = async (item: GroceryItem, itemKey: string) => {
     const isCurrentlyChecked = optimisticChecked.has(itemKey);
     const newChecked = new Set(optimisticChecked);
-    
+
     if (isCurrentlyChecked) {
       newChecked.delete(itemKey);
     } else {
       newChecked.add(itemKey);
     }
-    
+
     // Optimistic update
     setOptimisticChecked(newChecked);
-    
+
     // Persist to database (only for ShoppingListItem entries with actual IDs)
     if (item.id) {
       startTransition(async () => {
@@ -145,14 +180,15 @@ export function GroceryListClient({
   const toggleAll = () => {
     const sorted = getSortedItems();
     const allKeys = sorted.map((item, index) => {
-      const category = sortBy === 'category' ? getCategory(item.name) : 'All Items';
+      const category =
+        sortBy === 'category' ? getCategory(item.name) : 'All Items';
       return item.id || `${category}-${index}`;
     });
-    
+
     if (optimisticChecked.size === allKeys.length) {
       setOptimisticChecked(new Set());
       // Uncheck all items in database (only those with IDs)
-      sorted.forEach(item => {
+      sorted.forEach((item) => {
         if (item.id) {
           startTransition(async () => {
             await toggleShoppingItem(item.id!, false);
@@ -162,7 +198,7 @@ export function GroceryListClient({
     } else {
       setOptimisticChecked(new Set(allKeys));
       // Check all items in database (only those with IDs)
-      sorted.forEach(item => {
+      sorted.forEach((item) => {
         if (item.id) {
           startTransition(async () => {
             await toggleShoppingItem(item.id!, true);
@@ -173,12 +209,11 @@ export function GroceryListClient({
     router.refresh();
   };
 
-
   const getGroupedItems = () => {
     if (sortBy !== 'category') return { 'All Items': getSortedItems() };
-    
+
     const grouped: { [key: string]: GroceryItem[] } = {};
-    getSortedItems().forEach(item => {
+    getSortedItems().forEach((item) => {
       const category = getCategory(item.name);
       if (!grouped[category]) {
         grouped[category] = [];
@@ -198,10 +233,13 @@ export function GroceryListClient({
   const getProgressPercentage = () => {
     const sorted = getSortedItems();
     const allKeys = sorted.map((_, index) => {
-      const category = sortBy === 'category' ? getCategory(sorted[index].name) : 'All Items';
+      const category =
+        sortBy === 'category' ? getCategory(sorted[index].name) : 'All Items';
       return `${category}-${index}`;
     });
-    return allKeys.length > 0 ? (optimisticChecked.size / allKeys.length) * 100 : 0;
+    return allKeys.length > 0
+      ? (optimisticChecked.size / allKeys.length) * 100
+      : 0;
   };
 
   const handlePrint = () => {
@@ -247,11 +285,11 @@ export function GroceryListClient({
   };
 
   const groupedItems = getGroupedItems();
-  
+
   // Split items into main list and staples (Skafferi) from sorted items
   const sortedItems = getSortedItems();
-  const stapleItems = sortedItems.filter(i => i.isStaple);
-  
+  const stapleItems = sortedItems.filter((i) => i.isStaple);
+
   const toggleItemExpansion = (itemKey: string) => {
     const newExpanded = new Set(expandedItems);
     if (newExpanded.has(itemKey)) {
@@ -268,10 +306,18 @@ export function GroceryListClient({
     const isChecked = optimisticChecked.has(itemKey);
     const isExpanded = expandedItems.has(itemKey);
     const hasMultipleRecipes = item.recipes.length > 1;
-    
+
     // Group recipes by name and sum quantities for same recipe
-    const recipeGroups = new Map<string, { name: string; totalQuantity: number; mealTypes: Set<string>; count: number }>();
-    item.recipes.forEach(recipe => {
+    const recipeGroups = new Map<
+      string,
+      {
+        name: string;
+        totalQuantity: number;
+        mealTypes: Set<string>;
+        count: number;
+      }
+    >();
+    item.recipes.forEach((recipe) => {
       if (recipeGroups.has(recipe.recipeName)) {
         const existing = recipeGroups.get(recipe.recipeName)!;
         existing.totalQuantity += recipe.quantity;
@@ -299,15 +345,20 @@ export function GroceryListClient({
               className="h-5 w-5 shrink-0 rounded border-gray-300 text-primary-600 focus:ring-primary-600 cursor-pointer"
             />
             <div className="min-w-0 flex-1">
-              <p className={`font-medium capitalize text-gray-900 truncate ${isChecked ? 'line-through text-gray-400' : ''}`}>
+              <p
+                className={`font-medium capitalize text-gray-900 truncate ${isChecked ? 'line-through text-gray-400' : ''}`}
+              >
                 {item.name}
               </p>
               {!isExpanded ? (
                 <div className="flex items-center gap-2">
                   <p className="text-xs text-gray-500 truncate">
-                    Used in: {Array.from(recipeGroups.values()).map(r => 
-                      r.count > 1 ? `${r.count}x ${r.name}` : r.name
-                    ).join(', ')}
+                    Used in:{' '}
+                    {Array.from(recipeGroups.values())
+                      .map((r) =>
+                        r.count > 1 ? `${r.count}x ${r.name}` : r.name
+                      )
+                      .join(', ')}
                   </p>
                   {hasMultipleRecipes && (
                     <button
@@ -344,8 +395,9 @@ export function GroceryListClient({
                             {recipe.count}x
                           </span>
                         )}
-                        <span className="font-medium text-gray-700">{recipe.name}</span>
-                        {' '}
+                        <span className="font-medium text-gray-700">
+                          {recipe.name}
+                        </span>{' '}
                         <span className="text-gray-500">
                           • {formatQuantity(recipe.totalQuantity, item.unit)}
                         </span>
@@ -358,11 +410,13 @@ export function GroceryListClient({
           </div>
           {/* Quantity: Force single row, no shrinking */}
           <div className="shrink-0 text-right whitespace-nowrap">
-            <span className={`inline-block rounded-full px-3 py-1 text-sm font-bold min-w-[70px] ${
-              isChecked 
-                ? 'bg-gray-100 text-gray-400' 
-                : 'bg-primary-50 text-primary-700 border border-primary-100'
-            }`}>
+            <span
+              className={`inline-block rounded-full px-3 py-1 text-sm font-bold min-w-[70px] ${
+                isChecked
+                  ? 'bg-gray-100 text-gray-400'
+                  : 'bg-primary-50 text-primary-700 border border-primary-100'
+              }`}
+            >
               {formatQuantity(item.totalQuantity, item.unit)}
             </span>
           </div>
@@ -384,7 +438,11 @@ export function GroceryListClient({
             className="flex-1"
             disabled={isAddingItem}
           />
-          <Button type="submit" disabled={isAddingItem || !newItemName.trim()} className="gap-2">
+          <Button
+            type="submit"
+            disabled={isAddingItem || !newItemName.trim()}
+            className="gap-2"
+          >
             <Plus className="h-4 w-4" />
             {isAddingItem ? 'Adding...' : 'Add'}
           </Button>
@@ -397,7 +455,8 @@ export function GroceryListClient({
           <div>
             <h2 className="text-2xl font-bold text-gray-900">Grocery List</h2>
             <p className="text-sm text-gray-600">
-              Week of {weekStart.toLocaleDateString()} - {weekEnd.toLocaleDateString()}
+              Week of {weekStart.toLocaleDateString()} -{' '}
+              {weekEnd.toLocaleDateString()}
             </p>
           </div>
           <div className="flex gap-2">
@@ -416,7 +475,8 @@ export function GroceryListClient({
         <div className="mb-4">
           <div className="mb-2 flex items-center justify-between">
             <span className="text-sm font-medium text-gray-700">
-              Progress: {optimisticChecked.size} of {getSortedItems().length} items
+              Progress: {optimisticChecked.size} of {getSortedItems().length}{' '}
+              items
             </span>
             <span className="text-sm text-gray-500">
               {Math.round(getProgressPercentage())}%
@@ -437,7 +497,9 @@ export function GroceryListClient({
               onClick={toggleAll}
               className="text-sm font-medium text-primary-600 transition-colors hover:text-primary-700"
             >
-              {optimisticChecked.size === getSortedItems().length ? 'Uncheck All' : 'Check All'}
+              {optimisticChecked.size === getSortedItems().length
+                ? 'Uncheck All'
+                : 'Check All'}
             </button>
           </div>
           <div className="flex items-center gap-2">
@@ -461,14 +523,22 @@ export function GroceryListClient({
             <div className="flex items-center gap-2 flex-1">
               <span className="text-lg">🧂</span>
               <div className="flex flex-col">
-                <h3 className="font-bold text-amber-900 uppercase tracking-wider text-sm">Skafferi (Check these first!)</h3>
-                <span className="text-xs font-medium text-amber-700">Check if you already have these staples</span>
+                <h3 className="font-bold text-amber-900 uppercase tracking-wider text-sm">
+                  Skafferi (Check these first!)
+                </h3>
+                <span className="text-xs font-medium text-amber-700">
+                  Check if you already have these staples
+                </span>
               </div>
             </div>
             <button
               onClick={() => setIsSkafferiExpanded(!isSkafferiExpanded)}
               className="ml-4 p-1 rounded-md hover:bg-amber-200 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500"
-              aria-label={isSkafferiExpanded ? 'Collapse Skafferi section' : 'Expand Skafferi section'}
+              aria-label={
+                isSkafferiExpanded
+                  ? 'Collapse Skafferi section'
+                  : 'Expand Skafferi section'
+              }
               aria-expanded={isSkafferiExpanded}
             >
               {isSkafferiExpanded ? (
@@ -481,7 +551,8 @@ export function GroceryListClient({
           {isSkafferiExpanded && (
             <ul className="divide-y divide-amber-100">
               {stapleItems.map((item, idx) => {
-                const category = sortBy === 'category' ? getCategory(item.name) : 'staples';
+                const category =
+                  sortBy === 'category' ? getCategory(item.name) : 'staples';
                 return renderItem(item, idx, category);
               })}
             </ul>
@@ -493,9 +564,11 @@ export function GroceryListClient({
       <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
         {Object.entries(groupedItems).map(([category, categoryItems]) => {
           // Filter out staples from main list (they're shown in Skafferi section)
-          const mainCategoryItems = categoryItems.filter(item => !item.isStaple);
+          const mainCategoryItems = categoryItems.filter(
+            (item) => !item.isStaple
+          );
           if (mainCategoryItems.length === 0) return null;
-          
+
           return (
             <div key={category}>
               {sortBy === 'category' && (
@@ -506,7 +579,9 @@ export function GroceryListClient({
                 </div>
               )}
               <ul className="divide-y divide-gray-100">
-                {mainCategoryItems.map((item, index) => renderItem(item, index, category))}
+                {mainCategoryItems.map((item, index) =>
+                  renderItem(item, index, category)
+                )}
               </ul>
             </div>
           );
@@ -515,4 +590,3 @@ export function GroceryListClient({
     </div>
   );
 }
-

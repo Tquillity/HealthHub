@@ -32,11 +32,11 @@ const MealPlansParamsSchema = z.object({
 
 /**
  * Get grocery list for an organization within a date range
- * 
+ *
  * Aggregates ingredients from meal plans and merges with shopping list items.
  * Applies unit normalization (cups→ml, oz→g) to merge duplicate ingredients.
  * Tracks which recipes use each ingredient for display purposes.
- * 
+ *
  * @param organizationId - The organization (household) ID
  * @param startDate - Start date for the meal plan range
  * @param endDate - End date for the meal plan range
@@ -120,13 +120,13 @@ export async function getGroceryList(
     // Aggregate ingredients with unit normalization and recipe tracking
     // Key format: normalizedName_normalizedUnit (e.g., "rice_ml", "chicken_g")
     // This enables merging duplicate ingredients with different unit representations
-    // 
+    //
     // Note: While this uses JS loops, it's optimized by:
     // 1. Using select to fetch only required fields (reduces memory)
     // 2. Processing data in a single pass
     // 3. Unit normalization requires complex logic that's difficult in pure SQL
     // For 500+ meals, consider a database view or materialized view for further optimization
-    
+
     // Collect all ingredient IDs to batch-fetch alternatives
     const allIngredientIds = new Set<string>();
     for (const item of mealPlanItems) {
@@ -134,7 +134,7 @@ export async function getGroceryList(
         allIngredientIds.add(ingredient.id);
       }
     }
-    
+
     // Batch-fetch all alternatives at once (more efficient than per-ingredient queries)
     const alternativesMap = new Map<string, string[]>();
     try {
@@ -143,7 +143,7 @@ export async function getGroceryList(
         select: { ingredientId: true, name: true, order: true },
         orderBy: { order: 'asc' },
       });
-      
+
       // Group alternatives by ingredient ID
       for (const alt of allAlternatives) {
         if (!alternativesMap.has(alt.ingredientId)) {
@@ -154,9 +154,11 @@ export async function getGroceryList(
     } catch {
       // If alternatives table doesn't exist or relation fails, continue without alternatives
       // This is a graceful fallback - we'll use name parsing instead
-      console.warn('Could not fetch alternatives from database, using name parsing fallback');
+      console.warn(
+        'Could not fetch alternatives from database, using name parsing fallback'
+      );
     }
-    
+
     const ingredientMap = new Map<string, GroceryItem>();
 
     // First pass: Collect all ingredients that need resolution and batch resolve them
@@ -175,13 +177,14 @@ export async function getGroceryList(
       for (const ingredient of recipe.ingredients) {
         // Get stored alternatives from the batch-fetched map
         const storedAlternatives = alternativesMap.get(ingredient.id) || [];
-        
+
         // Handle ingredient alternatives: parse from name or use stored alternatives
         const parsed = parseIngredientAlternatives(ingredient.name);
-        const allAlternatives = storedAlternatives.length > 0 
-          ? storedAlternatives 
-          : parsed.alternatives;
-        
+        const allAlternatives =
+          storedAlternatives.length > 0
+            ? storedAlternatives
+            : parsed.alternatives;
+
         // Only add to resolution tasks if there are alternatives to resolve
         if (allAlternatives.length > 0) {
           resolutionTasks.push({
@@ -210,7 +213,10 @@ export async function getGroceryList(
     // Create a map of item+ingredient IDs to resolved names for quick lookup
     const resolvedNameMap = new Map<string, string>();
     resolutionTasks.forEach((task, idx) => {
-      resolvedNameMap.set(`${task.itemId}-${task.ingredientId}`, resolvedNames[idx]);
+      resolvedNameMap.set(
+        `${task.itemId}-${task.ingredientId}`,
+        resolvedNames[idx]
+      );
     });
 
     // Second pass: Process all ingredients using pre-resolved names
@@ -222,18 +228,21 @@ export async function getGroceryList(
       for (const ingredient of recipe.ingredients) {
         // Get stored alternatives from the batch-fetched map
         const storedAlternatives = alternativesMap.get(ingredient.id) || [];
-        
+
         // Handle ingredient alternatives: parse from name or use stored alternatives
         const parsed = parseIngredientAlternatives(ingredient.name);
-        const allAlternatives = storedAlternatives.length > 0 
-          ? storedAlternatives 
-          : parsed.alternatives;
-        
+        const allAlternatives =
+          storedAlternatives.length > 0
+            ? storedAlternatives
+            : parsed.alternatives;
+
         // Get resolved name from map or use ingredient name directly
-        const resolvedName = allAlternatives.length > 0
-          ? resolvedNameMap.get(`${item.id}-${ingredient.id}`) || ingredient.name
-          : ingredient.name;
-        
+        const resolvedName =
+          allAlternatives.length > 0
+            ? resolvedNameMap.get(`${item.id}-${ingredient.id}`) ||
+              ingredient.name
+            : ingredient.name;
+
         if (isExcludedItem(resolvedName)) {
           continue;
         }
@@ -259,10 +268,7 @@ export async function getGroceryList(
       where: {
         organizationId: organizationId,
       },
-      orderBy: [
-        { category: 'asc' },
-        { name: 'asc' },
-      ],
+      orderBy: [{ category: 'asc' }, { name: 'asc' }],
     });
 
     // Add shopping list items to the map (they merge with meal plan items if same name+unit)
@@ -288,10 +294,15 @@ export async function getGroceryList(
       data: groceryList,
     };
   } catch (error) {
-    console.error('[HealthHub action] grocery-queries', 'Error fetching grocery list:', error);
+    console.error(
+      '[HealthHub action] grocery-queries',
+      'Error fetching grocery list:',
+      error
+    );
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to fetch grocery list',
+      error:
+        error instanceof Error ? error.message : 'Failed to fetch grocery list',
     };
   }
 }
@@ -371,10 +382,15 @@ export async function getMealPlans(
       data: mealPlans,
     };
   } catch (error) {
-    console.error('[HealthHub action] grocery-queries', 'Error fetching meal plans:', error);
+    console.error(
+      '[HealthHub action] grocery-queries',
+      'Error fetching meal plans:',
+      error
+    );
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to fetch meal plans',
+      error:
+        error instanceof Error ? error.message : 'Failed to fetch meal plans',
     };
   }
 }

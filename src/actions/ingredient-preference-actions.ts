@@ -123,6 +123,10 @@ export async function getIngredientAlternatives(pattern: string) {
     };
   } catch (error) {
     console.error('Error fetching ingredient alternatives:', error);
-    return { success: false, error: 'Failed to fetch alternatives', data: null };
+    return {
+      success: false,
+      error: 'Failed to fetch alternatives',
+      data: null,
+    };
   }
 }

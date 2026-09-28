@@ -35,23 +35,25 @@ function AddToGroceryButton({
 
   const handleAdd = async () => {
     setIsLoading(true);
-    const result = await addScaledIngredientsToGroceryList(ingredients, recipeId);
+    const result = await addScaledIngredientsToGroceryList(
+      ingredients,
+      recipeId
+    );
     if (result.success) {
       showToast('Ingredients added to grocery list successfully!', 'success');
       router.push('/groceries');
       router.refresh();
     } else {
-      showToast(result.error || 'Failed to add ingredients to grocery list', 'error');
+      showToast(
+        result.error || 'Failed to add ingredients to grocery list',
+        'error'
+      );
     }
     setIsLoading(false);
   };
 
   return (
-    <Button
-      onClick={handleAdd}
-      disabled={isLoading}
-      className="w-full gap-2"
-    >
+    <Button onClick={handleAdd} disabled={isLoading} className="w-full gap-2">
       <ShoppingCart className="h-4 w-4" />
       {isLoading ? 'Adding...' : 'Add to Grocery List'}
     </Button>
@@ -154,5 +156,3 @@ export function ServingsScaler({
     </div>
   );
 }
-
-
