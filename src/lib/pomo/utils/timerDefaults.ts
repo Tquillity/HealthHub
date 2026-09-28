@@ -12,3 +12,14 @@ export const getDuration = (mode: TimerMode): number => {
     useSettingsStore.getState?.()?.durations ?? DEFAULT_DURATIONS;
   return durations[mode] * 60;
 };
+
+/**
+ * Whether editing the duration of `editedMode` should reset the current session (TIMER-12).
+ * Only an idle session of the same mode is reset; otherwise the new length applies to the
+ * next session of that mode.
+ */
+export const shouldResetSessionForDurationEdit = (
+  editedMode: TimerMode,
+  currentMode: TimerMode,
+  isRunning: boolean
+): boolean => editedMode === currentMode && !isRunning;
