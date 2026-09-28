@@ -18,7 +18,12 @@ interface JournalEntryDetailProps {
   onEdit: () => void;
 }
 
-export function JournalEntryDetail({ entry, dateKey, onClose, onEdit }: JournalEntryDetailProps) {
+export function JournalEntryDetail({
+  entry,
+  dateKey,
+  onClose,
+  onEdit,
+}: JournalEntryDetailProps) {
   const router = useRouter();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   // Stored dates are UTC midnight; format the calendar day as a local date so it doesn't shift.
@@ -99,8 +104,11 @@ export function JournalEntryDetail({ entry, dateKey, onClose, onEdit }: JournalE
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600">Rating</span>
-                    <span className={`text-lg font-semibold ${getRatingColor(entry.mood)}`}>
-                      {getRatingEmoji(entry.mood)} {entry.mood !== null ? `${entry.mood}/10` : '—'}
+                    <span
+                      className={`text-lg font-semibold ${getRatingColor(entry.mood)}`}
+                    >
+                      {getRatingEmoji(entry.mood)}{' '}
+                      {entry.mood !== null ? `${entry.mood}/10` : '—'}
                     </span>
                   </div>
                 </div>
@@ -114,7 +122,9 @@ export function JournalEntryDetail({ entry, dateKey, onClose, onEdit }: JournalE
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600">Rating</span>
-                    <span className={`text-lg font-semibold ${getRatingColor(entry.energy)}`}>
+                    <span
+                      className={`text-lg font-semibold ${getRatingColor(entry.energy)}`}
+                    >
                       ⚡ {entry.energy !== null ? `${entry.energy}/10` : '—'}
                     </span>
                   </div>
@@ -143,15 +153,21 @@ export function JournalEntryDetail({ entry, dateKey, onClose, onEdit }: JournalE
             {/* Notes */}
             {entry.notes && (
               <div className="bg-gray-50 rounded-lg p-4">
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">Notes</h3>
-                <p className="text-sm text-gray-800 whitespace-pre-wrap">{entry.notes}</p>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                  Notes
+                </h3>
+                <p className="text-sm text-gray-800 whitespace-pre-wrap">
+                  {entry.notes}
+                </p>
               </div>
             )}
 
             {/* Tags */}
             {entry.tags.length > 0 && (
               <div className="bg-gray-50 rounded-lg p-4">
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">Tags</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                  Tags
+                </h3>
                 <div className="flex flex-wrap gap-2">
                   {entry.tags.map((tag) => (
                     <span
@@ -179,4 +195,3 @@ export function JournalEntryDetail({ entry, dateKey, onClose, onEdit }: JournalE
     </>
   );
 }
-

@@ -2,17 +2,17 @@
 
 /**
  * Journal Quick Look Component
- * 
+ *
  * Floating preview card that displays a snippet of a journal entry for a selected date.
  * Appears when user clicks a past day on the cycle chart.
- * 
+ *
  * Features:
  * - Glassmorphic design with phase-themed accent border
  * - Displays mood, energy, and truncated notes preview
  * - "View Full Entry" button linking to journal page
  * - "Log Now" button for days without entries
  * - Keyboard accessible (ESC to close)
- * 
+ *
  * UX Pattern: Replaces Insight Center content when a date is selected,
  * maintaining layout stability while providing contextual history.
  */
@@ -64,7 +64,9 @@ export function JournalQuickLook({
   const journalDateParam = format(date, 'yyyy-MM-dd');
 
   const handleViewFull = () => {
-    router.push(`/journal?month=${journalDateParam.slice(0, 7)}&date=${journalDateParam}`);
+    router.push(
+      `/journal?month=${journalDateParam.slice(0, 7)}&date=${journalDateParam}`
+    );
     onClose();
   };
 
@@ -94,7 +96,10 @@ export function JournalQuickLook({
       {/* Header */}
       <div className="flex items-center gap-2 mb-4">
         <Calendar className={`h-5 w-5 ${theme.text.accent}`} />
-        <h3 id="quick-look-title" className={`text-lg font-bold ${theme.text.primary}`}>
+        <h3
+          id="quick-look-title"
+          className={`text-lg font-bold ${theme.text.primary}`}
+        >
           {formattedDate}
         </h3>
       </div>
@@ -107,7 +112,8 @@ export function JournalQuickLook({
               <div className="flex items-center gap-2">
                 <Smile className={`h-4 w-4 ${theme.text.secondary}`} />
                 <span className={`text-sm font-medium ${theme.text.primary}`}>
-                  Mood: <span className={theme.text.accent}>{snippet.mood}/10</span>
+                  Mood:{' '}
+                  <span className={theme.text.accent}>{snippet.mood}/10</span>
                 </span>
               </div>
             )}
@@ -115,7 +121,8 @@ export function JournalQuickLook({
               <div className="flex items-center gap-2">
                 <Zap className={`h-4 w-4 ${theme.text.secondary}`} />
                 <span className={`text-sm font-medium ${theme.text.primary}`}>
-                  Energy: <span className={theme.text.accent}>{snippet.energy}/10</span>
+                  Energy:{' '}
+                  <span className={theme.text.accent}>{snippet.energy}/10</span>
                 </span>
               </div>
             )}
@@ -123,10 +130,14 @@ export function JournalQuickLook({
 
           {/* Note Snippet */}
           {snippet.notesSnippet && (
-            <div className={`p-4 rounded-lg ${theme.bg.secondary} ${theme.border.primary} border`}>
+            <div
+              className={`p-4 rounded-lg ${theme.bg.secondary} ${theme.border.primary} border`}
+            >
               <div className="flex items-center gap-2 mb-2">
                 <FileText className={`h-4 w-4 ${theme.text.accent}`} />
-                <span className={`text-xs font-semibold uppercase tracking-wider ${theme.text.accent}`}>
+                <span
+                  className={`text-xs font-semibold uppercase tracking-wider ${theme.text.accent}`}
+                >
                   Notes
                 </span>
               </div>
@@ -150,8 +161,12 @@ export function JournalQuickLook({
       ) : (
         <div className="flex flex-col gap-4">
           {/* Empty State */}
-          <div className={`p-6 rounded-lg ${theme.bg.muted} border ${theme.border.muted} text-center`}>
-            <FileText className={`h-8 w-8 mx-auto mb-2 ${theme.text.secondary}`} />
+          <div
+            className={`p-6 rounded-lg ${theme.bg.muted} border ${theme.border.muted} text-center`}
+          >
+            <FileText
+              className={`h-8 w-8 mx-auto mb-2 ${theme.text.secondary}`}
+            />
             <p className={`text-sm ${theme.text.secondary} mb-4`}>
               Nothing logged for this day
             </p>
@@ -173,4 +188,3 @@ export function JournalQuickLook({
     </Card>
   );
 }
-

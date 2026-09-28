@@ -2,14 +2,14 @@
 
 /**
  * Phase Deep Dive Component
- * 
+ *
  * Comprehensive phase information panel for desktop deep-dive exploration.
  * Shows detailed information about a specific phase including:
  * - What's happening in the body
  * - Expert recommendations
  * - Dietary guidance
  * - Exercise recommendations
- * 
+ *
  * Used when user clicks a phase area or navigates via URL (?phase=X&view=detail)
  */
 
@@ -41,10 +41,14 @@ const PHASE_NAMES: Record<CyclePhase, string> = {
 };
 
 const PHASE_DESCRIPTIONS: Record<CyclePhase, string> = {
-  menstrual: 'Your body is shedding the uterine lining. Energy levels are typically at their lowest. This is a time for rest, recovery, and gentle movement.',
-  follicular: 'Estrogen levels are rising, preparing your body for ovulation. Energy and motivation are building. This is an ideal time for new challenges and high-intensity activities.',
-  ovulation: 'Estimated fertile window (an estimate, not a contraceptive or fertility tool). Estrogen and testosterone are at their highest. This is your peak performance phase - ideal for demanding workouts and complex problem-solving.',
-  luteal: 'Progesterone rises while estrogen declines. Energy may fluctuate. This phase requires flexibility - listen to your body and adjust intensity accordingly.',
+  menstrual:
+    'Your body is shedding the uterine lining. Energy levels are typically at their lowest. This is a time for rest, recovery, and gentle movement.',
+  follicular:
+    'Estrogen levels are rising, preparing your body for ovulation. Energy and motivation are building. This is an ideal time for new challenges and high-intensity activities.',
+  ovulation:
+    'Estimated fertile window (an estimate, not a contraceptive or fertility tool). Estrogen and testosterone are at their highest. This is your peak performance phase - ideal for demanding workouts and complex problem-solving.',
+  luteal:
+    'Progesterone rises while estrogen declines. Energy may fluctuate. This phase requires flexibility - listen to your body and adjust intensity accordingly.',
 };
 
 const BODY_CHANGES: Record<CyclePhase, string[]> = {
@@ -84,7 +88,9 @@ export function PhaseDeepDive({
   focusPreference,
   onClose,
 }: PhaseDeepDiveProps) {
-  const [recommendations, setRecommendations] = useState<PhaseRecommendationWithExpert[]>([]);
+  const [recommendations, setRecommendations] = useState<
+    PhaseRecommendationWithExpert[]
+  >([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -115,13 +121,15 @@ export function PhaseDeepDive({
   }, [phase, focusPreference]);
 
   const router = useRouter();
-  const allPhases: CyclePhase[] = ['menstrual', 'follicular', 'ovulation', 'luteal'];
+  const allPhases: CyclePhase[] = [
+    'menstrual',
+    'follicular',
+    'ovulation',
+    'luteal',
+  ];
 
   // Get current mode from URL to preserve it when switching phases
-  const [mode] = useQueryState(
-    'mode',
-    parseAsString.withDefault('lifestyle')
-  );
+  const [mode] = useQueryState('mode', parseAsString.withDefault('lifestyle'));
 
   // Handle phase tab navigation - preserve mode parameter
   const handlePhaseTabClick = (newPhase: CyclePhase) => {
@@ -182,7 +190,9 @@ export function PhaseDeepDive({
       </div>
 
       {/* Header */}
-      <div className={`flex items-center justify-between p-6 rounded-lg ${theme.bg.primary} ${theme.border.primary} border-2`}>
+      <div
+        className={`flex items-center justify-between p-6 rounded-lg ${theme.bg.primary} ${theme.border.primary} border-2`}
+      >
         <div className="flex items-center gap-4">
           <div
             className="w-4 h-4 rounded-full"
@@ -202,7 +212,9 @@ export function PhaseDeepDive({
       </div>
 
       {/* What's Happening in Your Body */}
-      <Card className={`p-6 ${theme.bg.secondary} ${theme.border.primary} border`}>
+      <Card
+        className={`p-6 ${theme.bg.secondary} ${theme.border.primary} border`}
+      >
         <div className="flex items-center gap-2 mb-4">
           <Heart className={`h-5 w-5 ${theme.text.accent}`} />
           <h3 className={`text-lg font-semibold ${theme.text.primary}`}>
@@ -214,7 +226,10 @@ export function PhaseDeepDive({
         </p>
         <ul className="flex flex-col gap-2">
           {BODY_CHANGES[phase].map((change, index) => (
-            <li key={index} className={`flex items-start gap-2 ${theme.text.secondary}`}>
+            <li
+              key={index}
+              className={`flex items-start gap-2 ${theme.text.secondary}`}
+            >
               <span className={`mt-1.5 ${theme.text.accent}`}>•</span>
               <span>{change}</span>
             </li>
@@ -224,7 +239,9 @@ export function PhaseDeepDive({
 
       {/* Dietary Guidance */}
       {dietaryRecs && (
-        <Card className={`p-6 ${theme.bg.secondary} ${theme.border.primary} border`}>
+        <Card
+          className={`p-6 ${theme.bg.secondary} ${theme.border.primary} border`}
+        >
           <div className="flex items-center gap-2 mb-4">
             <Utensils className={`h-5 w-5 ${theme.text.accent}`} />
             <h3 className={`text-lg font-semibold ${theme.text.primary}`}>
@@ -233,25 +250,36 @@ export function PhaseDeepDive({
           </div>
           <div className="flex flex-col gap-3">
             <div className="flex flex-wrap gap-2">
-              <span className={`px-3 py-1 rounded-full text-sm font-medium ${theme.bg.accent} ${theme.text.accent}`}>
+              <span
+                className={`px-3 py-1 rounded-full text-sm font-medium ${theme.bg.accent} ${theme.text.accent}`}
+              >
                 {dietaryRecs.carbs} carbs
               </span>
-              <span className={`px-3 py-1 rounded-full text-sm font-medium ${theme.bg.accent} ${theme.text.accent}`}>
+              <span
+                className={`px-3 py-1 rounded-full text-sm font-medium ${theme.bg.accent} ${theme.text.accent}`}
+              >
                 {dietaryRecs.protein} protein
               </span>
-              <span className={`px-3 py-1 rounded-full text-sm font-medium ${theme.bg.accent} ${theme.text.accent}`}>
+              <span
+                className={`px-3 py-1 rounded-full text-sm font-medium ${theme.bg.accent} ${theme.text.accent}`}
+              >
                 {dietaryRecs.fats} fats
               </span>
             </div>
             <div>
-              <p className={`text-sm font-medium mb-2 ${theme.text.primary}`}>Focus Foods:</p>
+              <p className={`text-sm font-medium mb-2 ${theme.text.primary}`}>
+                Focus Foods:
+              </p>
               <p className={`text-sm ${theme.text.secondary}`}>
                 {dietaryRecs.focus.join(', ')}
               </p>
             </div>
             <div>
               <p className={`text-sm font-medium ${theme.text.primary}`}>
-                Hydration: <span className={theme.text.secondary}>{dietaryRecs.hydration}</span>
+                Hydration:{' '}
+                <span className={theme.text.secondary}>
+                  {dietaryRecs.hydration}
+                </span>
               </p>
             </div>
           </div>
@@ -269,7 +297,9 @@ export function PhaseDeepDive({
 
         {loading && (
           <Card className="p-8">
-            <p className="text-center text-gray-500">Loading recommendations...</p>
+            <p className="text-center text-gray-500">
+              Loading recommendations...
+            </p>
           </Card>
         )}
 
@@ -280,9 +310,12 @@ export function PhaseDeepDive({
         )}
 
         {!loading && !error && recommendations.length === 0 && (
-          <Card className={`p-6 ${theme.bg.secondary} ${theme.border.primary} border`}>
+          <Card
+            className={`p-6 ${theme.bg.secondary} ${theme.border.primary} border`}
+          >
             <p className={`text-center ${theme.text.secondary}`}>
-              No expert recommendations available for this phase and focus preference.
+              No expert recommendations available for this phase and focus
+              preference.
             </p>
           </Card>
         )}
@@ -298,4 +331,3 @@ export function PhaseDeepDive({
     </div>
   );
 }
-

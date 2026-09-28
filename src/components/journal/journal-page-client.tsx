@@ -16,9 +16,14 @@ interface JournalPageClientProps {
   monthKey: string;
 }
 
-export default function JournalPageClient({ initialEntries, monthKey }: JournalPageClientProps) {
+export default function JournalPageClient({
+  initialEntries,
+  monthKey,
+}: JournalPageClientProps) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'calendar' | 'form' | 'analytics'>('calendar');
+  const [activeTab, setActiveTab] = useState<'calendar' | 'form' | 'analytics'>(
+    'calendar'
+  );
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<JournalEntry | null>(null);
   // Read from props so router.refresh() after save/delete shows the new data
@@ -129,15 +134,15 @@ export default function JournalPageClient({ initialEntries, monthKey }: JournalP
         </div>
       )}
 
-      {activeTab === 'analytics' && (
-        <JournalAnalytics entries={entries} />
-      )}
+      {activeTab === 'analytics' && <JournalAnalytics entries={entries} />}
 
       {/* Entry Detail Modal */}
       {showEntryDetail && selectedEntry && (
         <JournalEntryDetail
           entry={selectedEntry}
-          dateKey={selectedDate ?? toDateOnlyString(new Date(selectedEntry.date))}
+          dateKey={
+            selectedDate ?? toDateOnlyString(new Date(selectedEntry.date))
+          }
           onClose={handleCloseEntryDetail}
           onEdit={handleEditEntry}
         />

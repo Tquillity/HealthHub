@@ -52,13 +52,21 @@ export function MealPlanTemplatesClient({
   initialTemplates,
 }: MealPlanTemplatesClientProps) {
   const router = useRouter();
-  const [templates, setTemplates] = useState<MealPlanTemplate[]>(initialTemplates);
-  const [editingTemplate, setEditingTemplate] = useState<MealPlanTemplate | null>(null);
-  const [editFormData, setEditFormData] = useState({ name: '', description: '' });
+  const [templates, setTemplates] =
+    useState<MealPlanTemplate[]>(initialTemplates);
+  const [editingTemplate, setEditingTemplate] =
+    useState<MealPlanTemplate | null>(null);
+  const [editFormData, setEditFormData] = useState({
+    name: '',
+    description: '',
+  });
   const [isSaving, setIsSaving] = useState(false);
-  const [deleteTemplate, setDeleteTemplate] = useState<MealPlanTemplate | null>(null);
+  const [deleteTemplate, setDeleteTemplate] = useState<MealPlanTemplate | null>(
+    null
+  );
   // Sharing is hidden until the public /meal-planner/templates/shared/[token] route exists (MEAL-17).
-  const [confirmApplyTemplate, setConfirmApplyTemplate] = useState<MealPlanTemplate | null>(null);
+  const [confirmApplyTemplate, setConfirmApplyTemplate] =
+    useState<MealPlanTemplate | null>(null);
   const [applyingTemplate, setApplyingTemplate] = useState<string | null>(null);
 
   useEffect(() => {
@@ -137,7 +145,7 @@ export function MealPlanTemplatesClient({
 
   const handleApply = async (template: MealPlanTemplate) => {
     setApplyingTemplate(template.id);
-    
+
     try {
       // Get current meal plan
       const planResult = await getWeeklyPlan();
@@ -183,7 +191,9 @@ export function MealPlanTemplatesClient({
     <div className="flex flex-col gap-4">
       {templates.length === 0 ? (
         <div className="rounded-lg border border-gray-200 bg-white p-12 text-center">
-          <p className="text-gray-500">No templates yet. Save a meal plan as a template to get started.</p>
+          <p className="text-gray-500">
+            No templates yet. Save a meal plan as a template to get started.
+          </p>
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -193,16 +203,22 @@ export function MealPlanTemplatesClient({
               className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
             >
               <div className="flex flex-col gap-2">
-                <h3 className="text-lg font-semibold text-gray-900">{template.name}</h3>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  {template.name}
+                </h3>
                 {template.description && (
-                  <p className="text-sm text-gray-600">{template.description}</p>
+                  <p className="text-sm text-gray-600">
+                    {template.description}
+                  </p>
                 )}
                 <div className="flex flex-col gap-1 text-xs text-gray-500">
                   <p>
-                    {template.items.length} meal{template.items.length !== 1 ? 's' : ''}
+                    {template.items.length} meal
+                    {template.items.length !== 1 ? 's' : ''}
                   </p>
                   <p>
-                    Created {format(new Date(template.createdAt), 'MMM d, yyyy')}
+                    Created{' '}
+                    {format(new Date(template.createdAt), 'MMM d, yyyy')}
                   </p>
                 </div>
               </div>
@@ -257,7 +273,10 @@ export function MealPlanTemplatesClient({
       )}
 
       {/* Edit Dialog */}
-      <Dialog open={!!editingTemplate} onOpenChange={(open) => !open && setEditingTemplate(null)}>
+      <Dialog
+        open={!!editingTemplate}
+        onOpenChange={(open) => !open && setEditingTemplate(null)}
+      >
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle className="text-lg font-semibold text-gray-900">
@@ -300,7 +319,10 @@ export function MealPlanTemplatesClient({
                 type="text"
                 value={editFormData.description}
                 onChange={(e) =>
-                  setEditFormData({ ...editFormData, description: e.target.value })
+                  setEditFormData({
+                    ...editFormData,
+                    description: e.target.value,
+                  })
                 }
               />
             </div>
@@ -317,7 +339,11 @@ export function MealPlanTemplatesClient({
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSaving || !editFormData.name.trim()} className="gap-2">
+              <Button
+                type="submit"
+                disabled={isSaving || !editFormData.name.trim()}
+                className="gap-2"
+              >
                 <Check className="h-4 w-4" />
                 {isSaving ? 'Saving...' : 'Save Changes'}
               </Button>
@@ -356,7 +382,8 @@ export function MealPlanTemplatesClient({
                   Apply Template
                 </DialogTitle>
                 <DialogDescription className="mt-1 text-sm text-gray-500">
-                  This replaces all meals in your current meal plan. This action cannot be undone.
+                  This replaces all meals in your current meal plan. This action
+                  cannot be undone.
                 </DialogDescription>
               </div>
             </div>
@@ -382,7 +409,9 @@ export function MealPlanTemplatesClient({
             </Button>
             <Button
               variant="destructive"
-              onClick={() => confirmApplyTemplate && handleApply(confirmApplyTemplate)}
+              onClick={() =>
+                confirmApplyTemplate && handleApply(confirmApplyTemplate)
+              }
               disabled={!!applyingTemplate}
               className="gap-2"
             >
@@ -395,4 +424,3 @@ export function MealPlanTemplatesClient({
     </div>
   );
 }
-

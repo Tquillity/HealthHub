@@ -2,16 +2,16 @@
 
 /**
  * CyclePageClient Component
- * 
+ *
  * 2026 Bento-Style Grid Layout for Cycle Tracker
- * 
+ *
  * Features:
  * - Stable grid layout that eliminates layout shift on hover
  * - Integrated Insight Center (always visible, updates content dynamically)
  * - Glassmorphic design elements for modern iOS/VisionOS feel
  * - Glanceable metrics (Next Period, Current Phase, Top Tip)
  * - Responsive Bento grid that collapses to single column on mobile
- * 
+ *
  * UX Improvements:
  * - No layout shift: Insight Center always occupies reserved space
  * - Visual feedback: Border color changes on hover to indicate dynamic content
@@ -20,12 +20,18 @@
  */
 
 import { useState, useEffect } from 'react';
-import { CyclePhase, CyclePhaseResult, getPhaseForDay } from '@/lib/cycle-calculator';
-import type { FocusPreference, PhaseRecommendationWithExpert } from '@/types/cycle';
+import {
+  CyclePhase,
+  CyclePhaseResult,
+  getPhaseForDay,
+} from '@/lib/cycle-calculator';
+import type {
+  FocusPreference,
+  PhaseRecommendationWithExpert,
+} from '@/types/cycle';
 import { useQueryState, parseAsString, parseAsStringLiteral } from 'nuqs';
 import { FocusPreferenceSelector } from './focus-preference-selector';
 import dynamic from 'next/dynamic';
-
 
 const CycleChart = dynamic(
   () => import('./cycle-chart').then((mod) => mod.CycleChart),
@@ -50,7 +56,12 @@ import { getPhaseTheme } from '@/lib/phase-theme';
 import { getJournalSnippet } from '@/actions/journal-actions';
 import { dateOnlyToLocalDate, isDateOnlyString } from '@/lib/date-only';
 
-const CYCLE_PHASES = ['menstrual', 'follicular', 'ovulation', 'luteal'] as const satisfies readonly CyclePhase[];
+const CYCLE_PHASES = [
+  'menstrual',
+  'follicular',
+  'ovulation',
+  'luteal',
+] as const satisfies readonly CyclePhase[];
 const CHART_MODES = ['lifestyle', 'clinical'] as const;
 
 interface CyclePageClientProps {
@@ -108,7 +119,8 @@ export function CyclePageClient({
   const [isHovering, setIsHovering] = useState(false);
 
   // Determine active phase based on URL and hover state
-  const activePhase: CyclePhase = urlPhase || hoveredPhase || phaseData.currentPhase;
+  const activePhase: CyclePhase =
+    urlPhase || hoveredPhase || phaseData.currentPhase;
   const isExploringPhase = urlPhase && urlPhase !== phaseData.currentPhase;
 
   // Get theme for active phase
@@ -139,7 +151,8 @@ export function CyclePageClient({
 
   // View orchestrator: Determine if we should show detail view or summary view
   // If view is 'detail', default to current phase if no phase is selected
-  const effectivePhase = urlPhase || (view === 'detail' ? phaseData.currentPhase : null);
+  const effectivePhase =
+    urlPhase || (view === 'detail' ? phaseData.currentPhase : null);
   const showDetailView = view === 'detail' && effectivePhase;
   const detailPhase = effectivePhase;
 
@@ -151,7 +164,9 @@ export function CyclePageClient({
   } | null>(null);
   const [, setSnippetLoading] = useState(false);
   const [selectedDateObj, setSelectedDateObj] = useState<Date | null>(null);
-  const [selectedDatePhase, setSelectedDatePhase] = useState<CyclePhase | null>(null);
+  const [selectedDatePhase, setSelectedDatePhase] = useState<CyclePhase | null>(
+    null
+  );
 
   // Fetch journal snippet when date is selected
   useEffect(() => {
@@ -181,16 +196,19 @@ export function CyclePageClient({
         // We need to manually calculate since calculateCyclePhase uses "today"
         const lastPeriod = new Date(userPreference.lastPeriodDate);
         lastPeriod.setHours(0, 0, 0, 0);
-        
+
         // Handle edge case: selected date is before last period
         if (dateObj < lastPeriod) {
           setSelectedDatePhase('follicular'); // Default fallback
         } else {
           const daysDiff = differenceInDays(dateObj, lastPeriod);
-          const daysIntoSelectedCycle = (daysDiff % userPreference.cycleLength) + 1;
-          
+          const daysIntoSelectedCycle =
+            (daysDiff % userPreference.cycleLength) + 1;
+
           // Same boundaries as the server calculator and the chart (depend on cycle length)
-          setSelectedDatePhase(getPhaseForDay(daysIntoSelectedCycle, userPreference.cycleLength));
+          setSelectedDatePhase(
+            getPhaseForDay(daysIntoSelectedCycle, userPreference.cycleLength)
+          );
         }
 
         const result = await getJournalSnippet(selectedDate);
@@ -234,7 +252,11 @@ export function CyclePageClient({
       {/* 1. View Switcher Tabs - Dashboard vs Phase Library (Always Visible) */}
       <div className="flex items-center justify-between gap-4 border-b-2 border-gray-200 pb-2">
         {/* Left: View Switcher Tabs */}
-        <div className="flex items-center gap-2" role="tablist" aria-label="View navigation">
+        <div
+          className="flex items-center gap-2"
+          role="tablist"
+          aria-label="View navigation"
+        >
           <button
             role="tab"
             aria-selected={view === 'summary'}
@@ -266,12 +288,12 @@ export function CyclePageClient({
             Phase Library
           </button>
         </div>
-        
+
         {/* Right: Mode Toggle + Focus Preference (Compact) */}
         <div className="flex items-center gap-2">
           <ModeToggle currentPhase={phaseData.currentPhase} />
-          <FocusPreferenceSelector 
-            currentPreference={userPreference.focusPreference} 
+          <FocusPreferenceSelector
+            currentPreference={userPreference.focusPreference}
             onPreferenceChange={() => {}}
             compact={true}
           />
@@ -294,7 +316,9 @@ export function CyclePageClient({
           <div className="flex items-center justify-between gap-4 pb-2">
             {/* Left: Title + Current Day */}
             <div className="flex flex-col gap-1">
-              <h1 className={`text-3xl font-bold tracking-tight ${theme.text.primary}`}>
+              <h1
+                className={`text-3xl font-bold tracking-tight ${theme.text.primary}`}
+              >
                 Cycle Intelligence
               </h1>
               <p className={`text-sm ${theme.text.secondary}`}>
@@ -308,125 +332,144 @@ export function CyclePageClient({
             </div>
           </div>
 
-      {/* 3. The Bento Grid (Layout Stability) - Reduced gap for tighter layout */}
-      {view === 'summary' && (
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        {/* Main Chart Box (Reserved Space - 8 columns) - Thematic Border */}
-        <Card className={`lg:col-span-8 p-4 bg-white/50 backdrop-blur-md shadow-xl overflow-hidden transition-colors duration-300 ${theme.border.primary} border-2 h-full min-h-[400px] flex flex-col`}>
-          <CycleChart
-            phaseData={phaseData}
-            cycleLength={userPreference.cycleLength}
-            onPhaseHover={handleHoverChange}
-            onPhaseClick={handlePhaseClick}
-            onDayClick={handleDayClick}
-            mode={mode}
-          />
-        </Card>
-
-        {/* The "Insight Center" (Always occupies 4 columns, no shifting) */}
-        {/* Switches to Journal Quick Look when a date is selected */}
-        <div className="lg:col-span-4 flex flex-col gap-4">
-          {selectedDateObj && selectedDatePhase ? (
-            <JournalQuickLook
-              date={selectedDateObj}
-              phase={selectedDatePhase}
-              snippet={journalSnippet}
-              onClose={handleCloseQuickLook}
-            />
-          ) : (
-            <InsightCenter
-              activePhase={activePhase}
-              currentPhase={phaseData.currentPhase}
-              isHovering={isHovering}
-              mode={mode}
-            />
-          )}
-
-          {/* Secondary Metric Box - Next Period - Thematic Gradient */}
-          {phaseData.nextPeriodDate && (
-            <Card className={`p-6 text-white shadow-lg ${theme.gradient.classes}`}>
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-white/90 text-sm font-medium">Next Period</p>
-                  {daysUntilNextPeriod !== null && (
-                    <p className="text-3xl font-black mt-1">
-                      {daysUntilNextPeriod === 0
-                        ? 'Today'
-                        : daysUntilNextPeriod === 1
-                          ? '1 Day'
-                          : `${daysUntilNextPeriod} Days`}
-                    </p>
-                  )}
-                </div>
-                <Calendar className="h-8 w-8 text-white/70 opacity-50" />
-              </div>
-              <p className="text-xs text-white/90 mt-4 font-medium uppercase tracking-tighter">
-                Expected:{' '}
-                {phaseData.nextPeriodDate.toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric',
-                })}
-              </p>
-            </Card>
-          )}
-        </div>
-      </div>
-      )}
-
-      {/* 4. Personalized Recommendation Feed (Modern Grid) - Only show in Dashboard view */}
-      {view === 'summary' && recommendations && recommendations.length > 0 && (
-        <div
-          className={`flex flex-col gap-6 transition-opacity duration-300 ${
-            isHovering ? 'opacity-50' : 'opacity-100'
-          }`}
-        >
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-3">
-              <h2 className="text-2xl font-bold text-gray-900">Expert Insights</h2>
-              <div className="flex items-center gap-2 px-3 py-1 rounded-full border-2" style={{ 
-                borderColor: PHASE_COLORS[phaseData.currentPhase],
-                backgroundColor: `${PHASE_COLORS[phaseData.currentPhase]}15`
-              }}>
-                <div
-                  className="w-2.5 h-2.5 rounded-full"
-                  style={{ backgroundColor: PHASE_COLORS[phaseData.currentPhase] }}
+          {/* 3. The Bento Grid (Layout Stability) - Reduced gap for tighter layout */}
+          {view === 'summary' && (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+              {/* Main Chart Box (Reserved Space - 8 columns) - Thematic Border */}
+              <Card
+                className={`lg:col-span-8 p-4 bg-white/50 backdrop-blur-md shadow-xl overflow-hidden transition-colors duration-300 ${theme.border.primary} border-2 h-full min-h-[400px] flex flex-col`}
+              >
+                <CycleChart
+                  phaseData={phaseData}
+                  cycleLength={userPreference.cycleLength}
+                  onPhaseHover={handleHoverChange}
+                  onPhaseClick={handlePhaseClick}
+                  onDayClick={handleDayClick}
+                  mode={mode}
                 />
-                <span className="text-sm font-semibold text-gray-700">
-                  for {PHASE_NAMES[phaseData.currentPhase]} Phase
-                </span>
+              </Card>
+
+              {/* The "Insight Center" (Always occupies 4 columns, no shifting) */}
+              {/* Switches to Journal Quick Look when a date is selected */}
+              <div className="lg:col-span-4 flex flex-col gap-4">
+                {selectedDateObj && selectedDatePhase ? (
+                  <JournalQuickLook
+                    date={selectedDateObj}
+                    phase={selectedDatePhase}
+                    snippet={journalSnippet}
+                    onClose={handleCloseQuickLook}
+                  />
+                ) : (
+                  <InsightCenter
+                    activePhase={activePhase}
+                    currentPhase={phaseData.currentPhase}
+                    isHovering={isHovering}
+                    mode={mode}
+                  />
+                )}
+
+                {/* Secondary Metric Box - Next Period - Thematic Gradient */}
+                {phaseData.nextPeriodDate && (
+                  <Card
+                    className={`p-6 text-white shadow-lg ${theme.gradient.classes}`}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="text-white/90 text-sm font-medium">
+                          Next Period
+                        </p>
+                        {daysUntilNextPeriod !== null && (
+                          <p className="text-3xl font-black mt-1">
+                            {daysUntilNextPeriod === 0
+                              ? 'Today'
+                              : daysUntilNextPeriod === 1
+                                ? '1 Day'
+                                : `${daysUntilNextPeriod} Days`}
+                          </p>
+                        )}
+                      </div>
+                      <Calendar className="h-8 w-8 text-white/70 opacity-50" />
+                    </div>
+                    <p className="text-xs text-white/90 mt-4 font-medium uppercase tracking-tighter">
+                      Expected:{' '}
+                      {phaseData.nextPeriodDate.toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })}
+                    </p>
+                  </Card>
+                )}
               </div>
             </div>
-            <div className="h-px flex-1 bg-gray-100" />
-          </div>
+          )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {recommendations.map((recommendation) => (
-              <RecommendationCard key={recommendation.id} recommendation={recommendation} />
-            ))}
-          </div>
-        </div>
-      )}
+          {/* 4. Personalized Recommendation Feed (Modern Grid) - Only show in Dashboard view */}
+          {view === 'summary' &&
+            recommendations &&
+            recommendations.length > 0 && (
+              <div
+                className={`flex flex-col gap-6 transition-opacity duration-300 ${
+                  isHovering ? 'opacity-50' : 'opacity-100'
+                }`}
+              >
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-3">
+                    <h2 className="text-2xl font-bold text-gray-900">
+                      Expert Insights
+                    </h2>
+                    <div
+                      className="flex items-center gap-2 px-3 py-1 rounded-full border-2"
+                      style={{
+                        borderColor: PHASE_COLORS[phaseData.currentPhase],
+                        backgroundColor: `${PHASE_COLORS[phaseData.currentPhase]}15`,
+                      }}
+                    >
+                      <div
+                        className="w-2.5 h-2.5 rounded-full"
+                        style={{
+                          backgroundColor: PHASE_COLORS[phaseData.currentPhase],
+                        }}
+                      />
+                      <span className="text-sm font-semibold text-gray-700">
+                        for {PHASE_NAMES[phaseData.currentPhase]} Phase
+                      </span>
+                    </div>
+                  </div>
+                  <div className="h-px flex-1 bg-gray-100" />
+                </div>
 
-      {/* Empty State */}
-      {(!recommendations || recommendations.length === 0) && (
-        <Card
-          className={`p-8 transition-opacity duration-300 ${
-            isHovering ? 'opacity-50' : 'opacity-100'
-          }`}
-        >
-          <div className="flex flex-col items-center justify-center text-center">
-            <Sparkles className="h-12 w-12 text-gray-300 mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              No recommendations available
-            </h3>
-            <p className="text-gray-600 max-w-md">
-              No expert recommendations available for your current phase and focus preference.
-              Check back later or adjust your focus preference above.
-            </p>
-          </div>
-        </Card>
-      )}
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                  {recommendations.map((recommendation) => (
+                    <RecommendationCard
+                      key={recommendation.id}
+                      recommendation={recommendation}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+          {/* Empty State */}
+          {(!recommendations || recommendations.length === 0) && (
+            <Card
+              className={`p-8 transition-opacity duration-300 ${
+                isHovering ? 'opacity-50' : 'opacity-100'
+              }`}
+            >
+              <div className="flex flex-col items-center justify-center text-center">
+                <Sparkles className="h-12 w-12 text-gray-300 mb-4" />
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  No recommendations available
+                </h3>
+                <p className="text-gray-600 max-w-md">
+                  No expert recommendations available for your current phase and
+                  focus preference. Check back later or adjust your focus
+                  preference above.
+                </p>
+              </div>
+            </Card>
+          )}
         </>
       )}
     </div>

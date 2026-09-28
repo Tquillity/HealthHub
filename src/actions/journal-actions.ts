@@ -36,11 +36,15 @@ const CreateJournalSchema = z.object({
 });
 
 /** `undefined` keeps the stored value; `null` or '' clears it (encrypt returns null for empty). */
-function encryptField(value: string | null | undefined): string | null | undefined {
+function encryptField(
+  value: string | null | undefined
+): string | null | undefined {
   return value === undefined ? undefined : encrypt(value);
 }
 
-export async function logJournalEntry(data: z.infer<typeof CreateJournalSchema>) {
+export async function logJournalEntry(
+  data: z.infer<typeof CreateJournalSchema>
+) {
   try {
     const authResult = await requireSessionUserId();
     if (!authResult.ok) {
@@ -105,7 +109,10 @@ export async function logJournalEntry(data: z.infer<typeof CreateJournalSchema>)
   } catch (error) {
     if (error instanceof z.ZodError) {
       // Zod v4 uses `issues` (Zod v3 used `errors`)
-      return { success: false, error: error.issues?.[0]?.message || 'Validation failed' };
+      return {
+        success: false,
+        error: error.issues?.[0]?.message || 'Validation failed',
+      };
     }
     console.error('Error logging journal entry:', error);
     return { success: false, error: 'Failed to log journal entry' };
@@ -120,14 +127,19 @@ export async function getMonthlyStats(month: number, year: number) {
     }
 
     const parsed = z
-      .object({ month: z.number().int().min(1).max(12), year: z.number().int().min(1900).max(9999) })
+      .object({
+        month: z.number().int().min(1).max(12),
+        year: z.number().int().min(1900).max(9999),
+      })
       .safeParse({ month, year });
     if (!parsed.success) {
       return { success: false, error: 'Invalid month', data: null };
     }
 
     // Entry dates are UTC midnight, so the month range is in UTC too.
-    const monthStart = new Date(Date.UTC(parsed.data.year, parsed.data.month - 1, 1));
+    const monthStart = new Date(
+      Date.UTC(parsed.data.year, parsed.data.month - 1, 1)
+    );
     const monthEnd = new Date(Date.UTC(parsed.data.year, parsed.data.month, 1));
 
     // Fetch all entries for this month
@@ -152,21 +164,31 @@ export async function getMonthlyStats(month: number, year: number) {
         energy: e.energy,
         sleepHours: e.sleepHours,
       })),
-      averageMood: entries.length > 0 && entries.some((e) => e.mood !== null)
-        ? entries.reduce((sum, e) => sum + (e.mood ?? 0), 0) / entries.filter((e) => e.mood !== null).length
-        : null,
-      averageEnergy: entries.length > 0 && entries.some((e) => e.energy !== null)
-        ? entries.reduce((sum, e) => sum + (e.energy ?? 0), 0) / entries.filter((e) => e.energy !== null).length
-        : null,
-      averageSleep: entries.length > 0 && entries.some((e) => e.sleepHours !== null)
-        ? entries.reduce((sum, e) => sum + (e.sleepHours ?? 0), 0) / entries.filter((e) => e.sleepHours !== null).length
-        : null,
+      averageMood:
+        entries.length > 0 && entries.some((e) => e.mood !== null)
+          ? entries.reduce((sum, e) => sum + (e.mood ?? 0), 0) /
+            entries.filter((e) => e.mood !== null).length
+          : null,
+      averageEnergy:
+        entries.length > 0 && entries.some((e) => e.energy !== null)
+          ? entries.reduce((sum, e) => sum + (e.energy ?? 0), 0) /
+            entries.filter((e) => e.energy !== null).length
+          : null,
+      averageSleep:
+        entries.length > 0 && entries.some((e) => e.sleepHours !== null)
+          ? entries.reduce((sum, e) => sum + (e.sleepHours ?? 0), 0) /
+            entries.filter((e) => e.sleepHours !== null).length
+          : null,
     };
 
     return { success: true, error: null, data: stats };
   } catch (error) {
     console.error('Error fetching monthly stats:', error);
-    return { success: false, error: 'Failed to fetch monthly stats', data: null };
+    return {
+      success: false,
+      error: 'Failed to fetch monthly stats',
+      data: null,
+    };
   }
 }
 
@@ -216,7 +238,11 @@ export async function getJournalEntryByDate(date: string) {
     return { success: true, data: decryptedEntry };
   } catch (error) {
     console.error('Error fetching journal entry:', error);
-    return { success: false, error: 'Failed to fetch journal entry', data: null };
+    return {
+      success: false,
+      error: 'Failed to fetch journal entry',
+      data: null,
+    };
   }
 }
 
@@ -256,7 +282,7 @@ export async function deleteJournalEntry(date: string) {
 /**
  * Get journal snippet for a specific date
  * Optimized for Quick Look previews - only fetches essential fields
- * 
+ *
  * @param date - ISO date string (YYYY-MM-DD format)
  * @returns Lightweight object with mood, energy, and truncated notes (first 100 chars)
  */
@@ -295,7 +321,7 @@ export async function getJournalSnippet(date: string) {
 
     // Decrypt notes before truncating
     const decryptedNotes = decrypt(entry.notes);
-    
+
     // Truncate notes to first 100 characters for preview
     const notesSnippet = decryptedNotes
       ? decryptedNotes.length > 100
@@ -314,7 +340,10 @@ export async function getJournalSnippet(date: string) {
     };
   } catch (error) {
     console.error('Error fetching journal snippet:', error);
-    return { success: false, error: 'Failed to fetch journal snippet', data: null };
+    return {
+      success: false,
+      error: 'Failed to fetch journal snippet',
+      data: null,
+    };
   }
 }
-

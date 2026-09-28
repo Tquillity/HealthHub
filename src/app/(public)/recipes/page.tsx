@@ -46,7 +46,14 @@ export default async function RecipesPage({ searchParams }: PageProps) {
 
   try {
     const [recipesResult, categoriesResult, roleResult] = await Promise.all([
-      getCachedRecipes({ query, category, difficulty, cuisine, dietaryTags, leanRole }),
+      getCachedRecipes({
+        query,
+        category,
+        difficulty,
+        cuisine,
+        dietaryTags,
+        leanRole,
+      }),
       getRecipeCategories(),
       getUserRole(),
     ]);
@@ -92,7 +99,9 @@ export default async function RecipesPage({ searchParams }: PageProps) {
       />
 
       <AdsenseSlot
-        slotId={process.env.NEXT_PUBLIC_ADSENSE_SLOT_RECIPES ?? 'recipes-footer'}
+        slotId={
+          process.env.NEXT_PUBLIC_ADSENSE_SLOT_RECIPES ?? 'recipes-footer'
+        }
         className="mt-8"
       />
     </div>

@@ -2,7 +2,13 @@
 
 import { useTransition } from 'react';
 import { useQueryState } from 'nuqs';
-import { format, getDaysInMonth, isSameDay, addMonths, subMonths } from 'date-fns';
+import {
+  format,
+  getDaysInMonth,
+  isSameDay,
+  addMonths,
+  subMonths,
+} from 'date-fns';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { JournalEntry } from '@prisma/client';
 import { cn } from '@/lib/utils';
@@ -29,13 +35,19 @@ export function JournalCalendar({
   const [isPending, startTransition] = useTransition();
   const [monthParam, setMonthParam] = useQueryState(
     'month',
-    parseAsMonthKey.withOptions({ shallow: false, history: 'push', startTransition })
+    parseAsMonthKey.withOptions({
+      shallow: false,
+      history: 'push',
+      startTransition,
+    })
   );
   const currentMonth = dateOnlyToLocalDate(`${monthParam ?? monthKey}-01`);
 
   // Entry dates are UTC midnight for the stored calendar day, so match on the YYYY-MM-DD key.
   const getEntryForDate = (dayStr: string) => {
-    return entries.find((entry) => toDateOnlyString(new Date(entry.date)) === dayStr);
+    return entries.find(
+      (entry) => toDateOnlyString(new Date(entry.date)) === dayStr
+    );
   };
 
   const getMoodColor = (mood: number | null) => {
@@ -47,7 +59,10 @@ export function JournalCalendar({
   };
 
   const navigateMonth = (direction: 'prev' | 'next') => {
-    const target = direction === 'prev' ? subMonths(currentMonth, 1) : addMonths(currentMonth, 1);
+    const target =
+      direction === 'prev'
+        ? subMonths(currentMonth, 1)
+        : addMonths(currentMonth, 1);
     void setMonthParam(format(target, 'yyyy-MM'));
   };
 
@@ -59,7 +74,9 @@ export function JournalCalendar({
     days.push(null);
   }
   for (let day = 1; day <= daysInMonth; day++) {
-    days.push(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day));
+    days.push(
+      new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day)
+    );
   }
 
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -127,8 +144,8 @@ export function JournalCalendar({
                 isToday
                   ? 'bg-primary-50 border-primary-200'
                   : isSelected
-                  ? 'bg-primary-100 border-primary-300'
-                  : 'border-gray-200 hover:bg-gray-50'
+                    ? 'bg-primary-100 border-primary-300'
+                    : 'border-gray-200 hover:bg-gray-50'
               }`}
               onClick={() => {
                 onDateSelect(dayStr);
@@ -198,4 +215,3 @@ export function JournalCalendar({
     </div>
   );
 }
-

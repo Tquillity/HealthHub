@@ -35,11 +35,9 @@ export function isDateOnlyString(value: string): boolean {
 }
 
 /** Zod schema for a strict `YYYY-MM-DD` calendar date string. */
-export const DateOnlyStringSchema = z
-  .string()
-  .refine(isDateOnlyString, {
-    message: 'Date must be a valid YYYY-MM-DD date',
-  });
+export const DateOnlyStringSchema = z.string().refine(isDateOnlyString, {
+  message: 'Date must be a valid YYYY-MM-DD date',
+});
 
 /** `YYYY-MM-DD` → UTC-midnight Date. Throws on anything else. */
 export function dateOnlyToUtcDate(value: string): Date {
