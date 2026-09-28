@@ -3,17 +3,12 @@
 import { z } from 'zod';
 import { prisma } from '@/lib/db';
 import { requireSessionUserId } from '@/lib/session';
-import { parseIngredientAlternatives, normalizePatternKey } from '@/lib/ingredient-alternatives';
+import { parseIngredientAlternatives } from '@/lib/ingredient-alternatives';
+import { loadUserIngredientPreferenceMap } from '@/lib/ingredient-preferences';
 
 const SetPreferenceSchema = z.object({
   pattern: z.string().min(1),
   preferred: z.string().min(1),
-});
-
-const ResolveIngredientSchema = z.object({
-  userId: z.string().min(1),
-  ingredientName: z.string().min(1),
-  alternatives: z.array(z.string()),
 });
 
 const PatternSchema = z.string().min(1);
@@ -28,18 +23,9 @@ export async function getUserIngredientPreferences() {
       return { success: false, error: authResult.error, data: null };
     }
 
-    const preferences = await prisma.userIngredientPreference.findMany({
-      where: { userId: authResult.userId },
-      select: {
-        pattern: true,
-        preferred: true,
-      },
-    });
-
-    const preferenceMap = new Map<string, string>();
-    for (const pref of preferences) {
-      preferenceMap.set(pref.pattern, pref.preferred);
-    }
+    const preferenceMap = await loadUserIngredientPreferenceMap(
+      authResult.userId
+    );
 
     return { success: true, data: preferenceMap, error: null };
   } catch (error) {
@@ -84,53 +70,6 @@ export async function setIngredientPreference(
   } catch (error) {
     console.error('Error setting ingredient preference:', error);
     return { success: false, error: 'Failed to set preference' };
-  }
-}
-
-/**
- * Resolve which ingredient to use from alternatives based on user preference
- */
-export async function resolveIngredientChoice(
-  userId: string,
-  ingredientName: string,
-  alternatives: string[]
-): Promise<string> {
-  try {
-    const validated = ResolveIngredientSchema.parse({
-      userId,
-      ingredientName,
-      alternatives,
-    });
-
-    if (validated.alternatives.length === 0) {
-      return validated.ingredientName;
-    }
-
-    const patternKey = normalizePatternKey(
-      validated.ingredientName,
-      validated.alternatives
-    );
-
-    const preference = await prisma.userIngredientPreference.findUnique({
-      where: {
-        userId_pattern: {
-          userId: validated.userId,
-          pattern: patternKey,
-        },
-      },
-    });
-
-    if (preference) {
-      const allOptions = [validated.ingredientName, ...validated.alternatives];
-      if (allOptions.includes(preference.preferred)) {
-        return preference.preferred;
-      }
-    }
-
-    return validated.ingredientName;
-  } catch (error) {
-    console.error('Error resolving ingredient choice:', error);
-    return ingredientName;
   }
 }
 
@@ -184,6 +123,10 @@ export async function getIngredientAlternatives(pattern: string) {
     };
   } catch (error) {
     console.error('Error fetching ingredient alternatives:', error);
-    return { success: false, error: 'Failed to fetch alternatives', data: null };
+    return {
+      success: false,
+      error: 'Failed to fetch alternatives',
+      data: null,
+    };
   }
 }

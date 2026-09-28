@@ -5,9 +5,10 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
-import { hashPassword } from 'better-auth/crypto';
 import {
   DEFAULT_ADMIN_NAME,
+  assertAdminSeedTargetAllowed,
+  ensureSeedAdmin,
   resolveAdminEmail,
   resolveAdminPassword,
 } from '@/lib/admin-credentials';
@@ -61,7 +62,7 @@ interface KitchenManifest {
 
 async function seed() {
   console.log('🌱 Starting database seed...');
-  
+
   /**
    * For local scripts (Node.js runtime), we use the standard PostgreSQL adapter.
    * Prisma 7 requires an adapter when driverAdapters is enabled in the schema.
@@ -74,11 +75,22 @@ async function seed() {
     process.exit(1);
   }
 
+  try {
+    assertAdminSeedTargetAllowed();
+  } catch (error) {
+    console.error(
+      `❌ ${error instanceof Error ? error.message : String(error)}`
+    );
+    process.exit(1);
+  }
+
   // Create a standard PostgreSQL pool for local scripts
   const pool = new Pool({ connectionString });
-  const adapter = new PrismaPg(pool as ConstructorParameters<typeof PrismaPg>[0]);
+  const adapter = new PrismaPg(
+    pool as ConstructorParameters<typeof PrismaPg>[0]
+  );
   const prisma = new PrismaClient({ adapter });
-  
+
   try {
     // 1. Verify Connection
     await prisma.$queryRaw`SELECT 1`;
@@ -87,59 +99,21 @@ async function seed() {
     // 2. Seed Admin User
     console.log('👤 Seeding admin user...');
     const adminEmail = resolveAdminEmail();
-    const { password: adminPassword, source: passwordSource } = resolveAdminPassword();
+    const { password: adminPassword, source: passwordSource } =
+      resolveAdminPassword();
     const adminName = process.env.ADMIN_NAME?.trim() || DEFAULT_ADMIN_NAME;
 
-    const existingAdmin = await prisma.user.findUnique({
-      where: { email: adminEmail },
+    const adminUser = await ensureSeedAdmin(prisma, {
+      email: adminEmail,
+      name: adminName,
+      password: adminPassword,
     });
 
-    const hashedPassword = await hashPassword(adminPassword);
-
-    const adminUser =
-      existingAdmin ??
-      (await prisma.user.create({
-        data: {
-          name: adminName,
-          email: adminEmail,
-          emailVerified: true,
-          role: 'superadmin',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-      }));
-
-    if (existingAdmin) {
-      console.log(`⚠️ Admin user already exists: ${adminEmail} (repairing password hash)`);
-      if (existingAdmin.role !== 'superadmin') {
-        await prisma.user.update({
-          where: { id: adminUser.id },
-          data: { role: 'superadmin', emailVerified: true },
-        });
-      }
+    if (!adminUser.created) {
+      console.log(
+        `⚠️ Admin user already exists: ${adminEmail} (repairing password hash)`
+      );
     }
-
-    /**
-     * Ensure credential account exists AND has a valid Better-Auth password hash.
-     * We force-replace any existing credential accounts to avoid duplicates
-     * (Better-Auth may read the "wrong" one if multiple exist).
-     */
-    await prisma.account.deleteMany({
-      where: {
-        userId: adminUser.id,
-        providerId: 'credential',
-      },
-    });
-
-    await prisma.account.create({
-      data: {
-        id: `account_${adminUser.id}`,
-        userId: adminUser.id,
-        accountId: adminUser.id,
-        providerId: 'credential',
-        password: hashedPassword,
-      },
-    });
 
     // Ensure default org + membership exist (safe on re-run)
     const defaultOrgId = `org_${adminUser.id}`;
@@ -189,27 +163,30 @@ async function seed() {
     console.log(`\n  📧 ADMIN CREDENTIALS:`);
     console.log(`     Email: ${adminEmail}`);
     console.log(`     Password source: ${passwordSource}`);
-    console.log(`     Password: ${adminPassword}`);
-    console.log(`\n  ⚠️  Use these exact values at /sign-in (not Admin123! if ADMIN_PASSWORD is set in .env).\n`);
+    console.log(
+      `\n  ⚠️  Sign in at /sign-in with ADMIN_PASSWORD from .env (or the documented local default).\n`
+    );
 
     // 3. Load and Seed Recipes
     const manifestPath = path.join(__dirname, 'kitchen-manifest.json');
-    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8')) as KitchenManifest;
+    const manifest = JSON.parse(
+      fs.readFileSync(manifestPath, 'utf-8')
+    ) as KitchenManifest;
 
     console.log(`📝 Seeding recipes from manifest...`);
     const deletedRecipes = new Set(manifest.deletedRecipes || []);
-    
+
     // First, delete all existing system recipes to ensure clean state
     // This removes any recipes that were deleted by the user
     const deletedCount = await prisma.recipe.deleteMany({
       where: { isSystem: true },
     });
     console.log(`  🗑️  Deleted ${deletedCount.count} existing system recipes`);
-    
+
     // Now seed all recipes from the manifest (except deleted ones)
     let seededCount = 0;
     let skippedCount = 0;
-    
+
     for (const recipeData of manifest.recipes) {
       // Skip recipes that have been deleted by the user
       if (deletedRecipes.has(recipeData.name)) {
@@ -253,13 +230,13 @@ async function seed() {
           isPrivate: false, // System recipes are never private
           organizationId: null,
         } as const;
-        
+
         const recipe = await tx.recipe.create({
           data: recipeDataInput,
         });
 
         await tx.ingredient.createMany({
-          data: recipeData.ingredients.map(ing => ({
+          data: recipeData.ingredients.map((ing) => ({
             recipeId: recipe.id,
             name: ing.name,
             quantity: ing.quantity,
@@ -269,7 +246,7 @@ async function seed() {
         });
 
         await tx.instruction.createMany({
-          data: recipeData.instructions.map(inst => ({
+          data: recipeData.instructions.map((inst) => ({
             recipeId: recipe.id,
             stepNumber: inst.stepNumber,
             text: inst.text,
@@ -279,7 +256,7 @@ async function seed() {
       console.log(`  ✅ Recipe: ${recipeData.name}`);
       seededCount++;
     }
-    
+
     console.log(`\n📊 Recipe seeding summary:`);
     console.log(`   ✅ Seeded: ${seededCount} recipes`);
     console.log(`   🚫 Skipped (deleted): ${skippedCount} recipes`);
@@ -290,7 +267,9 @@ async function seed() {
       console.log(`🏃 Seeding ${manifest.routines.length} routines...`);
       for (const routineData of manifest.routines) {
         // Check if routine exists to avoid duplicates on re-run
-        const existingRoutine = await prisma.routine.findFirst({ where: { name: routineData.name }});
+        const existingRoutine = await prisma.routine.findFirst({
+          where: { name: routineData.name },
+        });
         if (existingRoutine) {
           console.log(`  ⏭️  Routine already exists: ${routineData.name}`);
           continue;
@@ -310,11 +289,11 @@ async function seed() {
       }
     }
 
-        // 5. Seed Educational Resources (Complete data from original MERN stack)
-        const educationalResources = [
-          {
-            title: 'The Complete Guide to Mindful Eating',
-            content: `
+    // 5. Seed Educational Resources (Complete data from original MERN stack)
+    const educationalResources = [
+      {
+        title: 'The Complete Guide to Mindful Eating',
+        content: `
               <h2>What is Mindful Eating?</h2>
               <p>Mindful eating is the practice of being fully present and aware during meals. It involves paying attention to the colors, smells, flavors, and textures of your food, as well as your body's hunger and satiety cues.</p>
               
@@ -339,46 +318,48 @@ async function seed() {
               <h3>Getting Started</h3>
               <p>Start with one meal per day. Choose a quiet time when you can focus entirely on eating. Begin by taking three deep breaths before your first bite, and commit to eating without any distractions.</p>
             `,
-            excerpt: 'Learn how to develop a healthier relationship with food through mindful eating practices that improve digestion, portion control, and overall satisfaction.',
-            category: 'nutrition',
-            tags: ['mindful eating', 'digestion', 'portion control', 'wellness'],
-            difficulty: 'beginner',
-            readTime: 8,
-            imageUrl: 'https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=800&h=400&fit=crop',
-            featured: true,
-            tldr: {
-              summary:
-                'Eat one meal a day fully present—no screens—to improve digestion, portion control, and satisfaction.',
-              whenToTake:
-                'Start with one meal per day at a quiet time (breakfast or dinner works well).',
-              howToTake:
-                'Sit without TV/phone, take three deep breaths before the first bite, chew slowly, and stop when comfortably full.',
-              portioning:
-                'Use hunger/fullness cues rather than a fixed plate size; serve less first and add more only if still hungry.',
-              takeWith: [
-                'A calm place to sit',
-                'A full plate already portioned (avoids mindless refills)',
-                'Water sipped between bites',
-              ],
-              avoidWith: [
-                'Screens or work during the meal',
-                'Eating straight from bags or packaging',
-                'Rushing between meetings',
-              ],
-              keyPoints: [
-                'Presence beats perfect macros for this practice',
-                'Chew thoroughly and notice flavor/texture',
-                'Build the habit with one meal before expanding',
-              ],
-              cautions: [
-                'Not a substitute for clinical care for disordered eating—seek professional support if needed',
-              ],
-              duration: 'Practice daily; benefits build over weeks of consistency.',
-            },
-          },
-          {
-            title: '5-Minute Morning Meditation Routine',
-            content: `
+        excerpt:
+          'Learn how to develop a healthier relationship with food through mindful eating practices that improve digestion, portion control, and overall satisfaction.',
+        category: 'nutrition',
+        tags: ['mindful eating', 'digestion', 'portion control', 'wellness'],
+        difficulty: 'beginner',
+        readTime: 8,
+        imageUrl:
+          'https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=800&h=400&fit=crop',
+        featured: true,
+        tldr: {
+          summary:
+            'Eat one meal a day fully present—no screens—to improve digestion, portion control, and satisfaction.',
+          whenToTake:
+            'Start with one meal per day at a quiet time (breakfast or dinner works well).',
+          howToTake:
+            'Sit without TV/phone, take three deep breaths before the first bite, chew slowly, and stop when comfortably full.',
+          portioning:
+            'Use hunger/fullness cues rather than a fixed plate size; serve less first and add more only if still hungry.',
+          takeWith: [
+            'A calm place to sit',
+            'A full plate already portioned (avoids mindless refills)',
+            'Water sipped between bites',
+          ],
+          avoidWith: [
+            'Screens or work during the meal',
+            'Eating straight from bags or packaging',
+            'Rushing between meetings',
+          ],
+          keyPoints: [
+            'Presence beats perfect macros for this practice',
+            'Chew thoroughly and notice flavor/texture',
+            'Build the habit with one meal before expanding',
+          ],
+          cautions: [
+            'Not a substitute for clinical care for disordered eating—seek professional support if needed',
+          ],
+          duration: 'Practice daily; benefits build over weeks of consistency.',
+        },
+      },
+      {
+        title: '5-Minute Morning Meditation Routine',
+        content: `
               <h2>Start Your Day with Intention</h2>
               <p>This simple 5-minute morning meditation routine will help you start your day with clarity, focus, and inner peace. Perfect for beginners and busy schedules.</p>
               
@@ -402,46 +383,48 @@ async function seed() {
               <h3>Benefits</h3>
               <p>Regular morning meditation can reduce stress, improve focus, increase emotional regulation, and set a positive tone for your entire day.</p>
             `,
-            excerpt: 'A simple 5-minute morning meditation routine to start your day with clarity, focus, and inner peace. Perfect for beginners.',
-            category: 'wellness',
-            tags: ['meditation', 'morning routine', 'mindfulness', 'stress relief'],
-            difficulty: 'beginner',
-            readTime: 5,
-            imageUrl: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=400&fit=crop',
-            featured: true,
-            tldr: {
-              summary:
-                'Five quiet minutes each morning: breathe, body-scan, set one intention, open eyes.',
-              whenToTake:
-                'Same time each morning, soon after waking—before email or news if possible.',
-              howToTake:
-                'Sit comfortably, close eyes. Min 1 settle; min 2 ten deep breaths; min 3 body scan; min 4 intention; min 5 open eyes slowly.',
-              portioning:
-                'Start with 2–3 minutes if 5 feels long; do not force an empty mind—observe thoughts and return to breath.',
-              takeWith: [
-                'A cushion or stable chair',
-                'A consistent wake time',
-                'A short timer (optional)',
-              ],
-              avoidWith: [
-                'Phone notifications on',
-                'Lying down if you tend to fall asleep',
-                'Judging every thought as failure',
-              ],
-              keyPoints: [
-                'Consistency beats length',
-                'Body scan releases morning tension',
-                'One clear intention frames the day',
-              ],
-              cautions: [
-                'If meditation increases distress, pause and consider guided support from a clinician',
-              ],
-              duration: 'Daily habit; benefits compound over weeks.',
-            },
-          },
-          {
-            title: 'Understanding Your Circadian Rhythm for Better Sleep',
-            content: `
+        excerpt:
+          'A simple 5-minute morning meditation routine to start your day with clarity, focus, and inner peace. Perfect for beginners.',
+        category: 'wellness',
+        tags: ['meditation', 'morning routine', 'mindfulness', 'stress relief'],
+        difficulty: 'beginner',
+        readTime: 5,
+        imageUrl:
+          'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=400&fit=crop',
+        featured: true,
+        tldr: {
+          summary:
+            'Five quiet minutes each morning: breathe, body-scan, set one intention, open eyes.',
+          whenToTake:
+            'Same time each morning, soon after waking—before email or news if possible.',
+          howToTake:
+            'Sit comfortably, close eyes. Min 1 settle; min 2 ten deep breaths; min 3 body scan; min 4 intention; min 5 open eyes slowly.',
+          portioning:
+            'Start with 2–3 minutes if 5 feels long; do not force an empty mind—observe thoughts and return to breath.',
+          takeWith: [
+            'A cushion or stable chair',
+            'A consistent wake time',
+            'A short timer (optional)',
+          ],
+          avoidWith: [
+            'Phone notifications on',
+            'Lying down if you tend to fall asleep',
+            'Judging every thought as failure',
+          ],
+          keyPoints: [
+            'Consistency beats length',
+            'Body scan releases morning tension',
+            'One clear intention frames the day',
+          ],
+          cautions: [
+            'If meditation increases distress, pause and consider guided support from a clinician',
+          ],
+          duration: 'Daily habit; benefits compound over weeks.',
+        },
+      },
+      {
+        title: 'Understanding Your Circadian Rhythm for Better Sleep',
+        content: `
               <h2>What is Circadian Rhythm?</h2>
               <p>Your circadian rhythm is your body's internal 24-hour clock that regulates sleep-wake cycles, hormone production, and other physiological processes. Understanding and working with this natural rhythm can dramatically improve your sleep quality.</p>
               
@@ -465,46 +448,54 @@ async function seed() {
                 <li>Mood changes or irritability</li>
               </ul>
             `,
-            excerpt: "Learn how your body's internal clock affects sleep and discover practical strategies to align with your natural circadian rhythm for better rest.",
-            category: 'sleep',
-            tags: ['circadian rhythm', 'sleep hygiene', 'melatonin', 'sleep schedule'],
-            difficulty: 'intermediate',
-            readTime: 12,
-            imageUrl: 'https://images.unsplash.com/photo-1541781774459-1dcf1b4b0b8e?w=800&h=400&fit=crop',
-            featured: true,
-            tldr: {
-              summary:
-                'Anchor sleep to light and schedule: morning sun, fixed wake time, dim evenings, cool dark room.',
-              whenToTake:
-                'Morning light within ~1 hour of waking; wind-down 2–3 hours before bed; screens off ~1 hour before sleep.',
-              howToTake:
-                'Get outdoor light early, keep a consistent sleep/wake clock (including weekends), dim lights at night, cool the bedroom.',
-              portioning:
-                '10–30 minutes morning daylight; bedroom about 65–68°F (18–20°C); protect a full sleep window rather than “catching up” randomly.',
-              takeWith: [
-                'Morning outdoor light',
-                'A consistent wake time',
-                'Dim warm lighting in the evening',
-              ],
-              avoidWith: [
-                'Bright screens late at night without filters',
-                'Large caffeine late in the day',
-                'Highly variable sleep schedules',
-              ],
-              keyPoints: [
-                'Light is the master cue for melatonin',
-                'Consistency matters more than occasional long sleeps',
-                'Cool, dark rooms support sleep quality',
-              ],
-              cautions: [
-                'Persistent insomnia or suspected sleep disorders need medical evaluation',
-              ],
-              duration: 'Align for 1–2 weeks before judging results; maintain ongoing.',
-            },
-          },
-          {
-            title: 'Stress Management Through Deep Breathing Techniques',
-            content: `
+        excerpt:
+          "Learn how your body's internal clock affects sleep and discover practical strategies to align with your natural circadian rhythm for better rest.",
+        category: 'sleep',
+        tags: [
+          'circadian rhythm',
+          'sleep hygiene',
+          'melatonin',
+          'sleep schedule',
+        ],
+        difficulty: 'intermediate',
+        readTime: 12,
+        imageUrl:
+          'https://images.unsplash.com/photo-1541781774459-1dcf1b4b0b8e?w=800&h=400&fit=crop',
+        featured: true,
+        tldr: {
+          summary:
+            'Anchor sleep to light and schedule: morning sun, fixed wake time, dim evenings, cool dark room.',
+          whenToTake:
+            'Morning light within ~1 hour of waking; wind-down 2–3 hours before bed; screens off ~1 hour before sleep.',
+          howToTake:
+            'Get outdoor light early, keep a consistent sleep/wake clock (including weekends), dim lights at night, cool the bedroom.',
+          portioning:
+            '10–30 minutes morning daylight; bedroom about 65–68°F (18–20°C); protect a full sleep window rather than “catching up” randomly.',
+          takeWith: [
+            'Morning outdoor light',
+            'A consistent wake time',
+            'Dim warm lighting in the evening',
+          ],
+          avoidWith: [
+            'Bright screens late at night without filters',
+            'Large caffeine late in the day',
+            'Highly variable sleep schedules',
+          ],
+          keyPoints: [
+            'Light is the master cue for melatonin',
+            'Consistency matters more than occasional long sleeps',
+            'Cool, dark rooms support sleep quality',
+          ],
+          cautions: [
+            'Persistent insomnia or suspected sleep disorders need medical evaluation',
+          ],
+          duration:
+            'Align for 1–2 weeks before judging results; maintain ongoing.',
+        },
+      },
+      {
+        title: 'Stress Management Through Deep Breathing Techniques',
+        content: `
               <h2>The Power of Breath</h2>
               <p>Breathing is the only autonomic function we can consciously control. By learning specific breathing techniques, you can activate your parasympathetic nervous system and reduce stress in real-time.</p>
               
@@ -542,17 +533,19 @@ async function seed() {
                 <li>As part of your daily stress prevention routine</li>
               </ul>
             `,
-            excerpt: 'Master powerful breathing techniques to manage stress in real-time. Learn the 4-7-8 method, box breathing, and diaphragmatic breathing for instant calm.',
-            category: 'wellness',
-            tags: ['breathing', 'stress relief', 'anxiety', 'relaxation'],
-            difficulty: 'beginner',
-            readTime: 7,
-            imageUrl: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800&h=400&fit=crop',
-            featured: false,
-          },
-          {
-            title: 'Building a Sustainable Exercise Routine',
-            content: `
+        excerpt:
+          'Master powerful breathing techniques to manage stress in real-time. Learn the 4-7-8 method, box breathing, and diaphragmatic breathing for instant calm.',
+        category: 'wellness',
+        tags: ['breathing', 'stress relief', 'anxiety', 'relaxation'],
+        difficulty: 'beginner',
+        readTime: 7,
+        imageUrl:
+          'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800&h=400&fit=crop',
+        featured: false,
+      },
+      {
+        title: 'Building a Sustainable Exercise Routine',
+        content: `
               <h2>Why Most Exercise Routines Fail</h2>
               <p>The key to a successful exercise routine isn't intensity or duration—it's consistency. Most people fail because they start too aggressively and burn out quickly.</p>
               
@@ -596,17 +589,19 @@ async function seed() {
                 <li>Celebrate small wins</li>
               </ul>
             `,
-            excerpt: "Learn how to build a sustainable exercise routine that you'll actually stick to. Discover the 80/20 rule and progressive approach to fitness.",
-            category: 'exercise',
-            tags: ['fitness', 'routine', 'sustainability', 'motivation'],
-            difficulty: 'beginner',
-            readTime: 10,
-            imageUrl: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800&h=400&fit=crop',
-            featured: false,
-          },
-          {
-            title: 'Cycle-Synced Fasting Basics',
-            content: `
+        excerpt:
+          "Learn how to build a sustainable exercise routine that you'll actually stick to. Discover the 80/20 rule and progressive approach to fitness.",
+        category: 'exercise',
+        tags: ['fitness', 'routine', 'sustainability', 'motivation'],
+        difficulty: 'beginner',
+        readTime: 10,
+        imageUrl:
+          'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800&h=400&fit=crop',
+        featured: false,
+      },
+      {
+        title: 'Cycle-Synced Fasting Basics',
+        content: `
               <h2>Fasting and your cycle</h2>
               <p>Intermittent fasting can support metabolic health, but timing matters across menstrual phases. This overview explains when shorter eating windows may feel easier and when to prioritize nourishment instead.</p>
               <h3>General principles</h3>
@@ -616,17 +611,19 @@ async function seed() {
                 <li>Stop fasting if you feel dizzy, cold, or unusually fatigued</li>
               </ul>
             `,
-            excerpt: 'How to align intermittent fasting with menstrual phases without under-fueling recovery days.',
-            category: 'fasting',
-            tags: ['fasting', 'cycle', 'metabolism'],
-            difficulty: 'intermediate',
-            readTime: 9,
-            imageUrl: 'https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=800&h=400&fit=crop',
-            featured: false,
-          },
-          {
-            title: 'Breaking a Fast Gently',
-            content: `
+        excerpt:
+          'How to align intermittent fasting with menstrual phases without under-fueling recovery days.',
+        category: 'fasting',
+        tags: ['fasting', 'cycle', 'metabolism'],
+        difficulty: 'intermediate',
+        readTime: 9,
+        imageUrl:
+          'https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=800&h=400&fit=crop',
+        featured: false,
+      },
+      {
+        title: 'Breaking a Fast Gently',
+        content: `
               <h2>First meal after fasting</h2>
               <p>How you break a fast affects digestion and energy. A balanced plate with protein, fiber, and healthy fats helps avoid blood-sugar spikes.</p>
               <ul>
@@ -635,17 +632,19 @@ async function seed() {
                 <li>Avoid ultra-processed foods as the first meal</li>
               </ul>
             `,
-            excerpt: 'Practical tips for your first meal after an overnight or extended fast.',
-            category: 'fasting',
-            tags: ['fasting', 'nutrition', 'meal timing'],
-            difficulty: 'beginner',
-            readTime: 6,
-            imageUrl: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=800&h=400&fit=crop',
-            featured: false,
-          },
-          {
-            title: 'Fasting Safety Checklist',
-            content: `
+        excerpt:
+          'Practical tips for your first meal after an overnight or extended fast.',
+        category: 'fasting',
+        tags: ['fasting', 'nutrition', 'meal timing'],
+        difficulty: 'beginner',
+        readTime: 6,
+        imageUrl:
+          'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=800&h=400&fit=crop',
+        featured: false,
+      },
+      {
+        title: 'Fasting Safety Checklist',
+        content: `
               <h2>Who should be cautious</h2>
               <p>Fasting is not appropriate for everyone. Consult a clinician if you are pregnant, nursing, underweight, or managing diabetes or eating disorders.</p>
               <ul>
@@ -654,17 +653,19 @@ async function seed() {
                 <li>Prioritize sleep and stress recovery alongside fasting</li>
               </ul>
             `,
-            excerpt: 'Safety checklist before trying intermittent or extended fasting.',
-            category: 'fasting',
-            tags: ['fasting', 'safety', 'wellness'],
-            difficulty: 'beginner',
-            readTime: 5,
-            imageUrl: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800&h=400&fit=crop',
-            featured: false,
-          },
-          {
-            title: 'Low-Impact Movement for Busy Days',
-            content: `
+        excerpt:
+          'Safety checklist before trying intermittent or extended fasting.',
+        category: 'fasting',
+        tags: ['fasting', 'safety', 'wellness'],
+        difficulty: 'beginner',
+        readTime: 5,
+        imageUrl:
+          'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800&h=400&fit=crop',
+        featured: false,
+      },
+      {
+        title: 'Low-Impact Movement for Busy Days',
+        content: `
               <h2>Movement without a gym</h2>
               <p>Short walks, mobility flows, and bodyweight circuits keep habit momentum when time is tight.</p>
               <ul>
@@ -673,31 +674,35 @@ async function seed() {
                 <li>2 rounds of squats, push-ups, and planks</li>
               </ul>
             `,
-            excerpt: 'Low-impact exercise ideas you can finish in under fifteen minutes.',
-            category: 'exercise',
-            tags: ['movement', 'habits', 'low impact'],
-            difficulty: 'beginner',
-            readTime: 7,
-            imageUrl: 'https://images.unsplash.com/photo-1517836357463-d25dfeacbf84?w=800&h=400&fit=crop',
-            featured: false,
-          },
-          {
-            title: 'Strength Training at Home',
-            content: `
+        excerpt:
+          'Low-impact exercise ideas you can finish in under fifteen minutes.',
+        category: 'exercise',
+        tags: ['movement', 'habits', 'low impact'],
+        difficulty: 'beginner',
+        readTime: 7,
+        imageUrl:
+          'https://images.unsplash.com/photo-1517836357463-d25dfeacbf84?w=800&h=400&fit=crop',
+        featured: false,
+      },
+      {
+        title: 'Strength Training at Home',
+        content: `
               <h2>Minimal equipment</h2>
               <p>Resistance bands and dumbbells unlock progressive strength work at home. Focus on compound patterns: squat, hinge, push, pull.</p>
             `,
-            excerpt: 'Home strength basics with bands or dumbbells for household wellness.',
-            category: 'exercise',
-            tags: ['strength', 'home workout'],
-            difficulty: 'intermediate',
-            readTime: 11,
-            imageUrl: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&h=400&fit=crop',
-            featured: false,
-          },
-          {
-            title: 'Understanding Hormonal Health for Women',
-            content: `
+        excerpt:
+          'Home strength basics with bands or dumbbells for household wellness.',
+        category: 'exercise',
+        tags: ['strength', 'home workout'],
+        difficulty: 'intermediate',
+        readTime: 11,
+        imageUrl:
+          'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&h=400&fit=crop',
+        featured: false,
+      },
+      {
+        title: 'Understanding Hormonal Health for Women',
+        content: `
               <h2>The Complex World of Female Hormones</h2>
               <p>Women's health is deeply connected to hormonal balance throughout different life stages. Understanding these cycles can help you optimize your health, energy, and well-being.</p>
               
@@ -754,17 +759,24 @@ async function seed() {
                 <li>Limiting alcohol and caffeine</li>
               </ul>
             `,
-            excerpt: 'A comprehensive guide to understanding female hormones, menstrual cycles, and how to support hormonal health for optimal well-being.',
-            category: 'wellness',
-            tags: ['hormones', 'menstrual cycle', 'women\'s health', 'hormonal balance'],
-            difficulty: 'intermediate',
-            readTime: 15,
-            imageUrl: 'https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=800&h=400&fit=crop',
-            featured: true,
-          },
-          {
-            title: 'Potatisens Vetenskap: Från stärkelse till perfekt puré',
-            content: `
+        excerpt:
+          'A comprehensive guide to understanding female hormones, menstrual cycles, and how to support hormonal health for optimal well-being.',
+        category: 'wellness',
+        tags: [
+          'hormones',
+          'menstrual cycle',
+          "women's health",
+          'hormonal balance',
+        ],
+        difficulty: 'intermediate',
+        readTime: 15,
+        imageUrl:
+          'https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=800&h=400&fit=crop',
+        featured: true,
+      },
+      {
+        title: 'Potatisens Vetenskap: Från stärkelse till perfekt puré',
+        content: `
               <h2>Potatisens Kemiska Struktur</h2>
               <p>Potatis innehåller tre viktiga komponenter som påverkar konsistensen när den kokas: stärkelse, pektin och kalcium. Förståelsen av dessa komponenter är nyckeln till att skapa en perfekt potatispuré som tål uppvärmning utan att bli klistrig.</p>
               
@@ -813,45 +825,49 @@ async function seed() {
                 <li>Resultatet är en silkeslen, krämig puré som kan värmas om utan att förlora konsistens</li>
               </ul>
             `,
-            excerpt: 'Lär dig den kemiska vetenskapen bakom perfekt potatispuré. Förstå hur pektin, kalcium och stärkelse samverkar för att skapa en puré som tål uppvärmning utan att bli klistrig.',
-            category: 'Köksskolan',
-            tags: ['potatis', 'kemi', 'matlagningsteknik', 'vetenskap'],
-            difficulty: 'advanced',
-            readTime: 12,
-            imageUrl: 'https://images.unsplash.com/photo-1518977822534-7049a61ee0c2?w=800&h=400&fit=crop',
-            featured: true,
-          },
-        ];
+        excerpt:
+          'Lär dig den kemiska vetenskapen bakom perfekt potatispuré. Förstå hur pektin, kalcium och stärkelse samverkar för att skapa en puré som tål uppvärmning utan att bli klistrig.',
+        category: 'Köksskolan',
+        tags: ['potatis', 'kemi', 'matlagningsteknik', 'vetenskap'],
+        difficulty: 'advanced',
+        readTime: 12,
+        imageUrl:
+          'https://images.unsplash.com/photo-1518977822534-7049a61ee0c2?w=800&h=400&fit=crop',
+        featured: true,
+      },
+    ];
 
-        console.log(`📚 Seeding ${educationalResources.length} educational resources...`);
-        for (const resourceData of educationalResources) {
-          const existing = await prisma.educationalResource.findFirst({
-            where: { title: resourceData.title },
+    console.log(
+      `📚 Seeding ${educationalResources.length} educational resources...`
+    );
+    for (const resourceData of educationalResources) {
+      const existing = await prisma.educationalResource.findFirst({
+        where: { title: resourceData.title },
+      });
+      if (existing) {
+        // Backfill TLDR (and other structured fields) on re-seed without recreating.
+        if ('tldr' in resourceData && resourceData.tldr != null) {
+          await prisma.educationalResource.update({
+            where: { id: existing.id },
+            data: { tldr: resourceData.tldr },
           });
-          if (existing) {
-            // Backfill TLDR (and other structured fields) on re-seed without recreating.
-            if ('tldr' in resourceData && resourceData.tldr != null) {
-              await prisma.educationalResource.update({
-                where: { id: existing.id },
-                data: { tldr: resourceData.tldr },
-              });
-              console.log(`  🔄 Updated TLDR: ${resourceData.title}`);
-            } else {
-              console.log(`  ⏭️  Resource already exists: ${resourceData.title}`);
-            }
-            continue;
-          }
-
-          await prisma.educationalResource.create({
-            data: resourceData,
-          });
-          console.log(`  ✅ Resource: ${resourceData.title}`);
+          console.log(`  🔄 Updated TLDR: ${resourceData.title}`);
+        } else {
+          console.log(`  ⏭️  Resource already exists: ${resourceData.title}`);
         }
+        continue;
+      }
 
-        // Seed Experts and Phase Recommendations
-        await seedExperts(prisma);
+      await prisma.educationalResource.create({
+        data: resourceData,
+      });
+      console.log(`  ✅ Resource: ${resourceData.title}`);
+    }
 
-        console.log('✨ Seed completed successfully!');
+    // Seed Experts and Phase Recommendations
+    await seedExperts(prisma);
+
+    console.log('✨ Seed completed successfully!');
   } catch (error) {
     console.error('❌ Error seeding database:', error);
     process.exit(1);
@@ -905,16 +921,19 @@ async function seedExperts(prisma: PrismaClient) {
           'Heavily processed foods, alcohol, spicy foods, and sugar to reduce inflammation',
         ],
       },
-      source: 'https://londonclinicofnutrition.co.uk/nutrition-articles/foods-to-eat-for-each-stage-of-your-menstrual-cycle/',
+      source:
+        'https://londonclinicofnutrition.co.uk/nutrition-articles/foods-to-eat-for-each-stage-of-your-menstrual-cycle/',
     },
     {
       expertId: drMindyPelz.id,
       phase: 'menstrual',
       category: 'fasting',
       content: {
-        guidance: 'Avoid fasting; focus on nutrition for recovery. Fasting during progesterone-dominant phases (menstrual/luteal) can interfere with cortisol regulation and hormone support.',
+        guidance:
+          'Avoid fasting; focus on nutrition for recovery. Fasting during progesterone-dominant phases (menstrual/luteal) can interfere with cortisol regulation and hormone support.',
       },
-      source: 'https://drmindypelz.com/fasting-for-women/ | Fast Like a Girl by Dr. Mindy Pelz',
+      source:
+        'https://drmindypelz.com/fasting-for-women/ | Fast Like a Girl by Dr. Mindy Pelz',
     },
     {
       expertId: drMindyPelz.id,
@@ -926,7 +945,8 @@ async function seedExperts(prisma: PrismaClient) {
           'Healthy fats and proteins',
         ],
       },
-      source: 'https://www.purition.co.uk/blogs/articles/dr-mindy-pelz-fast-like-a-girl',
+      source:
+        'https://www.purition.co.uk/blogs/articles/dr-mindy-pelz-fast-like-a-girl',
     },
     {
       expertId: drMindyPelz.id,
@@ -935,18 +955,18 @@ async function seedExperts(prisma: PrismaClient) {
       content: {
         guidance: 'Can fast freely between Day 1 and Day 12',
       },
-      source: 'https://drmindypelz.com/fasting-for-women/ | Fast Like a Girl by Dr. Mindy Pelz',
+      source:
+        'https://drmindypelz.com/fasting-for-women/ | Fast Like a Girl by Dr. Mindy Pelz',
     },
     {
       expertId: drMindyPelz.id,
       phase: 'ovulation',
       category: 'nutrition',
       content: {
-        foods_to_eat: [
-          'Balanced meals to maintain energy and hormone balance',
-        ],
+        foods_to_eat: ['Balanced meals to maintain energy and hormone balance'],
       },
-      source: 'https://londonclinicofnutrition.co.uk/nutrition-articles/foods-to-eat-for-each-stage-of-your-menstrual-cycle/',
+      source:
+        'https://londonclinicofnutrition.co.uk/nutrition-articles/foods-to-eat-for-each-stage-of-your-menstrual-cycle/',
     },
     {
       expertId: drMindyPelz.id,
@@ -955,7 +975,8 @@ async function seedExperts(prisma: PrismaClient) {
       content: {
         guidance: 'Avoid long fasts; limit to 13-15 hours if fasting',
       },
-      source: 'https://drmindypelz.com/fasting-for-women/ | Fast Like a Girl by Dr. Mindy Pelz',
+      source:
+        'https://drmindypelz.com/fasting-for-women/ | Fast Like a Girl by Dr. Mindy Pelz',
     },
     {
       expertId: drMindyPelz.id,
@@ -968,16 +989,19 @@ async function seedExperts(prisma: PrismaClient) {
           'Healthy fats and proteins',
         ],
       },
-      source: 'https://londonclinicofnutrition.co.uk/nutrition-articles/foods-to-eat-for-each-stage-of-your-menstrual-cycle/',
+      source:
+        'https://londonclinicofnutrition.co.uk/nutrition-articles/foods-to-eat-for-each-stage-of-your-menstrual-cycle/',
     },
     {
       expertId: drMindyPelz.id,
       phase: 'luteal',
       category: 'fasting',
       content: {
-        guidance: 'Avoid fasting; focus on hormone support with carbs. Progesterone-dominant phases require adequate nutrition to prevent cortisol interference and support hormone production.',
+        guidance:
+          'Avoid fasting; focus on hormone support with carbs. Progesterone-dominant phases require adequate nutrition to prevent cortisol interference and support hormone production.',
       },
-      source: 'https://drmindypelz.com/fasting-for-women/ | Fast Like a Girl by Dr. Mindy Pelz',
+      source:
+        'https://drmindypelz.com/fasting-for-women/ | Fast Like a Girl by Dr. Mindy Pelz',
     },
   ];
 
@@ -1030,7 +1054,10 @@ async function seedExperts(prisma: PrismaClient) {
     console.log(`  ✅ Expert: ${drStacySims.name}`);
   } else {
     // Update credentials if they exist but are outdated
-    if (drStacySims.credentials !== 'PhD, Exercise Physiologist & Nutrition Scientist') {
+    if (
+      drStacySims.credentials !==
+      'PhD, Exercise Physiologist & Nutrition Scientist'
+    ) {
       await prisma.expert.update({
         where: { id: drStacySims.id },
         data: {
@@ -1057,10 +1084,13 @@ async function seedExperts(prisma: PrismaClient) {
           'Focus on readiness and recovery rather than rigid phase-based training',
           'If comfortable, this can be an optimal time for strength and power training',
         ],
-        guidance: 'Menstrual phase (low hormones) creates a physiological state similar to male athletes, making it a potential high-performance window. Focus on readiness and symptom management rather than avoiding intensity.',
-        nutrition: 'Balance nutrition based on comfort and energy levels. Support recovery with adequate protein and hydration.',
+        guidance:
+          'Menstrual phase (low hormones) creates a physiological state similar to male athletes, making it a potential high-performance window. Focus on readiness and symptom management rather than avoiding intensity.',
+        nutrition:
+          'Balance nutrition based on comfort and energy levels. Support recovery with adequate protein and hydration.',
       },
-      source: 'Huberman Lab: Dr. Stacy Sims Episode (Jul 2024) - https://www.hubermanlab.com/episode/dr-stacy-sims-female-specific-exercise-nutrition-for-health-performance-longevity | Dr. Stacy Sims Blog (2025): The Evolution of Menstrual Cycle Training - https://www.drstacysims.com/newsletters/articles/posts/the-evolution-of-menstrual-cycle-training',
+      source:
+        'Huberman Lab: Dr. Stacy Sims Episode (Jul 2024) - https://www.hubermanlab.com/episode/dr-stacy-sims-female-specific-exercise-nutrition-for-health-performance-longevity | Dr. Stacy Sims Blog (2025): The Evolution of Menstrual Cycle Training - https://www.drstacysims.com/newsletters/articles/posts/the-evolution-of-menstrual-cycle-training',
     },
     {
       expertId: drStacySims.id,
@@ -1072,10 +1102,13 @@ async function seedExperts(prisma: PrismaClient) {
           'Good time for heavier lifting and power training',
           'Estrogen rising supports performance and recovery',
         ],
-        guidance: 'Follicular phase supports high-intensity training as estrogen levels rise. Focus on readiness and recovery metrics rather than rigid phase-based protocols.',
-        nutrition: 'Carbohydrates and protein before and after training to support performance and recovery',
+        guidance:
+          'Follicular phase supports high-intensity training as estrogen levels rise. Focus on readiness and recovery metrics rather than rigid phase-based protocols.',
+        nutrition:
+          'Carbohydrates and protein before and after training to support performance and recovery',
       },
-      source: 'Huberman Lab: Dr. Stacy Sims Episode (Jul 2024) - https://www.hubermanlab.com/episode/dr-stacy-sims-female-specific-exercise-nutrition-for-health-performance-longevity',
+      source:
+        'Huberman Lab: Dr. Stacy Sims Episode (Jul 2024) - https://www.hubermanlab.com/episode/dr-stacy-sims-female-specific-exercise-nutrition-for-health-performance-longevity',
     },
     {
       expertId: drStacySims.id,
@@ -1087,9 +1120,11 @@ async function seedExperts(prisma: PrismaClient) {
           'Technical work or recovery day',
           'Peak hormone state - individual responses vary',
         ],
-        guidance: 'Ovulation represents peak hormone state. Individual responses vary widely. Focus on readiness and recovery rather than assuming peak performance.',
+        guidance:
+          'Ovulation represents peak hormone state. Individual responses vary widely. Focus on readiness and recovery rather than assuming peak performance.',
       },
-      source: 'Huberman Lab: Dr. Stacy Sims Episode (Jul 2024) - https://www.hubermanlab.com/episode/dr-stacy-sims-female-specific-exercise-nutrition-for-health-performance-longevity',
+      source:
+        'Huberman Lab: Dr. Stacy Sims Episode (Jul 2024) - https://www.hubermanlab.com/episode/dr-stacy-sims-female-specific-exercise-nutrition-for-health-performance-longevity',
     },
     {
       expertId: drStacySims.id,
@@ -1102,10 +1137,13 @@ async function seedExperts(prisma: PrismaClient) {
           'Incorporate more recovery-focused activities like yoga',
           'Progesterone-dominant phase may require more recovery support',
         ],
-        guidance: 'Luteal phase is progesterone-dominant. Individual responses vary. Some may need reduced intensity, while others maintain performance. Focus on readiness metrics and symptom management.',
-        nutrition: 'Increase protein and moderate carbs for recovery. Support progesterone production with adequate nutrition.',
+        guidance:
+          'Luteal phase is progesterone-dominant. Individual responses vary. Some may need reduced intensity, while others maintain performance. Focus on readiness metrics and symptom management.',
+        nutrition:
+          'Increase protein and moderate carbs for recovery. Support progesterone production with adequate nutrition.',
       },
-      source: 'Huberman Lab: Dr. Stacy Sims Episode (Jul 2024) - https://www.hubermanlab.com/episode/dr-stacy-sims-female-specific-exercise-nutrition-for-health-performance-longevity',
+      source:
+        'Huberman Lab: Dr. Stacy Sims Episode (Jul 2024) - https://www.hubermanlab.com/episode/dr-stacy-sims-female-specific-exercise-nutrition-for-health-performance-longevity',
     },
   ];
 
@@ -1141,7 +1179,9 @@ async function seedExperts(prisma: PrismaClient) {
     }
   }
 
-  console.log(`✅ Seeded ${mindyRecommendations.length + stacyRecommendations.length} phase recommendations`);
+  console.log(
+    `✅ Seeded ${mindyRecommendations.length + stacyRecommendations.length} phase recommendations`
+  );
 }
 
 seed();

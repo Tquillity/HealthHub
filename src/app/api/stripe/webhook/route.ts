@@ -1,7 +1,52 @@
 import Stripe from 'stripe';
 import { NextResponse } from 'next/server';
-import { isStripeConfigured } from '@/lib/stripe';
+import {
+  isPremiumSubscriptionStatus,
+  isSafeStripeSearchId,
+  isStripeConfigured,
+  subscriptionsForUserQuery,
+} from '@/lib/stripe';
 import { processStripeEvent, type PremiumChange } from '@/lib/stripe-webhook';
+
+/** HealthHub user for a subscription: its metadata, else the original checkout's. */
+async function resolveSubscriptionUserId(
+  stripe: Stripe,
+  subscription: Stripe.Subscription
+): Promise<string> {
+  const fromMetadata = subscription.metadata?.userId;
+  if (fromMetadata) return fromMetadata;
+  // Checkouts created before subscription metadata was set still carry the user ID.
+  const checkouts = await stripe.checkout.sessions.list({
+    subscription: subscription.id,
+    limit: 1,
+  });
+  const checkout = checkouts.data[0];
+  return checkout?.metadata?.userId || checkout?.client_reference_id || '';
+}
+
+/**
+ * True when the user has another subscription that still grants Pro.
+ * Guards against revoking access because an old subscription lapsed while a newer one is paid.
+ */
+async function hasOtherLiveSubscription(
+  stripe: Stripe,
+  userId: string,
+  subscriptionId: string
+): Promise<boolean> {
+  if (!isSafeStripeSearchId(userId)) return false;
+  // Search can't mix AND/OR, so query by user and check statuses here. Search results can be up
+  // to ~1 minute stale, so each candidate is re-read before it may keep Pro. (A subscription
+  // created within that minute can be missed; it restores Pro on its own next update event.)
+  const result = await stripe.subscriptions.search({
+    query: subscriptionsForUserQuery(userId),
+    limit: 20,
+  });
+  const candidates = result.data.filter((other) => other.id !== subscriptionId);
+  const fresh = await Promise.all(
+    candidates.map((other) => stripe.subscriptions.retrieve(other.id))
+  );
+  return fresh.some((other) => isPremiumSubscriptionStatus(other.status));
+}
 
 export async function POST(request: Request) {
   if (!isStripeConfigured()) {
@@ -57,27 +102,45 @@ export async function POST(request: Request) {
           await stripe.subscriptions.retrieve(subscriptionId);
         premiumChange = {
           userId,
-          isPremium:
-            subscription.status === 'active' ||
-            subscription.status === 'trialing',
+          isPremium: isPremiumSubscriptionStatus(subscription.status),
         };
+        break;
+      }
+      case 'customer.subscription.updated': {
+        const subscription = event.data.object;
+        const userId = await resolveSubscriptionUserId(stripe, subscription);
+        if (!userId) {
+          // Not a HealthHub subscription (e.g. created in the dashboard); a retry can't fix that
+          console.warn(
+            '[HealthHub stripe] Ignoring update for unmapped subscription',
+            subscription.id
+          );
+          break;
+        }
+        // Fetch current state so an out-of-order update cannot restore stale access.
+        const current = await stripe.subscriptions.retrieve(subscription.id);
+        const isPremium = isPremiumSubscriptionStatus(current.status);
+        if (
+          !isPremium &&
+          (await hasOtherLiveSubscription(stripe, userId, subscription.id))
+        )
+          break;
+        premiumChange = { userId, isPremium };
         break;
       }
       case 'customer.subscription.deleted': {
         const subscription = event.data.object;
-        let userId = subscription.metadata.userId;
+        const userId = await resolveSubscriptionUserId(stripe, subscription);
         if (!userId) {
-          // Checkouts created before subscription metadata was set still carry the user ID.
-          const checkouts = await stripe.checkout.sessions.list({
-            subscription: subscription.id,
-            limit: 1,
-          });
-          const checkout = checkouts.data[0];
-          userId =
-            checkout?.metadata?.userId || checkout?.client_reference_id || '';
+          // Not a HealthHub subscription; a retry can't fix that
+          console.warn(
+            '[HealthHub stripe] Ignoring cancellation of unmapped subscription',
+            subscription.id
+          );
+          break;
         }
-        if (!userId)
-          throw new Error('Canceled subscription has no HealthHub user');
+        if (await hasOtherLiveSubscription(stripe, userId, subscription.id))
+          break;
         premiumChange = { userId, isPremium: false };
         break;
       }

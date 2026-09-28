@@ -15,14 +15,14 @@ import {
 } from '@/lib/validation/grocery-schemas';
 
 const ScaledIngredientSchema = z.object({
-  name: z.string().min(1),
-  quantity: z.number(),
-  unit: z.string().min(1),
+  name: z.string().min(1).max(200),
+  quantity: z.number().positive(),
+  unit: z.string().min(1).max(50),
 });
 
 const AddScaledIngredientsSchema = z.object({
-  ingredients: z.array(ScaledIngredientSchema).min(1),
-  sourceRecipeId: z.string().min(1).optional(),
+  ingredients: z.array(ScaledIngredientSchema).min(1).max(200),
+  sourceRecipeId: z.string().min(1).max(100).optional(),
 });
 
 function categorizeIngredient(name: string): string {
@@ -109,7 +109,10 @@ export async function toggleShoppingItem(
 
     // Scope the update to the caller's household so foreign item ids are rejected
     const result = await prisma.shoppingListItem.updateMany({
-      where: { id: validated.itemKey, organizationId: membership.organizationId },
+      where: {
+        id: validated.itemKey,
+        organizationId: membership.organizationId,
+      },
       data: { isChecked: validated.isChecked },
     });
     if (result.count === 0) {
@@ -119,7 +122,11 @@ export async function toggleShoppingItem(
     revalidatePath('/groceries');
     return { success: true };
   } catch (error) {
-    console.error('[HealthHub action] grocery-list-mutations', 'Error toggling shopping item:', error);
+    console.error(
+      '[HealthHub action] grocery-list-mutations',
+      'Error toggling shopping item:',
+      error
+    );
     return { success: false, error: 'Failed to update item' };
   }
 }
@@ -161,7 +168,11 @@ export async function addShoppingItem(
     revalidatePath('/groceries');
     return { success: true };
   } catch (error) {
-    console.error('[HealthHub action] grocery-list-mutations', 'Error adding shopping item:', error);
+    console.error(
+      '[HealthHub action] grocery-list-mutations',
+      'Error adding shopping item:',
+      error
+    );
     return { success: false, error: 'Failed to add item' };
   }
 }
@@ -211,7 +222,11 @@ export async function addScaledIngredientsToGroceryList(
     revalidatePath('/groceries');
     return { success: true, data: items };
   } catch (error) {
-    console.error('[HealthHub action] grocery-list-mutations', 'Error adding ingredients to grocery list:', error);
+    console.error(
+      '[HealthHub action] grocery-list-mutations',
+      'Error adding ingredients to grocery list:',
+      error
+    );
     return { success: false, error: 'Failed to add ingredients' };
   }
 }

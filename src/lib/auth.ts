@@ -4,6 +4,9 @@ import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { organization } from 'better-auth/plugins';
 import { prisma } from '@/lib/db';
 import { ensurePersonalHousehold } from '@/lib/household';
+import { getSocialProviderFlags } from '@/lib/social-providers';
+
+const socialProviderFlags = getSocialProviderFlags();
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
@@ -17,12 +20,13 @@ export const auth = betterAuth({
       // These env vars are optional in dev; Better-Auth types require strings even when provider is disabled.
       clientId: process.env.GOOGLE_CLIENT_ID ?? '',
       clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? '',
-      enabled: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
+      enabled: socialProviderFlags.google,
     },
-    x: {
+    // X sign-in is Better-Auth's `twitter` provider (there is no `x` provider).
+    twitter: {
       clientId: process.env.X_CLIENT_ID ?? '',
       clientSecret: process.env.X_CLIENT_SECRET ?? '',
-      enabled: !!(process.env.X_CLIENT_ID && process.env.X_CLIENT_SECRET),
+      enabled: socialProviderFlags.twitter,
     },
   },
   secret: process.env.BETTER_AUTH_SECRET!,
@@ -43,13 +47,14 @@ export const auth = betterAuth({
             await ensurePersonalHousehold(user);
           } catch (error) {
             // Never fail sign-up over this; the protected layout retries on the next visit.
-            console.error('[HealthHub auth] Failed to create personal household:', error);
+            console.error(
+              '[HealthHub auth] Failed to create personal household:',
+              error
+            );
           }
         },
       },
     },
   },
-  plugins: [
-    organization(),
-  ],
+  plugins: [organization()],
 });

@@ -4,6 +4,7 @@ import Stripe from 'stripe';
 const mocks = vi.hoisted(() => ({
   process: vi.fn(),
   subscriptions: vi.fn(),
+  search: vi.fn(),
   list: vi.fn(),
 }));
 vi.mock('@/lib/stripe-webhook', () => ({ processStripeEvent: mocks.process }));
@@ -15,6 +16,7 @@ vi.mock('stripe', async (importOriginal) => {
       constructor(key: string) {
         super(key);
         this.subscriptions.retrieve = mocks.subscriptions;
+        this.subscriptions.search = mocks.search;
         this.checkout.sessions.list = mocks.list;
       }
     },
@@ -43,6 +45,7 @@ beforeEach(() => {
   vi.stubEnv('STRIPE_WEBHOOK_SECRET', secret);
   mocks.process.mockResolvedValue({ duplicate: false });
   mocks.subscriptions.mockResolvedValue({ status: 'active' });
+  mocks.search.mockResolvedValue({ data: [] });
 });
 afterEach(() => vi.unstubAllEnvs());
 
@@ -92,19 +95,16 @@ describe('signed Stripe webhooks', () => {
     });
   });
 
-  it('returns a retryable failure without claiming an unmapped cancellation', async () => {
+  it('acknowledges an unmapped cancellation without changing any user', async () => {
     mocks.list.mockResolvedValue({ data: [] });
-    expect(
-      (
-        await POST(
-          request('customer.subscription.deleted', {
-            id: 'sub_missing',
-            metadata: {},
-          })
-        )
-      ).status
-    ).toBe(500);
-    expect(mocks.process).not.toHaveBeenCalled();
+    const response = await POST(
+      request('customer.subscription.deleted', {
+        id: 'sub_missing',
+        metadata: {},
+      })
+    );
+    expect(response.status).toBe(200);
+    expect(mocks.process).toHaveBeenCalledWith(expect.anything(), null);
   });
 
   it('does not reactivate a cancellation when checkout completion arrives late', async () => {
@@ -120,6 +120,143 @@ describe('signed Stripe webhooks', () => {
     expect(response.status).toBe(200);
     expect(mocks.process).toHaveBeenCalledWith(expect.anything(), {
       userId: 'user_fixture',
+      isPremium: false,
+    });
+  });
+
+  it.each([
+    ['active', true],
+    ['trialing', true],
+    ['past_due', false],
+    ['unpaid', false],
+    ['canceled', false],
+    ['incomplete_expired', false],
+    ['paused', false],
+  ])(
+    'syncs premium from the current status on subscription update (%s)',
+    async (status, isPremium) => {
+      mocks.subscriptions.mockResolvedValue({ status });
+      const response = await POST(
+        request('customer.subscription.updated', {
+          id: 'sub_fixture',
+          status: 'active',
+          metadata: { userId: 'user_fixture' },
+        })
+      );
+      expect(response.status).toBe(200);
+      expect(mocks.subscriptions).toHaveBeenCalledWith('sub_fixture');
+      expect(mocks.process).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'evt_fixture' }),
+        { userId: 'user_fixture', isPremium }
+      );
+    }
+  );
+
+  it('maps legacy subscription updates through the original checkout', async () => {
+    mocks.subscriptions.mockResolvedValue({ status: 'past_due' });
+    mocks.list.mockResolvedValue({
+      data: [{ metadata: {}, client_reference_id: 'legacy_user' }],
+    });
+    const response = await POST(
+      request('customer.subscription.updated', {
+        id: 'sub_legacy',
+        metadata: {},
+      })
+    );
+    expect(response.status).toBe(200);
+    expect(mocks.process).toHaveBeenCalledWith(expect.anything(), {
+      userId: 'legacy_user',
+      isPremium: false,
+    });
+  });
+
+  it('acknowledges an unmapped subscription update without changing any user', async () => {
+    mocks.list.mockResolvedValue({ data: [] });
+    const response = await POST(
+      request('customer.subscription.updated', {
+        id: 'sub_missing',
+        metadata: {},
+      })
+    );
+    expect(response.status).toBe(200);
+    expect(mocks.process).toHaveBeenCalledWith(expect.anything(), null);
+  });
+
+  it('keeps premium when a lapsed subscription is replaced by a live one', async () => {
+    mocks.subscriptions.mockImplementation(async (id: string) => ({
+      id,
+      status: id === 'sub_new' ? 'active' : 'unpaid',
+    }));
+    mocks.search.mockResolvedValue({
+      data: [
+        { id: 'sub_old', status: 'unpaid' },
+        { id: 'sub_new', status: 'active' },
+      ],
+    });
+    const response = await POST(
+      request('customer.subscription.updated', {
+        id: 'sub_old',
+        metadata: { userId: 'user_fixture' },
+      })
+    );
+    expect(response.status).toBe(200);
+    expect(mocks.search).toHaveBeenCalledWith({
+      query: "metadata['userId']:'user_fixture'",
+      limit: 20,
+    });
+    expect(mocks.process).toHaveBeenCalledWith(expect.anything(), null);
+  });
+
+  it('keeps premium when an old subscription is deleted but another is live', async () => {
+    mocks.search.mockResolvedValue({
+      data: [{ id: 'sub_new', status: 'trialing' }],
+    });
+    mocks.subscriptions.mockResolvedValue({
+      id: 'sub_new',
+      status: 'trialing',
+    });
+    const response = await POST(
+      request('customer.subscription.deleted', {
+        id: 'sub_old',
+        metadata: { userId: 'user_fixture' },
+      })
+    );
+    expect(response.status).toBe(200);
+    expect(mocks.process).toHaveBeenCalledWith(expect.anything(), null);
+  });
+
+  it('revokes premium when search is stale and the other subscription is already canceled', async () => {
+    mocks.search.mockResolvedValue({
+      data: [{ id: 'sub_other', status: 'active' }],
+    });
+    mocks.subscriptions.mockResolvedValue({
+      id: 'sub_other',
+      status: 'canceled',
+    });
+    const response = await POST(
+      request('customer.subscription.deleted', {
+        id: 'sub_old',
+        metadata: { userId: 'user_fixture' },
+      })
+    );
+    expect(response.status).toBe(200);
+    expect(mocks.process).toHaveBeenCalledWith(expect.anything(), {
+      userId: 'user_fixture',
+      isPremium: false,
+    });
+  });
+
+  it('never searches with an unsafe user id and still revokes premium', async () => {
+    const response = await POST(
+      request('customer.subscription.deleted', {
+        id: 'sub_old',
+        metadata: { userId: "x' OR status:'active" },
+      })
+    );
+    expect(response.status).toBe(200);
+    expect(mocks.search).not.toHaveBeenCalled();
+    expect(mocks.process).toHaveBeenCalledWith(expect.anything(), {
+      userId: "x' OR status:'active",
       isPremium: false,
     });
   });

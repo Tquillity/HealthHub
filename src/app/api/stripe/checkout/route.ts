@@ -1,6 +1,18 @@
 import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/db';
 import { getServerSession } from '@/lib/session';
-import { isStripeConfigured } from '@/lib/stripe';
+import {
+  isSafeStripeSearchId,
+  isStripeConfigured,
+  subscriptionsForUserQuery,
+} from '@/lib/stripe';
+
+/**
+ * Subscriptions that block a new checkout: paid, trialing, or past_due (Stripe is still retrying
+ * the payment). unpaid/incomplete are not blocked: without a billing portal the user would have
+ * no way out, and the webhook keeps Pro correct if an old one later resolves.
+ */
+const OPEN_SUBSCRIPTION_STATUSES = new Set(['active', 'trialing', 'past_due']);
 
 /**
  * Creates a Stripe Checkout session for HealthHub Pro.
@@ -8,12 +20,18 @@ import { isStripeConfigured } from '@/lib/stripe';
  */
 export async function POST() {
   if (!isStripeConfigured()) {
-    return NextResponse.json({ error: 'Stripe not configured' }, { status: 503 });
+    return NextResponse.json(
+      { error: 'Stripe not configured' },
+      { status: 503 }
+    );
   }
 
   const priceId = process.env.STRIPE_PRICE_ID_PRO?.trim();
   if (!priceId) {
-    return NextResponse.json({ error: 'Pro price not configured' }, { status: 503 });
+    return NextResponse.json(
+      { error: 'Pro price not configured' },
+      { status: 503 }
+    );
   }
 
   const session = await getServerSession();
@@ -21,7 +39,20 @@ export async function POST() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const baseUrl = process.env.BETTER_AUTH_URL ?? process.env.NEXT_PUBLIC_BETTER_AUTH_URL;
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { isPremium: true },
+  });
+  if (user?.isPremium) {
+    // Prevent a second, duplicate subscription for an already-premium user.
+    return NextResponse.json(
+      { error: 'You already have an active HealthHub Pro subscription.' },
+      { status: 409 }
+    );
+  }
+
+  const baseUrl =
+    process.env.BETTER_AUTH_URL ?? process.env.NEXT_PUBLIC_BETTER_AUTH_URL;
   if (!baseUrl) {
     return NextResponse.json({ error: 'Missing app URL' }, { status: 503 });
   }
@@ -29,6 +60,26 @@ export async function POST() {
   try {
     const { default: Stripe } = await import('stripe');
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+
+    // A lapsed (past_due) subscription clears isPremium; don't let the user start a second one
+    if (isSafeStripeSearchId(session.user.id)) {
+      const existing = await stripe.subscriptions.search({
+        query: subscriptionsForUserQuery(session.user.id),
+        limit: 20,
+      });
+      if (
+        existing.data.some((sub) => OPEN_SUBSCRIPTION_STATUSES.has(sub.status))
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              'You already have a HealthHub Pro subscription. Update its payment method instead of starting a new one.',
+          },
+          { status: 409 }
+        );
+      }
+    }
+
     const checkout = await stripe.checkout.sessions.create({
       mode: 'subscription',
       line_items: [{ price: priceId, quantity: 1 }],
