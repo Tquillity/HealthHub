@@ -82,21 +82,22 @@ export function JournalClient({ initialDate, onEntrySaved }: JournalClientProps)
     const symptomsPhysical = formData.symptomsPhysical.filter((s) => s.trim().length > 0);
     const symptomsMental = formData.symptomsMental.filter((s) => s.trim().length > 0);
 
+    // Cleared fields are sent as null (not undefined) so the server clears the stored value.
     const result = await logJournalEntry({
       date: formData.date,
-      mood: formData.mood ? parseInt(formData.mood) : undefined,
-      energy: formData.energy ? parseInt(formData.energy) : undefined,
-      sleepHours: formData.sleepHours ? parseFloat(formData.sleepHours) : undefined,
-      notes: formData.notes || undefined,
+      mood: formData.mood ? parseInt(formData.mood, 10) : null,
+      energy: formData.energy ? parseInt(formData.energy, 10) : null,
+      sleepHours: formData.sleepHours ? parseFloat(formData.sleepHours) : null,
+      notes: formData.notes.trim() ? formData.notes : null,
       tags,
       gratitudeEntries,
-      gratitudeNotes: formData.gratitudeNotes || undefined,
+      gratitudeNotes: formData.gratitudeNotes.trim() ? formData.gratitudeNotes : null,
       goalsAchieved,
       goalsProgress,
-      goalsNotes: formData.goalsNotes || undefined,
+      goalsNotes: formData.goalsNotes.trim() ? formData.goalsNotes : null,
       symptomsPhysical,
       symptomsMental,
-      symptomsNotes: formData.symptomsNotes || undefined,
+      symptomsNotes: formData.symptomsNotes.trim() ? formData.symptomsNotes : null,
     });
 
     if (result.success) {

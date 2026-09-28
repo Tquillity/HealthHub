@@ -1,14 +1,16 @@
 /**
  * Hormone Math Engine
  * 
- * Calculates standardized hormone level curves (0-100 scale) based on clinical standards.
+ * Calculates illustrative hormone level curves (0-100 scale) for a typical cycle.
+ * These are a typical pattern, not the user's measured levels; label them as
+ * "Illustrative typical pattern, not your levels" wherever they are shown.
  * Models Estrogen, Progesterone, LH, FSH, and Testosterone throughout the menstrual cycle.
  * 
  * **Mathematical Models:**
  * - Based on clinical reference ranges and typical cycle patterns
  * - All values normalized to 0-100 scale for consistent visualization
  * - Accounts for variable cycle lengths (defaults to 28 days)
- * - Models are highly accurate representations of clinical hormone patterns
+ * - Models are simplified approximations of typical hormone patterns; real cycles vary widely
  * 
  * **Real Hormone Units (for reference):**
  * - **Estrogen (Estradiol)**: ~30-400 pg/mL (varies by phase)
@@ -34,11 +36,11 @@
  *   - Baseline: ~15-30 ng/dL
  *   - Ovulation peak: ~40-70 ng/dL
  * 
- * **Clinical Accuracy:**
- * - Estrogen double-peak model (sharp pre-ovulation, milder mid-luteal) matches clinical data accurately
- * - Progesterone low pre-ovulation, post-ovulation rise accurate (produced by corpus luteum)
- * - LH/FSH surge modeling precise; LH Gaussian spike triggers ovulation
- * - Testosterone peak during ovulation aligns with clinical observations
+ * **Limitations (illustrative model):**
+ * - Estrogen double-peak shape (sharp pre-ovulation, milder mid-luteal) follows the typical pattern
+ * - Progesterone stays low before ovulation and rises afterwards (corpus luteum)
+ * - LH/FSH surges are drawn as simple spikes; timing varies between people and cycles
+ * - Testosterone is drawn peaking around ovulation, as commonly described
  * 
  * **Sources:**
  * - Huberman Lab: Dr. Natalie Crawford Episode (2023) - https://www.hubermanlab.com/episode/dr-natalie-crawford-female-hormone-health-fertility-vitality
@@ -74,7 +76,7 @@ export interface HormoneCurve {
 /**
  * Calculate Estrogen (Estradiol) curve
  * 
- * **Pattern:** Double peak (clinically accurate)
+ * **Pattern:** Double peak (typical shape, illustrative)
  * - Sharp 4th-degree polynomial rise to 95% at Day 13 (pre-ovulation peak)
  * - Dip after first peak
  * - Secondary broad sine-wave peak at 45% around Day 21 (mid-luteal)
@@ -162,16 +164,16 @@ function calculateProgesterone(day: number, cycleLength: number = 28): number {
 /**
  * Calculate LH (Luteinizing Hormone) curve
  * 
- * **Pattern:** Sudden Gaussian spike (clinically precise)
+ * **Pattern:** Sudden Gaussian spike (illustrative)
  * - Baseline 15%
- * - Sharp surge to 100% precisely 24-36h before Ovulation Phase begins
+ * - Sharp surge to 100% roughly 24-36h before Ovulation Phase begins
  * - Ovulation Phase starts at Day 15 (PHASE_LENGTHS.MENSTRUAL + PHASE_LENGTHS.FOLLICULAR + 1)
  * - LH surge occurs around Day 13.5 (1.5 days before Day 15 = 24-36h before)
  * 
  * **Clinical Reference:**
  * - Real units: ~2-20 mIU/mL (baseline), ~20-100+ mIU/mL (surge)
  * - Surge triggers ovulation within 24-36 hours
- * - Gaussian spike accurately models the brief, intense surge pattern
+ * - A Gaussian spike approximates the brief, intense surge pattern
  * 
  * @param day - Day in cycle (1-based)
  * @param cycleLength - Total cycle length (default 28)
@@ -199,7 +201,7 @@ function calculateLH(day: number, _cycleLength: number = 28): number {
 /**
  * Calculate FSH (Follicle-Stimulating Hormone) curve
  * 
- * **Pattern:** Two peaks (clinically accurate)
+ * **Pattern:** Two peaks (typical shape, illustrative)
  * - 25% bump during Menstrual recruitment (Day 1-3)
  * - 60% peak synchronized with LH surge (Day 12-13)
  * 

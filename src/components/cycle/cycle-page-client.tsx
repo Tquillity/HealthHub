@@ -48,6 +48,7 @@ import { Calendar, Sparkles } from 'lucide-react';
 import { differenceInDays, format } from 'date-fns';
 import { getPhaseTheme } from '@/lib/phase-theme';
 import { getJournalSnippet } from '@/actions/journal-actions';
+import { dateOnlyToLocalDate, isDateOnlyString } from '@/lib/date-only';
 
 const CYCLE_PHASES = ['menstrual', 'follicular', 'ovulation', 'luteal'] as const satisfies readonly CyclePhase[];
 const CHART_MODES = ['lifestyle', 'clinical'] as const;
@@ -164,16 +165,16 @@ export function CyclePageClient({
 
       setSnippetLoading(true);
       try {
-        // Date object safety: Validate and handle invalid date strings
-        const dateObj = new Date(selectedDate);
-        if (isNaN(dateObj.getTime())) {
+        // `selectedDate` is a local calendar day (YYYY-MM-DD). new Date('YYYY-MM-DD') would be
+        // UTC midnight, i.e. the previous day west of UTC, so build a local date instead.
+        if (!isDateOnlyString(selectedDate)) {
           console.error('Invalid date string:', selectedDate);
           setJournalSnippet(null);
           setSelectedDateObj(null);
           setSelectedDatePhase(null);
           return;
         }
-        dateObj.setHours(0, 0, 0, 0);
+        const dateObj = dateOnlyToLocalDate(selectedDate);
         setSelectedDateObj(dateObj);
 
         // Calculate phase for selected date (not current date)

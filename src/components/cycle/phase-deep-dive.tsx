@@ -43,7 +43,7 @@ const PHASE_NAMES: Record<CyclePhase, string> = {
 const PHASE_DESCRIPTIONS: Record<CyclePhase, string> = {
   menstrual: 'Your body is shedding the uterine lining. Energy levels are typically at their lowest. This is a time for rest, recovery, and gentle movement.',
   follicular: 'Estrogen levels are rising, preparing your body for ovulation. Energy and motivation are building. This is an ideal time for new challenges and high-intensity activities.',
-  ovulation: 'Peak fertility window. Estrogen and testosterone are at their highest. This is your peak performance phase - ideal for demanding workouts and complex problem-solving.',
+  ovulation: 'Estimated fertile window (an estimate, not a contraceptive or fertility tool). Estrogen and testosterone are at their highest. This is your peak performance phase - ideal for demanding workouts and complex problem-solving.',
   luteal: 'Progesterone rises while estrogen declines. Energy may fluctuate. This phase requires flexibility - listen to your body and adjust intensity accordingly.',
 };
 

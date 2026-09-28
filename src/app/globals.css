@@ -24,6 +24,11 @@
   --color-wellness-700: #15803d;
   --color-wellness-800: #166534;
   --color-wellness-900: #14532d;
+
+  /* Destructive / error states (used by error boundaries and error pages).
+     Aliases Tailwind's red-600 so it matches the red-* classes already in use. */
+  --color-destructive: var(--color-red-600);
+  --color-destructive-foreground: var(--color-white);
 }
 
 /* --- PRINTABLE ENGINE --- */

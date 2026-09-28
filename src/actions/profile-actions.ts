@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db';
 import { requireSessionUserId } from '@/lib/session';
 import { revalidatePath } from 'next/cache';
 import { UpdateProfileSchema } from '@/lib/validation/profile-schemas';
+import { dateOnlyToUtcDate } from '@/lib/date-only';
 
 export async function updateProfile(data: z.infer<typeof UpdateProfileSchema>) {
   try {
@@ -31,7 +32,9 @@ export async function updateProfile(data: z.infer<typeof UpdateProfileSchema>) {
         ...(validated.timezone && { timezone: validated.timezone }),
         ...(validated.mealPlanDuration && { mealPlanDuration: validated.mealPlanDuration }),
         ...(validated.mealPlanStartDate !== undefined && {
-          mealPlanStartDate: validated.mealPlanStartDate,
+          mealPlanStartDate: validated.mealPlanStartDate
+            ? dateOnlyToUtcDate(validated.mealPlanStartDate)
+            : null,
         }),
         ...(validated.enableCycleTracking !== undefined && {
           enableCycleTracking: validated.enableCycleTracking,
@@ -40,7 +43,9 @@ export async function updateProfile(data: z.infer<typeof UpdateProfileSchema>) {
           cycleLength: validated.cycleLength,
         }),
         ...(validated.lastPeriodDate !== undefined && {
-          lastPeriodDate: validated.lastPeriodDate ? new Date(validated.lastPeriodDate) : null,
+          lastPeriodDate: validated.lastPeriodDate
+            ? dateOnlyToUtcDate(validated.lastPeriodDate)
+            : null,
         }),
         ...(validated.focusPreference !== undefined && {
           focusPreference: validated.focusPreference,

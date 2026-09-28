@@ -59,11 +59,6 @@ export function ProfileClient({ profile: initialProfile }: ProfileClientProps) {
       .map((s) => s.trim())
       .filter((s) => s.length > 0);
 
-    // Convert date input (YYYY-MM-DD) to ISO datetime string
-    const lastPeriodDateISO = formData.lastPeriodDate
-      ? `${formData.lastPeriodDate}T00:00:00.000Z`
-      : null;
-
     const result = await updateProfile({
       name: formData.name,
       energyLevel: formData.energyLevel as 'low' | 'medium' | 'high',
@@ -72,7 +67,8 @@ export function ProfileClient({ profile: initialProfile }: ProfileClientProps) {
       timezone: formData.timezone,
       enableCycleTracking: formData.enableCycleTracking,
       cycleLength: formData.cycleLength,
-      lastPeriodDate: lastPeriodDateISO,
+      // Date input value is already YYYY-MM-DD; the action stores it as UTC midnight.
+      lastPeriodDate: formData.lastPeriodDate || null,
       focusPreference: formData.focusPreference as 'hormonal' | 'workout' | 'both',
     });
 

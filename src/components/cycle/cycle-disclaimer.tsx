@@ -17,7 +17,16 @@ export function CycleDisclaimer() {
         <Info className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
         <div className="flex flex-col gap-2 text-sm text-amber-900">
           <p className="font-semibold">Important Information</p>
+          <p className="font-semibold">
+            Estimates only. Not a contraceptive or fertility tool.
+          </p>
           <div className="flex flex-col gap-1.5 text-xs leading-relaxed">
+            <p>
+              <strong>Estimates, Not Measurements:</strong> Phases, ovulation and the fertile window
+              are estimated from the dates and cycle length you enter. They are not based on
+              hormone tests and can be wrong by several days. Do not use them to prevent or plan
+              pregnancy. Hormone curves show an illustrative typical pattern, not your levels.
+            </p>
             <p>
               <strong>Individual Variability:</strong> Normal cycle length ranges from 21-35 days (average ~29 days). 
               Only ~13% of cycles are exactly 28 days. Luteal phase averages 12.4 days (range 9-16 days).

@@ -115,6 +115,34 @@ describe('UpdateProfileSchema', () => {
     expect(() => UpdateProfileSchema.parse({ cycleLength: 19 })).toThrow();
     expect(() => UpdateProfileSchema.parse({ cycleLength: 46 })).toThrow();
   });
+
+  it('accepts a YYYY-MM-DD meal plan start date or null', () => {
+    expect(UpdateProfileSchema.parse({ mealPlanStartDate: '2026-10-05' })).toEqual({
+      mealPlanStartDate: '2026-10-05',
+    });
+    expect(UpdateProfileSchema.parse({ mealPlanStartDate: null })).toEqual({
+      mealPlanStartDate: null,
+    });
+    expect(() => UpdateProfileSchema.parse({ mealPlanStartDate: '2026-02-30' })).toThrow();
+    expect(() =>
+      UpdateProfileSchema.parse({ mealPlanStartDate: '2026-10-05T00:00:00.000Z' })
+    ).toThrow();
+  });
+
+  it('requires lastPeriodDate to be a real date that is not in the future', () => {
+    expect(UpdateProfileSchema.parse({ lastPeriodDate: '2026-01-15' })).toEqual({
+      lastPeriodDate: '2026-01-15',
+    });
+    expect(UpdateProfileSchema.parse({ lastPeriodDate: null })).toEqual({ lastPeriodDate: null });
+    expect(() => UpdateProfileSchema.parse({ lastPeriodDate: 'yesterday' })).toThrow();
+    expect(() => UpdateProfileSchema.parse({ lastPeriodDate: '2026-02-30' })).toThrow();
+
+    const inTwoDays = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    expect(() => UpdateProfileSchema.parse({ lastPeriodDate: inTwoDays })).toThrow();
+    // "Today" in UTC is always valid, whatever the user's timezone.
+    const todayUtc = new Date().toISOString().slice(0, 10);
+    expect(UpdateProfileSchema.parse({ lastPeriodDate: todayUtc }).lastPeriodDate).toBe(todayUtc);
+  });
 });
 
 

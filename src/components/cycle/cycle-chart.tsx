@@ -233,6 +233,7 @@ const CustomTooltip = ({ active, payload, label, onPhaseHover, visibleSeries }: 
         {/* Hormone Levels - Only show if visible */}
         {hasVisibleHormones && (
           <div className="flex flex-col gap-1 mt-2 pt-2 border-t border-gray-100">
+            <p className="text-[11px] text-gray-400">Illustrative typical pattern, not your levels</p>
             {visibleSeries?.includes('estrogen') && estrogen !== undefined && (
               <p className="text-xs text-gray-600">
                 <span className="inline-block w-2 h-2 rounded-full bg-blue-500 mr-2" />
@@ -692,6 +693,11 @@ export function CycleChart({ phaseData, cycleLength, onPhaseHover, onPhaseClick,
       </div>
 
       {/* Interactive Series Selector - Only show in clinical mode */}
+      {mode === 'clinical' && (
+        <p className="text-xs text-gray-500">
+          Hormone curves: illustrative typical pattern, not your levels.
+        </p>
+      )}
       {mode === 'clinical' && <SeriesSelector />}
 
       {/* Phase Legend with Tooltips (Clinical Mode Only) */}

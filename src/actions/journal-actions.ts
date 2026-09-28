@@ -4,33 +4,41 @@ import { z } from 'zod';
 import { prisma } from '@/lib/db';
 import { requireSessionUserId } from '@/lib/session';
 import { revalidatePath } from 'next/cache';
-import { startOfMonth, endOfMonth } from 'date-fns';
 import { encrypt, decrypt, encryptArray, decryptArray } from '@/lib/encryption';
+import { DateOnlyStringSchema, dateOnlyToUtcDate } from '@/lib/date-only';
 
 // Zod schemas
 // Every item is encrypted individually, so bound list and text sizes to keep saves cheap.
 const JournalText = z.string().max(10_000);
 const JournalList = z.array(z.string().max(500)).max(50).default([]);
 
+// Scalars and text: `undefined` = leave unchanged, `null` = clear the stored value.
+// Lists: always replaced (an empty array clears them).
 const CreateJournalSchema = z.object({
-  date: z.string().or(z.date()), // Accept ISO string or Date
-  mood: z.number().int().min(1).max(10).optional(),
-  energy: z.number().int().min(1).max(10).optional(),
-  sleepHours: z.number().positive().max(24).optional(),
-  notes: JournalText.optional(),
+  // Local calendar day as YYYY-MM-DD; stored as UTC midnight (see lib/date-only).
+  date: DateOnlyStringSchema,
+  mood: z.number().int().min(1).max(10).nullable().optional(),
+  energy: z.number().int().min(1).max(10).nullable().optional(),
+  sleepHours: z.number().positive().max(24).nullable().optional(),
+  notes: JournalText.nullable().optional(),
   tags: JournalList,
   // Gratitude
   gratitudeEntries: JournalList,
-  gratitudeNotes: JournalText.optional(),
+  gratitudeNotes: JournalText.nullable().optional(),
   // Goals
   goalsAchieved: JournalList,
   goalsProgress: JournalList,
-  goalsNotes: JournalText.optional(),
+  goalsNotes: JournalText.nullable().optional(),
   // Symptoms
   symptomsPhysical: JournalList,
   symptomsMental: JournalList,
-  symptomsNotes: JournalText.optional(),
+  symptomsNotes: JournalText.nullable().optional(),
 });
+
+/** `undefined` keeps the stored value; `null` or '' clears it (encrypt returns null for empty). */
+function encryptField(value: string | null | undefined): string | null | undefined {
+  return value === undefined ? undefined : encrypt(value);
+}
 
 export async function logJournalEntry(data: z.infer<typeof CreateJournalSchema>) {
   try {
@@ -42,22 +50,25 @@ export async function logJournalEntry(data: z.infer<typeof CreateJournalSchema>)
     // Validate input
     const validated = CreateJournalSchema.parse(data);
 
-    // Normalize date to start of day (YYYY-MM-DD)
-    const date = typeof validated.date === 'string' 
-      ? new Date(validated.date) 
-      : validated.date;
-    date.setHours(0, 0, 0, 0);
+    const date = dateOnlyToUtcDate(validated.date);
 
-    // Encrypt sensitive fields before storing (GDPR compliance)
-    const encryptedNotes = encrypt(validated.notes);
-    const encryptedGratitudeNotes = encrypt(validated.gratitudeNotes);
-    const encryptedGoalsNotes = encrypt(validated.goalsNotes);
-    const encryptedSymptomsNotes = encrypt(validated.symptomsNotes);
-    const encryptedGratitudeEntries = encryptArray(validated.gratitudeEntries);
-    const encryptedGoalsAchieved = encryptArray(validated.goalsAchieved);
-    const encryptedGoalsProgress = encryptArray(validated.goalsProgress);
-    const encryptedSymptomsPhysical = encryptArray(validated.symptomsPhysical);
-    const encryptedSymptomsMental = encryptArray(validated.symptomsMental);
+    // Encrypt sensitive fields before storing (GDPR compliance).
+    // encryptArray returns null for an empty list, so fall back to [] to clear it.
+    const fields = {
+      mood: validated.mood,
+      energy: validated.energy,
+      sleepHours: validated.sleepHours,
+      notes: encryptField(validated.notes),
+      tags: validated.tags,
+      gratitudeEntries: encryptArray(validated.gratitudeEntries) ?? [],
+      gratitudeNotes: encryptField(validated.gratitudeNotes),
+      goalsAchieved: encryptArray(validated.goalsAchieved) ?? [],
+      goalsProgress: encryptArray(validated.goalsProgress) ?? [],
+      goalsNotes: encryptField(validated.goalsNotes),
+      symptomsPhysical: encryptArray(validated.symptomsPhysical) ?? [],
+      symptomsMental: encryptArray(validated.symptomsMental) ?? [],
+      symptomsNotes: encryptField(validated.symptomsNotes),
+    };
 
     // Upsert entry (create or update if exists for this date)
     const entry = await prisma.journalEntry.upsert({
@@ -67,37 +78,11 @@ export async function logJournalEntry(data: z.infer<typeof CreateJournalSchema>)
           date: date,
         },
       },
-      update: {
-        mood: validated.mood ?? undefined,
-        energy: validated.energy ?? undefined,
-        sleepHours: validated.sleepHours ?? undefined,
-        notes: encryptedNotes ?? undefined,
-        tags: validated.tags,
-        gratitudeEntries: encryptedGratitudeEntries ?? validated.gratitudeEntries,
-        gratitudeNotes: encryptedGratitudeNotes ?? undefined,
-        goalsAchieved: encryptedGoalsAchieved ?? validated.goalsAchieved,
-        goalsProgress: encryptedGoalsProgress ?? validated.goalsProgress,
-        goalsNotes: encryptedGoalsNotes ?? undefined,
-        symptomsPhysical: encryptedSymptomsPhysical ?? validated.symptomsPhysical,
-        symptomsMental: encryptedSymptomsMental ?? validated.symptomsMental,
-        symptomsNotes: encryptedSymptomsNotes ?? undefined,
-      },
+      update: fields,
       create: {
         userId: authResult.userId,
         date: date,
-        mood: validated.mood ?? undefined,
-        energy: validated.energy ?? undefined,
-        sleepHours: validated.sleepHours ?? undefined,
-        notes: encryptedNotes ?? undefined,
-        tags: validated.tags,
-        gratitudeEntries: encryptedGratitudeEntries ?? validated.gratitudeEntries,
-        gratitudeNotes: encryptedGratitudeNotes ?? undefined,
-        goalsAchieved: encryptedGoalsAchieved ?? validated.goalsAchieved,
-        goalsProgress: encryptedGoalsProgress ?? validated.goalsProgress,
-        goalsNotes: encryptedGoalsNotes ?? undefined,
-        symptomsPhysical: encryptedSymptomsPhysical ?? validated.symptomsPhysical,
-        symptomsMental: encryptedSymptomsMental ?? validated.symptomsMental,
-        symptomsNotes: encryptedSymptomsNotes ?? undefined,
+        ...fields,
       },
     });
 
@@ -134,9 +119,16 @@ export async function getMonthlyStats(month: number, year: number) {
       return { success: false, error: authResult.error, data: null };
     }
 
-    // Calculate month boundaries
-    const monthStart = startOfMonth(new Date(year, month - 1, 1));
-    const monthEnd = endOfMonth(new Date(year, month - 1, 1));
+    const parsed = z
+      .object({ month: z.number().int().min(1).max(12), year: z.number().int().min(1900).max(9999) })
+      .safeParse({ month, year });
+    if (!parsed.success) {
+      return { success: false, error: 'Invalid month', data: null };
+    }
+
+    // Entry dates are UTC midnight, so the month range is in UTC too.
+    const monthStart = new Date(Date.UTC(parsed.data.year, parsed.data.month - 1, 1));
+    const monthEnd = new Date(Date.UTC(parsed.data.year, parsed.data.month, 1));
 
     // Fetch all entries for this month
     const entries = await prisma.journalEntry.findMany({
@@ -144,7 +136,7 @@ export async function getMonthlyStats(month: number, year: number) {
         userId: authResult.userId,
         date: {
           gte: monthStart,
-          lte: monthEnd,
+          lt: monthEnd,
         },
       },
       orderBy: {
@@ -188,8 +180,11 @@ export async function getJournalEntryByDate(date: string) {
       return { success: false, error: authResult.error, data: null };
     }
 
-    const entryDate = new Date(date);
-    entryDate.setHours(0, 0, 0, 0);
+    const parsedDate = DateOnlyStringSchema.safeParse(date);
+    if (!parsedDate.success) {
+      return { success: false, error: 'Invalid date', data: null };
+    }
+    const entryDate = dateOnlyToUtcDate(parsedDate.data);
 
     const entry = await prisma.journalEntry.findUnique({
       where: {
@@ -235,8 +230,11 @@ export async function deleteJournalEntry(date: string) {
       return { success: false, error: authResult.error };
     }
 
-    const entryDate = new Date(date);
-    entryDate.setHours(0, 0, 0, 0);
+    const parsedDate = DateOnlyStringSchema.safeParse(date);
+    if (!parsedDate.success) {
+      return { success: false, error: 'Invalid date' };
+    }
+    const entryDate = dateOnlyToUtcDate(parsedDate.data);
 
     await prisma.journalEntry.delete({
       where: {
@@ -269,8 +267,11 @@ export async function getJournalSnippet(date: string) {
       return { success: false, error: authResult.error, data: null };
     }
 
-    const entryDate = new Date(date);
-    entryDate.setHours(0, 0, 0, 0);
+    const parsedDate = DateOnlyStringSchema.safeParse(date);
+    if (!parsedDate.success) {
+      return { success: false, error: 'Invalid date', data: null };
+    }
+    const entryDate = dateOnlyToUtcDate(parsedDate.data);
 
     // Use select to only fetch required fields for performance
     const entry = await prisma.journalEntry.findUnique({

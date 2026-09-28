@@ -7,7 +7,8 @@ import { RecipeFiltersEnhanced } from './recipe-filters-enhanced';
 import { SafeDeleteModal } from '@/components/ui/safe-delete-modal';
 import { deleteRecipe } from '@/actions/recipe-actions';
 import { useRouter } from 'next/navigation';
-import { useQueryState, parseAsString, parseAsArrayOf } from 'nuqs';
+import { useQueryState } from 'nuqs';
+import { recipeSearchParams } from '@/lib/recipe-search-params';
 import { Grid, LayoutList } from 'lucide-react';
 import type { RecipeWithDetails } from '@/actions/recipe-actions';
 
@@ -30,15 +31,16 @@ export function RecipesClient({
   const [activeTab, setActiveTab] = useState<'gallery' | 'list'>('gallery');
   
   // Get all filter params from URL
-  const [category, setCategory] = useQueryState(
-    'category',
-    parseAsString.withDefault('all')
+  // Shared with the server page so both parse the URL the same way.
+  const [category, setCategory] = useQueryState('category', recipeSearchParams.category);
+  const [query] = useQueryState(
+    'q',
+    recipeSearchParams.q.withOptions({ clearOnDefault: true })
   );
-  const [query] = useQueryState('q', parseAsString.withDefault('').withOptions({ clearOnDefault: true }));
-  const [difficulty] = useQueryState('difficulty', parseAsString);
-  const [cuisine] = useQueryState('cuisine', parseAsString);
-  const [dietaryTags] = useQueryState('dietaryTags', parseAsArrayOf(parseAsString));
-  const [leanRole] = useQueryState('leanRole', parseAsString);
+  const [difficulty] = useQueryState('difficulty', recipeSearchParams.difficulty);
+  const [cuisine] = useQueryState('cuisine', recipeSearchParams.cuisine);
+  const [dietaryTags] = useQueryState('dietaryTags', recipeSearchParams.dietaryTags);
+  const [leanRole] = useQueryState('leanRole', recipeSearchParams.leanRole);
   
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [recipeToDelete, setRecipeToDelete] = useState<RecipeWithDetails | null>(null);

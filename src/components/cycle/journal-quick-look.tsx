@@ -64,12 +64,14 @@ export function JournalQuickLook({
   const journalDateParam = format(date, 'yyyy-MM-dd');
 
   const handleViewFull = () => {
-    router.push(`/journal?date=${journalDateParam}`);
+    router.push(`/journal?month=${journalDateParam.slice(0, 7)}&date=${journalDateParam}`);
     onClose();
   };
 
   const handleLogNow = () => {
-    router.push(`/journal?date=${journalDateParam}&action=create`);
+    router.push(
+      `/journal?month=${journalDateParam.slice(0, 7)}&date=${journalDateParam}&action=create`
+    );
     onClose();
   };
 

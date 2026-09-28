@@ -11,6 +11,8 @@ import type { Metadata } from 'next';
 import { createPageMetadata } from '@/lib/site-metadata';
 import { Plus } from 'lucide-react';
 import { AdsenseSlot } from '@/components/ads/adsense-slot';
+import type { SearchParams } from 'nuqs/server';
+import { loadRecipeSearchParams } from '@/lib/recipe-search-params';
 
 // Recipe rows are cached by resolved visibility; the page renders per request.
 export const dynamic = 'force-dynamic';
@@ -23,27 +25,19 @@ export const metadata: Metadata = createPageMetadata({
 });
 
 interface PageProps {
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+  searchParams: Promise<SearchParams>;
 }
 
 export default async function RecipesPage({ searchParams }: PageProps) {
-  const params = await searchParams;
+  // Same nuqs parsers as the client filters (arrays are comma-separated: ?dietaryTags=a,b).
+  const params = await loadRecipeSearchParams(searchParams);
 
-  // Parse params
-  const query =
-    typeof params.q === 'string' && params.q.trim() ? params.q.trim() : undefined;
-  const category =
-    typeof params.category === 'string' && params.category !== 'all'
-      ? params.category
-      : undefined;
-  const difficulty = typeof params.difficulty === 'string' ? params.difficulty : undefined;
-  const cuisine = typeof params.cuisine === 'string' ? params.cuisine : undefined;
-  const dietaryTags = Array.isArray(params.dietaryTags)
-    ? params.dietaryTags
-    : typeof params.dietaryTags === 'string'
-      ? [params.dietaryTags]
-      : undefined;
-  const leanRole = typeof params.leanRole === 'string' ? params.leanRole : undefined;
+  const query = params.q.trim() || undefined;
+  const category = params.category !== 'all' ? params.category : undefined;
+  const difficulty = params.difficulty ?? undefined;
+  const cuisine = params.cuisine ?? undefined;
+  const dietaryTags = params.dietaryTags ?? undefined;
+  const leanRole = params.leanRole ?? undefined;
 
   // Parallel data fetching with error handling
   let recipes: RecipeWithDetails[] = [];

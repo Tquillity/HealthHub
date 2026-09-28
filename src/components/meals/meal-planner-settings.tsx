@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { updateProfile } from '@/actions/profile-actions';
 import { Settings, Calendar } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, nextMonday } from 'date-fns';
 import { useUIStore } from '@/lib/store';
+import { dateOnlyToLocalDate, isDateOnlyString, toDateOnlyString } from '@/lib/date-only';
 
 interface MealPlannerSettingsProps {
   initialDuration?: string | null;
@@ -31,8 +32,11 @@ export function MealPlannerSettings({
   const [duration, setDuration] = useState<MealPlanDuration>(
     initialDuration && isMealPlanDuration(initialDuration) ? initialDuration : DEFAULT_DURATION,
   );
-  const [startDate, setStartDate] = useState<string>(
-    initialStartDate || new Date().toISOString().split('T')[0]
+  // The stored start date is UTC midnight (ISO string from getProfile); the date input needs yyyy-MM-dd.
+  const [startDate, setStartDate] = useState<string>(() =>
+    initialStartDate
+      ? toDateOnlyString(new Date(initialStartDate))
+      : format(new Date(), 'yyyy-MM-dd')
   );
   const [useToday, setUseToday] = useState(!initialStartDate);
 
@@ -40,26 +44,23 @@ export function MealPlannerSettings({
   const handlePreset = (preset: 'thisWeek' | 'nextWeek' | 'thisMonth') => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+    const todayKey = format(today, 'yyyy-MM-dd');
+
     switch (preset) {
       case 'thisWeek':
         setDuration('1week');
         setUseToday(true);
-        setStartDate(today.toISOString().split('T')[0]);
+        setStartDate(todayKey);
         break;
       case 'nextWeek':
-        {
-          const nextWeek = new Date(today);
-          nextWeek.setDate(today.getDate() + (7 - today.getDay() + 1)); // Next Monday
-          setDuration('1week');
-          setUseToday(false);
-          setStartDate(nextWeek.toISOString().split('T')[0]);
-        }
+        setDuration('1week');
+        setUseToday(false);
+        setStartDate(format(nextMonday(today), 'yyyy-MM-dd'));
         break;
       case 'thisMonth':
         setDuration('1month');
         setUseToday(true);
-        setStartDate(today.toISOString().split('T')[0]);
+        setStartDate(todayKey);
         break;
     }
   };
@@ -183,7 +184,7 @@ export function MealPlannerSettings({
                       onChange={(e) => {
                         setUseToday(e.target.checked);
                         if (e.target.checked) {
-                          setStartDate(new Date().toISOString().split('T')[0]);
+                          setStartDate(format(new Date(), 'yyyy-MM-dd'));
                         }
                       }}
                       className="rounded border-gray-300"
@@ -201,7 +202,7 @@ export function MealPlannerSettings({
                         value={startDate}
                         onChange={(e) => setStartDate(e.target.value)}
                         className="pl-10"
-                        min={new Date().toISOString().split('T')[0]}
+                        min={format(new Date(), 'yyyy-MM-dd')}
                       />
                     </div>
                   )}
@@ -213,7 +214,9 @@ export function MealPlannerSettings({
                 <p className="text-xs font-medium text-gray-500 mb-1">Preview</p>
                 <p className="text-sm text-gray-700">
                   {(() => {
-                    const start = useToday ? new Date() : new Date(startDate);
+                    // new Date('yyyy-MM-dd') is UTC midnight (the previous day west of UTC).
+                    const start =
+                      !useToday && isDateOnlyString(startDate) ? dateOnlyToLocalDate(startDate) : new Date();
                     start.setHours(0, 0, 0, 0);
                     
                     let days = 7;
