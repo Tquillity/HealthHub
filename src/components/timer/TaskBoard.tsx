@@ -253,7 +253,7 @@ export const TaskBoard = () => {
               : 'Add Task'
           }
           disabled={isAtTaskLimit}
-          className="disabled:opacity-50 bg-white/10 hover:bg-white/20 text-white px-4 py-2.5 rounded-xl font-medium cursor-pointer text-sm transition-colors border border-white/5"
+          className="disabled:opacity-50 disabled:cursor-not-allowed bg-white/10 hover:bg-white/20 text-white px-4 py-2.5 rounded-xl font-medium cursor-pointer text-sm transition-colors border border-white/5"
         >
           +
         </button>

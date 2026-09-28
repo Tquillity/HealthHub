@@ -99,10 +99,11 @@ export const getRemainingSeconds = (sessionEndAt: number, now: number) =>
 export const LATE_COMPLETION_CATCH_UP_MS = 5000;
 
 /*
- * Worker pulse bookkeeping (TIMER-19). The worker only needs to be started once per worker
- * instance; focus/visibility syncs used to call `start` with a fresh Comlink proxy every time
- * (each one opening a MessageChannel that was never released). `pulseWorker` remembers which
- * worker instance is pulsing, so a replacement worker (after an error) is started again.
+ * Worker pulse bookkeeping (TIMER-19). Focus/visibility syncs used to call `start` on every
+ * sync, and each call opened a MessageChannel that was never released. The leak is prevented
+ * by the `pulseWorker === worker` guard in `ensurePulse`: `start` runs once per worker
+ * instance, and a replacement worker (after an error) is started again. The shared Comlink
+ * proxy callback is just a convenience, not what stops the leak.
  */
 let pulseWorker: Comlink.Remote<TimerWorkerAPI> | null = null;
 let pulseCallback: ((elapsedSeconds: number) => void) | null = null;
@@ -193,7 +194,11 @@ export const useTimeStore = create<TimeState>()(
         }
       };
 
-      /** Record the session that just ended, move to the next one, then announce it (TIMER-6). */
+      /**
+       * Record the session that just ended, move to the next one, then announce it (TIMER-6).
+       * An auto-started session is anchored on the completed deadline (`completedAt`), not on
+       * the pulse arrival time, so back-to-back cycles do not drift (same as the catch-up path).
+       */
       const completeCurrentSession = (completedAt: number, now: number) => {
         const { mode, pomodorosCompleted, history } = get();
 
@@ -210,10 +215,13 @@ export const useTimeStore = create<TimeState>()(
         const autoStart = shouldAutoStartMode(nextSessionState.mode);
 
         if (autoStart) {
+          const nextSessionEndAt =
+            completedAt + nextSessionState.timeLeft * 1000;
           set({
             ...nextSessionState,
             isRunning: true,
-            sessionEndAt: now + nextSessionState.timeLeft * 1000,
+            timeLeft: Math.max(1, getRemainingSeconds(nextSessionEndAt, now)),
+            sessionEndAt: nextSessionEndAt,
           });
         } else {
           set({ ...nextSessionState, isRunning: false, sessionEndAt: null });

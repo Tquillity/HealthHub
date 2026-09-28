@@ -219,6 +219,45 @@ export function describePomoPayloadIssue(error: z.ZodError): string {
     : `Invalid timer payload (${issue.message})`;
 }
 
+export const STORED_POMO_PAYLOAD_UNREADABLE_ERROR =
+  'Saved timer data could not be read. It has been left unchanged; please retry or contact support.';
+
+export type StoredPomoPayloadParseResult =
+  | { ok: true; payload: PomoStatePayload; migrated: boolean }
+  | { ok: false; error: string };
+
+const historyKeyCount = (raw: unknown): number | null => {
+  if (!raw || typeof raw !== 'object') return null;
+  const timeStore = (raw as { timeStore?: unknown }).timeStore;
+  if (!timeStore || typeof timeStore !== 'object') return null;
+  const history = (timeStore as { history?: unknown }).history;
+  if (history === undefined || history === null) return null;
+  // Present but not a plain object: sanitization drops it, which counts as a change.
+  if (typeof history !== 'object' || Array.isArray(history)) return -1;
+  return Object.keys(history).length;
+};
+
+/**
+ * Parse a stored `pomo_state.payload_json` row. Legacy history keys are dropped first
+ * (`migrated: true` when that changed anything). A row that still fails validation is
+ * reported as an error and must never be replaced with defaults: the next save would
+ * otherwise overwrite the user's real data.
+ */
+export function parseStoredPomoPayload(
+  raw: unknown
+): StoredPomoPayloadParseResult {
+  const sanitized = sanitizePomoPayloadHistory(raw);
+  const parsed = PomoStatePayloadSchema.safeParse(sanitized);
+  if (!parsed.success) {
+    return { ok: false, error: STORED_POMO_PAYLOAD_UNREADABLE_ERROR };
+  }
+  return {
+    ok: true,
+    payload: parsed.data,
+    migrated: historyKeyCount(raw) !== historyKeyCount(sanitized),
+  };
+}
+
 export function parsePomoStatePayload(raw: unknown): PomoStatePayload | null {
   const result = PomoStatePayloadSchema.safeParse(raw);
   return result.success ? result.data : null;

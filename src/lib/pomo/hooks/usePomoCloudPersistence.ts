@@ -10,10 +10,10 @@ import {
   clearLocalPomoStorageKeys,
   hasLocalPomoData,
 } from '@/lib/pomo/services/storage.service';
+import { planCloudHydration } from '@/lib/pomo/utils/cloud-hydration';
 import { createCloudSaveRunner } from '@/lib/pomo/utils/cloud-save-runner';
 import { buildPayloadFromLocalStorage } from '@/lib/pomo/utils/local-pomo-payload';
 import { setCloudPersistenceActive } from '@/lib/pomo/utils/storageWrapper';
-import { isEmptyPomoPayload } from '@/lib/pomo/utils/pomo-server-progress';
 import { useSettingsStore } from '@/lib/pomo-store/useSettingsStore';
 import { useTaskStore } from '@/lib/pomo-store/useTaskStore';
 import { useTimeStore } from '@/lib/pomo-store/useTimeStore';
@@ -93,7 +93,9 @@ export function usePomoCloudPersistence() {
         setStatus('local');
         return;
       }
-      // Server state was never loaded, so local state must not be pushed over it.
+      // Server state was never loaded (or the stored row is unreadable), so local state
+      // must not be pushed over it: keep the save runner disabled for this load.
+      deactivateCloud();
       setSaveError(result.error);
       setStatus('error');
       return;
@@ -107,17 +109,21 @@ export function usePomoCloudPersistence() {
     cloudActiveRef.current = true;
     setCloudPersistenceActive(true);
 
-    let payload = result.data;
-    if (isEmptyPomoPayload(payload) && localPayload) {
-      payload = localPayload;
-    }
+    const plan = planCloudHydration(result.data, localPayload);
 
-    applyPomoStatePayload(payload);
+    applyPomoStatePayload(plan.payload);
     // Keep local keys until the cloud copy is saved, so the import survives a failed save.
     clearLocalOnSaveRef.current = true;
     setCloudActive(true);
 
-    await saveRunner.retryNow();
+    // Only write back when the applied state differs from the row (local import or a
+    // migrated row); a payload used as loaded is already what the server holds.
+    if (plan.writeBack) {
+      await saveRunner.retryNow();
+    } else {
+      setSaveError(null);
+      setStatus('cloud');
+    }
   }, [deactivateCloud, saveRunner, userId]);
 
   // Hydrate once per user id, not on every new session object (TIMER-9).

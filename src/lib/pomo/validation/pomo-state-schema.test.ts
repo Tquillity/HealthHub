@@ -3,10 +3,12 @@ import {
   createDefaultPomoStatePayload,
   describePomoPayloadIssue,
   normalizePomoStateForPersist,
+  parseStoredPomoPayload,
   POMO_LIMITS,
   PomoStatePayloadSchema,
   sanitizePomoHistory,
   sanitizePomoPayloadHistory,
+  STORED_POMO_PAYLOAD_UNREADABLE_ERROR,
 } from '@/lib/pomo/validation/pomo-state-schema';
 
 const day = (index: number) => {
@@ -190,5 +192,52 @@ describe('pomo state schema', () => {
     if (!parsed.success) return;
     expect(parsed.data.timeStore.pomodorosCompleted).toBe(42);
     expect(parsed.data.timeStore.history).toEqual({ '2026-09-28': stats });
+  });
+});
+
+describe('parseStoredPomoPayload', () => {
+  it('returns a valid stored row as-is and not migrated', () => {
+    const raw = createDefaultPomoStatePayload();
+    raw.timeStore.history = { '2026-09-28': stats };
+    const result = parseStoredPomoPayload(raw);
+    expect(result).toEqual({ ok: true, payload: raw, migrated: false });
+  });
+
+  it('flags a row whose legacy history keys were dropped as migrated', () => {
+    const raw = {
+      ...createDefaultPomoStatePayload(),
+      timeStore: {
+        ...createDefaultPomoStatePayload().timeStore,
+        history: { 'Mon Sep 28 2026': stats, '2026-09-28': stats },
+      },
+    };
+    const result = parseStoredPomoPayload(raw);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.migrated).toBe(true);
+    expect(result.payload.timeStore.history).toEqual({ '2026-09-28': stats });
+  });
+
+  it('reports an error instead of falling back to defaults when the row is invalid', () => {
+    const raw = {
+      ...createDefaultPomoStatePayload(),
+      timeStore: {
+        ...createDefaultPomoStatePayload().timeStore,
+        pomodorosCompleted: 42,
+        mode: 'not-a-mode',
+      },
+    };
+    const result = parseStoredPomoPayload(raw);
+    expect(result).toEqual({
+      ok: false,
+      error: STORED_POMO_PAYLOAD_UNREADABLE_ERROR,
+    });
+    expect('payload' in result).toBe(false);
+  });
+
+  it('reports an error for non-object stored values', () => {
+    expect(parseStoredPomoPayload(null).ok).toBe(false);
+    expect(parseStoredPomoPayload('garbage').ok).toBe(false);
+    expect(parseStoredPomoPayload([]).ok).toBe(false);
   });
 });

@@ -36,6 +36,19 @@ const pulseAt = (ms: number) => {
   useTimeStore.getState().tick(1);
 };
 
+const originalSyncWithWallClock = useTimeStore.getState().syncWithWallClock;
+
+/** Wrap the store's syncWithWallClock (tick calls it via `get()`) in a pass-through spy. */
+const spyOnSyncWithWallClock = () => {
+  const spy = vi.fn(originalSyncWithWallClock);
+  useTimeStore.setState({ syncWithWallClock: spy });
+  return spy;
+};
+
+const restoreSyncWithWallClock = () => {
+  useTimeStore.setState({ syncWithWallClock: originalSyncWithWallClock });
+};
+
 describe('useTimeStore (wall-clock derived timing)', () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -59,6 +72,7 @@ describe('useTimeStore (wall-clock derived timing)', () => {
   });
 
   afterEach(() => {
+    restoreSyncWithWallClock();
     vi.useRealTimers();
   });
 
@@ -167,15 +181,76 @@ describe('useTimeStore (wall-clock derived timing)', () => {
 
     pulseAt(START + 25 * MIN + 200);
 
+    // Anchored on the completed deadline, not on the (late) pulse arrival time.
     expect(useTimeStore.getState()).toMatchObject({
       mode: 'short',
       isRunning: true,
       timeLeft: 5 * 60,
-      sessionEndAt: START + 25 * MIN + 200 + 5 * MIN,
+      sessionEndAt: START + 30 * MIN,
     });
     await vi.runAllTimersAsync();
     expect(worker.start).toHaveBeenCalledTimes(1);
     expect(worker.pause).not.toHaveBeenCalled();
+  });
+
+  it('auto-started cycles do not drift when every completion pulse arrives late', async () => {
+    useSettingsStore.setState({
+      autoStartBreaks: true,
+      autoStartPomodoros: true,
+    });
+    await useTimeStore.getState().startTimer();
+
+    pulseAt(START + 25 * MIN + 3_000);
+    expect(useTimeStore.getState().timeLeft).toBe(5 * 60 - 3);
+    pulseAt(START + 30 * MIN + 3_000);
+
+    expect(useTimeStore.getState()).toMatchObject({
+      mode: 'pomodoro',
+      sessionEndAt: START + 55 * MIN,
+      timeLeft: 25 * 60 - 3,
+    });
+  });
+
+  it('completes directly for a pulse just inside the catch-up threshold', async () => {
+    const onComplete = vi.fn();
+    const unsubscribe = events.on('timer:complete', onComplete);
+    const syncSpy = spyOnSyncWithWallClock();
+    await useTimeStore.getState().startTimer();
+
+    pulseAt(START + 25 * MIN + 4_999);
+    unsubscribe();
+
+    expect(4_999).toBeLessThan(LATE_COMPLETION_CATCH_UP_MS);
+    expect(syncSpy).not.toHaveBeenCalled();
+    expect(onComplete).toHaveBeenCalledTimes(1);
+    expect(useTimeStore.getState()).toMatchObject({
+      mode: 'short',
+      pomodorosCompleted: 1,
+      isRunning: false,
+    });
+    restoreSyncWithWallClock();
+  });
+
+  it('hands a pulse just past the catch-up threshold to syncWithWallClock', async () => {
+    const onComplete = vi.fn();
+    const unsubscribe = events.on('timer:complete', onComplete);
+    const syncSpy = spyOnSyncWithWallClock();
+    await useTimeStore.getState().startTimer();
+
+    pulseAt(START + 25 * MIN + 5_001);
+    await vi.runAllTimersAsync();
+    unsubscribe();
+
+    expect(5_001).toBeGreaterThan(LATE_COMPLETION_CATCH_UP_MS);
+    expect(syncSpy).toHaveBeenCalledTimes(1);
+    expect(syncSpy).toHaveBeenCalledWith(START + 25 * MIN + 5_001);
+    expect(onComplete).toHaveBeenCalledTimes(1);
+    expect(useTimeStore.getState()).toMatchObject({
+      mode: 'short',
+      pomodorosCompleted: 1,
+      isRunning: false,
+    });
+    restoreSyncWithWallClock();
   });
 
   it('startTimer with timeLeft 0 starts a full session instead of recording a fake one (TIMER-6)', async () => {
@@ -204,8 +279,16 @@ describe('useTimeStore (wall-clock derived timing)', () => {
     });
     await useTimeStore.getState().startTimer();
 
+    const onComplete = vi.fn();
+    const unsubscribe = events.on('timer:complete', onComplete);
+
     // 25m pomodoro + 5m short break end, then 10 minutes into the next pomodoro.
     await useTimeStore.getState().syncWithWallClock(START + 40 * MIN);
+    unsubscribe();
+
+    // Two sessions ended while away, but only one alarm plays.
+    expect(onComplete).toHaveBeenCalledTimes(1);
+    expect(onComplete).toHaveBeenCalledWith('short');
 
     expect(useTimeStore.getState()).toMatchObject({
       mode: 'pomodoro',
@@ -243,7 +326,14 @@ describe('useTimeStore (wall-clock derived timing)', () => {
     });
     await useTimeStore.getState().startTimer();
 
+    const onComplete = vi.fn();
+    const unsubscribe = events.on('timer:complete', onComplete);
+
     await useTimeStore.getState().syncWithWallClock(START + 2 * 60 * MIN);
+    unsubscribe();
+
+    expect(onComplete).toHaveBeenCalledTimes(1);
+    expect(onComplete).toHaveBeenCalledWith('short');
 
     expect(useTimeStore.getState()).toMatchObject({
       mode: 'pomodoro',
