@@ -95,19 +95,16 @@ describe('signed Stripe webhooks', () => {
     });
   });
 
-  it('returns a retryable failure without claiming an unmapped cancellation', async () => {
+  it('acknowledges an unmapped cancellation without changing any user', async () => {
     mocks.list.mockResolvedValue({ data: [] });
-    expect(
-      (
-        await POST(
-          request('customer.subscription.deleted', {
-            id: 'sub_missing',
-            metadata: {},
-          })
-        )
-      ).status
-    ).toBe(500);
-    expect(mocks.process).not.toHaveBeenCalled();
+    const response = await POST(
+      request('customer.subscription.deleted', {
+        id: 'sub_missing',
+        metadata: {},
+      })
+    );
+    expect(response.status).toBe(200);
+    expect(mocks.process).toHaveBeenCalledWith(expect.anything(), null);
   });
 
   it('does not reactivate a cancellation when checkout completion arrives late', async () => {
@@ -186,7 +183,10 @@ describe('signed Stripe webhooks', () => {
   });
 
   it('keeps premium when a lapsed subscription is replaced by a live one', async () => {
-    mocks.subscriptions.mockResolvedValue({ status: 'unpaid' });
+    mocks.subscriptions.mockImplementation(async (id: string) => ({
+      id,
+      status: id === 'sub_new' ? 'active' : 'unpaid',
+    }));
     mocks.search.mockResolvedValue({
       data: [
         { id: 'sub_old', status: 'unpaid' },
@@ -200,12 +200,20 @@ describe('signed Stripe webhooks', () => {
       })
     );
     expect(response.status).toBe(200);
+    expect(mocks.search).toHaveBeenCalledWith({
+      query: "metadata['userId']:'user_fixture'",
+      limit: 20,
+    });
     expect(mocks.process).toHaveBeenCalledWith(expect.anything(), null);
   });
 
   it('keeps premium when an old subscription is deleted but another is live', async () => {
     mocks.search.mockResolvedValue({
       data: [{ id: 'sub_new', status: 'trialing' }],
+    });
+    mocks.subscriptions.mockResolvedValue({
+      id: 'sub_new',
+      status: 'trialing',
     });
     const response = await POST(
       request('customer.subscription.deleted', {
@@ -215,6 +223,42 @@ describe('signed Stripe webhooks', () => {
     );
     expect(response.status).toBe(200);
     expect(mocks.process).toHaveBeenCalledWith(expect.anything(), null);
+  });
+
+  it('revokes premium when search is stale and the other subscription is already canceled', async () => {
+    mocks.search.mockResolvedValue({
+      data: [{ id: 'sub_other', status: 'active' }],
+    });
+    mocks.subscriptions.mockResolvedValue({
+      id: 'sub_other',
+      status: 'canceled',
+    });
+    const response = await POST(
+      request('customer.subscription.deleted', {
+        id: 'sub_old',
+        metadata: { userId: 'user_fixture' },
+      })
+    );
+    expect(response.status).toBe(200);
+    expect(mocks.process).toHaveBeenCalledWith(expect.anything(), {
+      userId: 'user_fixture',
+      isPremium: false,
+    });
+  });
+
+  it('never searches with an unsafe user id and still revokes premium', async () => {
+    const response = await POST(
+      request('customer.subscription.deleted', {
+        id: 'sub_old',
+        metadata: { userId: "x' OR status:'active" },
+      })
+    );
+    expect(response.status).toBe(200);
+    expect(mocks.search).not.toHaveBeenCalled();
+    expect(mocks.process).toHaveBeenCalledWith(expect.anything(), {
+      userId: "x' OR status:'active",
+      isPremium: false,
+    });
   });
 
   it('reports database failures as retryable processing errors', async () => {

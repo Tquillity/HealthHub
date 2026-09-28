@@ -1,16 +1,18 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getServerSession } from '@/lib/session';
-import { isStripeConfigured } from '@/lib/stripe';
+import {
+  isSafeStripeSearchId,
+  isStripeConfigured,
+  subscriptionsForUserQuery,
+} from '@/lib/stripe';
 
-/** Subscription states that still belong to the customer (paid, trialing, or awaiting payment). */
-const OPEN_SUBSCRIPTION_STATUSES = new Set([
-  'active',
-  'trialing',
-  'past_due',
-  'unpaid',
-  'incomplete',
-]);
+/**
+ * Subscriptions that block a new checkout: paid, trialing, or past_due (Stripe is still retrying
+ * the payment). unpaid/incomplete are not blocked: without a billing portal the user would have
+ * no way out, and the webhook keeps Pro correct if an old one later resolves.
+ */
+const OPEN_SUBSCRIPTION_STATUSES = new Set(['active', 'trialing', 'past_due']);
 
 /**
  * Creates a Stripe Checkout session for HealthHub Pro.
@@ -59,21 +61,23 @@ export async function POST() {
     const { default: Stripe } = await import('stripe');
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
-    // A lapsed (past_due/unpaid) subscription clears isPremium; don't let the user start a second one
-    const existing = await stripe.subscriptions.search({
-      query: `metadata['userId']:'${session.user.id.replace(/[^\w-]/g, '')}'`,
-      limit: 20,
-    });
-    if (
-      existing.data.some((sub) => OPEN_SUBSCRIPTION_STATUSES.has(sub.status))
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            'You already have a HealthHub Pro subscription. Update its payment method instead of starting a new one.',
-        },
-        { status: 409 }
-      );
+    // A lapsed (past_due) subscription clears isPremium; don't let the user start a second one
+    if (isSafeStripeSearchId(session.user.id)) {
+      const existing = await stripe.subscriptions.search({
+        query: subscriptionsForUserQuery(session.user.id),
+        limit: 20,
+      });
+      if (
+        existing.data.some((sub) => OPEN_SUBSCRIPTION_STATUSES.has(sub.status))
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              'You already have a HealthHub Pro subscription. Update its payment method instead of starting a new one.',
+          },
+          { status: 409 }
+        );
+      }
     }
 
     const checkout = await stripe.checkout.sessions.create({

@@ -67,3 +67,13 @@ it('refuses a second checkout while a lapsed subscription still exists', async (
   expect((await POST()).status).toBe(409);
   expect(mocks.create).not.toHaveBeenCalled();
 });
+
+it('allows a new checkout when the only old subscription is unpaid', async () => {
+  mocks.search.mockResolvedValue({
+    data: [{ id: 'sub_old', status: 'unpaid' }],
+  });
+  mocks.create.mockResolvedValue({
+    url: 'https://checkout.stripe.com/fixture',
+  });
+  expect((await POST()).status).toBe(200);
+});

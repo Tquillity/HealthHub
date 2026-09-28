@@ -17,3 +17,13 @@ export function isStripeConfigured(): boolean {
 export function isPremiumSubscriptionStatus(status: string): boolean {
   return status === 'active' || status === 'trialing';
 }
+
+/** User ids are interpolated into Stripe search queries, so only allow id-safe characters. */
+export function isSafeStripeSearchId(id: string): boolean {
+  return /^[\w-]+$/.test(id);
+}
+
+/** Stripe search query for subscriptions created for a HealthHub user (checkout sets this metadata). */
+export function subscriptionsForUserQuery(userId: string): string {
+  return `metadata['userId']:'${userId}'`;
+}

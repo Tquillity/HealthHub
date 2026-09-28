@@ -1,6 +1,11 @@
 import Stripe from 'stripe';
 import { NextResponse } from 'next/server';
-import { isPremiumSubscriptionStatus, isStripeConfigured } from '@/lib/stripe';
+import {
+  isPremiumSubscriptionStatus,
+  isSafeStripeSearchId,
+  isStripeConfigured,
+  subscriptionsForUserQuery,
+} from '@/lib/stripe';
 import { processStripeEvent, type PremiumChange } from '@/lib/stripe-webhook';
 
 /** HealthHub user for a subscription: its metadata, else the original checkout's. */
@@ -28,16 +33,19 @@ async function hasOtherLiveSubscription(
   userId: string,
   subscriptionId: string
 ): Promise<boolean> {
-  // Search can't mix AND/OR, so query by user and filter statuses here
-  if (!/^[\w-]+$/.test(userId)) return false;
+  if (!isSafeStripeSearchId(userId)) return false;
+  // Search can't mix AND/OR, so query by user and check statuses here. Search results can be up
+  // to ~1 minute stale, so each candidate is re-read before it may keep Pro. (A subscription
+  // created within that minute can be missed; it restores Pro on its own next update event.)
   const result = await stripe.subscriptions.search({
-    query: `metadata['userId']:'${userId}'`,
+    query: subscriptionsForUserQuery(userId),
     limit: 20,
   });
-  return result.data.some(
-    (other) =>
-      other.id !== subscriptionId && isPremiumSubscriptionStatus(other.status)
+  const candidates = result.data.filter((other) => other.id !== subscriptionId);
+  const fresh = await Promise.all(
+    candidates.map((other) => stripe.subscriptions.retrieve(other.id))
   );
+  return fresh.some((other) => isPremiumSubscriptionStatus(other.status));
 }
 
 export async function POST(request: Request) {
@@ -123,8 +131,14 @@ export async function POST(request: Request) {
       case 'customer.subscription.deleted': {
         const subscription = event.data.object;
         const userId = await resolveSubscriptionUserId(stripe, subscription);
-        if (!userId)
-          throw new Error('Canceled subscription has no HealthHub user');
+        if (!userId) {
+          // Not a HealthHub subscription; a retry can't fix that
+          console.warn(
+            '[HealthHub stripe] Ignoring cancellation of unmapped subscription',
+            subscription.id
+          );
+          break;
+        }
         if (await hasOtherLiveSubscription(stripe, userId, subscription.id))
           break;
         premiumChange = { userId, isPremium: false };
