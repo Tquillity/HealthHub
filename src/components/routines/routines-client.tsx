@@ -18,7 +18,9 @@ interface RoutinesClientProps {
   routines: Routine[];
 }
 
-export function RoutinesClient({ routines: initialRoutines }: RoutinesClientProps) {
+export function RoutinesClient({
+  routines: initialRoutines,
+}: RoutinesClientProps) {
   const router = useRouter();
   const showToast = useUIStore((state) => state.showToast);
   const [routines] = useState(initialRoutines);
@@ -28,7 +30,10 @@ export function RoutinesClient({ routines: initialRoutines }: RoutinesClientProp
   const [category, setCategory] = useQueryState('category', parseAsString);
   const [energyLevel, setEnergyLevel] = useQueryState('energy', parseAsString);
   const [context, setContext] = useQueryState('context', parseAsString);
-  const [difficulty, setDifficulty] = useQueryState('difficulty', parseAsString);
+  const [difficulty, setDifficulty] = useQueryState(
+    'difficulty',
+    parseAsString
+  );
   const [duration, setDuration] = useQueryState('duration', parseAsString);
 
   const hasActiveFilters = Boolean(
@@ -47,8 +52,11 @@ export function RoutinesClient({ routines: initialRoutines }: RoutinesClientProp
   // Filter routines client-side
   const filteredRoutines = useMemo(() => {
     return routines.filter((routine) => {
-      if (query && !routine.name.toLowerCase().includes(query.toLowerCase()) && 
-          !routine.description?.toLowerCase().includes(query.toLowerCase())) {
+      if (
+        query &&
+        !routine.name.toLowerCase().includes(query.toLowerCase()) &&
+        !routine.description?.toLowerCase().includes(query.toLowerCase())
+      ) {
         return false;
       }
       if (category && routine.category !== category) return false;
@@ -63,7 +71,9 @@ export function RoutinesClient({ routines: initialRoutines }: RoutinesClientProp
   const [showLotteryDialog, setShowLotteryDialog] = useState(false);
   const [lotteryResults, setLotteryResults] = useState<Routine[]>([]);
   const [lotterySpinning, setLotterySpinning] = useState(false);
-  const [lotteryEnergy, setLotteryEnergy] = useState<'low' | 'medium' | 'high'>('medium');
+  const [lotteryEnergy, setLotteryEnergy] = useState<'low' | 'medium' | 'high'>(
+    'medium'
+  );
   const [lotteryMaxTime, setLotteryMaxTime] = useState(30);
   const [lotteryCount, setLotteryCount] = useState(1);
   const [lotteryContext, setLotteryContext] = useState<string>('');
@@ -91,10 +101,19 @@ export function RoutinesClient({ routines: initialRoutines }: RoutinesClientProp
       if (Array.isArray(result.data) && result.data.length > 0) {
         setLotteryResults(result.data);
       } else {
-        showToast('No routines match your criteria. Try adjusting filters.', 'warning');
+        showToast(
+          'No routines match your criteria. Try adjusting filters.',
+          'warning'
+        );
       }
-    } else if (result.success && (!result.data || (Array.isArray(result.data) && result.data.length === 0))) {
-      showToast('No routines match your criteria. Try adjusting filters.', 'warning');
+    } else if (
+      result.success &&
+      (!result.data || (Array.isArray(result.data) && result.data.length === 0))
+    ) {
+      showToast(
+        'No routines match your criteria. Try adjusting filters.',
+        'warning'
+      );
     } else {
       showToast(result.error || 'Failed to draw lottery', 'error');
     }
@@ -124,7 +143,9 @@ export function RoutinesClient({ routines: initialRoutines }: RoutinesClientProp
       ) : (
         <EmptyState
           icon={Sparkles}
-          title={routines.length === 0 ? 'No routines yet' : 'No routines found'}
+          title={
+            routines.length === 0 ? 'No routines yet' : 'No routines found'
+          }
           description={
             routines.length === 0
               ? 'Create your first routine or spin the lottery when you have habits to pick from.'
@@ -179,7 +200,6 @@ export function RoutinesClient({ routines: initialRoutines }: RoutinesClientProp
         </div>
       )}
 
-
       {/* Lottery Dialog */}
       {showLotteryDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
@@ -205,7 +225,9 @@ export function RoutinesClient({ routines: initialRoutines }: RoutinesClientProp
                 <select
                   value={lotteryEnergy}
                   onChange={(e) =>
-                    setLotteryEnergy(e.target.value as 'low' | 'medium' | 'high')
+                    setLotteryEnergy(
+                      e.target.value as 'low' | 'medium' | 'high'
+                    )
                   }
                   className="mt-1 flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
                 >
@@ -222,9 +244,15 @@ export function RoutinesClient({ routines: initialRoutines }: RoutinesClientProp
                 <Input
                   type="number"
                   min="1"
+                  max="1440"
                   value={lotteryMaxTime}
                   onChange={(e) =>
-                    setLotteryMaxTime(parseInt(e.target.value) || 30)
+                    setLotteryMaxTime(
+                      Math.min(
+                        1440,
+                        Math.max(1, parseInt(e.target.value) || 30)
+                      )
+                    )
                   }
                   className="mt-1"
                 />
@@ -327,4 +355,3 @@ export function RoutinesClient({ routines: initialRoutines }: RoutinesClientProp
     </>
   );
 }
-

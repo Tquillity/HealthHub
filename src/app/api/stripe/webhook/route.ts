@@ -19,6 +19,27 @@ async function resolveSubscriptionUserId(
   return checkout?.metadata?.userId || checkout?.client_reference_id || '';
 }
 
+/**
+ * True when the user has another subscription that still grants Pro.
+ * Guards against revoking access because an old subscription lapsed while a newer one is paid.
+ */
+async function hasOtherLiveSubscription(
+  stripe: Stripe,
+  userId: string,
+  subscriptionId: string
+): Promise<boolean> {
+  // Search can't mix AND/OR, so query by user and filter statuses here
+  if (!/^[\w-]+$/.test(userId)) return false;
+  const result = await stripe.subscriptions.search({
+    query: `metadata['userId']:'${userId}'`,
+    limit: 20,
+  });
+  return result.data.some(
+    (other) =>
+      other.id !== subscriptionId && isPremiumSubscriptionStatus(other.status)
+  );
+}
+
 export async function POST(request: Request) {
   if (!isStripeConfigured()) {
     return NextResponse.json(
@@ -80,14 +101,23 @@ export async function POST(request: Request) {
       case 'customer.subscription.updated': {
         const subscription = event.data.object;
         const userId = await resolveSubscriptionUserId(stripe, subscription);
-        if (!userId)
-          throw new Error('Updated subscription has no HealthHub user');
+        if (!userId) {
+          // Not a HealthHub subscription (e.g. created in the dashboard); a retry can't fix that
+          console.warn(
+            '[HealthHub stripe] Ignoring update for unmapped subscription',
+            subscription.id
+          );
+          break;
+        }
         // Fetch current state so an out-of-order update cannot restore stale access.
         const current = await stripe.subscriptions.retrieve(subscription.id);
-        premiumChange = {
-          userId,
-          isPremium: isPremiumSubscriptionStatus(current.status),
-        };
+        const isPremium = isPremiumSubscriptionStatus(current.status);
+        if (
+          !isPremium &&
+          (await hasOtherLiveSubscription(stripe, userId, subscription.id))
+        )
+          break;
+        premiumChange = { userId, isPremium };
         break;
       }
       case 'customer.subscription.deleted': {
@@ -95,6 +125,8 @@ export async function POST(request: Request) {
         const userId = await resolveSubscriptionUserId(stripe, subscription);
         if (!userId)
           throw new Error('Canceled subscription has no HealthHub user');
+        if (await hasOtherLiveSubscription(stripe, userId, subscription.id))
+          break;
         premiumChange = { userId, isPremium: false };
         break;
       }

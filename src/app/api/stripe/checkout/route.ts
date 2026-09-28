@@ -3,6 +3,15 @@ import { prisma } from '@/lib/db';
 import { getServerSession } from '@/lib/session';
 import { isStripeConfigured } from '@/lib/stripe';
 
+/** Subscription states that still belong to the customer (paid, trialing, or awaiting payment). */
+const OPEN_SUBSCRIPTION_STATUSES = new Set([
+  'active',
+  'trialing',
+  'past_due',
+  'unpaid',
+  'incomplete',
+]);
+
 /**
  * Creates a Stripe Checkout session for HealthHub Pro.
  * Requires STRIPE_PRICE_ID_PRO and authenticated user.
@@ -49,6 +58,24 @@ export async function POST() {
   try {
     const { default: Stripe } = await import('stripe');
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+
+    // A lapsed (past_due/unpaid) subscription clears isPremium; don't let the user start a second one
+    const existing = await stripe.subscriptions.search({
+      query: `metadata['userId']:'${session.user.id.replace(/[^\w-]/g, '')}'`,
+      limit: 20,
+    });
+    if (
+      existing.data.some((sub) => OPEN_SUBSCRIPTION_STATUSES.has(sub.status))
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            'You already have a HealthHub Pro subscription. Update its payment method instead of starting a new one.',
+        },
+        { status: 409 }
+      );
+    }
+
     const checkout = await stripe.checkout.sessions.create({
       mode: 'subscription',
       line_items: [{ price: priceId, quantity: 1 }],

@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
-const mocks = vi.hoisted(() => ({ create: vi.fn(), findUnique: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  create: vi.fn(),
+  findUnique: vi.fn(),
+  search: vi.fn(),
+}));
 vi.mock('@/lib/session', () => ({
   getServerSession: vi
     .fn()
@@ -12,6 +16,7 @@ vi.mock('@/lib/db', () => ({
 vi.mock('stripe', () => ({
   default: class {
     checkout = { sessions: { create: mocks.create } };
+    subscriptions = { search: mocks.search };
   },
 }));
 import { POST } from './route';
@@ -23,6 +28,7 @@ beforeEach(() => {
   vi.stubEnv('STRIPE_PRICE_ID_PRO', 'price_fixture');
   vi.stubEnv('BETTER_AUTH_URL', 'http://localhost:3000');
   mocks.findUnique.mockResolvedValue({ isPremium: false });
+  mocks.search.mockResolvedValue({ data: [] });
 });
 afterEach(() => vi.unstubAllEnvs());
 
@@ -51,5 +57,13 @@ it('refuses a second checkout for an already-premium user', async () => {
     where: { id: 'checkout-user' },
     select: { isPremium: true },
   });
+  expect(mocks.create).not.toHaveBeenCalled();
+});
+
+it('refuses a second checkout while a lapsed subscription still exists', async () => {
+  mocks.search.mockResolvedValue({
+    data: [{ id: 'sub_old', status: 'past_due' }],
+  });
+  expect((await POST()).status).toBe(409);
   expect(mocks.create).not.toHaveBeenCalled();
 });

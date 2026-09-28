@@ -4,6 +4,7 @@ import Stripe from 'stripe';
 const mocks = vi.hoisted(() => ({
   process: vi.fn(),
   subscriptions: vi.fn(),
+  search: vi.fn(),
   list: vi.fn(),
 }));
 vi.mock('@/lib/stripe-webhook', () => ({ processStripeEvent: mocks.process }));
@@ -15,6 +16,7 @@ vi.mock('stripe', async (importOriginal) => {
       constructor(key: string) {
         super(key);
         this.subscriptions.retrieve = mocks.subscriptions;
+        this.subscriptions.search = mocks.search;
         this.checkout.sessions.list = mocks.list;
       }
     },
@@ -43,6 +45,7 @@ beforeEach(() => {
   vi.stubEnv('STRIPE_WEBHOOK_SECRET', secret);
   mocks.process.mockResolvedValue({ duplicate: false });
   mocks.subscriptions.mockResolvedValue({ status: 'active' });
+  mocks.search.mockResolvedValue({ data: [] });
 });
 afterEach(() => vi.unstubAllEnvs());
 
@@ -170,7 +173,7 @@ describe('signed Stripe webhooks', () => {
     });
   });
 
-  it('returns a retryable failure for an unmapped subscription update', async () => {
+  it('acknowledges an unmapped subscription update without changing any user', async () => {
     mocks.list.mockResolvedValue({ data: [] });
     const response = await POST(
       request('customer.subscription.updated', {
@@ -178,8 +181,40 @@ describe('signed Stripe webhooks', () => {
         metadata: {},
       })
     );
-    expect(response.status).toBe(500);
-    expect(mocks.process).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(mocks.process).toHaveBeenCalledWith(expect.anything(), null);
+  });
+
+  it('keeps premium when a lapsed subscription is replaced by a live one', async () => {
+    mocks.subscriptions.mockResolvedValue({ status: 'unpaid' });
+    mocks.search.mockResolvedValue({
+      data: [
+        { id: 'sub_old', status: 'unpaid' },
+        { id: 'sub_new', status: 'active' },
+      ],
+    });
+    const response = await POST(
+      request('customer.subscription.updated', {
+        id: 'sub_old',
+        metadata: { userId: 'user_fixture' },
+      })
+    );
+    expect(response.status).toBe(200);
+    expect(mocks.process).toHaveBeenCalledWith(expect.anything(), null);
+  });
+
+  it('keeps premium when an old subscription is deleted but another is live', async () => {
+    mocks.search.mockResolvedValue({
+      data: [{ id: 'sub_new', status: 'trialing' }],
+    });
+    const response = await POST(
+      request('customer.subscription.deleted', {
+        id: 'sub_old',
+        metadata: { userId: 'user_fixture' },
+      })
+    );
+    expect(response.status).toBe(200);
+    expect(mocks.process).toHaveBeenCalledWith(expect.anything(), null);
   });
 
   it('reports database failures as retryable processing errors', async () => {
