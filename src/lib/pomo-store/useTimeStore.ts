@@ -177,7 +177,13 @@ export const useTimeStore = create<TimeState>()(
       },
 
       tick: (elapsedSeconds: number = 1) => {
-        const { timeLeft, mode, pomodorosCompleted, history } = get();
+        const { timeLeft, mode, pomodorosCompleted, history, isRunning } = get();
+
+        // Ignore ticks that arrive after a pause/reset or a state import stopped the session;
+        // otherwise a still-running worker keeps counting down and records fake completions.
+        if (!isRunning) {
+          return;
+        }
         
         const newTimeLeft = Math.max(0, timeLeft - elapsedSeconds);
         

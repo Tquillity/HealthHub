@@ -18,6 +18,11 @@ export const useKeyboardShortcuts = () => {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Leave browser/OS shortcuts alone (Ctrl+F find, Ctrl+Shift+R reload, ...) and ignore key repeat
+      if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) {
+        return;
+      }
+
       const active = document.activeElement as HTMLElement | null;
       const tag = active?.tagName?.toLowerCase();
 

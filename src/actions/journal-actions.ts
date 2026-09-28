@@ -8,24 +8,28 @@ import { startOfMonth, endOfMonth } from 'date-fns';
 import { encrypt, decrypt, encryptArray, decryptArray } from '@/lib/encryption';
 
 // Zod schemas
+// Every item is encrypted individually, so bound list and text sizes to keep saves cheap.
+const JournalText = z.string().max(10_000);
+const JournalList = z.array(z.string().max(500)).max(50).default([]);
+
 const CreateJournalSchema = z.object({
   date: z.string().or(z.date()), // Accept ISO string or Date
   mood: z.number().int().min(1).max(10).optional(),
   energy: z.number().int().min(1).max(10).optional(),
   sleepHours: z.number().positive().max(24).optional(),
-  notes: z.string().optional(),
-  tags: z.array(z.string()).default([]),
+  notes: JournalText.optional(),
+  tags: JournalList,
   // Gratitude
-  gratitudeEntries: z.array(z.string()).default([]),
-  gratitudeNotes: z.string().optional(),
+  gratitudeEntries: JournalList,
+  gratitudeNotes: JournalText.optional(),
   // Goals
-  goalsAchieved: z.array(z.string()).default([]),
-  goalsProgress: z.array(z.string()).default([]),
-  goalsNotes: z.string().optional(),
+  goalsAchieved: JournalList,
+  goalsProgress: JournalList,
+  goalsNotes: JournalText.optional(),
   // Symptoms
-  symptomsPhysical: z.array(z.string()).default([]),
-  symptomsMental: z.array(z.string()).default([]),
-  symptomsNotes: z.string().optional(),
+  symptomsPhysical: JournalList,
+  symptomsMental: JournalList,
+  symptomsNotes: JournalText.optional(),
 });
 
 export async function logJournalEntry(data: z.infer<typeof CreateJournalSchema>) {

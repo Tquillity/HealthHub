@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/db';
 import { requireSessionUserId } from '@/lib/session';
 import { addDays } from 'date-fns';
+import { buildRecipeVisibilityFilter } from '@/actions/recipe-shared';
 
 export async function getWeeklyPlan(date?: Date) {
   const authResult = await requireSessionUserId();
@@ -102,7 +103,7 @@ export async function getWeeklyPlan(date?: Date) {
 
   return { 
     plan, 
-    recipes: await getAvailableRecipes(membership.organizationId),
+    recipes: await getAvailableRecipes(authResult.userId),
     duration,
     startDate,
     endDate,
@@ -173,11 +174,10 @@ export async function getMealPlanTemplates() {
  * @param templateId - The ID of the template to delete
  * @returns Success status with error message if operation fails
  */
-async function getAvailableRecipes(orgId: string) {
+async function getAvailableRecipes(userId: string) {
+  // Same visibility rules as the recipe pages (hides secret/private recipes)
   return await prisma.recipe.findMany({
-    where: {
-      OR: [{ isSystem: true }, { organizationId: orgId }],
-    },
+    where: await buildRecipeVisibilityFilter(userId),
     select: { id: true, name: true, category: true, imageUrl: true },
   });
 }

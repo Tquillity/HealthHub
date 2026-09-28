@@ -7,6 +7,7 @@ import { Menu, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ProtectedNavItem } from '@/components/layout/protected-nav-items';
 import { ProtectedNavIcon } from '@/components/layout/protected-nav-icon';
+import { SignOutButton } from './sign-out-button';
 
 type ProtectedMobileNavProps = {
   items: ProtectedNavItem[];
@@ -169,6 +170,7 @@ export function ProtectedMobileNav({ items, userName }: ProtectedMobileNavProps)
                 <ProtectedNavIcon name="user" className="h-4 w-4 shrink-0" />
                 {userName}
               </div>
+              <SignOutButton />
             </div>
           </aside>
         </div>

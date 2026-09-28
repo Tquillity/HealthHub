@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { calculateCyclePhase } from '@/lib/cycle-calculator';
+import { calculateCyclePhase, getOvulationDay, getPhaseForDay } from '@/lib/cycle-calculator';
 
 describe('calculateCyclePhase', () => {
   beforeEach(() => {
@@ -45,5 +45,47 @@ describe('calculateCyclePhase', () => {
     const result = calculateCyclePhase(new Date('2026-05-25'), 28);
     expect(result.currentPhase).toBe('follicular');
     expect(result.daysIntoCycle).toBe(1);
+  });
+
+  it('places ovulation 14 days before the next period on short cycles', () => {
+    // 21-day cycle: ovulation ~day 7, not clamped to day 14
+    const result = calculateCyclePhase(new Date('2026-05-13'), 21);
+    expect(result.ovulationDay).toBe(7);
+    expect(result.daysIntoCycle).toBe(7);
+    expect(result.currentPhase).toBe('ovulation');
+  });
+
+  it('keeps a ~14 day luteal phase on a 24-day cycle', () => {
+    const result = calculateCyclePhase(new Date('2026-05-08'), 24);
+    expect(result.ovulationDay).toBe(10);
+    expect(result.daysIntoCycle).toBe(12);
+    expect(result.currentPhase).toBe('luteal');
+  });
+});
+
+describe('getOvulationDay', () => {
+  it.each([
+    [20, 6],
+    [21, 7],
+    [28, 14],
+    [35, 21],
+    [45, 31],
+  ])('cycle length %i ovulates on day %i', (cycleLength, expected) => {
+    expect(getOvulationDay(cycleLength)).toBe(expected);
+  });
+});
+
+describe('getPhaseForDay', () => {
+  it('uses cycle-length-aware boundaries', () => {
+    // 28-day cycle: ovulation day 14, window 11-14
+    expect(getPhaseForDay(5, 28)).toBe('menstrual');
+    expect(getPhaseForDay(10, 28)).toBe('follicular');
+    expect(getPhaseForDay(11, 28)).toBe('ovulation');
+    expect(getPhaseForDay(15, 28)).toBe('luteal');
+    // 21-day cycle: ovulation day 7, so day 12 is already luteal
+    expect(getPhaseForDay(6, 21)).toBe('ovulation');
+    expect(getPhaseForDay(12, 21)).toBe('luteal');
+    // 35-day cycle: ovulation day 21, so day 16 is still follicular
+    expect(getPhaseForDay(16, 35)).toBe('follicular');
   });
 });

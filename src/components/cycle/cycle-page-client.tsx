@@ -20,11 +20,12 @@
  */
 
 import { useState, useEffect } from 'react';
-import { CyclePhase, CyclePhaseResult } from '@/lib/cycle-calculator';
+import { CyclePhase, CyclePhaseResult, getPhaseForDay } from '@/lib/cycle-calculator';
 import type { FocusPreference, PhaseRecommendationWithExpert } from '@/types/cycle';
-import { useQueryState, parseAsString } from 'nuqs';
+import { useQueryState, parseAsString, parseAsStringLiteral } from 'nuqs';
 import { FocusPreferenceSelector } from './focus-preference-selector';
 import dynamic from 'next/dynamic';
+
 
 const CycleChart = dynamic(
   () => import('./cycle-chart').then((mod) => mod.CycleChart),
@@ -44,9 +45,12 @@ import { PhaseDeepDive } from './phase-deep-dive';
 import { ModeToggle } from './mode-toggle';
 import { Card } from '@/components/ui/card';
 import { Calendar, Sparkles } from 'lucide-react';
-import { differenceInDays } from 'date-fns';
+import { differenceInDays, format } from 'date-fns';
 import { getPhaseTheme } from '@/lib/phase-theme';
 import { getJournalSnippet } from '@/actions/journal-actions';
+
+const CYCLE_PHASES = ['menstrual', 'follicular', 'ovulation', 'luteal'] as const satisfies readonly CyclePhase[];
+const CHART_MODES = ['lifestyle', 'clinical'] as const;
 
 interface CyclePageClientProps {
   phaseData: CyclePhaseResult;
@@ -78,9 +82,11 @@ export function CyclePageClient({
   userPreference,
 }: CyclePageClientProps) {
   // URL state management with nuqs
+  // Literal parser: an unknown ?phase= value (old or hand-edited link) falls back to the default
+  // instead of reaching getPhaseTheme() as an invalid phase and crashing the page.
   const [urlPhase, setUrlPhase] = useQueryState(
     'phase',
-    parseAsString.withDefault(phaseData.currentPhase)
+    parseAsStringLiteral(CYCLE_PHASES).withDefault(phaseData.currentPhase)
   );
   const [view, setView] = useQueryState(
     'view',
@@ -92,7 +98,7 @@ export function CyclePageClient({
   );
   const [mode] = useQueryState(
     'mode',
-    parseAsString.withDefault('lifestyle')
+    parseAsStringLiteral(CHART_MODES).withDefault('lifestyle')
   );
 
   // Track the "active" phase to show in Insight Center
@@ -101,7 +107,7 @@ export function CyclePageClient({
   const [isHovering, setIsHovering] = useState(false);
 
   // Determine active phase based on URL and hover state
-  const activePhase: CyclePhase = (urlPhase as CyclePhase) || hoveredPhase || phaseData.currentPhase;
+  const activePhase: CyclePhase = urlPhase || hoveredPhase || phaseData.currentPhase;
   const isExploringPhase = urlPhase && urlPhase !== phaseData.currentPhase;
 
   // Get theme for active phase
@@ -132,7 +138,7 @@ export function CyclePageClient({
 
   // View orchestrator: Determine if we should show detail view or summary view
   // If view is 'detail', default to current phase if no phase is selected
-  const effectivePhase = (urlPhase as CyclePhase) || (view === 'detail' ? phaseData.currentPhase : null);
+  const effectivePhase = urlPhase || (view === 'detail' ? phaseData.currentPhase : null);
   const showDetailView = view === 'detail' && effectivePhase;
   const detailPhase = effectivePhase;
 
@@ -182,17 +188,8 @@ export function CyclePageClient({
           const daysDiff = differenceInDays(dateObj, lastPeriod);
           const daysIntoSelectedCycle = (daysDiff % userPreference.cycleLength) + 1;
           
-          // Determine phase based on selected date's position in cycle
-          let calculatedPhase: CyclePhase = 'luteal';
-          if (daysIntoSelectedCycle <= 5) {
-            calculatedPhase = 'menstrual';
-          } else if (daysIntoSelectedCycle <= 14) {
-            calculatedPhase = 'follicular';
-          } else if (daysIntoSelectedCycle <= 18) {
-            calculatedPhase = 'ovulation';
-          }
-          
-          setSelectedDatePhase(calculatedPhase);
+          // Same boundaries as the server calculator and the chart (depend on cycle length)
+          setSelectedDatePhase(getPhaseForDay(daysIntoSelectedCycle, userPreference.cycleLength));
         }
 
         const result = await getJournalSnippet(selectedDate);
@@ -211,7 +208,8 @@ export function CyclePageClient({
 
   // Handle day click from chart
   const handleDayClick = (date: Date, _day: number) => {
-    const dateStr = date.toISOString().split('T')[0];
+    // Local calendar date; toISOString() would shift to the previous day east of UTC
+    const dateStr = format(date, 'yyyy-MM-dd');
     setSelectedDate(dateStr);
   };
 
@@ -317,11 +315,10 @@ export function CyclePageClient({
           <CycleChart
             phaseData={phaseData}
             cycleLength={userPreference.cycleLength}
-            lastPeriodDate={userPreference.lastPeriodDate}
             onPhaseHover={handleHoverChange}
             onPhaseClick={handlePhaseClick}
             onDayClick={handleDayClick}
-            mode={mode as 'lifestyle' | 'clinical'}
+            mode={mode}
           />
         </Card>
 
@@ -340,7 +337,7 @@ export function CyclePageClient({
               activePhase={activePhase}
               currentPhase={phaseData.currentPhase}
               isHovering={isHovering}
-              mode={mode as 'lifestyle' | 'clinical'}
+              mode={mode}
             />
           )}
 

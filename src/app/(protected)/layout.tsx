@@ -5,6 +5,8 @@ import { Footer } from '@/components/layout/footer';
 import { ProtectedMobileNav } from '@/components/layout/protected-mobile-nav';
 import { ProtectedNavIcon } from '@/components/layout/protected-nav-icon';
 import { protectedNavItems } from '@/components/layout/protected-nav-items';
+import { SignOutButton } from '@/components/layout/sign-out-button';
+import { ensurePersonalHousehold } from '@/lib/household';
 
 /**
  * Auth layout reads session via `headers()` on every request. Without this,
@@ -32,6 +34,14 @@ export default async function DashboardLayout({
     redirect('/sign-in');
   }
 
+  // Backfill for accounts created before sign-up provisioned a household (see src/lib/auth.ts).
+  // Layouts render in parallel with pages, so a page may need one refresh on that first visit.
+  try {
+    await ensurePersonalHousehold(session.user);
+  } catch (error) {
+    console.error('[HealthHub household] Failed to ensure household:', error);
+  }
+
   return (
     <div className="flex min-h-screen bg-gray-50 text-gray-900">
       <aside className="hidden w-64 flex-col border-r border-gray-200 bg-white p-6 md:flex">
@@ -56,6 +66,7 @@ export default async function DashboardLayout({
             <ProtectedNavIcon name="user" className="h-4 w-4" />
             {session.user.name}
           </div>
+          <SignOutButton />
         </div>
       </aside>
 

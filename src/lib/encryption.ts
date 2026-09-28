@@ -19,6 +19,8 @@ const SALT_LENGTH = 16;
  * Get encryption key from environment variable
  * Falls back to a derived key from BETTER_AUTH_SECRET if ENCRYPTION_KEY is not set
  */
+let cachedKey: { secret: string; key: Buffer } | null = null;
+
 function getEncryptionKey(): Buffer {
   const encryptionKey = process.env.ENCRYPTION_KEY || process.env.BETTER_AUTH_SECRET;
   
@@ -26,8 +28,15 @@ function getEncryptionKey(): Buffer {
     throw new Error('❌ ENCRYPTION_KEY or BETTER_AUTH_SECRET must be set for encryption');
   }
   
-  // Derive a 32-byte key from the secret using scrypt
-  return scryptSync(encryptionKey, 'healthhub-salt', KEY_LENGTH);
+  // scrypt is deliberately slow (~40ms, blocking), so derive the 32-byte key once per secret
+  // instead of on every encrypt/decrypt call.
+  if (cachedKey?.secret !== encryptionKey) {
+    cachedKey = {
+      secret: encryptionKey,
+      key: scryptSync(encryptionKey, 'healthhub-salt', KEY_LENGTH),
+    };
+  }
+  return cachedKey.key;
 }
 
 /**

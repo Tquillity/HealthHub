@@ -166,8 +166,9 @@ export function normalizeIngredientName(name: string): string {
 }
 
 export function isExcludedItem(name: string): boolean {
-  const lowerName = name.toLowerCase();
-  return EXCLUDED_KEYWORDS.some((keyword) => lowerName.includes(keyword));
+  // Whole-word match: plain water is dropped, but "watermelon" / "vattenmelon" / "watercress" are real groceries
+  const words = ` ${name.toLowerCase().split(/[^\p{L}]+/u).filter(Boolean).join(' ')} `;
+  return EXCLUDED_KEYWORDS.some((keyword) => words.includes(` ${keyword} `));
 }
 
 export function isStapleItem(name: string): boolean {

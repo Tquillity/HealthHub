@@ -174,8 +174,25 @@ export async function getRoutine(id: string) {
       return { success: false, error: authResult.error, data: null };
     }
 
-    const routine = await prisma.routine.findUnique({
-      where: { id },
+    const parsedId = z.string().min(1).safeParse(id);
+    if (!parsedId.success) {
+      return { success: false, error: 'Routine not found', data: null };
+    }
+
+    const membership = await prisma.member.findFirst({
+      where: { userId: authResult.userId },
+      select: { organizationId: true },
+    });
+
+    // Only system routines and routines owned by the caller's household are readable
+    const routine = await prisma.routine.findFirst({
+      where: {
+        id: parsedId.data,
+        OR: [
+          { isSystem: true },
+          ...(membership ? [{ organizationId: membership.organizationId }] : []),
+        ],
+      },
     });
 
     if (!routine) {

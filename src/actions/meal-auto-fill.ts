@@ -5,6 +5,7 @@ import { requireSessionUserId } from '@/lib/session';
 import { revalidatePath } from 'next/cache';
 import { endOfWeek, startOfWeek, eachDayOfInterval } from 'date-fns';
 import type { Prisma } from '@prisma/client';
+import { buildRecipeVisibilityFilter } from '@/actions/recipe-shared';
 import {
   MEAL_TYPES,
   buildExistingSlotSet,
@@ -46,10 +47,9 @@ export async function generateMealPlan(data: {
       select: { dietaryRestrictions: true, healthGoals: true },
     });
 
-    const allDietaryRestrictions = [
-      ...(user?.dietaryRestrictions || []),
-      ...data.dietaryRestrictions,
-    ];
+    const allDietaryRestrictions = Array.from(
+      new Set([...(user?.dietaryRestrictions || []), ...data.dietaryRestrictions])
+    );
 
     const weekStart = new Date(data.weekStart);
     weekStart.setHours(0, 0, 0, 0);
@@ -88,12 +88,14 @@ export async function generateMealPlan(data: {
 
     const existingSlots = buildExistingSlotSet(plan.items);
 
+    // Same visibility rules as the recipe pages (hides secret/private recipes)
     const recipeWhere: Prisma.RecipeWhereInput = {
-      OR: [{ isSystem: true }, { organizationId: membership.organizationId }],
+      AND: [await buildRecipeVisibilityFilter(authResult.userId)],
     };
 
+    // Every restriction must be satisfied (e.g. vegan AND gluten-free), not just one of them
     if (allDietaryRestrictions.length > 0) {
-      recipeWhere.dietaryTags = { hasSome: allDietaryRestrictions };
+      recipeWhere.dietaryTags = { hasEvery: allDietaryRestrictions };
     }
 
     if (data.cuisinePreferences.length > 0) {

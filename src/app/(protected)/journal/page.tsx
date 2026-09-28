@@ -28,6 +28,7 @@ export default async function JournalPage() {
         lte: monthEnd,
       },
     },
+    orderBy: { date: 'asc' },
   });
 
   // Decrypt sensitive fields before passing to client
