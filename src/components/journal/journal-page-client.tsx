@@ -8,14 +8,22 @@ import { JournalAnalytics } from '@/components/journal/journal-analytics';
 import { JournalEntryDetail } from '@/components/journal/journal-entry-detail';
 import { getJournalEntryByDate } from '@/actions/journal-actions';
 import type { JournalEntry } from '@prisma/client';
+import { toDateOnlyString } from '@/lib/date-only';
 
 interface JournalPageClientProps {
   initialEntries: JournalEntry[];
+  /** Month the entries were loaded for (`YYYY-MM`). */
+  monthKey: string;
 }
 
-export default function JournalPageClient({ initialEntries }: JournalPageClientProps) {
+export default function JournalPageClient({
+  initialEntries,
+  monthKey,
+}: JournalPageClientProps) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'calendar' | 'form' | 'analytics'>('calendar');
+  const [activeTab, setActiveTab] = useState<'calendar' | 'form' | 'analytics'>(
+    'calendar'
+  );
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<JournalEntry | null>(null);
   // Read from props so router.refresh() after save/delete shows the new data
@@ -107,6 +115,7 @@ export default function JournalPageClient({ initialEntries }: JournalPageClientP
       {activeTab === 'calendar' && (
         <JournalCalendar
           entries={entries}
+          monthKey={monthKey}
           selectedDate={selectedDate}
           onDateSelect={handleDateSelect}
           onEntryClick={handleEntryClick}
@@ -125,14 +134,15 @@ export default function JournalPageClient({ initialEntries }: JournalPageClientP
         </div>
       )}
 
-      {activeTab === 'analytics' && (
-        <JournalAnalytics entries={entries} />
-      )}
+      {activeTab === 'analytics' && <JournalAnalytics entries={entries} />}
 
       {/* Entry Detail Modal */}
       {showEntryDetail && selectedEntry && (
         <JournalEntryDetail
           entry={selectedEntry}
+          dateKey={
+            selectedDate ?? toDateOnlyString(new Date(selectedEntry.date))
+          }
           onClose={handleCloseEntryDetail}
           onEdit={handleEditEntry}
         />

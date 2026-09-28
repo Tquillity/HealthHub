@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @theme {
   /* Primary Blues */
@@ -24,6 +24,11 @@
   --color-wellness-700: #15803d;
   --color-wellness-800: #166534;
   --color-wellness-900: #14532d;
+
+  /* Destructive / error states (used by error boundaries and error pages).
+     Aliases Tailwind's red-600 so it matches the red-* classes already in use. */
+  --color-destructive: var(--color-red-600);
+  --color-destructive-foreground: var(--color-white);
 }
 
 /* --- PRINTABLE ENGINE --- */
@@ -42,7 +47,9 @@
 
   .print-page {
     background: white;
-    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    box-shadow:
+      0 4px 6px -1px rgb(0 0 0 / 0.1),
+      0 2px 4px -2px rgb(0 0 0 / 0.1);
     /* Paper should have square edges in preview */
     border-radius: 0;
     overflow: hidden;
@@ -65,12 +72,17 @@
   }
 
   /* Hide Next.js Layout elements */
-  aside, header, footer, nav, .fixed, .sticky {
+  aside,
+  header,
+  footer,
+  nav,
+  .fixed,
+  .sticky {
     display: none !important;
   }
-  
+
   /* Ensure dialog content is visible and takes over */
-  [role="dialog"] {
+  [role='dialog'] {
     position: absolute !important;
     inset: 0 !important;
     width: 100% !important;

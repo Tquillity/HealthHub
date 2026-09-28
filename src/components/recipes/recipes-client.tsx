@@ -7,7 +7,8 @@ import { RecipeFiltersEnhanced } from './recipe-filters-enhanced';
 import { SafeDeleteModal } from '@/components/ui/safe-delete-modal';
 import { deleteRecipe } from '@/actions/recipe-actions';
 import { useRouter } from 'next/navigation';
-import { useQueryState, parseAsString, parseAsArrayOf } from 'nuqs';
+import { useQueryState } from 'nuqs';
+import { recipeSearchParams } from '@/lib/recipe-search-params';
 import { Grid, LayoutList } from 'lucide-react';
 import type { RecipeWithDetails } from '@/actions/recipe-actions';
 
@@ -28,20 +29,31 @@ export function RecipesClient({
 }: RecipesClientProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'gallery' | 'list'>('gallery');
-  
+
   // Get all filter params from URL
+  // Shared with the server page so both parse the URL the same way.
   const [category, setCategory] = useQueryState(
     'category',
-    parseAsString.withDefault('all')
+    recipeSearchParams.category
   );
-  const [query] = useQueryState('q', parseAsString.withDefault('').withOptions({ clearOnDefault: true }));
-  const [difficulty] = useQueryState('difficulty', parseAsString);
-  const [cuisine] = useQueryState('cuisine', parseAsString);
-  const [dietaryTags] = useQueryState('dietaryTags', parseAsArrayOf(parseAsString));
-  const [leanRole] = useQueryState('leanRole', parseAsString);
-  
+  const [query] = useQueryState(
+    'q',
+    recipeSearchParams.q.withOptions({ clearOnDefault: true })
+  );
+  const [difficulty] = useQueryState(
+    'difficulty',
+    recipeSearchParams.difficulty
+  );
+  const [cuisine] = useQueryState('cuisine', recipeSearchParams.cuisine);
+  const [dietaryTags] = useQueryState(
+    'dietaryTags',
+    recipeSearchParams.dietaryTags
+  );
+  const [leanRole] = useQueryState('leanRole', recipeSearchParams.leanRole);
+
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [recipeToDelete, setRecipeToDelete] = useState<RecipeWithDetails | null>(null);
+  const [recipeToDelete, setRecipeToDelete] =
+    useState<RecipeWithDetails | null>(null);
   const [, setIsDeleting] = useState(false);
 
   const handleDelete = (recipe: RecipeWithDetails) => {
@@ -79,51 +91,74 @@ export function RecipesClient({
           return false;
         }
       }
-      
+
       // Search query filter
       if (query && query.trim()) {
         const searchLower = query.toLowerCase();
         const matchesName = recipe.name.toLowerCase().includes(searchLower);
-        const matchesDescription = recipe.description?.toLowerCase().includes(searchLower) || false;
-        const matchesTags = recipe.tags?.some(tag => tag.toLowerCase().includes(searchLower)) || false;
-        const matchesIngredients = recipe.ingredients?.some(ing => 
-          ing.name.toLowerCase().includes(searchLower)
-        ) || false;
-        
-        if (!matchesName && !matchesDescription && !matchesTags && !matchesIngredients) {
+        const matchesDescription =
+          recipe.description?.toLowerCase().includes(searchLower) || false;
+        const matchesTags =
+          recipe.tags?.some((tag) => tag.toLowerCase().includes(searchLower)) ||
+          false;
+        const matchesIngredients =
+          recipe.ingredients?.some((ing) =>
+            ing.name.toLowerCase().includes(searchLower)
+          ) || false;
+
+        if (
+          !matchesName &&
+          !matchesDescription &&
+          !matchesTags &&
+          !matchesIngredients
+        ) {
           return false;
         }
       }
-      
+
       // Difficulty filter
-      if (difficulty && recipe.difficulty?.toLowerCase() !== difficulty.toLowerCase()) {
+      if (
+        difficulty &&
+        recipe.difficulty?.toLowerCase() !== difficulty.toLowerCase()
+      ) {
         return false;
       }
-      
+
       // Cuisine filter
       if (cuisine && recipe.cuisine?.toLowerCase() !== cuisine.toLowerCase()) {
         return false;
       }
-      
+
       // Dietary tags filter
       if (dietaryTags && dietaryTags.length > 0) {
         const recipeTags = recipe.dietaryTags || [];
-        const hasMatchingTag = dietaryTags.some(tag => 
-          recipeTags.some(rt => rt.toLowerCase() === tag.toLowerCase())
+        const hasMatchingTag = dietaryTags.some((tag) =>
+          recipeTags.some((rt) => rt.toLowerCase() === tag.toLowerCase())
         );
         if (!hasMatchingTag) {
           return false;
         }
       }
-      
+
       // LEAN role filter
-      if (leanRole && recipe.leanRole?.toLowerCase() !== leanRole.toLowerCase()) {
+      if (
+        leanRole &&
+        recipe.leanRole?.toLowerCase() !== leanRole.toLowerCase()
+      ) {
         return false;
       }
-      
+
       return true;
     });
-  }, [initialRecipes, category, query, difficulty, cuisine, dietaryTags, leanRole]);
+  }, [
+    initialRecipes,
+    category,
+    query,
+    difficulty,
+    cuisine,
+    dietaryTags,
+    leanRole,
+  ]);
 
   return (
     <>
@@ -163,7 +198,8 @@ export function RecipesClient({
       {/* Results Count */}
       <div className="mb-4 flex items-center justify-between">
         <p className="text-gray-600">
-          {filteredRecipes.length} recipe{filteredRecipes.length !== 1 ? 's' : ''} found
+          {filteredRecipes.length} recipe
+          {filteredRecipes.length !== 1 ? 's' : ''} found
         </p>
       </div>
 
@@ -207,7 +243,9 @@ export function RecipesClient({
             </div>
           ) : (
             <div className="flex h-64 flex-col items-center justify-center rounded-lg border border-dashed border-gray-300 bg-gray-50">
-              <p className="text-lg font-medium text-gray-900">No recipes found</p>
+              <p className="text-lg font-medium text-gray-900">
+                No recipes found
+              </p>
               <p className="text-sm text-gray-500">
                 Try adjusting your search or filters.
               </p>
@@ -227,8 +265,9 @@ export function RecipesClient({
       {!isAdmin && (
         <div className="mt-6 rounded-lg border border-blue-200 bg-blue-50 p-4">
           <p className="text-sm text-blue-700">
-            <span className="font-medium">Note:</span> Only admin users can add, edit, or
-            delete recipes. Contact your administrator to add new recipes to the database.
+            <span className="font-medium">Note:</span> Only admin users can add,
+            edit, or delete recipes. Contact your administrator to add new
+            recipes to the database.
           </p>
         </div>
       )}
@@ -248,4 +287,3 @@ export function RecipesClient({
     </>
   );
 }
-

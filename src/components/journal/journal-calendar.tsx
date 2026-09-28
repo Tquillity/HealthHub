@@ -1,12 +1,24 @@
 'use client';
 
-import { useState } from 'react';
-import { format, startOfMonth, getDaysInMonth, isSameDay, addMonths, subMonths } from 'date-fns';
+import { useTransition } from 'react';
+import { useQueryState } from 'nuqs';
+import {
+  format,
+  getDaysInMonth,
+  isSameDay,
+  addMonths,
+  subMonths,
+} from 'date-fns';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { JournalEntry } from '@prisma/client';
+import { cn } from '@/lib/utils';
+import { dateOnlyToLocalDate, toDateOnlyString } from '@/lib/date-only';
+import { parseAsMonthKey } from '@/lib/journal-search-params';
 
 interface JournalCalendarProps {
   entries: JournalEntry[];
+  /** Month the server loaded entries for (`YYYY-MM`). */
+  monthKey: string;
   selectedDate: string | null;
   onDateSelect: (date: string) => void;
   onEntryClick: (entry: JournalEntry) => void;
@@ -14,17 +26,28 @@ interface JournalCalendarProps {
 
 export function JournalCalendar({
   entries,
+  monthKey,
   selectedDate,
   onDateSelect,
   onEntryClick,
 }: JournalCalendarProps) {
-  const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()));
+  // The viewed month lives in `?month=`; the Server Component reloads entries for it.
+  const [isPending, startTransition] = useTransition();
+  const [monthParam, setMonthParam] = useQueryState(
+    'month',
+    parseAsMonthKey.withOptions({
+      shallow: false,
+      history: 'replace',
+      startTransition,
+    })
+  );
+  const currentMonth = dateOnlyToLocalDate(`${monthParam ?? monthKey}-01`);
 
-  const getEntryForDate = (date: Date) => {
-    return entries.find((entry) => {
-      const entryDate = new Date(entry.date);
-      return isSameDay(entryDate, date);
-    });
+  // Entry dates are UTC midnight for the stored calendar day, so match on the YYYY-MM-DD key.
+  const getEntryForDate = (dayStr: string) => {
+    return entries.find(
+      (entry) => toDateOnlyString(new Date(entry.date)) === dayStr
+    );
   };
 
   const getMoodColor = (mood: number | null) => {
@@ -36,31 +59,43 @@ export function JournalCalendar({
   };
 
   const navigateMonth = (direction: 'prev' | 'next') => {
-    // addMonths clamps the day, so Jan 31 -> Feb (setMonth would overflow into March)
-    setCurrentMonth((prev) => (direction === 'prev' ? subMonths(prev, 1) : addMonths(prev, 1)));
+    const target =
+      direction === 'prev'
+        ? subMonths(currentMonth, 1)
+        : addMonths(currentMonth, 1);
+    void setMonthParam(format(target, 'yyyy-MM'));
   };
 
-  const monthStart = startOfMonth(currentMonth);
   const daysInMonth = getDaysInMonth(currentMonth);
-  const startingDayOfWeek = monthStart.getDay();
+  const startingDayOfWeek = currentMonth.getDay();
 
   const days: (Date | null)[] = [];
   for (let i = 0; i < startingDayOfWeek; i++) {
     days.push(null);
   }
   for (let day = 1; day <= daysInMonth; day++) {
-    days.push(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day));
+    days.push(
+      new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day)
+    );
   }
 
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   return (
-    <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+    <div
+      className={cn(
+        'bg-white rounded-lg shadow-sm p-6 border border-gray-200 transition-opacity',
+        isPending && 'opacity-60'
+      )}
+      aria-busy={isPending}
+    >
       {/* Calendar Header */}
       <div className="flex items-center justify-between mb-6">
         <button
+          type="button"
           onClick={() => navigateMonth('prev')}
           className="p-2 rounded-lg transition-colors hover:bg-gray-100"
+          aria-label="Previous month"
         >
           <ChevronLeft className="h-5 w-5" />
         </button>
@@ -70,8 +105,10 @@ export function JournalCalendar({
         </h2>
 
         <button
+          type="button"
           onClick={() => navigateMonth('next')}
           className="p-2 rounded-lg transition-colors hover:bg-gray-100"
+          aria-label="Next month"
         >
           <ChevronRight className="h-5 w-5" />
         </button>
@@ -95,8 +132,8 @@ export function JournalCalendar({
             return <div key={index} className="p-2 min-h-[80px]" />;
           }
 
-          const entry = getEntryForDate(day);
           const dayStr = format(day, 'yyyy-MM-dd');
+          const entry = getEntryForDate(dayStr);
           const isToday = isSameDay(day, new Date());
           const isSelected = selectedDate === dayStr;
 
@@ -107,8 +144,8 @@ export function JournalCalendar({
                 isToday
                   ? 'bg-primary-50 border-primary-200'
                   : isSelected
-                  ? 'bg-primary-100 border-primary-300'
-                  : 'border-gray-200 hover:bg-gray-50'
+                    ? 'bg-primary-100 border-primary-300'
+                    : 'border-gray-200 hover:bg-gray-50'
               }`}
               onClick={() => {
                 onDateSelect(dayStr);
@@ -178,4 +215,3 @@ export function JournalCalendar({
     </div>
   );
 }
-

@@ -6,8 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { updateProfile } from '@/actions/profile-actions';
 import { Settings, Calendar } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, nextMonday } from 'date-fns';
 import { useUIStore } from '@/lib/store';
+import {
+  dateOnlyToLocalDate,
+  isDateOnlyString,
+  toDateOnlyString,
+} from '@/lib/date-only';
 
 interface MealPlannerSettingsProps {
   initialDuration?: string | null;
@@ -29,10 +34,15 @@ export function MealPlannerSettings({
   const [showDialog, setShowDialog] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [duration, setDuration] = useState<MealPlanDuration>(
-    initialDuration && isMealPlanDuration(initialDuration) ? initialDuration : DEFAULT_DURATION,
+    initialDuration && isMealPlanDuration(initialDuration)
+      ? initialDuration
+      : DEFAULT_DURATION
   );
-  const [startDate, setStartDate] = useState<string>(
-    initialStartDate || new Date().toISOString().split('T')[0]
+  // The stored start date is UTC midnight (ISO string from getProfile); the date input needs yyyy-MM-dd.
+  const [startDate, setStartDate] = useState<string>(() =>
+    initialStartDate
+      ? toDateOnlyString(new Date(initialStartDate))
+      : format(new Date(), 'yyyy-MM-dd')
   );
   const [useToday, setUseToday] = useState(!initialStartDate);
 
@@ -40,33 +50,30 @@ export function MealPlannerSettings({
   const handlePreset = (preset: 'thisWeek' | 'nextWeek' | 'thisMonth') => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+    const todayKey = format(today, 'yyyy-MM-dd');
+
     switch (preset) {
       case 'thisWeek':
         setDuration('1week');
         setUseToday(true);
-        setStartDate(today.toISOString().split('T')[0]);
+        setStartDate(todayKey);
         break;
       case 'nextWeek':
-        {
-          const nextWeek = new Date(today);
-          nextWeek.setDate(today.getDate() + (7 - today.getDay() + 1)); // Next Monday
-          setDuration('1week');
-          setUseToday(false);
-          setStartDate(nextWeek.toISOString().split('T')[0]);
-        }
+        setDuration('1week');
+        setUseToday(false);
+        setStartDate(format(nextMonday(today), 'yyyy-MM-dd'));
         break;
       case 'thisMonth':
         setDuration('1month');
         setUseToday(true);
-        setStartDate(today.toISOString().split('T')[0]);
+        setStartDate(todayKey);
         break;
     }
   };
 
   const handleSave = async () => {
     setIsSaving(true);
-    
+
     const result = await updateProfile({
       mealPlanDuration: duration,
       mealPlanStartDate: useToday ? null : startDate,
@@ -99,7 +106,9 @@ export function MealPlannerSettings({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
             <div className="mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">Meal Planner Settings</h2>
+              <h2 className="text-2xl font-bold text-gray-900">
+                Meal Planner Settings
+              </h2>
               <p className="mt-2 text-sm text-gray-500">
                 Customize your meal planning view and preferences.
               </p>
@@ -170,11 +179,17 @@ export function MealPlannerSettings({
 
               {/* Start Date */}
               <div className="flex flex-col gap-2">
-                <label htmlFor="meal-planner-start-date" className="block text-sm font-medium text-gray-700">
+                <label
+                  htmlFor="meal-planner-start-date"
+                  className="block text-sm font-medium text-gray-700"
+                >
                   Start Date
                 </label>
                 <div className="flex flex-col gap-2">
-                  <label htmlFor="meal-planner-use-today" className="flex items-center gap-2">
+                  <label
+                    htmlFor="meal-planner-use-today"
+                    className="flex items-center gap-2"
+                  >
                     <input
                       id="meal-planner-use-today"
                       name="meal-planner-use-today"
@@ -183,14 +198,16 @@ export function MealPlannerSettings({
                       onChange={(e) => {
                         setUseToday(e.target.checked);
                         if (e.target.checked) {
-                          setStartDate(new Date().toISOString().split('T')[0]);
+                          setStartDate(format(new Date(), 'yyyy-MM-dd'));
                         }
                       }}
                       className="rounded border-gray-300"
                     />
-                    <span className="text-sm text-gray-700">Always start from today</span>
+                    <span className="text-sm text-gray-700">
+                      Always start from today
+                    </span>
                   </label>
-                  
+
                   {!useToday && (
                     <div className="relative">
                       <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -201,7 +218,7 @@ export function MealPlannerSettings({
                         value={startDate}
                         onChange={(e) => setStartDate(e.target.value)}
                         className="pl-10"
-                        min={new Date().toISOString().split('T')[0]}
+                        min={format(new Date(), 'yyyy-MM-dd')}
                       />
                     </div>
                   )}
@@ -210,19 +227,25 @@ export function MealPlannerSettings({
 
               {/* Date Range Preview */}
               <div className="rounded-lg bg-gray-50 p-3">
-                <p className="text-xs font-medium text-gray-500 mb-1">Preview</p>
+                <p className="text-xs font-medium text-gray-500 mb-1">
+                  Preview
+                </p>
                 <p className="text-sm text-gray-700">
                   {(() => {
-                    const start = useToday ? new Date() : new Date(startDate);
+                    // new Date('yyyy-MM-dd') is UTC midnight (the previous day west of UTC).
+                    const start =
+                      !useToday && isDateOnlyString(startDate)
+                        ? dateOnlyToLocalDate(startDate)
+                        : new Date();
                     start.setHours(0, 0, 0, 0);
-                    
+
                     let days = 7;
                     if (duration === '2weeks') days = 14;
                     if (duration === '1month') days = 30;
-                    
+
                     const end = new Date(start);
                     end.setDate(start.getDate() + days - 1);
-                    
+
                     return `${format(start, 'MMM d')} - ${format(end, 'MMM d, yyyy')}`;
                   })()}
                 </p>
@@ -236,11 +259,7 @@ export function MealPlannerSettings({
                 >
                   Cancel
                 </Button>
-                <Button
-                  type="button"
-                  onClick={handleSave}
-                  disabled={isSaving}
-                >
+                <Button type="button" onClick={handleSave} disabled={isSaving}>
                   {isSaving ? 'Saving...' : 'Save Settings'}
                 </Button>
               </div>
@@ -251,4 +270,3 @@ export function MealPlannerSettings({
     </>
   );
 }
-
