@@ -37,7 +37,7 @@ export function JournalCalendar({
     'month',
     parseAsMonthKey.withOptions({
       shallow: false,
-      history: 'push',
+      history: 'replace',
       startTransition,
     })
   );

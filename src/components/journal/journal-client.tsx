@@ -17,16 +17,9 @@ interface JournalClientProps {
   onEntrySaved?: () => void;
 }
 
-export function JournalClient({
-  initialDate,
-  onEntrySaved,
-}: JournalClientProps) {
-  const router = useRouter();
-  const showToast = useUIStore((state) => state.showToast);
-  const [showDialog, setShowDialog] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formData, setFormData] = useState({
-    date: initialDate || format(new Date(), 'yyyy-MM-dd'),
+function emptyForm(date: string) {
+  return {
+    date,
     mood: '',
     energy: '',
     sleepHours: '',
@@ -40,7 +33,20 @@ export function JournalClient({
     symptomsPhysical: [''],
     symptomsMental: [''],
     symptomsNotes: '',
-  });
+  };
+}
+
+export function JournalClient({
+  initialDate,
+  onEntrySaved,
+}: JournalClientProps) {
+  const router = useRouter();
+  const showToast = useUIStore((state) => state.showToast);
+  const [showDialog, setShowDialog] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formData, setFormData] = useState(() =>
+    emptyForm(initialDate || format(new Date(), 'yyyy-MM-dd'))
+  );
 
   useEffect(() => {
     if (initialDate) {
@@ -49,41 +55,55 @@ export function JournalClient({
     }
   }, [initialDate]);
 
+  // Saving sends cleared fields as null, so the form must always start from the
+  // day's saved entry (or blank for a new day), never from another day's values.
   const loadExistingEntry = async (date: string) => {
     const result = await getJournalEntryByDate(date);
-    if (result.success && result.data) {
-      setFormData({
-        date,
-        mood: result.data.mood?.toString() || '',
-        energy: result.data.energy?.toString() || '',
-        sleepHours: result.data.sleepHours?.toString() || '',
-        notes: result.data.notes || '',
-        tags: result.data.tags.join(', ') || '',
-        gratitudeEntries:
-          result.data.gratitudeEntries?.length > 0
-            ? result.data.gratitudeEntries
-            : [''],
-        gratitudeNotes: result.data.gratitudeNotes || '',
-        goalsAchieved:
-          result.data.goalsAchieved?.length > 0
-            ? result.data.goalsAchieved
-            : [''],
-        goalsProgress:
-          result.data.goalsProgress?.length > 0
-            ? result.data.goalsProgress
-            : [''],
-        goalsNotes: result.data.goalsNotes || '',
-        symptomsPhysical:
-          result.data.symptomsPhysical?.length > 0
-            ? result.data.symptomsPhysical
-            : [''],
-        symptomsMental:
-          result.data.symptomsMental?.length > 0
-            ? result.data.symptomsMental
-            : [''],
-        symptomsNotes: result.data.symptomsNotes || '',
-      });
+    if (!result.success || !result.data) {
+      setFormData((prev) => (prev.date === date ? emptyForm(date) : prev));
+      return;
     }
+    setFormData({
+      date,
+      mood: result.data.mood?.toString() || '',
+      energy: result.data.energy?.toString() || '',
+      sleepHours: result.data.sleepHours?.toString() || '',
+      notes: result.data.notes || '',
+      tags: result.data.tags.join(', ') || '',
+      gratitudeEntries:
+        result.data.gratitudeEntries?.length > 0
+          ? result.data.gratitudeEntries
+          : [''],
+      gratitudeNotes: result.data.gratitudeNotes || '',
+      goalsAchieved:
+        result.data.goalsAchieved?.length > 0
+          ? result.data.goalsAchieved
+          : [''],
+      goalsProgress:
+        result.data.goalsProgress?.length > 0
+          ? result.data.goalsProgress
+          : [''],
+      goalsNotes: result.data.goalsNotes || '',
+      symptomsPhysical:
+        result.data.symptomsPhysical?.length > 0
+          ? result.data.symptomsPhysical
+          : [''],
+      symptomsMental:
+        result.data.symptomsMental?.length > 0
+          ? result.data.symptomsMental
+          : [''],
+      symptomsNotes: result.data.symptomsNotes || '',
+    });
+  };
+
+  const openDialog = () => {
+    setShowDialog(true);
+    void loadExistingEntry(formData.date);
+  };
+
+  const changeDate = (date: string) => {
+    setFormData(emptyForm(date));
+    if (date) void loadExistingEntry(date);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -165,7 +185,7 @@ export function JournalClient({
 
   return (
     <>
-      <Button onClick={() => setShowDialog(true)} className="gap-2">
+      <Button onClick={openDialog} className="gap-2">
         <Plus className="h-4 w-4" />
         Log Today
       </Button>
@@ -198,9 +218,7 @@ export function JournalClient({
                   name="journal-date"
                   type="date"
                   value={formData.date}
-                  onChange={(e) =>
-                    setFormData({ ...formData, date: e.target.value })
-                  }
+                  onChange={(e) => changeDate(e.target.value)}
                 />
               </div>
 
