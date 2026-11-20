@@ -9,6 +9,8 @@ import type { JournalEntry } from '@prisma/client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { dateOnlyToLocalDate } from '@/lib/date-only';
+import { JournalShareControl } from '@/components/journal/journal-share-control';
+import type { JournalShareTarget } from '@/lib/journal-sharing';
 
 interface JournalEntryDetailProps {
   entry: JournalEntry;
@@ -16,6 +18,8 @@ interface JournalEntryDetailProps {
   dateKey: string;
   onClose: () => void;
   onEdit: () => void;
+  /** Households and collectives this day can be shared with. */
+  shareTargets?: JournalShareTarget[];
 }
 
 export function JournalEntryDetail({
@@ -23,6 +27,7 @@ export function JournalEntryDetail({
   dateKey,
   onClose,
   onEdit,
+  shareTargets = [],
 }: JournalEntryDetailProps) {
   const router = useRouter();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -94,6 +99,11 @@ export function JournalEntryDetail({
 
           {/* Content */}
           <div className="p-6 flex flex-col gap-8">
+            <JournalShareControl
+              dateKey={dateKey}
+              sharedOrganizationId={entry.sharedOrganizationId}
+              targets={shareTargets}
+            />
             {/* Mood & Energy */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="bg-gray-50 rounded-lg p-4">

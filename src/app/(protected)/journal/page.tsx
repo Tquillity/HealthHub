@@ -5,6 +5,7 @@ import type { SearchParams } from 'nuqs/server';
 import { parseMonthKey, toDateOnlyString } from '@/lib/date-only';
 import { loadJournalSearchParams } from '@/lib/journal-search-params';
 import { decrypt, decryptArray } from '@/lib/encryption';
+import { getJournalShareTargets } from '@/lib/journal-sharing';
 import JournalPageClient from '@/components/journal/journal-page-client';
 import { PageHeader } from '@/components/ui/page-header';
 import { AppErrorBoundary } from '@/components/ui/error-boundary';
@@ -29,6 +30,7 @@ export default async function JournalPage({ searchParams }: JournalPageProps) {
     redirect('/journal');
   }
 
+  const shareTargets = await getJournalShareTargets(session.user.id);
   const entries = await prisma.journalEntry.findMany({
     where: {
       userId: session.user.id,
@@ -65,6 +67,7 @@ export default async function JournalPage({ searchParams }: JournalPageProps) {
         <JournalPageClient
           initialEntries={decryptedEntries}
           monthKey={monthKey}
+          shareTargets={shareTargets}
         />
       </AppErrorBoundary>
     </div>
