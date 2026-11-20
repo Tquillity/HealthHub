@@ -39,7 +39,9 @@ const DETAIL_OPTIONS: { value: BriefingDetail; label: string; hint: string }[] =
 const SOURCE_TEXT: Record<BriefingSource, { label: string; hint: string }> = {
   journal: {
     label: 'Journal check-ins',
-    hint: 'Mood, energy, sleep and symptoms, compared with your own usual.',
+    // Also covers the circadian card's check-in for right now (lib/easy-day): with this
+    // off, the briefing does not see a low one, so this says so.
+    hint: 'Mood, energy, sleep and symptoms, compared with your own usual. With circadian insights on, also your energy check-in for right now.',
   },
   cycle: {
     label: 'Cycle phase and temperature',

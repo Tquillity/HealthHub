@@ -51,6 +51,18 @@ describe('BriefingSettingsControls', () => {
     }
   });
 
+  it("says the journal source covers the circadian card's check-in for right now", () => {
+    const html = render(settings());
+    const journal = labelledInputs(html).find((row) =>
+      row.input.includes('name="briefing-source-journal"')
+    );
+    const hintId = journal?.input.match(/aria-describedby="([^"]+)"/)?.[1];
+    expect(hintId).toBeTruthy();
+    expect(html).toContain(
+      `<p id="${hintId}" class="pl-7 text-xs text-gray-500">Mood, energy, sleep and symptoms, compared with your own usual. With circadian insights on, also your energy check-in for right now.</p>`
+    );
+  });
+
   it('never disables a choice, and keeps the last source focusable', () => {
     const html = render(settings({ sources: ['journal'] }));
     expect(html).not.toMatch(/<input[^>]*\sdisabled=""/);
