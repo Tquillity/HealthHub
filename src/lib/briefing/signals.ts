@@ -543,9 +543,8 @@ export function analyzeBriefing(input: BriefingEngineInput): BriefingSignals {
         ? describeTodayPhase(resolver, input.cycle, input.today)
         : null,
     ...journal,
-    // Journal data: only with the journal source on.
-    lowEnergyToday:
-      input.journal !== null ? (input.lowEnergyToday ?? null) : null,
+    // Loaded while circadian insights are on, whatever the journal source (data.ts).
+    lowEnergyToday: input.lowEnergyToday ?? null,
     recovery: analyzeRecovery(input, window),
     meals: analyzeMeals(input.meals, input.today),
   };

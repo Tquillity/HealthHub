@@ -209,7 +209,8 @@ export type BriefingEngineInput = {
   vitals: BriefingVitalsData | null;
   /**
    * Today's low time-of-day energy check-in, by the rule the circadian card holds back on
-   * (lib/easy-day). Null unless the journal source and circadian insights are on.
+   * (lib/easy-day). Null unless circadian insights are on, whatever the journal source
+   * (see the module notes in data.ts).
    */
   lowEnergyToday?: LowEnergyCheckIn | null;
   /** Feedback from the last weeks, including today. */

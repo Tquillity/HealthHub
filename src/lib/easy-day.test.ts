@@ -329,6 +329,7 @@ describe.skipIf(!isolated)(
         data: {
           timezone: 'Europe/Stockholm',
           enableCircadianInsights: true,
+          trackVitals: false,
           briefingFrequency: 'daily',
           briefingSources: ['journal', 'cycle', 'meals', 'vitals'],
         },
@@ -451,7 +452,7 @@ describe.skipIf(!isolated)(
       expect(rated.card.recommendedIntensity).toBe('high');
     });
 
-    it('reads that check-in only with the journal source and circadian insights on', async () => {
+    it('reads that check-in only with circadian insights on, whatever the journal source', async () => {
       await writeJournal(
         { energy: 5, sleepHours: 8 },
         { energy: 8, sleepHours: 8 }
@@ -461,11 +462,14 @@ describe.skipIf(!isolated)(
         fromLogs: false,
       });
 
+      // The circadian opt-in covers the check-in, so the journal source does not matter.
       await client.user.update({
         where: { id: userId },
         data: { briefingSources: ['cycle', 'meals', 'vitals'] },
       });
-      expect(await easyDay.loadEasyDay(userId, morning)).toBeNull();
+      expect(await easyDay.loadEasyDay(userId, morning)).toEqual({
+        fromLogs: false,
+      });
 
       await client.user.update({
         where: { id: userId },
@@ -482,6 +486,45 @@ describe.skipIf(!isolated)(
       expect(state.briefing.suggestions.map((s) => s.key)).toContain(
         'routine.go-for-it'
       );
+    });
+
+    it('keeps the briefing gentle after a low check-in with the journal source off', async () => {
+      // Recovery better over the last 3 days than in the 4 weeks before.
+      await client.user.update({
+        where: { id: userId },
+        data: {
+          trackVitals: true,
+          briefingSources: ['cycle', 'meals', 'vitals'],
+        },
+      });
+      await client.journalEntry.createMany({
+        data: [
+          ...days('2026-10-21', '2026-11-17').map((date) => ({
+            userId,
+            date: new Date(`${date}T00:00:00Z`),
+            restingHeartRate: 62,
+            heartRateVariability: 50,
+            sleepQuality: 6,
+          })),
+          ...days('2026-11-18', TODAY).map((date) => ({
+            userId,
+            date: new Date(`${date}T00:00:00Z`),
+            restingHeartRate: 52,
+            heartRateVariability: 80,
+            sleepQuality: 9,
+          })),
+        ],
+      });
+      const now = stockholm('16:30');
+      const before = await loadDashboard(now);
+      expect(before.briefing.headline).toBe(DOING_WELL);
+      expect(before.keys).toContain('recovery.well-recovered');
+
+      await circadian.saveEnergyNow(userId, 2, now);
+      const after = await loadDashboard(now);
+      expect(after.cardKeys[0]).toBe('personal.low-now');
+      expect(after.briefing.headline).toBe(LOW_NOW);
+      expect(after.keys.filter((k) => BRIEFING_PUSH.includes(k))).toEqual([]);
     });
 
     it('holds back the circadian card and the lottery on a take-it-easy day', async () => {

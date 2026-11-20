@@ -30,8 +30,10 @@ import { localTimeIn, lowCheckInToday } from '@/lib/circadian-recommendations';
  *   the same inputs, so both cards always agree.
  *
  * Only the user's own rows are read, only from the sources the user lets the briefing read
- * (the briefing's own source switches), and nothing is stored. This module sits outside
- * lib/briefing and lib/circadian-* so that neither data layer imports the other.
+ * (the briefing's own source switches), and nothing is stored. The one exception is the
+ * low check-in today, which the circadian opt-in covers (see the notes in
+ * lib/briefing/data). This module sits outside lib/briefing and lib/circadian-* so that
+ * neither data layer imports the other.
  */
 
 export type EasyDayInputs = SignalInputs & {
@@ -57,9 +59,9 @@ export async function loadLowCheckInToday(
 
 /**
  * Everything the take-it-easy check reads, for the briefing day `date`: the briefing's
- * journal, cycle and vitals inputs, and today's low energy check-in, if any. That check-in
- * is journal data, so it is read only with the journal source on, and only while
- * circadian insights are on.
+ * journal, cycle and vitals inputs, and today's low energy check-in, if any. The check-in
+ * is read while circadian insights are on, whatever the journal source, so the briefing
+ * never pushes harder training next to the circadian card's "Running low right now".
  */
 export async function loadEasyDayInputs(
   userId: string,
@@ -70,7 +72,7 @@ export async function loadEasyDayInputs(
 ): Promise<EasyDayInputs> {
   const [inputs, lowEnergyToday] = await Promise.all([
     loadSignalInputs(userId, user, sources, date),
-    sources.has('journal') && user.enableCircadianInsights
+    user.enableCircadianInsights
       ? loadLowCheckInToday(userId, user.timezone, now)
       : null,
   ]);

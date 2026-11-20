@@ -47,16 +47,21 @@ import {
  * - Only the session user's own rows are read. Meal plans come from the space the user has
  *   open (checked against their memberships), never from a household they are not in.
  * - A source the user switched off is never queried; vitals also need the vitals opt-in
- *   and the cycle source needs cycle tracking. One exception, by design: the recovery
- *   score (vitals source) is the dashboard Vitals card's score, so it is computed from the
- *   card's inputs, which include the journal's sleep hours and, with cycle tracking on,
- *   the logged period starts for its phase baselines, even when the journal or cycle
- *   source is off. Otherwise the briefing would show a second, different "recovery today"
- *   on the same page. Only the score is used from them, and the wording names no phase
- *   unless the cycle source is on.
- * - With circadian insights on, the journal source also reads the time-of-day energy
- *   check-ins: which days have one (for the note on missing data), and whether one today
- *   is low (lib/easy-day). They never stand in for a day's energy rating.
+ *   and the cycle source needs cycle tracking. Two exceptions, by design:
+ *   - The recovery score (vitals source) is the dashboard Vitals card's score, so it is
+ *     computed from the card's inputs, which include the journal's sleep hours and, with
+ *     cycle tracking on, the logged period starts for its phase baselines, even when the
+ *     journal or cycle source is off. Otherwise the briefing would show a second,
+ *     different "recovery today" on the same page. Only the score is used from them, and
+ *     the wording names no phase unless the cycle source is on.
+ *   - With circadian insights on, whether today's time-of-day energy check-in is low
+ *     (lib/easy-day) is read even when the journal source is off: the circadian opt-in
+ *     covers it. Otherwise the briefing could push harder training next to the circadian
+ *     card's "Running low right now". Only that one answer is used, from the user's own
+ *     row; nothing is stored or logged.
+ * - With circadian insights on, the journal source also reads which days have a
+ *   time-of-day energy check-in, for the note on missing data. Check-ins never stand in
+ *   for a day's energy rating.
  * - Symptoms are decrypted in memory only to count them; nothing is stored or logged.
  * - Feedback suggestion keys are validated against the known keys, then encrypted: a key
  *   with a date says things like "more symptoms than usual that day".

@@ -327,16 +327,17 @@ describe('analyzeBriefing: journal', () => {
     expect(off.phase).toBeNull();
   });
 
-  it("uses today's low energy check-in only with the journal source on", () => {
+  it("uses today's low energy check-in whatever the journal source", () => {
     expect(analyzeBriefing(input({ journal: [] })).lowEnergyToday).toBeNull();
     for (const lowEnergyToday of ['now', 'earlier'] as const) {
       expect(
         analyzeBriefing(input({ journal: [], lowEnergyToday })).lowEnergyToday
       ).toBe(lowEnergyToday);
-      // The check-in is journal data: ignored with the journal source off.
-      expect(
-        analyzeBriefing(input({ lowEnergyToday })).lowEnergyToday
-      ).toBeNull();
+      // The circadian opt-in covers it (lib/easy-day loads it only then), so the
+      // journal source being off does not drop it.
+      expect(analyzeBriefing(input({ lowEnergyToday })).lowEnergyToday).toBe(
+        lowEnergyToday
+      );
     }
   });
 });
