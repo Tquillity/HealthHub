@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildBbtChart,
   buildCycleLengthChart,
+  formatTickLabels,
   linearScale,
   monthStartsInRange,
   niceTicks,
@@ -84,6 +85,13 @@ describe('buildCycleLengthChart', () => {
     expect(chart?.averageY).toBeCloseTo(
       ((chart?.points[0].y ?? 0) + (chart?.points[1].y ?? 0)) / 2
     );
+    expect(chart?.yTicks.map((t) => t.label)).toEqual([
+      '27',
+      '28',
+      '29',
+      '30',
+      '31',
+    ]);
   });
 
   it('returns null without cycles', () => {
@@ -160,6 +168,73 @@ describe('buildBbtChart', () => {
 
   it('returns null without readings', () => {
     expect(buildBbtChart({ ...bbt, readings: [] }, [], range, BOX)).toBeNull();
+  });
+
+  function labelsFor(unit: 'C' | 'F', celsius: number[]) {
+    const chart = buildBbtChart(
+      {
+        ...bbt,
+        unit,
+        readings: celsius.map((value, i) => ({
+          date: `2026-10-${String(i + 1).padStart(2, '0')}`,
+          celsius: value,
+        })),
+        cycles: [],
+        ovulationDates: [],
+      },
+      [],
+      range,
+      BOX
+    );
+    return chart?.yTicks ?? [];
+  }
+
+  it('labels every y tick with enough decimals for its step', () => {
+    // 97.3-98.0 °F: ticks every 0.25 °F.
+    const fahrenheit = labelsFor('F', [36.2778, 36.6667]);
+    expect(fahrenheit.map((t) => t.label)).toEqual([
+      '97.00',
+      '97.25',
+      '97.50',
+      '97.75',
+      '98.00',
+      '98.25',
+    ]);
+    // A single reading: ticks every 0.05 °C, never three gridlines labelled "36.5".
+    const single = labelsFor('C', [36.5]);
+    expect(single.map((t) => t.label)).toEqual([
+      '36.40',
+      '36.45',
+      '36.50',
+      '36.55',
+      '36.60',
+    ]);
+    for (const ticks of [fahrenheit, single, labelsFor('C', [36.1, 37.0])]) {
+      const labels = ticks.map((t) => t.label);
+      expect(labels.map(Number)).toEqual(ticks.map((t) => t.value));
+      expect(new Set(labels).size).toBe(labels.length);
+    }
+  });
+
+  it('keeps one decimal on temperature labels when the step allows', () => {
+    const chart = buildBbtChart(bbt, [], range, BOX);
+    expect(chart?.yTicks.map((t) => t.label)).toEqual([
+      '36.0',
+      '36.2',
+      '36.4',
+      '36.6',
+      '36.8',
+    ]);
+  });
+});
+
+describe('formatTickLabels', () => {
+  it('uses the same, sufficient number of decimals for every tick', () => {
+    expect(formatTickLabels([24, 26, 28])).toEqual(['24', '26', '28']);
+    expect(formatTickLabels([27, 27.5, 28])).toEqual(['27.0', '27.5', '28.0']);
+    expect(formatTickLabels([36, 36.2], 1)).toEqual(['36.0', '36.2']);
+    expect(formatTickLabels([36.4, 36.45], 1)).toEqual(['36.40', '36.45']);
+    expect(formatTickLabels([], 1)).toEqual([]);
   });
 });
 

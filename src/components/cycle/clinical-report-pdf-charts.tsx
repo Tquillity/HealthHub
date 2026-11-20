@@ -70,7 +70,7 @@ export function CycleLengthChart({
           fill={PDF_COLORS.muted}
           style={AXIS_FONT}
         >
-          {String(tick.value)}
+          {tick.label}
         </Text>
       ))}
       <Text x={2} y={9} fill={PDF_COLORS.muted} style={AXIS_FONT}>
@@ -218,7 +218,7 @@ export function BbtChart({
           fill={PDF_COLORS.muted}
           style={AXIS_FONT}
         >
-          {tick.value.toFixed(1)}
+          {tick.label}
         </Text>
       ))}
       <Text x={2} y={8} fill={PDF_COLORS.muted} style={AXIS_FONT}>
