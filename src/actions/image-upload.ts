@@ -1,13 +1,14 @@
 'use server';
 
 import { randomUUID } from 'crypto';
+import { put } from '@vercel/blob';
 import { z } from 'zod';
+import { MAX_IMAGE_UPLOAD_BYTES } from '@/lib/upload-limits';
 import { requireSessionUserId } from '@/lib/session';
 
-const FileSchema = z.custom<File>(
-  (val) => val instanceof File,
-  { message: 'Must be a File' }
-);
+const FileSchema = z.custom<File>((val) => val instanceof File, {
+  message: 'Must be a File',
+});
 
 const AllowedMimeSchema = z.enum([
   'image/jpeg',
@@ -17,7 +18,7 @@ const AllowedMimeSchema = z.enum([
   'image/gif',
 ]);
 
-const MaxFileSizeSchema = z.number().max(5 * 1024 * 1024);
+const MaxFileSizeSchema = z.number().max(MAX_IMAGE_UPLOAD_BYTES);
 
 /** The stored extension comes from the validated MIME type, never from the client filename. */
 const EXTENSION_BY_MIME: Record<z.infer<typeof AllowedMimeSchema>, string> = {
@@ -29,7 +30,10 @@ const EXTENSION_BY_MIME: Record<z.infer<typeof AllowedMimeSchema>, string> = {
 };
 
 /** Checks the file's magic bytes so a renamed HTML/SVG payload cannot pass as an image. */
-function hasImageSignature(bytes: Uint8Array, mime: z.infer<typeof AllowedMimeSchema>): boolean {
+function hasImageSignature(
+  bytes: Uint8Array,
+  mime: z.infer<typeof AllowedMimeSchema>
+): boolean {
   const startsWith = (signature: number[], offset = 0) =>
     signature.every((byte, index) => bytes[offset + index] === byte);
   switch (mime) {
@@ -41,7 +45,10 @@ function hasImageSignature(bytes: Uint8Array, mime: z.infer<typeof AllowedMimeSc
     case 'image/gif':
       return startsWith([0x47, 0x49, 0x46, 0x38]);
     case 'image/webp':
-      return startsWith([0x52, 0x49, 0x46, 0x46]) && startsWith([0x57, 0x45, 0x42, 0x50], 8);
+      return (
+        startsWith([0x52, 0x49, 0x46, 0x46]) &&
+        startsWith([0x57, 0x45, 0x42, 0x50], 8)
+      );
   }
 }
 
@@ -66,7 +73,10 @@ export async function uploadImage(
 
     const mimeResult = AllowedMimeSchema.safeParse(file.type);
     if (!mimeResult.success) {
-      return { success: false, error: 'Invalid file type. Only images are allowed.' };
+      return {
+        success: false,
+        error: 'Invalid file type. Only images are allowed.',
+      };
     }
 
     const sizeResult = MaxFileSizeSchema.safeParse(file.size);
@@ -76,28 +86,17 @@ export async function uploadImage(
 
     const buffer = Buffer.from(await file.arrayBuffer());
     if (!hasImageSignature(buffer, mimeResult.data)) {
-      return { success: false, error: 'Invalid file type. Only images are allowed.' };
+      return {
+        success: false,
+        error: 'Invalid file type. Only images are allowed.',
+      };
     }
     const filename = `${Date.now()}-${randomUUID()}.${EXTENSION_BY_MIME[mimeResult.data]}`;
 
-    const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
-    if (blobToken) {
+    // A static import, so Next's output tracing ships @vercel/blob with the server bundle.
+    // (The previous runtime `import()` was invisible to the bundler and always failed in production.)
+    if (process.env.BLOB_READ_WRITE_TOKEN) {
       try {
-        const runtimeImport = new Function(
-          'm',
-          'return import(m)',
-        ) as unknown as (moduleName: string) => Promise<unknown>;
-
-        const vercelBlob = (await runtimeImport('@vercel/blob')) as {
-          put: (
-            pathname: string,
-            body: Buffer,
-            options: { access: 'public' | 'private'; contentType?: string },
-          ) => Promise<{ url: string }>;
-        };
-
-        const { put } = vercelBlob;
-
         const blob = await put(`recipes/${filename}`, buffer, {
           access: 'public',
           contentType: mimeResult.data,
@@ -106,12 +105,17 @@ export async function uploadImage(
         return { success: true, url: blob.url };
       } catch (blobError) {
         console.error('Vercel Blob upload failed:', blobError);
+        return {
+          success: false,
+          error: 'Image upload failed. Please try again.',
+        };
       }
     }
 
     // Local filesystem uploads are a development convenience only
     const useLocalStorage =
-      process.env.USE_LOCAL_STORAGE === 'true' && process.env.NODE_ENV !== 'production';
+      process.env.USE_LOCAL_STORAGE === 'true' &&
+      process.env.NODE_ENV !== 'production';
     if (useLocalStorage && typeof window === 'undefined') {
       try {
         const { writeFile } = await import('fs/promises');

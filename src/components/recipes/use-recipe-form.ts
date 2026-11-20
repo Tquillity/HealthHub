@@ -3,9 +3,20 @@
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUIStore } from '@/lib/store';
-import { createRecipe, updateRecipe, type RecipeWithDetails } from '@/actions/recipe-actions';
+import {
+  createRecipe,
+  updateRecipe,
+  type RecipeWithDetails,
+} from '@/actions/recipe-actions';
 import { uploadImage } from '@/actions/image-upload';
-import { getUnitValidationMessage, getSuggestedUnit } from '@/lib/ingredient-unit-validation';
+import {
+  MAX_IMAGE_UPLOAD_BYTES,
+  MAX_IMAGE_UPLOAD_LABEL,
+} from '@/lib/upload-limits';
+import {
+  getUnitValidationMessage,
+  getSuggestedUnit,
+} from '@/lib/ingredient-unit-validation';
 import type { FormData, Ingredient, Instruction } from './recipe-form-types';
 
 function buildInitialFormData(recipe?: RecipeWithDetails): FormData {
@@ -37,7 +48,12 @@ function buildInitialFormData(recipe?: RecipeWithDetails): FormData {
 function buildInitialIngredients(recipe?: RecipeWithDetails): Ingredient[] {
   if (recipe?.ingredients && recipe.ingredients.length > 0) {
     return recipe.ingredients.map(
-      (ing: { name: string; quantity: number; unit: string; notes?: string | null }) => ({
+      (ing: {
+        name: string;
+        quantity: number;
+        unit: string;
+        notes?: string | null;
+      }) => ({
         name: ing.name,
         quantity: ing.quantity,
         unit: ing.unit,
@@ -50,10 +66,12 @@ function buildInitialIngredients(recipe?: RecipeWithDetails): Ingredient[] {
 
 function buildInitialInstructions(recipe?: RecipeWithDetails): Instruction[] {
   if (recipe?.instructions && recipe.instructions.length > 0) {
-    return recipe.instructions.map((inst: { stepNumber: number; text: string }) => ({
-      stepNumber: inst.stepNumber,
-      text: inst.text,
-    }));
+    return recipe.instructions.map(
+      (inst: { stepNumber: number; text: string }) => ({
+        stepNumber: inst.stepNumber,
+        text: inst.text,
+      })
+    );
   }
   return [{ stepNumber: 1, text: '' }];
 }
@@ -69,19 +87,31 @@ export function useRecipeForm(
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isEditing = !!recipe;
 
-  const [formData, setFormData] = useState<FormData>(() => buildInitialFormData(recipe));
-  const [imagePreview, setImagePreview] = useState<string | null>(recipe?.imageUrl || null);
-  const [additionalImages, setAdditionalImages] = useState<string[]>(recipe?.imageUrls || []);
+  const [formData, setFormData] = useState<FormData>(() =>
+    buildInitialFormData(recipe)
+  );
+  const [imagePreview, setImagePreview] = useState<string | null>(
+    recipe?.imageUrl || null
+  );
+  const [additionalImages, setAdditionalImages] = useState<string[]>(
+    recipe?.imageUrls || []
+  );
   const [isUploading, setIsUploading] = useState(false);
   const [isUploadingAdditional, setIsUploadingAdditional] = useState(false);
-  const [ingredients, setIngredients] = useState<Ingredient[]>(() => buildInitialIngredients(recipe));
+  const [ingredients, setIngredients] = useState<Ingredient[]>(() =>
+    buildInitialIngredients(recipe)
+  );
   const [instructions, setInstructions] = useState<Instruction[]>(() =>
     buildInitialInstructions(recipe)
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [ingredientWarnings, setIngredientWarnings] = useState<Record<number, string>>({});
-  const [showConverter, setShowConverter] = useState<Record<number, boolean>>({});
+  const [ingredientWarnings, setIngredientWarnings] = useState<
+    Record<number, string>
+  >({});
+  const [showConverter, setShowConverter] = useState<Record<number, boolean>>(
+    {}
+  );
 
   useEffect(() => {
     if (recipe) {
@@ -115,7 +145,12 @@ export function useRecipeForm(
       if (recipe.ingredients && recipe.ingredients.length > 0) {
         setIngredients(
           recipe.ingredients.map(
-            (ing: { name: string; quantity: number; unit: string; notes?: string | null }) => ({
+            (ing: {
+              name: string;
+              quantity: number;
+              unit: string;
+              notes?: string | null;
+            }) => ({
               name: ing.name || '',
               quantity: ing.quantity || 0,
               unit: (ing.unit || '').trim(),
@@ -129,10 +164,12 @@ export function useRecipeForm(
 
       if (recipe.instructions && recipe.instructions.length > 0) {
         setInstructions(
-          recipe.instructions.map((inst: { stepNumber: number; text: string }) => ({
-            stepNumber: inst.stepNumber,
-            text: inst.text,
-          }))
+          recipe.instructions.map(
+            (inst: { stepNumber: number; text: string }) => ({
+              stepNumber: inst.stepNumber,
+              text: inst.text,
+            })
+          )
         );
       } else {
         setInstructions([{ stepNumber: 1, text: '' }]);
@@ -149,8 +186,11 @@ export function useRecipeForm(
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      setErrors((prev) => ({ ...prev, image: 'Image size must be less than 5MB' }));
+    if (file.size > MAX_IMAGE_UPLOAD_BYTES) {
+      setErrors((prev) => ({
+        ...prev,
+        image: `Image size must be less than ${MAX_IMAGE_UPLOAD_LABEL}`,
+      }));
       return;
     }
 
@@ -164,14 +204,24 @@ export function useRecipeForm(
     const uploadFormData = new FormData();
     uploadFormData.append('file', file);
 
-    const result = await uploadImage(uploadFormData);
-    setIsUploading(false);
+    let result: Awaited<ReturnType<typeof uploadImage>>;
+    try {
+      result = await uploadImage(uploadFormData);
+    } catch {
+      // A rejected Server Action (e.g. a network drop) must not leave the spinner running.
+      result = { success: false, error: 'Failed to upload image' };
+    } finally {
+      setIsUploading(false);
+    }
 
     if (result.success && result.url) {
       setFormData((prev) => ({ ...prev, imageUrl: result.url! }));
       setErrors((prev) => ({ ...prev, image: '' }));
     } else {
-      setErrors((prev) => ({ ...prev, image: result.error || 'Failed to upload image' }));
+      setErrors((prev) => ({
+        ...prev,
+        image: result.error || 'Failed to upload image',
+      }));
       setImagePreview(null);
     }
   };
@@ -184,17 +234,25 @@ export function useRecipeForm(
     }
   };
 
-  const handleAddAdditionalImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAddAdditionalImage = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      setErrors((prev) => ({ ...prev, additionalImages: 'Please select an image file' }));
+      setErrors((prev) => ({
+        ...prev,
+        additionalImages: 'Please select an image file',
+      }));
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      setErrors((prev) => ({ ...prev, additionalImages: 'Image size must be less than 5MB' }));
+    if (file.size > MAX_IMAGE_UPLOAD_BYTES) {
+      setErrors((prev) => ({
+        ...prev,
+        additionalImages: `Image size must be less than ${MAX_IMAGE_UPLOAD_LABEL}`,
+      }));
       return;
     }
 
@@ -202,8 +260,14 @@ export function useRecipeForm(
     const uploadFormData = new FormData();
     uploadFormData.append('file', file);
 
-    const result = await uploadImage(uploadFormData);
-    setIsUploadingAdditional(false);
+    let result: Awaited<ReturnType<typeof uploadImage>>;
+    try {
+      result = await uploadImage(uploadFormData);
+    } catch {
+      result = { success: false, error: 'Failed to upload image' };
+    } finally {
+      setIsUploadingAdditional(false);
+    }
 
     if (result.success && result.url) {
       setAdditionalImages((prev) => [...prev, result.url!]);
@@ -226,7 +290,10 @@ export function useRecipeForm(
 
   const handleSetAsMainImage = (imageUrl: string, index: number) => {
     if (imagePreview) {
-      setAdditionalImages((prev) => [...prev.filter((_, i) => i !== index), imagePreview]);
+      setAdditionalImages((prev) => [
+        ...prev.filter((_, i) => i !== index),
+        imagePreview,
+      ]);
     }
     setFormData((prev) => ({ ...prev, imageUrl }));
     setImagePreview(imageUrl);
@@ -251,10 +318,16 @@ export function useRecipeForm(
 
     const newErrors: Record<string, string> = {};
     if (!formData.name.trim()) newErrors.name = 'Recipe name is required';
-    if (ingredients.length === 0 || ingredients.some((ing) => !ing.name.trim())) {
+    if (
+      ingredients.length === 0 ||
+      ingredients.some((ing) => !ing.name.trim())
+    ) {
       newErrors.ingredients = 'At least one ingredient is required';
     }
-    if (instructions.length === 0 || instructions.some((inst) => !inst.text.trim())) {
+    if (
+      instructions.length === 0 ||
+      instructions.some((inst) => !inst.text.trim())
+    ) {
       newErrors.instructions = 'At least one instruction is required';
     }
 
@@ -287,14 +360,22 @@ export function useRecipeForm(
       cookTime: formData.cookTime ? parseInt(formData.cookTime) : undefined,
       servings: formData.servings ? parseInt(formData.servings) : undefined,
       category: formData.category || undefined,
-      tags: formData.tags.split(',').map((t: string) => t.trim()).filter(Boolean),
+      tags: formData.tags
+        .split(',')
+        .map((t: string) => t.trim())
+        .filter(Boolean),
       difficulty:
-        formData.difficulty === 'easy' || formData.difficulty === 'medium' || formData.difficulty === 'hard'
+        formData.difficulty === 'easy' ||
+        formData.difficulty === 'medium' ||
+        formData.difficulty === 'hard'
           ? formData.difficulty
           : undefined,
       cuisine: formData.cuisine || undefined,
       leanRole: formData.leanRole || undefined,
-      dietaryTags: formData.dietaryTags.split(',').map((t: string) => t.trim()).filter(Boolean),
+      dietaryTags: formData.dietaryTags
+        .split(',')
+        .map((t: string) => t.trim())
+        .filter(Boolean),
       isSecret: formData.isSecret,
       isPrivate: recipe?.isPrivate ?? false,
       isHhChefsVerified: formData.isHhChefsVerified,
@@ -316,7 +397,12 @@ export function useRecipeForm(
       : await createRecipe(recipeData);
 
     if (result.success) {
-      showToast(isEditing ? 'Recipe updated successfully!' : 'Recipe created successfully!', 'success');
+      showToast(
+        isEditing
+          ? 'Recipe updated successfully!'
+          : 'Recipe created successfully!',
+        'success'
+      );
       if (isEditing) {
         router.push(`/recipes/${recipe.id}`);
       } else {
@@ -332,7 +418,10 @@ export function useRecipeForm(
   };
 
   const addIngredient = () => {
-    setIngredients((prev) => [...prev, { name: '', quantity: 0, unit: '', notes: '' }]);
+    setIngredients((prev) => [
+      ...prev,
+      { name: '', quantity: 0, unit: '', notes: '' },
+    ]);
   };
 
   const removeIngredient = (index: number) => {
@@ -344,7 +433,11 @@ export function useRecipeForm(
     });
   };
 
-  const updateIngredient = (index: number, field: keyof Ingredient, value: string | number) => {
+  const updateIngredient = (
+    index: number,
+    field: keyof Ingredient,
+    value: string | number
+  ) => {
     setIngredients((prev) => {
       const updated = [...prev];
       updated[index] = { ...updated[index], [field]: value };
@@ -352,7 +445,10 @@ export function useRecipeForm(
       if (field === 'name' || field === 'unit') {
         const ingredient = updated[index];
         if (ingredient.name && ingredient.unit) {
-          const validation = getUnitValidationMessage(ingredient.name, ingredient.unit);
+          const validation = getUnitValidationMessage(
+            ingredient.name,
+            ingredient.unit
+          );
           if (!validation.isValid) {
             setIngredientWarnings((warnings) => ({
               ...warnings,
@@ -398,7 +494,10 @@ export function useRecipeForm(
   };
 
   const addInstruction = () => {
-    setInstructions((prev) => [...prev, { stepNumber: prev.length + 1, text: '' }]);
+    setInstructions((prev) => [
+      ...prev,
+      { stepNumber: prev.length + 1, text: '' },
+    ]);
   };
 
   const removeInstruction = (index: number) => {

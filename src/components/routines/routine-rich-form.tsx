@@ -7,6 +7,10 @@ import { Input } from '@/components/ui/input';
 import { Plus, Trash2, Upload, X } from 'lucide-react';
 import { createRoutine, updateRoutine } from '@/actions/routine-actions';
 import { uploadImage } from '@/actions/image-upload';
+import {
+  MAX_IMAGE_UPLOAD_BYTES,
+  MAX_IMAGE_UPLOAD_LABEL,
+} from '@/lib/upload-limits';
 import type { Routine } from '@prisma/client';
 
 interface RoutineStep {
@@ -23,7 +27,11 @@ interface RoutineRichFormProps {
   onCancel: () => void;
 }
 
-export function RoutineRichForm({ routine, onSuccess, onCancel }: RoutineRichFormProps) {
+export function RoutineRichForm({
+  routine,
+  onSuccess,
+  onCancel,
+}: RoutineRichFormProps) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isEditing = !!routine;
@@ -32,7 +40,10 @@ export function RoutineRichForm({ routine, onSuccess, onCancel }: RoutineRichFor
   const parseSteps = (): RoutineStep[] => {
     if (routine?.steps) {
       try {
-        const parsed = typeof routine.steps === 'string' ? JSON.parse(routine.steps) : routine.steps;
+        const parsed =
+          typeof routine.steps === 'string'
+            ? JSON.parse(routine.steps)
+            : routine.steps;
         return Array.isArray(parsed) ? parsed : [];
       } catch {
         return [];
@@ -46,25 +57,42 @@ export function RoutineRichForm({ routine, onSuccess, onCancel }: RoutineRichFor
     description: routine?.description || '',
     category: routine?.category || '',
     frequency: routine?.frequency || '',
-    energyLevel: (routine?.energyLevel as 'low' | 'medium' | 'high') || 'medium',
+    energyLevel:
+      (routine?.energyLevel as 'low' | 'medium' | 'high') || 'medium',
     estimatedTime: routine?.estimatedTime || 15,
     imageUrl: routine?.imageUrl || '',
-    context: (routine?.context as 'morning' | 'evening' | 'anytime') || 'anytime',
-    duration: (routine?.duration as '5min' | '15min' | '30min' | '60min') || '15min',
-    difficulty: (routine?.difficulty as 'beginner' | 'intermediate' | 'advanced') || 'beginner',
+    context:
+      (routine?.context as 'morning' | 'evening' | 'anytime') || 'anytime',
+    duration:
+      (routine?.duration as '5min' | '15min' | '30min' | '60min') || '15min',
+    difficulty:
+      (routine?.difficulty as 'beginner' | 'intermediate' | 'advanced') ||
+      'beginner',
     equipment: routine?.equipment || [],
     tags: routine?.tags || [],
   });
 
   const [steps, setSteps] = useState<RoutineStep[]>(parseSteps());
   const [tips, setTips] = useState<string[]>(routine?.tips || []);
-  const [contraindications, setContraindications] = useState<string[]>(routine?.contraindications || []);
-  const [imagePreview, setImagePreview] = useState<string | null>(routine?.imageUrl || null);
+  const [contraindications, setContraindications] = useState<string[]>(
+    routine?.contraindications || []
+  );
+  const [imagePreview, setImagePreview] = useState<string | null>(
+    routine?.imageUrl || null
+  );
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const categories = ['breathwork', 'meditation', 'exercise', 'stretching', 'mindfulness', 'sleep', 'energy'];
+  const categories = [
+    'breathwork',
+    'meditation',
+    'exercise',
+    'stretching',
+    'mindfulness',
+    'sleep',
+    'energy',
+  ];
   const contexts = ['morning', 'evening', 'anytime'];
   const durations = ['5min', '15min', '30min', '60min'];
   const difficulties = ['beginner', 'intermediate', 'advanced'];
@@ -78,8 +106,11 @@ export function RoutineRichForm({ routine, onSuccess, onCancel }: RoutineRichFor
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      setErrors({ ...errors, image: 'Image size must be less than 5MB' });
+    if (file.size > MAX_IMAGE_UPLOAD_BYTES) {
+      setErrors({
+        ...errors,
+        image: `Image size must be less than ${MAX_IMAGE_UPLOAD_LABEL}`,
+      });
       return;
     }
 
@@ -93,8 +124,14 @@ export function RoutineRichForm({ routine, onSuccess, onCancel }: RoutineRichFor
     const uploadFormData = new FormData();
     uploadFormData.append('file', file);
 
-    const result = await uploadImage(uploadFormData);
-    setIsUploading(false);
+    let result: Awaited<ReturnType<typeof uploadImage>>;
+    try {
+      result = await uploadImage(uploadFormData);
+    } catch {
+      result = { success: false, error: 'Failed to upload image' };
+    } finally {
+      setIsUploading(false);
+    }
 
     if (result.success && result.url) {
       setFormData({ ...formData, imageUrl: result.url });
@@ -127,7 +164,7 @@ export function RoutineRichForm({ routine, onSuccess, onCancel }: RoutineRichFor
   const updateStep = (
     index: number,
     field: keyof RoutineStep,
-    value: string | number | undefined,
+    value: string | number | undefined
   ) => {
     const updated = [...steps];
     updated[index] = { ...updated[index], [field]: value };
@@ -186,7 +223,10 @@ export function RoutineRichForm({ routine, onSuccess, onCancel }: RoutineRichFor
       difficulty: formData.difficulty,
       equipment: formData.equipment.filter(Boolean),
       tags: formData.tags.filter(Boolean),
-      steps: steps.filter((s) => s.description.trim()).length > 0 ? steps.filter((s) => s.description.trim()) : undefined,
+      steps:
+        steps.filter((s) => s.description.trim()).length > 0
+          ? steps.filter((s) => s.description.trim())
+          : undefined,
       tips: tips.filter(Boolean),
       contraindications: contraindications.filter(Boolean),
     };
@@ -205,11 +245,19 @@ export function RoutineRichForm({ routine, onSuccess, onCancel }: RoutineRichFor
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-6 max-h-[80vh] overflow-y-auto p-4">
+    <form
+      onSubmit={handleSubmit}
+      className="flex flex-col gap-6 max-h-[80vh] overflow-y-auto p-4"
+    >
       {/* Basic Info */}
       <div className="flex flex-col gap-4">
         <div>
-          <label htmlFor="routine-name" className="block text-sm font-medium text-gray-700 mb-2">Name *</label>
+          <label
+            htmlFor="routine-name"
+            className="block text-sm font-medium text-gray-700 mb-2"
+          >
+            Name *
+          </label>
           <Input
             id="routine-name"
             name="routine-name"
@@ -218,16 +266,25 @@ export function RoutineRichForm({ routine, onSuccess, onCancel }: RoutineRichFor
             required
             className={errors.name ? 'border-red-300' : ''}
           />
-          {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
+          {errors.name && (
+            <p className="mt-1 text-sm text-red-600">{errors.name}</p>
+          )}
         </div>
 
         <div>
-          <label htmlFor="routine-description" className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+          <label
+            htmlFor="routine-description"
+            className="block text-sm font-medium text-gray-700 mb-2"
+          >
+            Description
+          </label>
           <textarea
             id="routine-description"
             name="routine-description"
             value={formData.description}
-            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            onChange={(e) =>
+              setFormData({ ...formData, description: e.target.value })
+            }
             rows={3}
             className="flex w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
           />
@@ -235,11 +292,17 @@ export function RoutineRichForm({ routine, onSuccess, onCancel }: RoutineRichFor
 
         {/* Image Upload */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Image</label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Image
+          </label>
           <div className="flex flex-col gap-2">
             {imagePreview && (
               <div className="relative inline-block">
-                <img src={imagePreview} alt="Preview" className="h-32 w-32 rounded-lg object-cover border border-gray-200" />
+                <img
+                  src={imagePreview}
+                  alt="Preview"
+                  className="h-32 w-32 rounded-lg object-cover border border-gray-200"
+                />
                 <button
                   type="button"
                   onClick={handleRemoveImage}
@@ -263,7 +326,11 @@ export function RoutineRichForm({ routine, onSuccess, onCancel }: RoutineRichFor
                 className="flex cursor-pointer items-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
               >
                 <Upload className="h-4 w-4" />
-                {isUploading ? 'Uploading...' : imagePreview ? 'Change Image' : 'Upload Image'}
+                {isUploading
+                  ? 'Uploading...'
+                  : imagePreview
+                    ? 'Change Image'
+                    : 'Upload Image'}
               </label>
               <Input
                 id="routine-image-url"
@@ -283,12 +350,19 @@ export function RoutineRichForm({ routine, onSuccess, onCancel }: RoutineRichFor
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label htmlFor="routine-category" className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+            <label
+              htmlFor="routine-category"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
+              Category
+            </label>
             <select
               id="routine-category"
               name="routine-category"
               value={formData.category}
-              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, category: e.target.value })
+              }
               className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
             >
               <option value="">Select category</option>
@@ -301,12 +375,19 @@ export function RoutineRichForm({ routine, onSuccess, onCancel }: RoutineRichFor
           </div>
 
           <div>
-            <label htmlFor="routine-frequency" className="block text-sm font-medium text-gray-700 mb-2">Frequency</label>
+            <label
+              htmlFor="routine-frequency"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
+              Frequency
+            </label>
             <Input
               id="routine-frequency"
               name="routine-frequency"
               value={formData.frequency}
-              onChange={(e) => setFormData({ ...formData, frequency: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, frequency: e.target.value })
+              }
               placeholder="e.g., daily, weekly"
             />
           </div>
@@ -314,12 +395,22 @@ export function RoutineRichForm({ routine, onSuccess, onCancel }: RoutineRichFor
 
         <div className="grid grid-cols-3 gap-4">
           <div>
-            <label htmlFor="routine-energy-level" className="block text-sm font-medium text-gray-700 mb-2">Energy Level</label>
+            <label
+              htmlFor="routine-energy-level"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
+              Energy Level
+            </label>
             <select
               id="routine-energy-level"
               name="routine-energy-level"
               value={formData.energyLevel}
-              onChange={(e) => setFormData({ ...formData, energyLevel: e.target.value as 'low' | 'medium' | 'high' })}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  energyLevel: e.target.value as 'low' | 'medium' | 'high',
+                })
+              }
               className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
             >
               <option value="low">Low</option>
@@ -329,12 +420,22 @@ export function RoutineRichForm({ routine, onSuccess, onCancel }: RoutineRichFor
           </div>
 
           <div>
-            <label htmlFor="routine-context" className="block text-sm font-medium text-gray-700 mb-2">Context</label>
+            <label
+              htmlFor="routine-context"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
+              Context
+            </label>
             <select
               id="routine-context"
               name="routine-context"
               value={formData.context}
-              onChange={(e) => setFormData({ ...formData, context: e.target.value as 'morning' | 'evening' | 'anytime' })}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  context: e.target.value as 'morning' | 'evening' | 'anytime',
+                })
+              }
               className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
             >
               {contexts.map((ctx) => (
@@ -346,12 +447,23 @@ export function RoutineRichForm({ routine, onSuccess, onCancel }: RoutineRichFor
           </div>
 
           <div>
-            <label htmlFor="routine-duration" className="block text-sm font-medium text-gray-700 mb-2">Duration</label>
+            <label
+              htmlFor="routine-duration"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
+              Duration
+            </label>
             <select
               id="routine-duration"
               name="routine-duration"
               value={formData.duration}
-              onChange={(e) => setFormData({ ...formData, duration: e.target.value as '5min' | '15min' | '30min' | '60min' })}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  duration: e.target.value as
+                    '5min' | '15min' | '30min' | '60min',
+                })
+              }
               className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
             >
               {durations.map((dur) => (
@@ -365,12 +477,23 @@ export function RoutineRichForm({ routine, onSuccess, onCancel }: RoutineRichFor
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label htmlFor="routine-difficulty" className="block text-sm font-medium text-gray-700 mb-2">Difficulty</label>
+            <label
+              htmlFor="routine-difficulty"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
+              Difficulty
+            </label>
             <select
               id="routine-difficulty"
               name="routine-difficulty"
               value={formData.difficulty}
-              onChange={(e) => setFormData({ ...formData, difficulty: e.target.value as 'beginner' | 'intermediate' | 'advanced' })}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  difficulty: e.target.value as
+                    'beginner' | 'intermediate' | 'advanced',
+                })
+              }
               className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
             >
               {difficulties.map((diff) => (
@@ -382,36 +505,72 @@ export function RoutineRichForm({ routine, onSuccess, onCancel }: RoutineRichFor
           </div>
 
           <div>
-            <label htmlFor="routine-estimated-time" className="block text-sm font-medium text-gray-700 mb-2">Estimated Time (minutes)</label>
+            <label
+              htmlFor="routine-estimated-time"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
+              Estimated Time (minutes)
+            </label>
             <Input
               id="routine-estimated-time"
               name="routine-estimated-time"
               type="number"
               min="1"
               value={formData.estimatedTime}
-              onChange={(e) => setFormData({ ...formData, estimatedTime: parseInt(e.target.value) || 15 })}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  estimatedTime: parseInt(e.target.value) || 15,
+                })
+              }
             />
           </div>
         </div>
 
         <div>
-          <label htmlFor="routine-equipment" className="block text-sm font-medium text-gray-700 mb-2">Equipment (comma-separated)</label>
+          <label
+            htmlFor="routine-equipment"
+            className="block text-sm font-medium text-gray-700 mb-2"
+          >
+            Equipment (comma-separated)
+          </label>
           <Input
             id="routine-equipment"
             name="routine-equipment"
             value={formData.equipment.join(', ')}
-            onChange={(e) => setFormData({ ...formData, equipment: e.target.value.split(',').map((t) => t.trim()).filter(Boolean) })}
+            onChange={(e) =>
+              setFormData({
+                ...formData,
+                equipment: e.target.value
+                  .split(',')
+                  .map((t) => t.trim())
+                  .filter(Boolean),
+              })
+            }
             placeholder="e.g., mat, weights, resistance band"
           />
         </div>
 
         <div>
-          <label htmlFor="routine-tags" className="block text-sm font-medium text-gray-700 mb-2">Tags (comma-separated)</label>
+          <label
+            htmlFor="routine-tags"
+            className="block text-sm font-medium text-gray-700 mb-2"
+          >
+            Tags (comma-separated)
+          </label>
           <Input
             id="routine-tags"
             name="routine-tags"
             value={formData.tags.join(', ')}
-            onChange={(e) => setFormData({ ...formData, tags: e.target.value.split(',').map((t) => t.trim()).filter(Boolean) })}
+            onChange={(e) =>
+              setFormData({
+                ...formData,
+                tags: e.target.value
+                  .split(',')
+                  .map((t) => t.trim())
+                  .filter(Boolean),
+              })
+            }
             placeholder="e.g., relaxation, focus, energy"
           />
         </div>
@@ -421,23 +580,42 @@ export function RoutineRichForm({ routine, onSuccess, onCancel }: RoutineRichFor
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-900">Steps</h3>
-          <Button type="button" variant="outline" size="sm" onClick={addStep} className="gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={addStep}
+            className="gap-2"
+          >
             <Plus className="h-4 w-4" />
             Add Step
           </Button>
         </div>
         {steps.map((step, index) => (
-          <div key={index} className="rounded-lg border border-gray-200 bg-white p-4">
+          <div
+            key={index}
+            className="rounded-lg border border-gray-200 bg-white p-4"
+          >
             <div className="mb-2 flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-700">Step {step.step}</span>
+              <span className="text-sm font-medium text-gray-700">
+                Step {step.step}
+              </span>
               {steps.length > 1 && (
-                <Button type="button" variant="outline" size="sm" onClick={() => removeStep(index)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => removeStep(index)}
+                >
                   <Trash2 className="h-4 w-4" />
                 </Button>
               )}
             </div>
             <div className="flex flex-col gap-2">
-              <label htmlFor={`routine-step-title-${index}`} className="sr-only">
+              <label
+                htmlFor={`routine-step-title-${index}`}
+                className="sr-only"
+              >
                 Step {index + 1} title
               </label>
               <Input
@@ -447,7 +625,10 @@ export function RoutineRichForm({ routine, onSuccess, onCancel }: RoutineRichFor
                 value={step.title || ''}
                 onChange={(e) => updateStep(index, 'title', e.target.value)}
               />
-              <label htmlFor={`routine-step-description-${index}`} className="sr-only">
+              <label
+                htmlFor={`routine-step-description-${index}`}
+                className="sr-only"
+              >
                 Step {index + 1} description
               </label>
               <textarea
@@ -455,13 +636,18 @@ export function RoutineRichForm({ routine, onSuccess, onCancel }: RoutineRichFor
                 name={`routine-step-description-${index}`}
                 placeholder="Step description *"
                 value={step.description}
-                onChange={(e) => updateStep(index, 'description', e.target.value)}
+                onChange={(e) =>
+                  updateStep(index, 'description', e.target.value)
+                }
                 rows={2}
                 className="flex w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
                 required
               />
               <div className="grid grid-cols-2 gap-2">
-                <label htmlFor={`routine-step-duration-${index}`} className="sr-only">
+                <label
+                  htmlFor={`routine-step-duration-${index}`}
+                  className="sr-only"
+                >
                   Step {index + 1} duration
                 </label>
                 <Input
@@ -471,9 +657,18 @@ export function RoutineRichForm({ routine, onSuccess, onCancel }: RoutineRichFor
                   min="1"
                   placeholder="Duration (minutes, optional)"
                   value={step.duration || ''}
-                  onChange={(e) => updateStep(index, 'duration', parseInt(e.target.value) || undefined)}
+                  onChange={(e) =>
+                    updateStep(
+                      index,
+                      'duration',
+                      parseInt(e.target.value) || undefined
+                    )
+                  }
                 />
-                <label htmlFor={`routine-step-image-${index}`} className="sr-only">
+                <label
+                  htmlFor={`routine-step-image-${index}`}
+                  className="sr-only"
+                >
                   Step {index + 1} image URL
                 </label>
                 <Input
@@ -482,7 +677,9 @@ export function RoutineRichForm({ routine, onSuccess, onCancel }: RoutineRichFor
                   type="url"
                   placeholder="Step image URL (optional)"
                   value={step.imageUrl || ''}
-                  onChange={(e) => updateStep(index, 'imageUrl', e.target.value)}
+                  onChange={(e) =>
+                    updateStep(index, 'imageUrl', e.target.value)
+                  }
                 />
               </div>
             </div>
@@ -494,7 +691,13 @@ export function RoutineRichForm({ routine, onSuccess, onCancel }: RoutineRichFor
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-900">Tips</h3>
-          <Button type="button" variant="outline" size="sm" onClick={addTip} className="gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={addTip}
+            className="gap-2"
+          >
             <Plus className="h-4 w-4" />
             Add Tip
           </Button>
@@ -511,7 +714,12 @@ export function RoutineRichForm({ routine, onSuccess, onCancel }: RoutineRichFor
               value={tip}
               onChange={(e) => updateTip(index, e.target.value)}
             />
-            <Button type="button" variant="outline" size="sm" onClick={() => removeTip(index)}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => removeTip(index)}
+            >
               <Trash2 className="h-4 w-4" />
             </Button>
           </div>
@@ -521,15 +729,26 @@ export function RoutineRichForm({ routine, onSuccess, onCancel }: RoutineRichFor
       {/* Contraindications */}
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900">Contraindications</h3>
-          <Button type="button" variant="outline" size="sm" onClick={addContraindication} className="gap-2">
+          <h3 className="text-lg font-semibold text-gray-900">
+            Contraindications
+          </h3>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={addContraindication}
+            className="gap-2"
+          >
             <Plus className="h-4 w-4" />
             Add Contraindication
           </Button>
         </div>
         {contraindications.map((contra, index) => (
           <div key={index} className="flex gap-2">
-            <label htmlFor={`routine-contraindication-${index}`} className="sr-only">
+            <label
+              htmlFor={`routine-contraindication-${index}`}
+              className="sr-only"
+            >
               Contraindication {index + 1}
             </label>
             <Input
@@ -539,7 +758,12 @@ export function RoutineRichForm({ routine, onSuccess, onCancel }: RoutineRichFor
               value={contra}
               onChange={(e) => updateContraindication(index, e.target.value)}
             />
-            <Button type="button" variant="outline" size="sm" onClick={() => removeContraindication(index)}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => removeContraindication(index)}
+            >
               <Trash2 className="h-4 w-4" />
             </Button>
           </div>
@@ -557,10 +781,13 @@ export function RoutineRichForm({ routine, onSuccess, onCancel }: RoutineRichFor
           Cancel
         </Button>
         <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? 'Saving...' : isEditing ? 'Update Routine' : 'Create Routine'}
+          {isSubmitting
+            ? 'Saving...'
+            : isEditing
+              ? 'Update Routine'
+              : 'Create Routine'}
         </Button>
       </div>
     </form>
   );
 }
-
