@@ -69,21 +69,29 @@ export function isLateLuteal(signals: BriefingSignals): boolean {
 }
 
 /**
- * Recent logs point to an easier day: energy below usual, low recovery, more symptoms
- * than usual or short sleep (under 7 hours), or a low time-of-day energy check-in for
- * right now (circadian insights). The headline then suggests a gentler day, and the
- * suggestions that encourage harder training are left out, so the card never says both
- * (copy.ts `buildHeadline` uses this same check). The circadian card holds back its
- * training push on the same days (lib/easy-day), so the dashboard does not either.
+ * The recent logs alone point to an easier day: energy below usual, low recovery, more
+ * symptoms than usual or short sleep (under 7 hours). Each of these adds a suggestion that
+ * says why (`buildCandidates`).
  */
-export function isTakeItEasyDay(signals: BriefingSignals): boolean {
+export function recentLogsSayTakeItEasy(signals: BriefingSignals): boolean {
   return (
-    signals.lowEnergyNow ||
     (signals.energy?.low ?? false) ||
     (signals.recovery?.low ?? false) ||
     (signals.symptoms?.elevated ?? false) ||
     (signals.sleep?.short ?? false)
   );
+}
+
+/**
+ * Take it easy today: the recent logs say so (`recentLogsSayTakeItEasy`), or there is a
+ * low time-of-day energy check-in for right now (circadian insights). The headline then
+ * suggests a gentler day, and the suggestions that encourage harder training are left
+ * out, so the card never says both (copy.ts `buildHeadline` uses this same check). The
+ * circadian card holds back its training push on the same days (lib/easy-day), so the
+ * dashboard does not either.
+ */
+export function isTakeItEasyDay(signals: BriefingSignals): boolean {
+  return signals.lowEnergyNow || recentLogsSayTakeItEasy(signals);
 }
 
 export function buildCandidates(

@@ -3,7 +3,7 @@ import type { CyclePhase } from '@/lib/cycle-calculator';
 import { addDaysToDateOnly, dateOnlyToLocalDate } from '@/lib/date-only';
 import { getDietaryRecommendations } from '@/lib/dietary-recommendations';
 import { RECOVERY_ZONE_LABELS } from '@/lib/recovery';
-import { isTakeItEasyDay } from './rules';
+import { isTakeItEasyDay, recentLogsSayTakeItEasy } from './rules';
 import type { BriefingSignals, Comparison } from './signals';
 import type {
   BriefingDetail,
@@ -395,7 +395,10 @@ export function phraseSuggestion(
  */
 export function buildHeadline(signals: BriefingSignals): string {
   if (isTakeItEasyDay(signals)) {
-    return "A gentler day may suit you. Here's what your recent logs suggest.";
+    // A low check-in right now adds no suggestion of its own, so the headline says why.
+    return recentLogsSayTakeItEasy(signals)
+      ? "A gentler day may suit you. Here's what your recent logs suggest."
+      : 'You rated your energy as low right now, so this briefing keeps things gentle.';
   }
   if ((signals.energy?.good ?? false) || (signals.recovery?.good ?? false)) {
     return "You've been doing well lately. Here's how to make the most of it.";

@@ -41,6 +41,10 @@ const isolated = Boolean(
 const TODAY = '2026-11-20';
 const GENTLER =
   "A gentler day may suit you. Here's what your recent logs suggest.";
+/** The gentler headline when a low check-in right now is the only reason. */
+const LOW_NOW =
+  'You rated your energy as low right now, so this briefing keeps things gentle.';
+const GENTLE_HEADLINES = [GENTLER, LOW_NOW];
 const DOING_WELL =
   "You've been doing well lately. Here's how to make the most of it.";
 /** Circadian card suggestions that push harder work. */
@@ -150,7 +154,7 @@ describe('the daily briefing and the circadian card agree', () => {
     // A good week, then 2/10 on the circadian card at 10:30: the briefing goes gentle.
     const lowNow = dashboard(JOURNALS.goodWeek, checkIns(2), at(10));
     expect(lowNow.cardKeys[0]).toBe('personal.low-now');
-    expect(lowNow.briefing.headline).toBe(GENTLER);
+    expect(lowNow.briefing.headline).toBe(LOW_NOW);
     expect(lowNow.keys).not.toContain('routine.go-for-it');
 
     // A low week in the briefing at 16:30: the card pushes no harder training.
@@ -177,7 +181,7 @@ describe('the daily briefing and the circadian card agree', () => {
             at(hour)
           );
           const label = JSON.stringify({ today, hour, keys, cardKeys });
-          if (briefing.headline === GENTLER) {
+          if (GENTLE_HEADLINES.includes(briefing.headline)) {
             gentle += 1;
             expect(
               cardKeys.filter((k) => CARD_PUSH.includes(k)),
@@ -194,7 +198,7 @@ describe('the daily briefing and the circadian card agree', () => {
             cardKeys.includes('personal.low-now') ||
             cardKeys.includes('personal.easy-day')
           ) {
-            expect(briefing.headline, label).toBe(GENTLER);
+            expect(GENTLE_HEADLINES, label).toContain(briefing.headline);
             expect(
               keys.filter((k) => BRIEFING_PUSH.includes(k)),
               label
@@ -360,7 +364,7 @@ describe.skipIf(!isolated)(
       const after = await loadDashboard(morning);
       expect(after.cardKeys[0]).toBe('personal.low-now');
       expect(after.cardKeys).not.toContain('morning.training');
-      expect(after.briefing.headline).toBe(GENTLER);
+      expect(after.briefing.headline).toBe(LOW_NOW);
       expect(after.keys).not.toContain('routine.go-for-it');
 
       // The afternoon has its own check-in, not made yet: the morning's no longer counts

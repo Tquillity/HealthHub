@@ -1,10 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { buildHeadline } from './copy';
-import { buildCandidates, isTakeItEasyDay } from './rules';
+import {
+  buildCandidates,
+  isTakeItEasyDay,
+  recentLogsSayTakeItEasy,
+} from './rules';
 import type { BriefingSignals, Comparison } from './signals';
 import type { SuggestionKey } from './types';
 
 const GENTLER = "A gentler day may suit you. Here's what your recent logs suggest.";
+const LOW_NOW =
+  'You rated your energy as low right now, so this briefing keeps things gentle.';
 const DOING_WELL = "You've been doing well lately. Here's how to make the most of it.";
 
 /** Suggestions that encourage harder training. */
@@ -117,13 +123,24 @@ describe('headline and suggestions', () => {
               const headline = buildHeadline(s);
               const keys = buildCandidates(s).map((c) => c.key);
               const label = JSON.stringify({ headline, keys });
-              if (headline === GENTLER) {
+              if (headline === GENTLER || headline === LOW_NOW) {
                 gentlerDays += 1;
                 expect(isTakeItEasyDay(s)).toBe(true);
                 expect(
                   keys.filter((k) => PUSH.includes(k)),
                   label
                 ).toEqual([]);
+                // Every gentler headline says why: a suggestion from the logs, or the
+                // low check-in itself.
+                if (headline === LOW_NOW) {
+                  expect(s.lowEnergyNow, label).toBe(true);
+                  expect(recentLogsSayTakeItEasy(s), label).toBe(false);
+                } else {
+                  expect(
+                    keys.filter((k) => EASE.includes(k)).length,
+                    label
+                  ).toBeGreaterThan(0);
+                }
               } else {
                 // "Doing well" or a neutral headline: nothing says go gently either.
                 expect(
@@ -155,8 +172,20 @@ describe('headline and suggestions', () => {
       lowEnergyNow: true,
     });
     expect(isTakeItEasyDay(lowNow)).toBe(true);
-    expect(buildHeadline(lowNow)).toBe(GENTLER);
+    // No suggestion explains it, so the headline names the check-in.
+    expect(buildHeadline(lowNow)).toBe(LOW_NOW);
     expect(buildCandidates(lowNow)).toEqual([]);
+
+    // With a reason in the logs as well, that reason's suggestion explains it.
+    const alsoShortSleep = signals({
+      energy: ENERGY.good,
+      sleep: SLEEP.short,
+      lowEnergyNow: true,
+    });
+    expect(buildHeadline(alsoShortSleep)).toBe(GENTLER);
+    expect(buildCandidates(alsoShortSleep).map((c) => c.key)).toEqual([
+      'recovery.sleep',
+    ]);
   });
 
   it('drops "try a more challenging routine" after short (6-7 h) nights', () => {
