@@ -1,0 +1,592 @@
+import { z } from 'zod';
+import type { CycleShareLevel } from '@prisma/client';
+import { getPhaseForDay, type CyclePhase } from '@/lib/cycle-calculator';
+import { dateOnlyToUtcDate, isDateOnlyString, toDateOnlyString } from '@/lib/date-only';
+import { PHASE_THEMES } from '@/lib/phase-theme';
+import { getLocalHour, isUnsetTimeZone, resolveTimeZone } from '@/lib/time-zone';
+import { OrganizationIdSchema } from '@/lib/validation/organization-schemas';
+import type { FocusPreference } from '@/types/cycle';
+
+/**
+ * Partner sync (issue #3): what household members may see of someone's current cycle status.
+ *
+ * Sharing is off by default and chosen per household: each share names one household, a level,
+ * and the members it covers (those who had joined when the person agreed; people who join
+ * later see nothing until they are included). It is effective only while the person has cycle
+ * tracking set up (see getEffectiveShareLevel). Where it may be shown at all is decided by
+ * org-policy (households only).
+ *
+ * `projectCycleStatus` is the single definition of what each level reveals. The dashboard
+ * widget and the Profile preview both use it, so the preview is exactly what others see:
+ * - PHASE: first name, current phase (name and color) and a supportive suggestion.
+ * - ENERGY: PHASE + the typical energy pattern for that phase + today's self-logged energy.
+ * - FULL: ENERGY + cycle day, days until the next period and the personal support message.
+ * Once the cycle is longer than usual (the next period is late or not logged), no phase is
+ * estimated: members see a note saying so, and nothing that depends on a phase.
+ * Journal notes, symptoms, mood, sleep, body temperature and every other field are never part
+ * of any level. Pure and client-safe; unit-tested in cycle-status-sharing.test.ts.
+ */
+
+export const CYCLE_SHARE_LEVELS = [
+  'NONE',
+  'PHASE',
+  'ENERGY',
+  'FULL',
+] as const satisfies readonly CycleShareLevel[];
+
+const LEVEL_RANK: Record<CycleShareLevel, number> = { NONE: 0, PHASE: 1, ENERGY: 2, FULL: 3 };
+
+/** True when `level` reveals at least as much as `minimum`. */
+export function levelIncludes(level: CycleShareLevel, minimum: CycleShareLevel): boolean {
+  return LEVEL_RANK[level] >= LEVEL_RANK[minimum];
+}
+
+export const SUPPORT_MESSAGE_MAX_LENGTH = 280;
+
+export const CYCLE_SHARE_LEVEL_INFO: Record<
+  CycleShareLevel,
+  { label: string; description: string }
+> = {
+  NONE: {
+    label: 'Nothing',
+    description: 'Household members see nothing about your cycle.',
+  },
+  PHASE: {
+    label: 'Phase only',
+    description:
+      'Your first name, your current phase and its color, and a supportive idea for them.',
+  },
+  ENERGY: {
+    label: 'Phase and energy',
+    description:
+      'Phase only, plus the typical energy pattern for your phase and the energy you logged in your journal today, if you did.',
+  },
+  FULL: {
+    label: 'Full status',
+    description:
+      'Phase and energy, plus your cycle day, roughly how many days until your next period, and your personal message.',
+  },
+};
+
+export const NEVER_SHARED_NOTE =
+  'Your journal notes, symptoms, mood, sleep, temperature and other health details are never shared at any level.';
+
+/** Levels a share can have. NONE is no share at all (the row is deleted). */
+export const SHARED_LEVELS = ['PHASE', 'ENERGY', 'FULL'] as const satisfies readonly Exclude<
+  CycleShareLevel,
+  'NONE'
+>[];
+
+export type SharedLevel = (typeof SHARED_LEVELS)[number];
+
+/**
+ * Start, change or stop sharing with one household, from Profile. The household is the one the
+ * Profile page listed (checked on the server); NONE stops sharing there.
+ */
+export const SetCycleStatusShareSchema = z
+  .object({
+    organizationId: OrganizationIdSchema,
+    level: z.enum(CYCLE_SHARE_LEVELS),
+    /**
+     * When the newest member the page listed joined (CycleShareHousehold). Starting to share, or
+     * including the people who joined since, covers the members who had joined by then and
+     * nobody who joined later.
+     */
+    listedMembersJoinedBy: z.iso.datetime(),
+    /** Also show the status to the members who joined after sharing started. */
+    includeNewMembers: z.boolean().optional(),
+    /**
+     * The browser's IANA time zone. Saved to the profile while it still has the default, so
+     * "today" for the household is the person's own day (see timeZoneToAdopt).
+     */
+    deviceTimeZone: z.string().trim().max(100).optional(),
+  })
+  .strict();
+
+export type SetCycleStatusShareInput = z.infer<typeof SetCycleStatusShareSchema>;
+
+/** The personal message. Plain text; '' or null clears it. Stored encrypted. */
+export const UpdateSupportMessageSchema = z
+  .object({
+    supportMessage: z
+      .string()
+      .trim()
+      .max(
+        SUPPORT_MESSAGE_MAX_LENGTH,
+        `Keep your message to ${SUPPORT_MESSAGE_MAX_LENGTH} characters or fewer`
+      )
+      .nullable(),
+  })
+  .strict();
+
+/**
+ * The level that actually applies in one household: NONE unless the person shares with it and
+ * has cycle tracking set up (tracking enabled and a last period date), whatever is stored.
+ */
+export function getEffectiveShareLevel(settings: {
+  /** The household's share level; NONE when there is no share. */
+  level: CycleShareLevel;
+  cycleConfigured: boolean;
+}): CycleShareLevel {
+  if (!settings.cycleConfigured) return 'NONE';
+  return settings.level;
+}
+
+/**
+ * Who sees a share: members who had joined by `coversMembersJoinedBy`. Members who joined
+ * later are not covered until the sharer includes them. Times compare as instants.
+ */
+export function isCoveredByShare(
+  memberJoinedAt: Date | string,
+  coversMembersJoinedBy: Date | string
+): boolean {
+  return new Date(memberJoinedAt).getTime() <= new Date(coversMembersJoinedBy).getTime();
+}
+
+/** One household in Profile > Cycle status sharing (built in src/lib/support-status.ts). */
+export type CycleShareHousehold = {
+  id: string;
+  name: string;
+  /** Null when nothing is shared with this household. */
+  share: { level: SharedLevel; coversMembersJoinedBy: string } | null;
+  /** The other current members, oldest first, and whether they see the status now. */
+  members: { name: string; seesStatus: boolean }[];
+  /**
+   * When the newest member listed joined (ISO; the user's own join time when nobody else is
+   * listed). Sent back when starting to share or including new members, so the share covers
+   * the people the page listed and nobody who joined later, even someone whose join was still
+   * being saved while the page was read.
+   */
+  listedMembersJoinedBy: string;
+};
+
+/** "Robin", "Robin and Sam", "Robin, Sam, and Alex". */
+export function listNames(names: string[]): string {
+  return new Intl.ListFormat('en', { style: 'long', type: 'conjunction' }).format(names);
+}
+
+/** Members of a shared household who joined after sharing started and do not see it. */
+export function membersNotYetIncluded(household: CycleShareHousehold): string[] {
+  if (!household.share) return [];
+  return household.members.filter((member) => !member.seesStatus).map((member) => member.name);
+}
+
+/**
+ * What a saved change actually shares, for the confirmation after saving: who sees what in
+ * this household now. `household` is the server's state after the save.
+ */
+export function describeShareChange(household: CycleShareHousehold, cycleConfigured: boolean): string {
+  const { name, share, members } = household;
+  if (!share) return `${name} can no longer see your cycle status.`;
+  if (!cycleConfigured) {
+    return `Sharing with ${name} is on, but nothing is shown until cycle tracking and your last period date are set.`;
+  }
+  if (members.length === 0) return `Sharing with ${name} is on, but nobody else is in it yet.`;
+  const seen = members.filter((member) => member.seesStatus).map((member) => member.name);
+  if (seen.length === 0) return `Sharing with ${name} is on, but nobody there sees it yet.`;
+  const label = CYCLE_SHARE_LEVEL_INFO[share.level].label;
+  return `${listNames(seen)} now ${seen.length === 1 ? 'sees' : 'see'} your cycle status: ${label}.`;
+}
+
+/** The user's own share with one household, for that household's page (support-status.ts). */
+export type OwnCycleShare = {
+  household: CycleShareHousehold;
+  /** Cycle tracking is on and a last period date is set; a share shows nothing without both. */
+  cycleConfigured: boolean;
+};
+
+/**
+ * Who actually sees an existing share, for the household's privacy card: the level alone would
+ * suggest that everyone there sees it. Empty when nothing is shared.
+ */
+export function describeShareReach(
+  household: CycleShareHousehold,
+  cycleConfigured: boolean
+): string {
+  if (!household.share) return '';
+  if (!cycleConfigured) {
+    return 'Nobody sees it until cycle tracking and your last period date are set.';
+  }
+  if (household.members.length === 0) {
+    return 'Nobody else is in this household yet. People who join later see nothing until you include them.';
+  }
+  const seen = household.members.filter((member) => member.seesStatus).map((member) => member.name);
+  const later = membersNotYetIncluded(household);
+  const seenText = seen.length > 0 ? `Seen by ${listNames(seen)}.` : 'Nobody here sees it yet.';
+  if (later.length === 0) return seenText;
+  const verb = later.length === 1 ? 'sees' : 'see';
+  return `${seenText} ${listNames(later)} joined later and ${verb} nothing until you include them.`;
+}
+
+/** Who sees the status in this household, or would see it if the user shared. */
+export function describeAudience(household: CycleShareHousehold): string {
+  const { name, members, share } = household;
+  if (members.length === 0) {
+    return share
+      ? `Nobody else is in ${name} yet. People who join later see nothing until you include them.`
+      : `Nobody else is in ${name} yet.`;
+  }
+  if (!share) {
+    return `If you share, ${listNames(members.map((member) => member.name))} will see it. People who join later will not, until you include them.`;
+  }
+  const seen = members.filter((member) => member.seesStatus).map((member) => member.name);
+  return seen.length > 0 ? `Seen by ${listNames(seen)}.` : `Nobody in ${name} sees it yet.`;
+}
+
+export const PHASE_LABELS: Record<CyclePhase, string> = {
+  menstrual: 'Menstrual',
+  follicular: 'Follicular',
+  ovulation: 'Ovulation',
+  luteal: 'Luteal',
+};
+
+/**
+ * Typical energy per phase, in words. Same shape as the app's existing phase model: the
+ * Energy series of the cycle chart (src/components/cycle/cycle-chart.tsx, generateEnergyData:
+ * lower while menstruating, rising through the follicular phase, highest around ovulation,
+ * easing off through the luteal phase) and "What's happening" in the phase deep dive
+ * (src/components/cycle/phase-deep-dive.tsx). A typical pattern, not a measurement.
+ */
+export const TYPICAL_PHASE_ENERGY: Record<CyclePhase, { summary: string; detail: string }> = {
+  menstrual: {
+    summary: 'Often lower',
+    detail: 'Energy is often lower during a period, though some people still feel strong.',
+  },
+  follicular: {
+    summary: 'Often building',
+    detail: 'Energy and motivation often build through this phase.',
+  },
+  ovulation: {
+    summary: 'Often highest',
+    detail: 'Energy is often at its highest around now, though it varies from person to person.',
+  },
+  luteal: {
+    summary: 'May fluctuate',
+    detail: 'Energy may change from day to day and often eases off toward the end of this phase.',
+  },
+};
+
+export type CycleSnapshot =
+  | {
+      phase: CyclePhase;
+      /** 1-based day of the current cycle. */
+      cycleDay: number;
+      /** 1 means the next period is expected tomorrow. */
+      daysUntilNextPeriod: number;
+    }
+  /**
+   * The cycle is longer than usual: the next period is late or not logged, so no phase, cycle
+   * day or next-period date can be placed.
+   */
+  | { phase: null };
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+/**
+ * Where someone is in their cycle on `dayKey` (`YYYY-MM-DD`), their own calendar day. Same
+ * phase boundaries as calculateCyclePhase (getPhaseForDay), but for a given day rather than
+ * the server's, so the phase and cycle day match the day their energy is read for.
+ *
+ * Both values are date-only (stored as UTC midnight), so the difference is whole days. A start
+ * date after `dayKey` means the person saved their own "today" before the time zone used here
+ * reached it: the period has started, so it is day 1 of the menstrual phase.
+ *
+ * The cycle never wraps: wrapping would tell others that a new period started when none was
+ * logged. From the day after the typical length on, the period is late (or not logged) and the
+ * snapshot has no phase, the same rule as the daily briefing (lib/briefing/phase.ts).
+ * Null for invalid input.
+ */
+export function cycleSnapshotOn(
+  lastPeriodDate: Date,
+  cycleLength: number,
+  dayKey: string
+): CycleSnapshot | null {
+  if (
+    !isDateOnlyString(dayKey) ||
+    !Number.isInteger(cycleLength) ||
+    cycleLength < 1 ||
+    Number.isNaN(lastPeriodDate.getTime())
+  ) {
+    return null;
+  }
+  const periodStart = dateOnlyToUtcDate(toDateOnlyString(lastPeriodDate));
+  const daysSinceStart = Math.round(
+    (dateOnlyToUtcDate(dayKey).getTime() - periodStart.getTime()) / MS_PER_DAY
+  );
+  if (daysSinceStart >= cycleLength) return { phase: null };
+  const cycleDay = daysSinceStart < 0 ? 1 : daysSinceStart + 1;
+  return {
+    phase: getPhaseForDay(cycleDay, cycleLength),
+    cycleDay,
+    daysUntilNextPeriod: Math.max(1, cycleLength - cycleDay + 1),
+  };
+}
+
+/** 'unknown': the person's local hour is not known, so ideas use neutral daytime wording. */
+export type TimeOfDay = 'morning' | 'afternoon' | 'evening' | 'night' | 'unknown';
+
+export function getTimeOfDay(hour: number): TimeOfDay {
+  if (hour >= 5 && hour < 12) return 'morning';
+  if (hour >= 12 && hour < 17) return 'afternoon';
+  if (hour >= 17 && hour < 22) return 'evening';
+  return 'night';
+}
+
+/**
+ * Someone's time of day at `now`, from the time zone in their profile. While that is still
+ * unset (the UTC default, empty or unknown; see isUnsetTimeZone), their hour is not known:
+ * guessing UTC would offer night ideas on a Los Angeles evening or a Sydney morning, so it is
+ * 'unknown' and the wording stays neutral ("today").
+ */
+export function timeOfDayIn(storedTimeZone: string | null | undefined, now: Date): TimeOfDay {
+  if (isUnsetTimeZone(storedTimeZone)) return 'unknown';
+  return getTimeOfDay(getLocalHour(now, resolveTimeZone(storedTimeZone)));
+}
+
+/** "Mikael Andersson" -> "Mikael". Other members only ever see the first name. */
+export function firstNameOf(name: string | null | undefined): string {
+  const first = (name ?? '').trim().split(/\s+/)[0];
+  return first || 'Someone';
+}
+
+/** Journal energy is a whole number from 1 to 10 (src/actions/journal-actions.ts). */
+function validEnergy(value: number | null | undefined): number | null {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 10
+    ? value
+    : null;
+}
+
+const WHEN: Record<Exclude<TimeOfDay, 'night'>, string> = {
+  morning: 'today',
+  afternoon: 'this afternoon',
+  evening: 'this evening',
+  unknown: 'today',
+};
+
+/**
+ * Support ideas by phase and the viewer's own focus preference. Kept in line with the expert
+ * content the app already shows, and phrased as invitations, never instructions:
+ * - Movement ("workout"): Dr. Stacy Sims's exercise recommendations seeded in src/db/seed.ts
+ *   (menstrual: can be a strong window when comfortable, follow readiness; follicular:
+ *   higher intensity suits rising estrogen; ovulation: responses vary, check readiness;
+ *   luteal: lower intensity, steady-state cardio, yoga). Huberman Lab, Dr. Stacy Sims
+ *   episode (Jul 2024).
+ * - Food ("hormonal"): Dr. Mindy Pelz's nutrition recommendations in src/db/seed.ts and
+ *   src/lib/dietary-recommendations.ts (menstrual: iron-rich, comforting foods; follicular:
+ *   light proteins, leafy greens, fermented foods; ovulation: balanced meals, vegetables,
+ *   seeds; luteal: complex carbs and magnesium-rich foods).
+ */
+const DAYTIME_IDEAS: Record<CyclePhase, Record<FocusPreference, (when: string) => string>> = {
+  menstrual: {
+    workout: (when) =>
+      `Let them set the pace ${when}: some people feel strong enough for a hard session during their period, others prefer a walk or gentle stretching.`,
+    hormonal: (when) => `A comforting, iron-rich meal ${when} could be a kind gesture.`,
+    both: (when) =>
+      `Ask how they feel ${when}. A comforting, iron-rich meal and letting them choose how active to be can both help.`,
+  },
+  follicular: {
+    workout: (when) =>
+      `Energy often builds in this phase, so trying something new or more challenging together ${when} could be fun, if they are up for it.`,
+    hormonal: (when) =>
+      `Cooking something fresh together ${when}, with light protein, leafy greens or fermented foods, could be a nice idea.`,
+    both: (when) =>
+      `Energy often builds in this phase. Planning something new together ${when}, like an active outing or a fresh meal, could feel good.`,
+  },
+  ovulation: {
+    workout: (when) =>
+      `Many people feel strong and social now, but it varies. Check in before suggesting an intense session together ${when}.`,
+    hormonal: (when) =>
+      `A balanced meal with plenty of vegetables and some seeds ${when} could help keep energy steady.`,
+    both: (when) =>
+      `Many people feel social and energetic now, though it varies. An active plan together ${when} could be fun if they are up for it.`,
+  },
+  luteal: {
+    workout: (when) =>
+      `A low-intensity routine together could feel good ${when}, like a walk, steady cardio or yoga.`,
+    hormonal: (when) =>
+      `A comforting meal with complex carbs and magnesium-rich foods, like whole grains, leafy greens or nuts, could be a thoughtful gesture ${when}.`,
+    both: (when) =>
+      `A low-intensity routine together could feel good ${when}, and a comforting home-cooked meal is a kind extra.`,
+  },
+};
+
+/**
+ * Late at night every focus gets a wind-down idea instead. Luteal: sleep is more often
+ * disturbed in the late luteal phase (Baker FC, Driver HS. "Circadian rhythms, sleep, and the
+ * menstrual cycle." Sleep Med. 2007;8(6):613-622).
+ */
+const NIGHT_IDEAS: Record<CyclePhase, string> = {
+  menstrual: 'Some quiet time and an early night could feel good tonight.',
+  follicular: 'Winding down together could be a nice end to the day.',
+  ovulation: 'A relaxed wind-down together could be a nice end to the day.',
+  luteal:
+    'Some people sleep a little lighter in this phase, so a calm wind-down together could help tonight.',
+};
+
+/**
+ * Self-logged energy on the journal's 1-10 scale. Product thresholds (roughly the bottom and
+ * top fifth of the scale), not physiological ones.
+ */
+const LOW_ENERGY_MAX = 3;
+const HIGH_ENERGY_MIN = 8;
+
+export type SupportSuggestionInput = {
+  firstName: string;
+  phase: CyclePhase;
+  /** The viewer's own focus preference, so the idea fits what they like to do. */
+  viewerFocus: FocusPreference;
+  timeOfDay: TimeOfDay;
+  /**
+   * Today's self-logged energy. Pass it only when the sharer shares energy (ENERGY or FULL),
+   * otherwise the suggestion would hint at a value they did not share.
+   */
+  todayEnergy?: number | null;
+};
+
+/** A sentence about low or high logged energy, with a leading space; '' otherwise. */
+function energyNote(firstName: string, todayEnergy: number | null | undefined): string {
+  const energy = validEnergy(todayEnergy);
+  if (energy !== null && energy <= LOW_ENERGY_MAX) {
+    return ` ${firstName} logged low energy today, so keeping plans easy could mean a lot.`;
+  }
+  if (energy !== null && energy >= HIGH_ENERGY_MIN) {
+    return ` ${firstName} logged plenty of energy today.`;
+  }
+  return '';
+}
+
+/** One short, empathetic, non-medical idea for the people around them. */
+export function buildSupportSuggestion(input: SupportSuggestionInput): string {
+  const { firstName, phase, viewerFocus, timeOfDay } = input;
+  const opener = `${firstName} is in the ${PHASE_LABELS[phase].toLowerCase()} phase.`;
+  const idea =
+    timeOfDay === 'night' ? NIGHT_IDEAS[phase] : DAYTIME_IDEAS[phase][viewerFocus](WHEN[timeOfDay]);
+  return `${opener} ${idea}${energyNote(firstName, input.todayEnergy)}`;
+}
+
+/**
+ * Shown instead of a suggestion while someone's cycle is longer than usual (no phase in the
+ * snapshot): there is no phase, so there is no phase-based idea. `todayEnergy` as for
+ * buildSupportSuggestion: pass it only when the sharer shares energy.
+ */
+export function buildLongerCycleNote(firstName: string, todayEnergy?: number | null): string {
+  return `${firstName}'s cycle is longer than usual right now, so no phase is shown.${energyNote(firstName, todayEnergy)}`;
+}
+
+export type SharedPhase = {
+  key: CyclePhase;
+  name: string;
+  /** Hex from PHASE_THEMES, for an inline color dot. */
+  color: string;
+};
+
+type PhaseLevelStatus = {
+  id: string;
+  firstName: string;
+  /**
+   * Null while their cycle is longer than usual (see CycleSnapshot). The person is still
+   * shown, with nothing that depends on a phase.
+   */
+  phase: SharedPhase | null;
+  /** A supportive idea for the phase, or without a phase the note that none is shown. */
+  suggestion: string;
+};
+
+type EnergyLevelFields = {
+  /** The typical energy pattern for the phase; null without a phase. */
+  typicalEnergy: { summary: string; detail: string } | null;
+  /** Today's self-logged energy (1-10), or null when nothing was logged today. */
+  todayEnergy: number | null;
+};
+
+type FullLevelFields = {
+  /** Null without a phase. */
+  cycleDay: number | null;
+  /** Null without a phase. */
+  daysUntilNextPeriod: number | null;
+  supportMessage: string | null;
+};
+
+export type ProjectedCycleStatus =
+  | ({ level: 'PHASE' } & PhaseLevelStatus)
+  | ({ level: 'ENERGY' } & PhaseLevelStatus & EnergyLevelFields)
+  | ({ level: 'FULL' } & PhaseLevelStatus & EnergyLevelFields & FullLevelFields);
+
+/** Everything the server knows about one sharer. The projection decides what leaves. */
+export type CycleStatusSource = {
+  /** Opaque key for the list (the sharer's user id). */
+  id: string;
+  name: string;
+  /** Effective level (getEffectiveShareLevel). */
+  level: CycleShareLevel;
+  /** Null when cycle tracking is not set up. */
+  snapshot: CycleSnapshot | null;
+  todayEnergy: number | null;
+  /** Decrypted support message. */
+  supportMessage: string | null;
+};
+
+export type SupportViewer = { focus: FocusPreference; timeOfDay: TimeOfDay };
+
+/**
+ * What a household member sees of `source`, or null when nothing is shared. Every returned
+ * field is chosen explicitly here; nothing is spread from the source.
+ *
+ * While the sharer's cycle is longer than usual (a snapshot without a phase) they are still
+ * shown, so nobody reads that they stopped sharing: with the note that no phase is shown and
+ * what their level allows without one (today's energy, the personal message), but no phase,
+ * suggestion, typical energy, cycle day or next-period date.
+ */
+export function projectCycleStatus(
+  source: CycleStatusSource,
+  viewer: SupportViewer
+): ProjectedCycleStatus | null {
+  const { snapshot } = source;
+  if (source.level === 'NONE' || !snapshot) return null;
+
+  const firstName = firstNameOf(source.name);
+  const sharesEnergy = levelIncludes(source.level, 'ENERGY');
+  const todayEnergy = sharesEnergy ? validEnergy(source.todayEnergy) : null;
+  const sharedEnergy = sharesEnergy ? todayEnergy : undefined;
+  const phase = snapshot.phase;
+  const base: PhaseLevelStatus = {
+    id: source.id,
+    firstName,
+    phase: phase && {
+      key: phase,
+      name: PHASE_LABELS[phase],
+      color: PHASE_THEMES[phase].color.primary,
+    },
+    suggestion: phase
+      ? buildSupportSuggestion({
+          firstName,
+          phase,
+          viewerFocus: viewer.focus,
+          timeOfDay: viewer.timeOfDay,
+          todayEnergy: sharedEnergy,
+        })
+      : buildLongerCycleNote(firstName, sharedEnergy),
+  };
+  if (source.level === 'PHASE') return { level: 'PHASE', ...base };
+
+  const energy: EnergyLevelFields = {
+    typicalEnergy: phase ? { ...TYPICAL_PHASE_ENERGY[phase] } : null,
+    todayEnergy,
+  };
+  if (source.level === 'ENERGY') return { level: 'ENERGY', ...base, ...energy };
+
+  const message = source.supportMessage?.trim().slice(0, SUPPORT_MESSAGE_MAX_LENGTH);
+  return {
+    level: 'FULL',
+    ...base,
+    ...energy,
+    cycleDay: snapshot.phase === null ? null : snapshot.cycleDay,
+    daysUntilNextPeriod: snapshot.phase === null ? null : snapshot.daysUntilNextPeriod,
+    supportMessage: message || null,
+  };
+}
+
+/** Parses a stored focus preference; anything unknown means "both". */
+export function parseFocusPreference(value: string | null | undefined): FocusPreference {
+  return value === 'hormonal' || value === 'workout' || value === 'both' ? value : 'both';
+}

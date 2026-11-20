@@ -60,8 +60,10 @@ describe('getWeeklyPlan', () => {
   });
 
   it('loads the plan of the space a page was rendered for, not the cookie', async () => {
-    const { plan } = await getWeeklyPlan(undefined, 'family');
+    const { plan, organizationType } = await getWeeklyPlan(undefined, 'family');
     expect(plan.id).toBe('plan-family');
+    // What the page may offer there (cycle alignment: households only)
+    expect(organizationType).toBe('HOUSEHOLD');
     expect(mocks.membershipIn).toHaveBeenCalledWith('user-1', 'family');
     expect(mocks.activeMembership).not.toHaveBeenCalled();
     expect(mocks.planFindFirst).toHaveBeenCalledWith(

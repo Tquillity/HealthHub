@@ -4,9 +4,12 @@ import {
   applyGroceryPrivacy,
   canShareJournalWith,
   canShowAggregate,
+  canAlignMealPlanWithCycle,
   canShowIndividualCycleStatus,
   canViewSharedJournals,
+  CYCLE_STATUS_ORG_TYPES,
   getOrgPolicy,
+  joinPrivacyNote,
   MIN_AGGREGATE_GROUP_SIZE,
   ORGANIZATION_TYPES,
 } from './org-policy';
@@ -23,6 +26,7 @@ describe('intimacy scale', () => {
       mealPlans: 'shared',
       grocerySources: true,
       individualSharing: 'opt-in',
+      cycleStatusSharing: 'opt-in',
       aggregatesOnly: false,
     });
   });
@@ -32,6 +36,7 @@ describe('intimacy scale', () => {
       mealPlans: 'opt-in',
       grocerySources: true,
       individualSharing: 'opt-in',
+      cycleStatusSharing: 'never',
     });
   });
 
@@ -39,6 +44,7 @@ describe('intimacy scale', () => {
     for (const type of ['COMMUNITY', 'CORPORATE'] as const) {
       expect(getOrgPolicy(type)).toMatchObject({
         individualSharing: 'never',
+        cycleStatusSharing: 'never',
         aggregatesOnly: true,
         grocerySources: false,
       });
@@ -59,12 +65,49 @@ describe('journal sharing', () => {
 });
 
 describe('canShowIndividualCycleStatus (partner sync)', () => {
-  it('needs both an intimate organization and the person opting in', () => {
+  it('needs both a household and the person opting in', () => {
     expect(canShowIndividualCycleStatus('HOUSEHOLD', { sharerOptedIn: true })).toBe(true);
-    expect(canShowIndividualCycleStatus('COLLECTIVE', { sharerOptedIn: true })).toBe(true);
     expect(canShowIndividualCycleStatus('HOUSEHOLD', { sharerOptedIn: false })).toBe(false);
     expect(canShowIndividualCycleStatus('COMMUNITY', { sharerOptedIn: true })).toBe(false);
     expect(canShowIndividualCycleStatus('CORPORATE', { sharerOptedIn: true })).toBe(false);
+  });
+
+  it('keeps cycle status out of collectives, even though journal days may be shared there', () => {
+    expect(canShowIndividualCycleStatus('COLLECTIVE', { sharerOptedIn: true })).toBe(false);
+    expect(canShareJournalWith('COLLECTIVE')).toBe(true);
+    expect(CYCLE_STATUS_ORG_TYPES).toEqual(['HOUSEHOLD']);
+  });
+});
+
+describe('canAlignMealPlanWithCycle (cycle-aware meal planning)', () => {
+  it("allows a plan aligned with one person's cycle in households only", () => {
+    expect(canAlignMealPlanWithCycle('HOUSEHOLD')).toBe(true);
+    // The shared plan would hint at the person's phase to a wider circle
+    expect(canAlignMealPlanWithCycle('COLLECTIVE')).toBe(false);
+    expect(canAlignMealPlanWithCycle('COMMUNITY')).toBe(false);
+    expect(canAlignMealPlanWithCycle('CORPORATE')).toBe(false);
+  });
+});
+
+describe('joinPrivacyNote (invitation screens)', () => {
+  it('says joining shares nothing, for every type', () => {
+    for (const type of ORGANIZATION_TYPES) {
+      expect(joinPrivacyNote(type)).toMatch(/^Joining shares nothing from your journal or cycle\. /);
+    }
+  });
+
+  it('names cycle status as a separate choice in households only', () => {
+    expect(joinPrivacyNote('HOUSEHOLD')).toBe(
+      'Joining shares nothing from your journal or cycle. Both stay private unless you choose to share a journal day, or your cycle status, with this household.'
+    );
+    expect(joinPrivacyNote('COLLECTIVE')).toBe(
+      'Joining shares nothing from your journal or cycle. Your journal stays private unless you choose to share a day here, and your cycle status is never shown here.'
+    );
+    for (const type of ['COMMUNITY', 'CORPORATE'] as const) {
+      expect(joinPrivacyNote(type)).toBe(
+        "Joining shares nothing from your journal or cycle. Nobody here can see anyone's journal or cycle."
+      );
+    }
   });
 });
 

@@ -9,6 +9,12 @@ import {
   toSystemRecipeFields,
 } from './kitchen-manifest';
 import { QUICK_PREP_MAX_ACTIVE_MINUTES } from '@/lib/lean-kitchen';
+import {
+  CYCLE_PHASES,
+  EXPLICIT_PHASES_ONLY_ROLES,
+  NUTRIENT_HIGHLIGHTS,
+  resolveRecipeBioProfile,
+} from '@/lib/phase-nutrition';
 
 const manifest = parseKitchenManifest(
   JSON.parse(
@@ -17,6 +23,20 @@ const manifest = parseKitchenManifest(
 );
 const deleted = new Set(manifest.deletedRecipes ?? []);
 const seededRecipes = manifest.recipes.filter((r) => !deleted.has(r.name));
+
+/**
+ * What the app reads back for a seeded recipe: the stored columns and ingredient rows,
+ * resolved the way the meal planner does at runtime.
+ */
+function resolveSeeded(recipe: KitchenManifest['recipes'][number]) {
+  const fields = toSystemRecipeFields(recipe);
+  return resolveRecipeBioProfile({
+    phaseTags: fields.phaseTags,
+    nutrientHighlights: fields.nutrientHighlights,
+    leanRole: fields.leanRole,
+    ingredients: toIngredientRows(recipe),
+  });
+}
 
 const minimalRecipe = {
   name: 'Test',
@@ -74,6 +94,64 @@ describe('kitchen-manifest.json', () => {
       )
     ).toBe(true);
   });
+  it('gives every seeded recipe valid phase tags and nutrient highlights', () => {
+    for (const recipe of seededRecipes) {
+      const fields = toSystemRecipeFields(recipe);
+      for (const phase of fields.phaseTags) {
+        expect(CYCLE_PHASES, recipe.name).toContain(phase);
+      }
+      for (const nutrient of fields.nutrientHighlights) {
+        expect(NUTRIENT_HIGHLIGHTS, recipe.name).toContain(nutrient);
+      }
+    }
+    // Explicit tags where we are confident about them
+    const byName = new Map(seededRecipes.map((r) => [r.name, r]));
+    expect(byName.get('Fröknäcke (Grundrecept)')?.phaseTags).toEqual([
+      'ovulation',
+      'luteal',
+    ]);
+    // Inferred everywhere else: a good share of the catalog suits some phase
+    const tagged = seededRecipes.filter((r) => resolveSeeded(r).phases.length > 0);
+    expect(tagged.length).toBeGreaterThan(seededRecipes.length / 3);
+  });
+
+  it('round-trips: what the app reads back is what the manifest says', () => {
+    for (const recipe of seededRecipes) {
+      const fields = toSystemRecipeFields(recipe);
+      // Only explicit manifest tags are stored; inference happens when the row is read
+      expect(fields.phaseTags, recipe.name).toEqual(recipe.phaseTags ?? []);
+      expect(fields.nutrientHighlights, recipe.name).toEqual(recipe.nutrientHighlights ?? []);
+      expect(resolveSeeded(recipe), recipe.name).toEqual(
+        resolveRecipeBioProfile({
+          phaseTags: recipe.phaseTags,
+          nutrientHighlights: recipe.nutrientHighlights,
+          leanRole: recipe.leanInfo?.leanRole,
+          ingredients: recipe.ingredients,
+        })
+      );
+    }
+  });
+
+  it('gives treats and building blocks phases only where the manifest names them', () => {
+    const explicitOnly = seededRecipes.filter((recipe) =>
+      (EXPLICIT_PHASES_ONLY_ROLES as readonly string[]).includes(recipe.leanInfo?.leanRole ?? '')
+    );
+    expect(explicitOnly.length).toBeGreaterThan(0);
+    for (const recipe of explicitOnly) {
+      expect(resolveSeeded(recipe).phases, recipe.name).toEqual(recipe.phaseTags ?? []);
+    }
+    // Eggs in a meringue pie, nuts and dates in a cheesecake, peanuts in a sauce
+    const byName = new Map(seededRecipes.map((r) => [r.name, r]));
+    for (const name of [
+      'Citron- och Marängpaj',
+      'Osannolikt God Raw Vegan Cheesecake',
+      'Jordnötssås med Kokosmjölk',
+    ]) {
+      const recipe = byName.get(name);
+      expect(recipe, name).toBeDefined();
+      expect(resolveSeeded(recipe!).phases, name).toEqual([]);
+    }
+  });
 });
 
 describe('parseKitchenManifest', () => {
@@ -103,6 +181,22 @@ describe('parseKitchenManifest', () => {
     expect(parseWith({ yield: { amount: 4, unit: null } })).toThrow(/yield/);
     expect(parseWith({ yield: { amount: 0, unit: 'st' } })).toThrow(/amount/);
     expect(parseWith({ leanInfo: { activeTime: 2.5 } })).toThrow(/activeTime/);
+  });
+
+  it('normalises phase tags and nutrient highlights to the vocabulary order', () => {
+    const parsed = parseWith({
+      phaseTags: ['Luteal', 'menstrual', 'luteal'],
+      nutrientHighlights: [' Magnesium', 'iron'],
+    })();
+    expect(parsed.recipes[0]).toMatchObject({
+      phaseTags: ['menstrual', 'luteal'],
+      nutrientHighlights: ['iron', 'magnesium'],
+    });
+  });
+
+  it('rejects unknown phases and nutrients', () => {
+    expect(parseWith({ phaseTags: ['pms'] })).toThrow(/phaseTags/);
+    expect(parseWith({ nutrientHighlights: ['vitamin-z'] })).toThrow(/nutrientHighlights/);
   });
 
   it('rejects broken recipes and duplicate names', () => {
@@ -159,6 +253,65 @@ describe('toSystemRecipeFields', () => {
     });
     expect(fields).not.toHaveProperty('imageUrl');
     expect(fields).not.toHaveProperty('isHhChefsVerified');
+  });
+
+  it('keeps explicit phase tags and nutrients from the manifest', () => {
+    const [recipe] = parseWith({
+      phaseTags: ['luteal'],
+      nutrientHighlights: ['magnesium'],
+      ingredients: [{ name: 'Lax', quantity: 400, unit: 'g' }],
+    })().recipes;
+    expect(toSystemRecipeFields(recipe)).toMatchObject({
+      phaseTags: ['luteal'],
+      nutrientHighlights: ['magnesium'],
+    });
+  });
+
+  it('stores nothing it inferred, so the app infers from the ingredients it reads back', () => {
+    const [recipe] = parseWith({
+      ingredients: [
+        { name: 'Laxfilé', quantity: 400, unit: 'g' },
+        { name: 'Salt', quantity: 1, unit: 'tsk' },
+      ],
+    })().recipes;
+    const fields = toSystemRecipeFields(recipe);
+    expect(fields).toMatchObject({ phaseTags: [], nutrientHighlights: [] });
+    const profile = resolveSeeded(recipe);
+    expect(profile.nutrients).toEqual(expect.arrayContaining(['protein', 'omega-3']));
+    expect(profile.phases).toContain('menstrual');
+  });
+
+  it('does not infer phases for treats', () => {
+    const ingredients = [{ name: 'Mörk choklad', quantity: 100, unit: 'g' }];
+    const [treat, tagged] = parseKitchenManifest({
+      recipes: [
+        { ...minimalRecipe, ingredients, leanInfo: { leanRole: 'Treat' } },
+        {
+          ...minimalRecipe,
+          name: 'Tagged',
+          ingredients,
+          leanInfo: { leanRole: 'Treat' },
+          phaseTags: ['luteal'],
+        },
+      ],
+    }).recipes;
+    expect(toSystemRecipeFields(treat)).toMatchObject({ phaseTags: [], nutrientHighlights: [] });
+    expect(resolveSeeded(treat)).toEqual({
+      phases: [],
+      nutrients: ['iron', 'magnesium', 'antioxidants'],
+    });
+    expect(toSystemRecipeFields(tagged).phaseTags).toEqual(['luteal']);
+    expect(resolveSeeded(tagged).phases).toEqual(['luteal']);
+  });
+
+  it('stores empty lists when nothing can be inferred', () => {
+    const [recipe] = parseWith({
+      ingredients: [{ name: 'Salt', quantity: 1, unit: 'krm' }],
+    })().recipes;
+    expect(toSystemRecipeFields(recipe)).toMatchObject({
+      phaseTags: [],
+      nutrientHighlights: [],
+    });
   });
 
   it('maps ingredient notes to null when absent', () => {

@@ -37,6 +37,7 @@ export async function buildAccountExport(userId: string) {
       enableCycleTracking: true,
       cycleLength: true,
       lastPeriodDate: true,
+      alignMealsWithCycle: true,
       focusPreference: true,
       mealPlanDuration: true,
       mealPlanStartDate: true,
@@ -46,6 +47,7 @@ export async function buildAccountExport(userId: string) {
       briefingFrequency: true,
       briefingSources: true,
       briefingDetail: true,
+      supportMessage: true,
     },
   });
 
@@ -58,6 +60,7 @@ export async function buildAccountExport(userId: string) {
     memberships,
     periodStarts,
     briefingFeedback,
+    cycleStatusShares,
   ] = await Promise.all([
     prisma.account.findMany({
       where: { userId },
@@ -107,6 +110,17 @@ export async function buildAccountExport(userId: string) {
       where: { userId },
       select: { date: true, suggestionKey: true, action: true, createdAt: true },
       orderBy: [{ date: 'asc' }, { createdAt: 'asc' }],
+    }),
+    prisma.cycleStatusShare.findMany({
+      where: { userId },
+      select: {
+        level: true,
+        coversMembersJoinedBy: true,
+        createdAt: true,
+        updatedAt: true,
+        organization: { select: { id: true, name: true } },
+      },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
     }),
   ]);
 
@@ -223,7 +237,18 @@ export async function buildAccountExport(userId: string) {
       ...user,
       lastPeriodDate: dateOnly(user.lastPeriodDate),
       mealPlanStartDate: dateOnly(user.mealPlanStartDate),
+      // The message for households you share Full cycle status with (#3).
+      supportMessage: decrypt(user.supportMessage),
     },
+    // Cycle status sharing (#3): each household you share with, how much, and since when.
+    // Members who had joined by coversMembersJoinedBy see it.
+    cycleStatusSharing: cycleStatusShares.map((share) => ({
+      household: share.organization,
+      level: share.level,
+      coversMembersJoinedBy: share.coversMembersJoinedBy,
+      sharedSince: share.createdAt,
+      updatedAt: share.updatedAt,
+    })),
     signInMethods: accounts.map((account) => ({
       provider: account.providerId,
       addedAt: account.createdAt,

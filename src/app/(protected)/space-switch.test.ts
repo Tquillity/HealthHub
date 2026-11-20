@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => ({
   userFindUnique: vi.fn(),
   householdData: vi.fn(),
   sharedJournalEntries: vi.fn(),
+  ownCycleShare: vi.fn(),
 }));
 
 /** Stand-in for a client component; the tests only look at the props a page passes. */
@@ -90,6 +91,7 @@ vi.mock('@/components/routines/routine-filters', () => ({
 vi.mock('@/components/recipes/recipe-form', () => ({ RecipeForm: stub('RecipeForm') }));
 vi.mock('@/lib/household-management', () => ({ getHouseholdData: mocks.householdData }));
 vi.mock('@/lib/journal-sharing', () => ({ getSharedJournalEntries: mocks.sharedJournalEntries }));
+vi.mock('@/lib/support-status', () => ({ getOwnCycleShare: mocks.ownCycleShare }));
 vi.mock('@/components/household/member-list', () => ({ MemberList: stub('MemberList') }));
 vi.mock('@/components/household/invite-form', () => ({ InviteForm: stub('InviteForm') }));
 vi.mock('@/components/household/pending-invitations', () => ({
@@ -143,6 +145,7 @@ import { MemberList } from '@/components/household/member-list';
 import { InviteForm } from '@/components/household/invite-form';
 import { PendingInvitations } from '@/components/household/pending-invitations';
 import { LeaveOrganizationCard } from '@/components/household/leave-organization-card';
+import { OrgPrivacyCard } from '@/components/household/org-privacy-card';
 import GroceriesPage from './groceries/page';
 import MealPlannerPage from './meal-planner/page';
 import MealPlanTemplatesPage from './meal-planner/templates/page';
@@ -258,6 +261,7 @@ describe('meal planner page', () => {
     });
     mocks.weeklyPlan.mockResolvedValue({
       plan: { id: 'plan-1', organizationId: 'family', startDate: new Date(), items: [] },
+      organizationType: 'HOUSEHOLD',
       recipes: [],
       duration: '1week',
       startDate: new Date('2026-11-16T00:00:00'),
@@ -270,6 +274,35 @@ describe('meal planner page', () => {
     const page = await MealPlannerPage();
     for (const component of [MealBoard, MealPlanGenerator, ClearAllMealsButton, SaveTemplateButton]) {
       expect(findOne(page, component).props.organizationId).toBe('family');
+    }
+  });
+
+  it('offers cycle alignment in households only, where the shared plan may follow it', async () => {
+    // Five days into the cycle on the real clock, so the period is never late here.
+    const today = new Date();
+    mocks.userFindUnique.mockResolvedValue({
+      enableCycleTracking: true,
+      cycleLength: 28,
+      lastPeriodDate: new Date(
+        Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() - 5)
+      ),
+      alignMealsWithCycle: false,
+    });
+    const home = await MealPlannerPage();
+    expect(findOne(home, MealPlanGenerator).props.cycleOptions).toEqual({
+      canAlign: true,
+      alignByDefault: false,
+      cycleLongerThanUsual: false,
+    });
+    // A new generator per space, so the switch starts from that space's saved choice
+    // after a switch (which only refreshes the page) instead of keeping the last one.
+    expect(findOne(home, MealPlanGenerator).key).toBe('family');
+
+    const weekly = await mocks.weeklyPlan();
+    for (const organizationType of ['COLLECTIVE', 'COMMUNITY', 'CORPORATE']) {
+      mocks.weeklyPlan.mockResolvedValue({ ...weekly, organizationType });
+      const page = await MealPlannerPage();
+      expect(findOne(page, MealPlanGenerator).props.cycleOptions, organizationType).toBeNull();
     }
   });
 });
@@ -345,6 +378,24 @@ describe('household page', () => {
 
   beforeEach(() => {
     mocks.sharedJournalEntries.mockResolvedValue([]);
+    mocks.ownCycleShare.mockResolvedValue(null);
+  });
+
+  it("tells the privacy card what you share with the space it shows, and nothing else's", async () => {
+    mocks.householdData.mockResolvedValue(household('family', 'Family'));
+    const shareIn = (organizationId: string) => ({
+      household: { id: organizationId, share: { level: 'ENERGY' } },
+      cycleConfigured: true,
+    });
+    mocks.ownCycleShare.mockImplementation(async (_userId: string, organizationId: string) =>
+      shareIn(organizationId)
+    );
+    const page = await HouseholdPage();
+    expect(mocks.ownCycleShare).toHaveBeenCalledWith('user-1', 'family');
+    expect(findOne(page, OrgPrivacyCard).props).toMatchObject({
+      type: 'HOUSEHOLD',
+      yourCycleShare: shareIn('family'),
+    });
   });
 
   it('invites to the space it shows', async () => {
