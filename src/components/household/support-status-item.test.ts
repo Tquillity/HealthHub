@@ -2,7 +2,14 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { CycleShareLevel } from '@prisma/client';
-import { projectCycleStatus, type CycleSnapshot } from '@/lib/cycle-status-sharing';
+import { contrast } from '@/components/test-contrast';
+import {
+  PHASE_LABELS,
+  projectCycleStatus,
+  type CycleSnapshot,
+} from '@/lib/cycle-status-sharing';
+import { CYCLE_PHASES } from '@/lib/phase-nutrition';
+import { PHASE_NAME_TEXT_CLASSES, PHASE_THEMES } from '@/lib/phase-theme';
 import { SupportStatusItem } from './support-status-item';
 
 const text = (html: string) =>
@@ -63,5 +70,29 @@ describe('SupportStatusItem', () => {
       expect(visible).not.toContain('Energy logged today');
     }
     expect(text(render('PHASE', { phase: null }))).not.toContain('Tea would be lovely');
+  });
+});
+
+describe('SupportStatusItem phase name', () => {
+  it.each(CYCLE_PHASES)('meets WCAG AA (4.5:1) for the %s phase', (phase) => {
+    const html = render('PHASE', { phase, cycleDay: 1, daysUntilNextPeriod: 28 });
+    const name = html.match(
+      new RegExp(`<span class="([^"]*)">${PHASE_LABELS[phase]} phase</span>`)
+    );
+    const color = name?.[1].match(/\btext-([a-z]+-\d+)\b/)?.[1];
+    expect(color).toBeTruthy();
+    // 14px medium text on the item's background, the phase's *-50 at 30% over a white card:
+    // between white and *-50, so both ends must pass.
+    const tint = PHASE_THEMES[phase].bg.muted.match(/^bg-([a-z]+)-50\/30$/)?.[1];
+    expect(tint).toBeTruthy();
+    expect(contrast(color!, 'white')).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(color!, `${tint}-50`)).toBeGreaterThanOrEqual(4.5);
+    expect(`text-${color}`).toBe(PHASE_NAME_TEXT_CLASSES[phase]);
+  });
+
+  it('computes contrast like the WCAG reference values', () => {
+    // The accents this replaced: amber-600 about 3.2:1 on white, rose-600 about 4.1:1 on rose-50
+    expect(contrast('amber-600', 'white')).toBeCloseTo(3.19, 1);
+    expect(contrast('rose-600', 'rose-50')).toBeCloseTo(4.1, 1);
   });
 });

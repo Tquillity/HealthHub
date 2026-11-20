@@ -1,5 +1,5 @@
 import type { ProjectedCycleStatus } from '@/lib/cycle-status-sharing';
-import { getPhaseTheme } from '@/lib/phase-theme';
+import { getPhaseTheme, PHASE_NAME_TEXT_CLASSES } from '@/lib/phase-theme';
 import { cn } from '@/lib/utils';
 
 function nextPeriodText(days: number): string {
@@ -45,7 +45,12 @@ export function SupportStatusItem({
         />
         <div className="flex min-w-0 flex-col">
           <span className="truncate font-semibold text-gray-900">{status.firstName}</span>
-          <span className={cn('text-sm font-medium', theme ? theme.text.accent : 'text-gray-700')}>
+          <span
+            className={cn(
+              'text-sm font-medium',
+              phase ? PHASE_NAME_TEXT_CLASSES[phase.key] : 'text-gray-700'
+            )}
+          >
             {phaseLabel}
           </span>
         </div>
