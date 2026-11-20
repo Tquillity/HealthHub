@@ -32,6 +32,9 @@ describe.skipIf(!isolated)('account export against isolated PostgreSQL', () => {
         ...me,
         name: 'Me',
         lastPeriodDate: new Date('2026-03-01T00:00:00Z'),
+        shareCycleStatus: true,
+        shareCycleLevel: 'FULL',
+        supportMessage: encrypt('Tea and a quiet evening, please'),
       },
     });
     await client.user.create({ data: { ...housemate, name: 'Housemate' } });
@@ -128,6 +131,9 @@ describe.skipIf(!isolated)('account export against isolated PostgreSQL', () => {
     expect(data.profile).toMatchObject({
       email: me.email,
       lastPeriodDate: '2026-03-01',
+      shareCycleStatus: true,
+      shareCycleLevel: 'FULL',
+      supportMessage: 'Tea and a quiet evening, please',
     });
     expect(data.signInMethods).toEqual([
       { provider: 'credential', addedAt: expect.any(Date) },

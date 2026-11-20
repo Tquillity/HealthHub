@@ -41,6 +41,9 @@ export async function buildAccountExport(userId: string) {
       mealPlanDuration: true,
       mealPlanStartDate: true,
       isPremium: true,
+      shareCycleStatus: true,
+      shareCycleLevel: true,
+      supportMessage: true,
     },
   });
 
@@ -200,6 +203,8 @@ export async function buildAccountExport(userId: string) {
       ...user,
       lastPeriodDate: dateOnly(user.lastPeriodDate),
       mealPlanStartDate: dateOnly(user.mealPlanStartDate),
+      // Cycle status sharing with households (#3): the switch, the level and your message.
+      supportMessage: decrypt(user.supportMessage),
     },
     signInMethods: accounts.map((account) => ({
       provider: account.providerId,
