@@ -369,7 +369,7 @@ describe('mealFocusForMoment', () => {
 
 describe('buildCircadianInsights', () => {
   /** A take-it-easy day the daily briefing explains with the recent logs. */
-  const EASY_DAY: TakeItEasy = { fromLogs: true };
+  const EASY_DAY: TakeItEasy = { fromLogs: true, maxRoutineEnergy: 'medium' };
   // 09:30 UTC = 10:30 in Stockholm (late morning).
   const lateMorning = new Date('2026-11-20T09:30:00Z');
   const zone = 'Europe/Stockholm';
@@ -567,6 +567,32 @@ describe('buildCircadianInsights', () => {
     expect(lotteryHintFromInsights(easy).recommendedIntensity).toBe('medium');
   });
 
+  it('suggests low-energy routines when the briefing suggests rest or going gently', () => {
+    // A rest day for low recovery, or going gently for more symptoms: the briefing links
+    // to gentle routines, so the card and the lottery lean low, whatever the hour.
+    const gentle: TakeItEasy = { fromLogs: true, maxRoutineEnergy: 'low' };
+    const afterLowRating = [row('2026-11-20', 2, null, null)];
+    for (let hour = 6; hour < 22; hour++) {
+      for (const rows of [
+        [],
+        history('2026-11-19', 6, [9, 9, 9]),
+        afterLowRating,
+      ]) {
+        const insights = buildCircadianInsights({
+          now: new Date(Date.UTC(2026, 10, 20, hour, 30)),
+          timeZone: 'UTC',
+          rows,
+          easyDay: gentle,
+        });
+        expect(insights.recommendedIntensity).toBe('low');
+        expect(lotteryTargetFromInsights(insights).intensity).toBe(0);
+        expect(lotteryHintFromInsights(insights).recommendedIntensity).toBe(
+          'low'
+        );
+      }
+    }
+  });
+
   it('gives no best-window or high-energy push on a take-it-easy day', () => {
     // Mornings usually 8, afternoons 5; 9/10 this morning.
     const rows = [
@@ -707,7 +733,7 @@ describe('buildCircadianInsights', () => {
       now: new Date('2026-11-20T15:30:00Z'),
       timeZone: 'UTC',
       rows,
-      easyDay: { fromLogs: false },
+      easyDay: { fromLogs: false, maxRoutineEnergy: 'medium' },
     });
     expect(withBriefing.suggestions).toEqual(lateAfternoon.suggestions);
     expect(withBriefing.intensityTarget).toBe(lateAfternoon.intensityTarget);

@@ -83,6 +83,17 @@ export function recentLogsSayTakeItEasy(signals: BriefingSignals): boolean {
 }
 
 /**
+ * The briefing suggests a rest day or going gently (`recovery.rest-day` for low recovery,
+ * `recovery.gentle-symptoms` for more symptoms than usual), whose links go to gentle
+ * (low-energy) routines.
+ */
+export function suggestsGentleRoutines(signals: BriefingSignals): boolean {
+  return (
+    (signals.recovery?.low ?? false) || (signals.symptoms?.elevated ?? false)
+  );
+}
+
+/**
  * Take it easy today: the recent logs say so (`recentLogsSayTakeItEasy`), or there is a
  * low time-of-day energy check-in today, for right now or for an earlier slot while the
  * current one is not rated yet (circadian insights). The headline then suggests a gentler

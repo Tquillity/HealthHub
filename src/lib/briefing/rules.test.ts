@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { buildHeadline } from './copy';
+import { buildHeadline, phraseSuggestion } from './copy';
 import {
   buildCandidates,
   isTakeItEasyDay,
   recentLogsSayTakeItEasy,
+  suggestsGentleRoutines,
 } from './rules';
 import type { BriefingSignals, Comparison } from './signals';
 import type { SuggestionKey } from './types';
@@ -211,6 +212,35 @@ describe('headline and suggestions', () => {
     const s = signals({ energy: ENERGY.good, sleep: SLEEP.short });
     expect(buildHeadline(s)).toBe(GENTLER);
     expect(buildCandidates(s).map((c) => c.key)).toEqual(['recovery.sleep']);
+  });
+
+  it('says when its suggestions point to gentle routines', () => {
+    for (const energy of Object.values(ENERGY)) {
+      for (const recoveryValue of Object.values(RECOVERY)) {
+        for (const symptoms of Object.values(SYMPTOMS)) {
+          for (const sleepValue of Object.values(SLEEP)) {
+            const s = signals({
+              energy,
+              recovery: recoveryValue,
+              symptoms,
+              sleep: sleepValue,
+            });
+            const keys = buildCandidates(s).map((c) => c.key);
+            const linksToGentle = keys.some(
+              (key) =>
+                phraseSuggestion(key, s, 'brief').action?.href ===
+                '/routines?energy=low'
+            );
+            expect(suggestsGentleRoutines(s), JSON.stringify(keys)).toBe(
+              linksToGentle
+            );
+            if (suggestsGentleRoutines(s)) {
+              expect(isTakeItEasyDay(s)).toBe(true);
+            }
+          }
+        }
+      }
+    }
   });
 
   it('drops "great recovery" when symptoms are up or sleep is short', () => {

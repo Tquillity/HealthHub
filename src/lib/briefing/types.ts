@@ -184,6 +184,13 @@ export type TakeItEasy = {
    * check-in today.
    */
   fromLogs: boolean;
+  /**
+   * The most energetic routines the briefing points to: 'low' when it suggests a rest day
+   * or going gently for low recovery or more symptoms than usual (rules.ts
+   * `suggestsGentleRoutines`; both link to gentle routines), otherwise 'medium', as its
+   * "swap high intensity for moderate".
+   */
+  maxRoutineEnergy: 'low' | 'medium';
 };
 
 export type BriefingFeedbackEntry = {

@@ -3,6 +3,7 @@ import {
   buildCandidates,
   isTakeItEasyDay,
   recentLogsSayTakeItEasy,
+  suggestsGentleRoutines,
   urgencyOfScore,
 } from './rules';
 import {
@@ -78,5 +79,8 @@ export function takeItEasyOf(
     ...input,
   });
   if (!isTakeItEasyDay(signals)) return null;
-  return { fromLogs: recentLogsSayTakeItEasy(signals) };
+  return {
+    fromLogs: recentLogsSayTakeItEasy(signals),
+    maxRoutineEnergy: suggestsGentleRoutines(signals) ? 'low' : 'medium',
+  };
 }

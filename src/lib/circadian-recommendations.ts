@@ -515,9 +515,10 @@ export function isLowEnergy(rating: number | null): boolean {
 }
 
 /**
- * The highest intensity target (medium) while the card holds back: on a day the daily
- * briefing calls a take-it-easy day, as its "swap high intensity for moderate", and after
- * a low check-in today.
+ * The highest intensity target (medium) while the card holds back after a low check-in
+ * today. On a day the daily briefing calls a take-it-easy day, its own level applies
+ * (`TakeItEasy.maxRoutineEnergy`): medium, as its "swap high intensity for moderate", or
+ * low when it suggests a rest day or going gently.
  */
 export const EASY_DAY_MAX_INTENSITY = 1;
 
@@ -795,10 +796,11 @@ export function buildCircadianInsights(input: {
     slot && slots[slot].personalized ? slots[slot].average : null;
   const target = routineIntensityTarget(local.hour, currentEnergy ?? slotUsual);
   // Capped while holding back, so the card's "Good fit right now" and the lottery lean
-  // the same way as its suggestions and, on a take-it-easy day, the briefing.
-  const intensityTarget = holdBack
-    ? Math.min(target, EASY_DAY_MAX_INTENSITY)
-    : target;
+  // the same way as its suggestions and, on a take-it-easy day, the briefing's routines.
+  const maxIntensity = easyDay
+    ? ROUTINE_INTENSITIES.indexOf(easyDay.maxRoutineEnergy)
+    : EASY_DAY_MAX_INTENSITY;
+  const intensityTarget = holdBack ? Math.min(target, maxIntensity) : target;
 
   const base: CircadianSuggestion[] = MOMENT_SUGGESTIONS[moment]
     .filter((suggestion) => !(holdBack && suggestion.demanding))

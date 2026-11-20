@@ -66,7 +66,7 @@ function days(from: string, to: string): string[] {
   return out;
 }
 
-type DayValues = { energy: number; sleepHours: number };
+type DayValues = { energy: number; sleepHours: number; symptoms?: string[] };
 
 /** Four weeks of usual days, then the last 3 days (the briefing's window). */
 function journal(usual: DayValues, recent: DayValues): BriefingJournalDay[] {
@@ -90,6 +90,10 @@ const JOURNALS = {
   shortSleep: journal(
     { energy: 6, sleepHours: 8 },
     { energy: 6, sleepHours: 5 }
+  ),
+  moreSymptoms: journal(
+    { energy: 6, sleepHours: 8, symptoms: [] },
+    { energy: 6, sleepHours: 8, symptoms: ['Cramps', 'Headache', 'Fatigue'] }
   ),
 } satisfies Record<string, BriefingJournalDay[]>;
 
@@ -171,6 +175,7 @@ describe('the daily briefing and the circadian card agree', () => {
     ]).filter((text) => /demanding|harder/.test(text));
     let gentle = 0;
     let pushing = 0;
+    let gentleRoutines = 0;
     const todays: (TodayCheckIns | null)[] = [
       null,
       [2, 2, 2],
@@ -220,6 +225,14 @@ describe('the daily briefing and the circadian card agree', () => {
           if (briefing.headline === LOW_NOW) {
             expect(cardKeys[0], label).toBe('personal.low-now');
           }
+          // A rest day or going gently links to gentle routines: the card leans low too.
+          if (
+            keys.includes('recovery.rest-day') ||
+            keys.includes('recovery.gentle-symptoms')
+          ) {
+            gentleRoutines += 1;
+            expect(card.recommendedIntensity, label).toBe('low');
+          }
           if (keys.includes('routine.go-for-it')) {
             pushing += 1;
             expect(briefing.headline, label).toBe(DOING_WELL);
@@ -229,6 +242,7 @@ describe('the daily briefing and the circadian card agree', () => {
     }
     expect(gentle).toBeGreaterThan(0);
     expect(pushing).toBeGreaterThan(0);
+    expect(gentleRoutines).toBeGreaterThan(0);
   });
 });
 
@@ -460,6 +474,7 @@ describe.skipIf(!isolated)(
       await circadian.saveEnergyNow(userId, 2, morning);
       expect(await easyDay.loadEasyDay(userId, morning)).toEqual({
         fromLogs: false,
+        maxRoutineEnergy: 'medium',
       });
 
       // The circadian opt-in covers the check-in, so the journal source does not matter.
@@ -469,6 +484,7 @@ describe.skipIf(!isolated)(
       });
       expect(await easyDay.loadEasyDay(userId, morning)).toEqual({
         fromLogs: false,
+        maxRoutineEnergy: 'medium',
       });
 
       await client.user.update({
@@ -527,6 +543,53 @@ describe.skipIf(!isolated)(
       expect(after.keys.filter((k) => BRIEFING_PUSH.includes(k))).toEqual([]);
     });
 
+    it('leans the card and the lottery low when the briefing suggests a rest day', async () => {
+      // Recovery down over the last 3 days: the briefing suggests a rest day or gentle
+      // movement and links to gentle routines.
+      await client.user.update({
+        where: { id: userId },
+        data: { trackVitals: true },
+      });
+      await client.journalEntry.createMany({
+        data: [
+          ...days('2026-10-21', '2026-11-17').map((date) => ({
+            userId,
+            date: new Date(`${date}T00:00:00Z`),
+            restingHeartRate: 55,
+            heartRateVariability: 70,
+            sleepQuality: 8,
+          })),
+          ...days('2026-11-18', TODAY).map((date) => ({
+            userId,
+            date: new Date(`${date}T00:00:00Z`),
+            restingHeartRate: 72,
+            heartRateVariability: 35,
+            sleepQuality: 3,
+          })),
+        ],
+      });
+      const { briefing, keys, card, cardKeys } =
+        await loadDashboard(lateAfternoon);
+      expect(briefing.headline).toBe(GENTLER);
+      const rest = briefing.suggestions.find(
+        (s) => s.key === 'recovery.rest-day'
+      );
+      expect(rest?.action?.href).toBe('/routines?energy=low');
+      expect(keys.filter((k) => BRIEFING_PUSH.includes(k))).toEqual([]);
+      expect(await easyDay.loadEasyDay(userId, lateAfternoon)).toEqual({
+        fromLogs: true,
+        maxRoutineEnergy: 'low',
+      });
+      expect(cardKeys[0]).toBe('personal.easy-day');
+      expect(card.recommendedIntensity).toBe('low');
+      expect(
+        await circadian.loadLotteryCircadianTarget(userId, lateAfternoon)
+      ).toEqual({ window: 'afternoon', intensity: 0 });
+      expect(
+        await circadian.loadCircadianLotteryHint(userId, lateAfternoon)
+      ).toEqual({ windowLabel: 'Afternoon', recommendedIntensity: 'low' });
+    });
+
     it('holds back the circadian card and the lottery on a take-it-easy day', async () => {
       // Energy and sleep down over the last 3 days.
       await writeJournal(
@@ -541,6 +604,10 @@ describe.skipIf(!isolated)(
       expect(cardKeys[0]).toBe('personal.easy-day');
       expect(cardKeys).not.toContain('afternoon.training');
       expect(card.recommendedIntensity).toBe('medium');
+      expect(await easyDay.loadEasyDay(userId, lateAfternoon)).toEqual({
+        fromLogs: true,
+        maxRoutineEnergy: 'medium',
+      });
       expect(
         await circadian.loadLotteryCircadianTarget(userId, lateAfternoon)
       ).toEqual({ window: 'afternoon', intensity: 1 });
