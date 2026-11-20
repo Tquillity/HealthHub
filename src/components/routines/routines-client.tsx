@@ -172,13 +172,15 @@ export function RoutinesClient({
                 {editingRoutine ? 'Edit Routine' : 'Create Routine'}
               </h2>
               <button
+                type="button"
+                aria-label="Close"
                 onClick={() => {
                   setShowCreateDialog(false);
                   setEditingRoutine(null);
                 }}
-                className="text-gray-400 hover:text-gray-600"
+                className="flex min-h-[44px] min-w-[44px] items-center justify-center text-gray-400 hover:text-gray-600"
               >
-                <X className="h-5 w-5" />
+                <X className="h-5 w-5" aria-hidden />
               </button>
             </div>
 
@@ -207,22 +209,28 @@ export function RoutinesClient({
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-xl font-bold text-gray-900">Todo Lottery</h2>
               <button
+                type="button"
+                aria-label="Close"
                 onClick={() => {
                   setShowLotteryDialog(false);
                   setLotteryResults([]);
                 }}
-                className="text-gray-400 hover:text-gray-600"
+                className="flex min-h-[44px] min-w-[44px] items-center justify-center text-gray-400 hover:text-gray-600"
               >
-                <X className="h-5 w-5" />
+                <X className="h-5 w-5" aria-hidden />
               </button>
             </div>
 
             <div className="flex flex-col gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label
+                  htmlFor="lottery-energy"
+                  className="block text-sm font-medium text-gray-700"
+                >
                   Your Energy Level
                 </label>
                 <select
+                  id="lottery-energy"
                   value={lotteryEnergy}
                   onChange={(e) =>
                     setLotteryEnergy(
@@ -238,10 +246,14 @@ export function RoutinesClient({
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label
+                  htmlFor="lottery-max-time"
+                  className="block text-sm font-medium text-gray-700"
+                >
                   Max Time Available (minutes)
                 </label>
                 <Input
+                  id="lottery-max-time"
                   type="number"
                   min="1"
                   max="1440"
@@ -259,10 +271,14 @@ export function RoutinesClient({
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label
+                  htmlFor="lottery-count"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
                   Number of Routines
                 </label>
                 <select
+                  id="lottery-count"
                   value={lotteryCount}
                   onChange={(e) => setLotteryCount(parseInt(e.target.value))}
                   className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
@@ -274,10 +290,14 @@ export function RoutinesClient({
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label
+                  htmlFor="lottery-context"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
                   Context (Optional)
                 </label>
                 <select
+                  id="lottery-context"
                   value={lotteryContext}
                   onChange={(e) => setLotteryContext(e.target.value)}
                   className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
@@ -290,10 +310,14 @@ export function RoutinesClient({
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label
+                  htmlFor="lottery-duration"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
                   Duration (Optional)
                 </label>
                 <select
+                  id="lottery-duration"
                   value={lotteryDuration}
                   onChange={(e) => setLotteryDuration(e.target.value)}
                   className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
@@ -307,10 +331,14 @@ export function RoutinesClient({
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label
+                  htmlFor="lottery-difficulty"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
                   Difficulty (Optional)
                 </label>
                 <select
+                  id="lottery-difficulty"
                   value={lotteryDifficulty}
                   onChange={(e) => setLotteryDifficulty(e.target.value)}
                   className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
