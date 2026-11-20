@@ -16,11 +16,14 @@ import { useUIStore } from '@/lib/store';
 import { Trash2, AlertTriangle } from 'lucide-react';
 
 interface ClearAllMealsButtonProps {
+  /** The space the meal planner was rendered for. */
+  organizationId: string;
   planId: string;
   disabled?: boolean;
 }
 
 export function ClearAllMealsButton({
+  organizationId,
   planId,
   disabled = false,
 }: ClearAllMealsButtonProps) {
@@ -31,7 +34,7 @@ export function ClearAllMealsButton({
 
   const handleClear = async () => {
     setIsClearing(true);
-    const result = await clearAllMeals(planId);
+    const result = await clearAllMeals(organizationId, planId);
     setIsClearing(false);
 
     if (result.success) {

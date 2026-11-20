@@ -2,7 +2,7 @@
 
 import { prisma } from '@/lib/db';
 import { requireSessionUserId } from '@/lib/session';
-import { getWritableMembership } from '@/lib/active-organization';
+import { getWritableMembershipIn } from '@/lib/active-organization';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { randomBytes } from 'crypto';
@@ -17,6 +17,7 @@ const AddMealToPlanSchema = z.object({
 });
 
 export async function addMealToPlan(
+  organizationId: string,
   planId: string,
   recipeId: string,
   dateStr: string,
@@ -34,8 +35,9 @@ export async function addMealToPlan(
     }
     const validated = parsed.data;
 
+    // The space the page showed, not the cookie (it may have changed in another tab).
     // Viewers can look but not change shared plans and lists.
-    const access = await getWritableMembership(authResult.userId);
+    const access = await getWritableMembershipIn(authResult.userId, organizationId);
     if (!access.ok) {
       return { success: false, error: access.error };
     }
@@ -48,7 +50,10 @@ export async function addMealToPlan(
       }),
       prisma.recipe.findFirst({
         where: {
-          AND: [{ id: validated.recipeId }, await buildRecipeVisibilityFilter(authResult.userId)],
+          AND: [
+            { id: validated.recipeId },
+            await buildRecipeVisibilityFilter(authResult.userId, membership.organizationId),
+          ],
         },
         select: { id: true },
       }),
@@ -79,6 +84,7 @@ export async function addMealToPlan(
 }
 
 export async function applyMealPlanTemplate(
+  organizationId: string,
   templateId: string,
   planId: string,
   startDate: string
@@ -89,8 +95,9 @@ export async function applyMealPlanTemplate(
       return { success: false, error: authResult.error };
     }
 
+    // The space the page showed, not the cookie (it may have changed in another tab).
     // Viewers can look but not change shared plans and lists.
-    const access = await getWritableMembership(authResult.userId);
+    const access = await getWritableMembershipIn(authResult.userId, organizationId);
     if (!access.ok) {
       return { success: false, error: access.error };
     }
@@ -193,15 +200,16 @@ const UpdateTemplateSchema = z.object({
  * @param data - Update data including template ID, new name, and optional description
  * @returns Success status with updated template data, or error message
  */
-export async function clearAllMeals(planId: string) {
+export async function clearAllMeals(organizationId: string, planId: string) {
   try {
     const authResult = await requireSessionUserId();
     if (!authResult.ok) {
       return { success: false, error: authResult.error };
     }
 
+    // The space the page showed, not the cookie (it may have changed in another tab).
     // Viewers can look but not change shared plans and lists.
-    const access = await getWritableMembership(authResult.userId);
+    const access = await getWritableMembershipIn(authResult.userId, organizationId);
     if (!access.ok) {
       return { success: false, error: access.error };
     }
@@ -257,15 +265,16 @@ const SaveTemplateSchema = z.object({
  * @param data - Template data including planId, name, and optional description
  * @returns Success status with created template data, or error message
  */
-export async function deleteMealPlanTemplate(templateId: string) {
+export async function deleteMealPlanTemplate(organizationId: string, templateId: string) {
   try {
     const authResult = await requireSessionUserId();
     if (!authResult.ok) {
       return { success: false, error: authResult.error };
     }
 
+    // The space the page showed, not the cookie (it may have changed in another tab).
     // Viewers can look but not change shared plans and lists.
-    const access = await getWritableMembership(authResult.userId);
+    const access = await getWritableMembershipIn(authResult.userId, organizationId);
     if (!access.ok) {
       return { success: false, error: access.error };
     }
@@ -308,15 +317,19 @@ export async function deleteMealPlanTemplate(templateId: string) {
  * @param templateId - The ID of the template to duplicate
  * @returns Success status with the new duplicate template data, or error message
  */
-export async function duplicateMealPlanTemplate(templateId: string) {
+export async function duplicateMealPlanTemplate(
+  organizationId: string,
+  templateId: string
+) {
   try {
     const authResult = await requireSessionUserId();
     if (!authResult.ok) {
       return { success: false, error: authResult.error };
     }
 
+    // The space the page showed, not the cookie (it may have changed in another tab).
     // Viewers can look but not change shared plans and lists.
-    const access = await getWritableMembership(authResult.userId);
+    const access = await getWritableMembershipIn(authResult.userId, organizationId);
     if (!access.ok) {
       return { success: false, error: access.error };
     }
@@ -398,7 +411,7 @@ export async function duplicateMealPlanTemplate(templateId: string) {
  * @param startDate - ISO date string for the start date (day offset 0)
  * @returns Success status with error message if operation fails
  */
-export async function removeMealFromPlan(itemId: string) {
+export async function removeMealFromPlan(organizationId: string, itemId: string) {
   try {
     const authResult = await requireSessionUserId();
     if (!authResult.ok) {
@@ -410,8 +423,9 @@ export async function removeMealFromPlan(itemId: string) {
       return { success: false, error: 'Invalid meal item' };
     }
 
+    // The space the page showed, not the cookie (it may have changed in another tab).
     // Viewers can look but not change shared plans and lists.
-    const access = await getWritableMembership(authResult.userId);
+    const access = await getWritableMembershipIn(authResult.userId, organizationId);
     if (!access.ok) {
       return { success: false, error: access.error };
     }
@@ -444,6 +458,7 @@ export async function removeMealFromPlan(itemId: string) {
  * @returns Success status with message indicating how many meals were generated
  */
 export async function saveMealPlanAsTemplate(
+  organizationId: string,
   data: z.infer<typeof SaveTemplateSchema>
 ) {
   try {
@@ -454,8 +469,9 @@ export async function saveMealPlanAsTemplate(
 
     const validated = SaveTemplateSchema.parse(data);
 
+    // The space the page showed, not the cookie (it may have changed in another tab).
     // Viewers can look but not change shared plans and lists.
-    const access = await getWritableMembership(authResult.userId);
+    const access = await getWritableMembershipIn(authResult.userId, organizationId);
     if (!access.ok) {
       return { success: false, error: access.error };
     }
@@ -542,15 +558,16 @@ export async function saveMealPlanAsTemplate(
  * 
  * @returns Success status with array of templates including items and recipe details
  */
-export async function shareMealPlanTemplate(templateId: string) {
+export async function shareMealPlanTemplate(organizationId: string, templateId: string) {
   try {
     const authResult = await requireSessionUserId();
     if (!authResult.ok) {
       return { success: false, error: authResult.error };
     }
 
+    // The space the page showed, not the cookie (it may have changed in another tab).
     // Viewers can look but not change shared plans and lists.
-    const access = await getWritableMembership(authResult.userId);
+    const access = await getWritableMembershipIn(authResult.userId, organizationId);
     if (!access.ok) {
       return { success: false, error: access.error };
     }
@@ -588,6 +605,7 @@ export async function shareMealPlanTemplate(templateId: string) {
   }
 }
 export async function updateMealPlanTemplate(
+  organizationId: string,
   data: z.infer<typeof UpdateTemplateSchema>
 ) {
   try {
@@ -598,8 +616,9 @@ export async function updateMealPlanTemplate(
 
     const validated = UpdateTemplateSchema.parse(data);
 
+    // The space the page showed, not the cookie (it may have changed in another tab).
     // Viewers can look but not change shared plans and lists.
-    const access = await getWritableMembership(authResult.userId);
+    const access = await getWritableMembershipIn(authResult.userId, organizationId);
     if (!access.ok) {
       return { success: false, error: access.error };
     }
