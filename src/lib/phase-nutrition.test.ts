@@ -118,6 +118,28 @@ describe('inferIngredientNutrients', () => {
     expect(nutrientsOf('Körsbärstomater')).toEqual([]);
   });
 
+  it('does not count spices, vegetables and sprouts as berries, eggs or legumes', () => {
+    // Linseed is flax, not lentils ("lins")
+    expect(nutrientsOf('Linseed', 'g')).toEqual(['magnesium', 'omega-3', 'fiber']);
+    expect(nutrientsOf('Krossade linfrön', 'g')).toEqual(['magnesium', 'omega-3', 'fiber']);
+    // Juniper berries are a whole spice
+    expect(nutrientsOf('Enbär', 'st')).toEqual([]);
+    expect(nutrientsOf('Krossade enbär', 'st')).toEqual([]);
+    expect(nutrientsOf('Juniper berries', 'st')).toEqual([]);
+    // Eggplant
+    expect(nutrientsOf('Äggplanta', 'st')).toEqual([]);
+    // Bean sprouts are a vegetable
+    expect(nutrientsOf('Mungbönsgroddar', 'g')).toEqual([]);
+    expect(nutrientsOf('Bean sprouts', 'g')).toEqual([]);
+    expect(nutrientsOf('Böngroddar', 'g')).toEqual([]);
+    // The real things still count
+    expect(nutrientsOf('Linser', 'dl')).toContain('iron');
+    expect(nutrientsOf('Mungbönor', 'dl')).toContain('iron');
+    expect(nutrientsOf('Blåbär', 'dl')).toContain('antioxidants');
+    expect(nutrientsOf('Ägg', 'st')).toEqual(['protein']);
+    expect(nutrientsOf('Äggula', 'st')).toEqual(['protein']);
+  });
+
   it('ignores stock, sauces, oils, plant drinks and seasoning-sized amounts', () => {
     expect(nutrientsOf('Fiskfond')).toEqual([]);
     expect(nutrientsOf('Fisksås')).toEqual([]);

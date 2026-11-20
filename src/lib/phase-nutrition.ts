@@ -346,7 +346,8 @@ export const NUTRIENT_KEYWORD_RULES: readonly NutrientKeywordRule[] = [
     label: 'eggs',
     prefixes: ['ägg'],
     words: ['egg', 'eggs', 'yolk', 'yolks'],
-    exclude: ['eggplant', 'äggfri', 'äggersättning', 'egg-free', 'egg replacer'],
+    // Eggplant ("äggplanta") and egg-free products
+    exclude: ['eggplant', 'äggplant', 'äggfri', 'äggersättning', 'egg-free', 'egg replacer'],
     nutrients: ['protein'],
   },
   {
@@ -369,11 +370,12 @@ export const NUTRIENT_KEYWORD_RULES: readonly NutrientKeywordRule[] = [
   {
     label: 'beans, lentils and chickpeas',
     stems: ['bönor', 'böna', 'kikärt', 'edamame', 'mungbön', 'hummus'],
-    // "linser", "linsgryta", "linspasta" (but not "linfrön")
+    // "linser", "linsgryta", "linspasta" (but not "linfrön" or "linseed": flax)
     prefixes: ['lins'],
     words: ['bean', 'beans', 'lentil', 'lentils', 'chickpea', 'chickpeas', 'garbanzo', 'garbanzos', 'legumes'],
     phrases: ['gula ärtor', 'split peas'],
-    exclude: ['kaffe', 'coffee', 'kakao', 'cocoa', 'vanilj', 'vanilla', 'jelly', 'brytbön', 'haricot', 'vaxbön', 'gröna bönor', 'green beans', 'string beans'],
+    // Green beans and bean sprouts ("mungbönsgroddar") are vegetables
+    exclude: ['kaffe', 'coffee', 'kakao', 'cocoa', 'vanilj', 'vanilla', 'jelly', 'brytbön', 'haricot', 'vaxbön', 'gröna bönor', 'green beans', 'string beans', 'linseed', 'linfrö', 'grodd', 'sprouts'],
     nutrients: ['protein', 'fiber', 'complex-carbs', 'iron'],
   },
   {
@@ -442,8 +444,8 @@ export const NUTRIENT_KEYWORD_RULES: readonly NutrientKeywordRule[] = [
     label: 'berries',
     stems: ['bär', 'hallon', 'jordgubb', 'lingon', 'aronia', 'acai', 'granatäpple'],
     words: ['berry', 'berries', 'blueberries', 'raspberries', 'strawberries', 'blackberries', 'cranberries', 'lingonberries', 'pomegranate'],
-    // Jam, cordial and cherry tomatoes ("körsbärstomater")
-    exclude: ['sylt', 'jam', 'saft', 'juice', 'cordial', 'marmelad', 'tomat', 'tomato', 'gelé', 'jelly'],
+    // Jam, cordial, cherry tomatoes ("körsbärstomater") and juniper berries ("enbär", a spice)
+    exclude: ['sylt', 'jam', 'saft', 'juice', 'cordial', 'marmelad', 'tomat', 'tomato', 'gelé', 'jelly', 'enbär', 'juniper'],
     nutrients: ['antioxidants', 'fiber'],
   },
   {
