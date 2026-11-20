@@ -31,6 +31,46 @@
   --color-destructive-foreground: var(--color-white);
 }
 
+/* --- ROUTINE LOTTERY VIEW TRANSITION ---
+   src/components/routines/routines-client.tsx reveals drawn routines inside
+   document.startViewTransition(). The dialog (lottery-dialog) resizes smoothly around the new
+   cards, and each card (lottery-pick-<index>, up to the three the dialog offers) rises into
+   place. The script skips the transition for reduced motion; this media query is a second guard.
+   Spec: https://www.w3.org/TR/css-view-transitions-1/ */
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-group(lottery-dialog) {
+    animation-duration: 300ms;
+    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  /* :only-child = the card has no "before" snapshot, i.e. it is entering. */
+  ::view-transition-new(lottery-pick-0):only-child,
+  ::view-transition-new(lottery-pick-1):only-child,
+  ::view-transition-new(lottery-pick-2):only-child {
+    animation: lottery-pick-in 450ms cubic-bezier(0.22, 1, 0.36, 1) 80ms both;
+  }
+
+  ::view-transition-new(lottery-pick-1):only-child {
+    animation-delay: 160ms;
+  }
+
+  ::view-transition-new(lottery-pick-2):only-child {
+    animation-delay: 240ms;
+  }
+}
+
+@keyframes lottery-pick-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.9);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 /* --- PRINTABLE ENGINE --- */
 @media screen {
   .print-container {

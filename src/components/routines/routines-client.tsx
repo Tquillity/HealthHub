@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { flushSync } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { parseAsString, useQueryState } from 'nuqs';
 import { Button } from '@/components/ui/button';
@@ -10,6 +11,11 @@ import { Plus, Sparkles, X } from 'lucide-react';
 import type { Routine } from '@prisma/client';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useUIStore } from '@/lib/store';
+import {
+  getRevealMode,
+  readMotionEnvironment,
+  runInViewTransition,
+} from '@/lib/view-transitions';
 import { RoutineCard } from './routine-card';
 import { RoutinesGrid } from './routines-grid';
 import { RoutineRichForm } from './routine-rich-form';
@@ -17,6 +23,18 @@ import { RoutineRichForm } from './routine-rich-form';
 interface RoutinesClientProps {
   routines: Routine[];
 }
+
+/** How long the "Spinning..." state lasts in browsers without View Transitions. */
+const LOTTERY_FALLBACK_SPIN_MS = 1500;
+
+/**
+ * view-transition-name values. They must match the ::view-transition-* rules in
+ * src/app/globals.css, and each must be unique on the page while a transition runs.
+ */
+const LOTTERY_DIALOG_TRANSITION_NAME = 'lottery-dialog';
+const lotteryPickTransitionName = (index: number) => `lottery-pick-${index}`;
+
+const NO_MATCH_MESSAGE = 'No routines match your criteria. Try adjusting filters.';
 
 export function RoutinesClient({
   routines: initialRoutines,
@@ -82,42 +100,54 @@ export function RoutinesClient({
   const [editingRoutine, setEditingRoutine] = useState<Routine | null>(null);
 
   const handleDrawLottery = async () => {
+    // View Transitions morph the picks in; older browsers keep the fixed spin, and
+    // reduced-motion users get the result as soon as it arrives.
+    const revealMode = getRevealMode(readMotionEnvironment(document, window));
     setLotterySpinning(true);
     setLotteryResults([]);
 
-    // Simulate spinning animation
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    let result: Awaited<ReturnType<typeof drawLottery>>;
+    try {
+      [result] = await Promise.all([
+        drawLottery({
+          energy: lotteryEnergy,
+          maxTime: lotteryMaxTime,
+          count: lotteryCount,
+          context: lotteryContext || undefined,
+          duration: lotteryDuration || undefined,
+          difficulty: lotteryDifficulty || undefined,
+        }),
+        revealMode === 'timed'
+          ? new Promise((resolve) => setTimeout(resolve, LOTTERY_FALLBACK_SPIN_MS))
+          : undefined,
+      ]);
+    } catch {
+      showToast('Failed to draw lottery', 'error');
+      setLotterySpinning(false);
+      return;
+    }
 
-    const result = await drawLottery({
-      energy: lotteryEnergy,
-      maxTime: lotteryMaxTime,
-      count: lotteryCount,
-      context: lotteryContext || undefined,
-      duration: lotteryDuration || undefined,
-      difficulty: lotteryDifficulty || undefined,
-    });
-
-    if (result.success && result.data) {
-      if (Array.isArray(result.data) && result.data.length > 0) {
-        setLotteryResults(result.data);
-      } else {
-        showToast(
-          'No routines match your criteria. Try adjusting filters.',
-          'warning'
-        );
-      }
-    } else if (
-      result.success &&
-      (!result.data || (Array.isArray(result.data) && result.data.length === 0))
-    ) {
-      showToast(
-        'No routines match your criteria. Try adjusting filters.',
-        'warning'
+    const picks = result.success && Array.isArray(result.data) ? result.data : [];
+    if (picks.length > 0) {
+      // flushSync commits the picks inside the transition callback, so the browser captures the
+      // new cards as the "after" state and morphs them in instead of snapping.
+      runInViewTransition(
+        revealMode === 'view-transition' ? document : undefined,
+        () => {
+          flushSync(() => {
+            setLotteryResults(picks);
+            setLotterySpinning(false);
+          });
+        }
       );
+      return;
+    }
+
+    if (result.success) {
+      showToast(NO_MATCH_MESSAGE, 'warning');
     } else {
       showToast(result.error || 'Failed to draw lottery', 'error');
     }
-
     setLotterySpinning(false);
   };
 
@@ -205,7 +235,10 @@ export function RoutinesClient({
       {/* Lottery Dialog */}
       {showLotteryDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+          <div
+            className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl"
+            style={{ viewTransitionName: LOTTERY_DIALOG_TRANSITION_NAME }}
+          >
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-xl font-bold text-gray-900">Todo Lottery</h2>
               <button
@@ -365,13 +398,20 @@ export function RoutinesClient({
                     Your pick{lotteryResults.length > 1 ? 's' : ''}:
                   </p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {lotteryResults.map((routine) => (
-                      <RoutineCard
+                    {lotteryResults.map((routine, index) => (
+                      <div
                         key={routine.id}
-                        routine={routine}
-                        onClick={() => {}}
-                        showAdminControls={false}
-                      />
+                        className="grid"
+                        style={{
+                          viewTransitionName: lotteryPickTransitionName(index),
+                        }}
+                      >
+                        <RoutineCard
+                          routine={routine}
+                          onClick={() => {}}
+                          showAdminControls={false}
+                        />
+                      </div>
                     ))}
                   </div>
                 </div>

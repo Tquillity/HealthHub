@@ -45,8 +45,9 @@ browser tests. Both jobs fail the workflow when a check fails.
 Browser checks cover public page content, signed-in dashboard and groceries,
 meal planning, public versus household/secret/private recipe access, recipe
 structured data and noindex metadata, immediate privacy changes after warming
-the guest cache, and TLDR navigation with valid, absent,
-and invalid summaries. Authenticated specs run only in the authenticated
+the guest cache, TLDR navigation with valid, absent,
+and invalid summaries, and the routine lottery reveal with View Transitions and
+with reduced motion. Authenticated specs run only in the authenticated
 Playwright project, after its sign-in setup. Another regression test performs
 110 session reads, verifies the dashboard remains accessible, and checks that
 invalid sign-ins are still rate limited.
