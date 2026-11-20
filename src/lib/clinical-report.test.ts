@@ -218,6 +218,22 @@ describe('summarizeCycleVariability', () => {
     expect(two.trend).toBeNull();
     expect(two.sdLength).toBe(5.7);
   });
+
+  it('classifies the trend on the rounded slope it shows', () => {
+    // Raw slope 0.971, shown as +1.0 days per cycle: that is the threshold.
+    const lengths = [27, 28, 28, 30, 32, 31];
+    expect(linearSlope(lengths)).toBeCloseTo(0.971, 3);
+    const up = summarizeCycleVariability(
+      buildCycleHistory(startsFrom('2026-05-25', lengths)),
+      reportRange('2026-11-24', 6)
+    );
+    expect(up.trend).toEqual({ direction: 'lengthening', slopePerCycle: 1 });
+    const down = summarizeCycleVariability(
+      buildCycleHistory(startsFrom('2026-05-25', [...lengths].reverse())),
+      reportRange('2026-11-24', 6)
+    );
+    expect(down.trend).toEqual({ direction: 'shortening', slopePerCycle: -1 });
+  });
 });
 
 describe('summarizePhaseDistribution', () => {

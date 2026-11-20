@@ -18,8 +18,8 @@
  * listed cycle is fully known). Average, shortest/longest, the shortest-to-longest
  * difference and the sample standard deviation need at least 2 completed cycles. The
  * trend is the least-squares slope of length over cycle number, shown from 3 cycles; a
- * change of at least 1 day per cycle is called lengthening/shortening (a descriptive
- * heuristic, not a clinical criterion).
+ * change of at least 1 day per cycle (after rounding to the 1 decimal shown) is called
+ * lengthening/shortening (a descriptive heuristic, not a clinical criterion).
  *
  * **Regularity indicator.** FIGO's own measure, the shortest-to-longest difference in
  * completed cycle length: regular when it is at most 7-9 days and irregular from 8-10
@@ -524,7 +524,8 @@ export function summarizeCycleVariability(
 
   let trend: CycleTrend | null = null;
   if (lengths.length >= MIN_CYCLES_FOR_TREND) {
-    const slope = linearSlope(lengths);
+    // Classified on the rounded slope the PDF prints, so "+1.0" is never "stable".
+    const slope = round1(linearSlope(lengths));
     trend = {
       direction:
         slope >= TREND_MIN_SLOPE_DAYS
@@ -532,7 +533,7 @@ export function summarizeCycleVariability(
           : slope <= -TREND_MIN_SLOPE_DAYS
             ? 'shortening'
             : 'stable',
-      slopePerCycle: round1(slope),
+      slopePerCycle: slope,
     };
   }
 
