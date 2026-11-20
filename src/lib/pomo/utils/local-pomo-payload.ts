@@ -1,8 +1,9 @@
-import {
-  POMO_TIME_STORAGE_KEY,
-} from '@/lib/pomo/utils/dashboard-timer-snapshot';
+import { POMO_TIME_STORAGE_KEY } from '@/lib/pomo/utils/dashboard-timer-snapshot';
 import type { PomoStatePayload } from '@/lib/pomo/validation/pomo-state-schema';
-import { PomoStatePayloadSchema } from '@/lib/pomo/validation/pomo-state-schema';
+import {
+  PomoStatePayloadSchema,
+  sanitizePomoPayloadHistory,
+} from '@/lib/pomo/validation/pomo-state-schema';
 
 function unwrapZustandPersist(raw: string | null): unknown {
   if (!raw) return null;
@@ -18,11 +19,15 @@ function unwrapZustandPersist(raw: string | null): unknown {
 export function buildPayloadFromLocalStorage(): PomoStatePayload | null {
   if (typeof window === 'undefined') return null;
 
-  const timeState = unwrapZustandPersist(window.localStorage.getItem(POMO_TIME_STORAGE_KEY));
+  const timeState = unwrapZustandPersist(
+    window.localStorage.getItem(POMO_TIME_STORAGE_KEY)
+  );
   const settingsState = unwrapZustandPersist(
     window.localStorage.getItem('pomo-settings-storage')
   );
-  const taskState = unwrapZustandPersist(window.localStorage.getItem('pomo-tasks-storage'));
+  const taskState = unwrapZustandPersist(
+    window.localStorage.getItem('pomo-tasks-storage')
+  );
 
   if (!timeState || typeof timeState !== 'object') {
     return null;
@@ -36,6 +41,8 @@ export function buildPayloadFromLocalStorage(): PomoStatePayload | null {
     version: 3,
   };
 
-  const result = PomoStatePayloadSchema.safeParse(candidate);
+  const result = PomoStatePayloadSchema.safeParse(
+    sanitizePomoPayloadHistory(candidate)
+  );
   return result.success ? result.data : null;
 }

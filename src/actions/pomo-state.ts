@@ -4,13 +4,18 @@ import { prisma } from '@/lib/db';
 import { requireSessionUserId } from '@/lib/session';
 import {
   createDefaultPomoStatePayload,
+  describePomoPayloadIssue,
   normalizePomoStateForPersist,
+  parseStoredPomoPayload,
   PomoStatePayloadSchema,
   type PomoStatePayload,
 } from '@/lib/pomo/validation/pomo-state-schema';
+import type { LoadedPomoState } from '@/lib/pomo/utils/cloud-hydration';
 import { Prisma } from '@prisma/client';
 
-type ActionResult<T> = { success: true; data: T } | { success: false; error: string };
+type ActionResult<T> =
+  | { success: true; data: T }
+  | { success: false; error: string };
 
 async function requirePremiumUserId(): Promise<
   { ok: true; userId: string } | { ok: false; error: string }
@@ -32,15 +37,7 @@ async function requirePremiumUserId(): Promise<
   return { ok: true, userId: session.userId };
 }
 
-function parseStoredPayload(raw: unknown): PomoStatePayload {
-  const parsed = PomoStatePayloadSchema.safeParse(raw);
-  if (parsed.success) {
-    return parsed.data;
-  }
-  return createDefaultPomoStatePayload();
-}
-
-export async function getPomoState(): Promise<ActionResult<PomoStatePayload>> {
+export async function getPomoState(): Promise<ActionResult<LoadedPomoState>> {
   try {
     const gate = await requirePremiumUserId();
     if (!gate.ok) {
@@ -53,10 +50,34 @@ export async function getPomoState(): Promise<ActionResult<PomoStatePayload>> {
     });
 
     if (!row) {
-      return { success: true, data: createDefaultPomoStatePayload() };
+      return {
+        success: true,
+        data: {
+          payload: createDefaultPomoStatePayload(),
+          source: 'empty',
+          migrated: false,
+        },
+      };
     }
 
-    return { success: true, data: parseStoredPayload(row.payloadJson) };
+    // A stored row that fails validation is reported, never replaced with defaults:
+    // the client would otherwise save those defaults over the user's real data.
+    const parsed = parseStoredPomoPayload(row.payloadJson);
+    if (!parsed.ok) {
+      console.error(
+        '[HealthHub action] pomo-state getPomoState: stored payload failed validation'
+      );
+      return { success: false, error: parsed.error };
+    }
+
+    return {
+      success: true,
+      data: {
+        payload: parsed.payload,
+        source: 'stored',
+        migrated: parsed.migrated,
+      },
+    };
   } catch (error) {
     console.error('[HealthHub action] pomo-state getPomoState:', error);
     return { success: false, error: 'Failed to load timer state' };
@@ -74,7 +95,10 @@ export async function savePomoState(
 
     const validated = PomoStatePayloadSchema.safeParse(payload);
     if (!validated.success) {
-      return { success: false, error: 'Invalid timer payload' };
+      return {
+        success: false,
+        error: describePomoPayloadIssue(validated.error),
+      };
     }
 
     const normalized = normalizePomoStateForPersist(validated.data);
@@ -127,9 +151,13 @@ export async function getPremiumPomoDashboardSnapshot(): Promise<{
       return { isPremium: true, payload: createDefaultPomoStatePayload() };
     }
 
-    return { isPremium: true, payload: parseStoredPayload(row.payloadJson) };
+    const parsed = parseStoredPomoPayload(row.payloadJson);
+    return { isPremium: true, payload: parsed.ok ? parsed.payload : null };
   } catch (error) {
-    console.error('[HealthHub action] pomo-state getPremiumPomoDashboardSnapshot:', error);
+    console.error(
+      '[HealthHub action] pomo-state getPremiumPomoDashboardSnapshot:',
+      error
+    );
     return { isPremium: false, payload: null };
   }
 }

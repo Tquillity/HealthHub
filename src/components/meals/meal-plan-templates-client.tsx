@@ -16,13 +16,12 @@ import {
   deleteMealPlanTemplate,
   duplicateMealPlanTemplate,
   updateMealPlanTemplate,
-  shareMealPlanTemplate,
   applyMealPlanTemplate,
   getMealPlanTemplates,
   getWeeklyPlan,
 } from '@/actions/meal-actions';
 import { SafeDeleteModal } from '@/components/ui/safe-delete-modal';
-import { Edit2, Trash2, Copy, Share2, Check } from 'lucide-react';
+import { Edit2, Trash2, Copy, Check, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 
 type MealPlanTemplate = {
@@ -53,13 +52,21 @@ export function MealPlanTemplatesClient({
   initialTemplates,
 }: MealPlanTemplatesClientProps) {
   const router = useRouter();
-  const [templates, setTemplates] = useState<MealPlanTemplate[]>(initialTemplates);
-  const [editingTemplate, setEditingTemplate] = useState<MealPlanTemplate | null>(null);
-  const [editFormData, setEditFormData] = useState({ name: '', description: '' });
+  const [templates, setTemplates] =
+    useState<MealPlanTemplate[]>(initialTemplates);
+  const [editingTemplate, setEditingTemplate] =
+    useState<MealPlanTemplate | null>(null);
+  const [editFormData, setEditFormData] = useState({
+    name: '',
+    description: '',
+  });
   const [isSaving, setIsSaving] = useState(false);
-  const [deleteTemplate, setDeleteTemplate] = useState<MealPlanTemplate | null>(null);
-  const [shareTemplate, setShareTemplate] = useState<MealPlanTemplate | null>(null);
-  const [shareLink, setShareLink] = useState<string | null>(null);
+  const [deleteTemplate, setDeleteTemplate] = useState<MealPlanTemplate | null>(
+    null
+  );
+  // Sharing is hidden until the public /meal-planner/templates/shared/[token] route exists (MEAL-17).
+  const [confirmApplyTemplate, setConfirmApplyTemplate] =
+    useState<MealPlanTemplate | null>(null);
   const [applyingTemplate, setApplyingTemplate] = useState<string | null>(null);
 
   useEffect(() => {
@@ -136,20 +143,9 @@ export function MealPlanTemplatesClient({
     }
   };
 
-  const handleShare = async (template: MealPlanTemplate) => {
-    const result = await shareMealPlanTemplate(template.id);
-    if (result.success && result.data?.shareToken) {
-      setShareTemplate(template);
-      const baseUrl = window.location.origin;
-      setShareLink(`${baseUrl}/meal-planner/templates/shared/${result.data.shareToken}`);
-    } else {
-      alert(result.error || 'Failed to generate share link');
-    }
-  };
-
   const handleApply = async (template: MealPlanTemplate) => {
     setApplyingTemplate(template.id);
-    
+
     try {
       // Get current meal plan
       const planResult = await getWeeklyPlan();
@@ -179,6 +175,7 @@ export function MealPlanTemplatesClient({
       setApplyingTemplate(null);
 
       if (result.success) {
+        setConfirmApplyTemplate(null);
         router.push('/meal-planner');
         router.refresh();
       } else {
@@ -190,18 +187,13 @@ export function MealPlanTemplatesClient({
     }
   };
 
-  const copyShareLink = () => {
-    if (shareLink) {
-      navigator.clipboard.writeText(shareLink);
-      alert('Share link copied to clipboard!');
-    }
-  };
-
   return (
     <div className="flex flex-col gap-4">
       {templates.length === 0 ? (
         <div className="rounded-lg border border-gray-200 bg-white p-12 text-center">
-          <p className="text-gray-500">No templates yet. Save a meal plan as a template to get started.</p>
+          <p className="text-gray-500">
+            No templates yet. Save a meal plan as a template to get started.
+          </p>
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -211,23 +203,29 @@ export function MealPlanTemplatesClient({
               className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
             >
               <div className="flex flex-col gap-2">
-                <h3 className="text-lg font-semibold text-gray-900">{template.name}</h3>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  {template.name}
+                </h3>
                 {template.description && (
-                  <p className="text-sm text-gray-600">{template.description}</p>
+                  <p className="text-sm text-gray-600">
+                    {template.description}
+                  </p>
                 )}
                 <div className="flex flex-col gap-1 text-xs text-gray-500">
                   <p>
-                    {template.items.length} meal{template.items.length !== 1 ? 's' : ''}
+                    {template.items.length} meal
+                    {template.items.length !== 1 ? 's' : ''}
                   </p>
                   <p>
-                    Created {format(new Date(template.createdAt), 'MMM d, yyyy')}
+                    Created{' '}
+                    {format(new Date(template.createdAt), 'MMM d, yyyy')}
                   </p>
                 </div>
               </div>
 
               <div className="mt-auto flex flex-wrap gap-2">
                 <Button
-                  onClick={() => handleApply(template)}
+                  onClick={() => setConfirmApplyTemplate(template)}
                   size="sm"
                   className="flex-1 gap-2 min-h-[44px]"
                   disabled={applyingTemplate === template.id}
@@ -260,15 +258,6 @@ export function MealPlanTemplatesClient({
                   Copy
                 </Button>
                 <Button
-                  onClick={() => handleShare(template)}
-                  size="sm"
-                  variant="outline"
-                  className="gap-2 min-h-[44px]"
-                >
-                  <Share2 className="h-4 w-4" />
-                  Share
-                </Button>
-                <Button
                   onClick={() => setDeleteTemplate(template)}
                   size="sm"
                   variant="outline"
@@ -284,7 +273,10 @@ export function MealPlanTemplatesClient({
       )}
 
       {/* Edit Dialog */}
-      <Dialog open={!!editingTemplate} onOpenChange={(open) => !open && setEditingTemplate(null)}>
+      <Dialog
+        open={!!editingTemplate}
+        onOpenChange={(open) => !open && setEditingTemplate(null)}
+      >
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle className="text-lg font-semibold text-gray-900">
@@ -327,7 +319,10 @@ export function MealPlanTemplatesClient({
                 type="text"
                 value={editFormData.description}
                 onChange={(e) =>
-                  setEditFormData({ ...editFormData, description: e.target.value })
+                  setEditFormData({
+                    ...editFormData,
+                    description: e.target.value,
+                  })
                 }
               />
             </div>
@@ -344,7 +339,11 @@ export function MealPlanTemplatesClient({
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSaving || !editFormData.name.trim()} className="gap-2">
+              <Button
+                type="submit"
+                disabled={isSaving || !editFormData.name.trim()}
+                className="gap-2"
+              >
                 <Check className="h-4 w-4" />
                 {isSaving ? 'Saving...' : 'Save Changes'}
               </Button>
@@ -365,56 +364,59 @@ export function MealPlanTemplatesClient({
         />
       )}
 
-      {/* Share Dialog */}
-      <Dialog open={!!shareTemplate} onOpenChange={(open) => !open && setShareTemplate(null)}>
-        <DialogContent className="sm:max-w-[500px]">
+      {/* Apply confirmation: applying replaces every meal in the current plan */}
+      <Dialog
+        open={!!confirmApplyTemplate}
+        onOpenChange={(open) => {
+          if (!open && !applyingTemplate) setConfirmApplyTemplate(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle className="text-lg font-semibold text-gray-900">
-              Share Template
-            </DialogTitle>
-            <DialogDescription className="mt-1 text-sm text-gray-500">
-              Copy this link to share your template with others.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1.5">
-              <label
-                htmlFor="share-link"
-                className="text-sm font-medium text-gray-700"
-              >
-                Share Link
-              </label>
-              <div className="flex gap-2">
-                <Input
-                  id="share-link"
-                  type="text"
-                  value={shareLink || ''}
-                  readOnly
-                  className="font-mono text-xs"
-                />
-                <Button
-                  type="button"
-                  onClick={copyShareLink}
-                  variant="outline"
-                  className="gap-2 min-h-[44px]"
-                >
-                  <Copy className="h-4 w-4" />
-                  Copy
-                </Button>
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100">
+                <AlertTriangle className="h-5 w-5 text-red-600" />
+              </div>
+              <div>
+                <DialogTitle className="text-lg font-semibold text-gray-900">
+                  Apply Template
+                </DialogTitle>
+                <DialogDescription className="mt-1 text-sm text-gray-500">
+                  This replaces all meals in your current meal plan. This action
+                  cannot be undone.
+                </DialogDescription>
               </div>
             </div>
+          </DialogHeader>
+
+          <div className="py-4">
+            <p className="text-sm text-gray-700">
+              Apply{' '}
+              <span className="font-semibold text-gray-900">
+                &quot;{confirmApplyTemplate?.name}&quot;
+              </span>{' '}
+              starting today?
+            </p>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0">
             <Button
               variant="outline"
-              onClick={() => {
-                setShareTemplate(null);
-                setShareLink(null);
-              }}
+              onClick={() => setConfirmApplyTemplate(null)}
+              disabled={!!applyingTemplate}
             >
-              Close
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() =>
+                confirmApplyTemplate && handleApply(confirmApplyTemplate)
+              }
+              disabled={!!applyingTemplate}
+              className="gap-2"
+            >
+              <Check className="h-4 w-4" />
+              {applyingTemplate ? 'Applying...' : 'Replace plan'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -422,4 +424,3 @@ export function MealPlanTemplatesClient({
     </div>
   );
 }
-
