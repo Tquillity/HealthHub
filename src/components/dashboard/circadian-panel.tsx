@@ -85,6 +85,54 @@ function TimeZoneNote({ insights }: { insights: CircadianInsights }) {
   );
 }
 
+/**
+ * The 1-10 rating buttons. While a rating saves they stay focusable (aria-disabled, not
+ * disabled), so keyboard focus stays on the button just pressed; `onRate` ignores taps
+ * in the meantime.
+ */
+export function EnergyRatingButtons({
+  selected,
+  saving,
+  onRate,
+  labelledBy,
+  describedBy,
+}: {
+  selected: number | null;
+  /** The rating being saved, or null. */
+  saving: number | null;
+  onRate: (rating: number) => void;
+  labelledBy: string;
+  describedBy: string;
+}) {
+  return (
+    <div
+      role="group"
+      aria-labelledby={labelledBy}
+      aria-describedby={describedBy}
+      className="grid grid-cols-5 gap-2 sm:grid-cols-10"
+    >
+      {RATINGS.map((rating) => (
+        <button
+          key={rating}
+          type="button"
+          aria-pressed={selected === rating}
+          aria-label={`${rating} out of 10`}
+          aria-disabled={saving !== null || undefined}
+          onClick={() => onRate(rating)}
+          className={cn(
+            'min-h-[44px] min-w-[44px] rounded-md border text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 aria-disabled:cursor-not-allowed aria-disabled:opacity-60',
+            selected === rating
+              ? 'border-primary-600 bg-primary-600 text-white'
+              : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+          )}
+        >
+          {saving === rating ? '…' : rating}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function EnergyCheckIn({ insights }: { insights: CircadianInsights }) {
   const router = useRouter();
   const showToast = useUIStore((state) => state.showToast);
@@ -95,6 +143,8 @@ function EnergyCheckIn({ insights }: { insights: CircadianInsights }) {
     slot: EnergySlot;
     energy: number;
   } | null>(null);
+  // Toasts are not announced, so the result is also read out from this status region.
+  const [status, setStatus] = useState('');
   const slot = insights.slot;
 
   if (!slot) {
@@ -111,18 +161,26 @@ function EnergyCheckIn({ insights }: { insights: CircadianInsights }) {
       : insights.currentEnergy;
 
   const save = async (energy: number) => {
+    if (saving !== null) return;
     setSaving(energy);
-    const result = await logEnergyNow({ energy });
+    // Cleared first, so the same result twice in a row is announced again.
+    setStatus('');
+    let result: Awaited<ReturnType<typeof logEnergyNow>>;
+    try {
+      result = await logEnergyNow({ energy });
+    } catch {
+      result = { success: false, error: 'Failed to save your energy' };
+    }
     setSaving(null);
     if (!result.success) {
+      setStatus(result.error);
       showToast(result.error, 'error');
       return;
     }
     setSaved(result.data);
-    showToast(
-      `Energy saved for this ${result.data.slot}: ${result.data.energy}/10`,
-      'success'
-    );
+    const message = `Energy saved for this ${result.data.slot}: ${result.data.energy}/10`;
+    setStatus(message);
+    showToast(message, 'success');
     // The card may have been open since an earlier part of the day.
     if (result.data.slot !== slot || result.data.date !== insights.dateKey) {
       router.refresh();
@@ -137,34 +195,19 @@ function EnergyCheckIn({ insights }: { insights: CircadianInsights }) {
       <p id={legendId} className="text-sm font-medium text-gray-900">
         How is your energy right now?
       </p>
-      <div
-        role="group"
-        aria-labelledby={legendId}
-        aria-describedby={hintId}
-        className="grid grid-cols-5 gap-2 sm:grid-cols-10"
-      >
-        {RATINGS.map((rating) => (
-          <button
-            key={rating}
-            type="button"
-            aria-pressed={selected === rating}
-            aria-label={`${rating} out of 10`}
-            disabled={saving !== null}
-            onClick={() => void save(rating)}
-            className={cn(
-              'min-h-[44px] min-w-[44px] rounded-md border text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60',
-              selected === rating
-                ? 'border-primary-600 bg-primary-600 text-white'
-                : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
-            )}
-          >
-            {saving === rating ? '…' : rating}
-          </button>
-        ))}
-      </div>
+      <EnergyRatingButtons
+        selected={selected}
+        saving={saving}
+        onRate={(rating) => void save(rating)}
+        labelledBy={legendId}
+        describedBy={hintId}
+      />
       <p id={hintId} className="text-xs text-gray-500">
         1 is drained, 10 is full of energy. Saved for this{' '}
         {SLOT_LABELS[slot].toLowerCase()}; tap again to change it.
+      </p>
+      <p role="status" className="sr-only">
+        {status}
       </p>
     </div>
   );
