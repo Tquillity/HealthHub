@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { createSeedPrisma } from '@/lib/admin-credentials';
+import { encrypt } from '@/lib/encryption';
 
 const url = new URL(process.env.DATABASE_URL ?? '');
 if (
@@ -35,6 +36,49 @@ try {
       role: 'owner',
     },
     update: { userId: user.id },
+  });
+  // Partner sync (#3): the signed-in user tracks their cycle and starts with sharing off;
+  // a second household member shares their full status with them.
+  const daysAgo = (days: number) => {
+    const date = new Date();
+    date.setUTCHours(0, 0, 0, 0);
+    date.setUTCDate(date.getUTCDate() - days);
+    return date;
+  };
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      enableCycleTracking: true,
+      cycleLength: 28,
+      lastPeriodDate: daysAgo(9),
+      shareCycleStatus: false,
+      shareCycleLevel: 'NONE',
+      supportMessage: null,
+    },
+  });
+  const partner = {
+    name: 'Robin Partner',
+    enableCycleTracking: true,
+    cycleLength: 28,
+    lastPeriodDate: daysAgo(20),
+    shareCycleStatus: true,
+    shareCycleLevel: 'FULL' as const,
+    supportMessage: encrypt('Tea and a short walk would be lovely.'),
+  };
+  await prisma.user.upsert({
+    where: { id: 'hh-e2e-partner' },
+    create: { id: 'hh-e2e-partner', email: 'e2e-partner@example.com', ...partner },
+    update: partner,
+  });
+  await prisma.member.upsert({
+    where: { id: 'hh-e2e-partner-membership' },
+    create: {
+      id: 'hh-e2e-partner-membership',
+      userId: 'hh-e2e-partner',
+      organizationId: 'hh-e2e-household',
+      role: 'member',
+    },
+    update: { organizationId: 'hh-e2e-household' },
   });
   for (const recipe of [
     {

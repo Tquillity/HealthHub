@@ -40,7 +40,7 @@ export default defineConfig({
     },
     {
       name: 'authenticated',
-      testMatch: /(authenticated|account-export|household)\.spec\.ts/,
+      testMatch: /(authenticated|account-export|household|partner-sync)\.spec\.ts/,
       dependencies: ['setup'],
       use: {
         ...devices['Desktop Chrome'],
