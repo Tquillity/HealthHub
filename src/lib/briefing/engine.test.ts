@@ -265,6 +265,63 @@ describe('buildDailyBriefing: recovery', () => {
   });
 });
 
+describe('buildDailyBriefing: headline and suggestions agree', () => {
+  const vitalsRow = (
+    date: string,
+    values: Partial<DailyMetricsRow> = {}
+  ): DailyMetricsRow => ({
+    date,
+    temperature: null,
+    restingHeartRate: 60,
+    heartRateVariability: 50,
+    sleepQuality: 8,
+    sleepHours: null,
+    ...values,
+  });
+
+  it('does not suggest a harder routine on a gentler day of short sleep', () => {
+    // Usual energy 6; the last 3 days 8/10 with 6.5 hours of sleep a night.
+    const briefing = buildDailyBriefing(
+      input({
+        journal: [
+          ...days('2026-10-20', '2026-10-30').map((date) =>
+            journalDay(date, { energy: 6 })
+          ),
+          ...days('2026-11-18', TODAY).map((date) =>
+            journalDay(date, { energy: 8, sleepHours: 6.5 })
+          ),
+        ],
+      })
+    );
+    expect(briefing.headline).toBe(
+      "A gentler day may suit you. Here's what your recent logs suggest."
+    );
+    expect(keys(briefing)).toEqual(['recovery.sleep']);
+  });
+
+  it('does not call recovery great next to "go gently" for symptoms', () => {
+    const briefing = buildDailyBriefing(
+      input({
+        focus: 'workout',
+        journal: [
+          ...days('2026-10-20', '2026-10-30').map((date) => journalDay(date)),
+          journalDay('2026-11-19', { symptoms: ['Cramps', 'Headache'] }),
+          journalDay(TODAY, { symptoms: ['Cramps', 'Headache'] }),
+        ],
+        vitals: [
+          ...days('2026-10-20', '2026-11-18').map((date) => vitalsRow(date)),
+          vitalsRow('2026-11-19', { restingHeartRate: 58 }),
+          vitalsRow(TODAY, { restingHeartRate: 58 }),
+        ],
+      })
+    );
+    expect(keys(briefing)).toEqual(['recovery.gentle-symptoms']);
+    expect(briefing.headline).toBe(
+      "A gentler day may suit you. Here's what your recent logs suggest."
+    );
+  });
+});
+
 describe('buildDailyBriefing: missing data', () => {
   it('returns an empty briefing without any sources', () => {
     const briefing = buildDailyBriefing(input());

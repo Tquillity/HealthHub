@@ -68,6 +68,21 @@ export function isLateLuteal(signals: BriefingSignals): boolean {
   );
 }
 
+/**
+ * Recent logs point to an easier day: energy below usual, low recovery, more symptoms
+ * than usual or short sleep (under 7 hours). The headline then suggests a gentler day,
+ * and the suggestions that encourage harder training are left out, so the card never
+ * says both (copy.ts `buildHeadline` uses this same check).
+ */
+export function isTakeItEasyDay(signals: BriefingSignals): boolean {
+  return (
+    (signals.energy?.low ?? false) ||
+    (signals.recovery?.low ?? false) ||
+    (signals.symptoms?.elevated ?? false) ||
+    (signals.sleep?.short ?? false)
+  );
+}
+
 export function buildCandidates(
   signals: BriefingSignals
 ): SuggestionCandidate[] {
@@ -79,6 +94,7 @@ export function buildCandidates(
   const energyLow = energy?.low ?? false;
   const recoveryLow = recovery?.low ?? false;
   const symptomsElevated = symptoms?.elevated ?? false;
+  const takeItEasy = isTakeItEasyDay(signals);
 
   // Recovery
   if (recovery?.low) {
@@ -87,7 +103,8 @@ export function buildCandidates(
       recovery.latest.zone === 'red' || recovery.latest.alert ? 85 : 65
     );
   }
-  if (recovery?.good && !energyLow) {
+  // "Well placed for higher-intensity training" only when nothing else says go gently.
+  if (recovery?.good && !takeItEasy) {
     add('recovery.well-recovered', 40);
   }
   if (sleep?.short) {
@@ -114,12 +131,7 @@ export function buildCandidates(
         (recoveryLow ? 5 : 0)
     );
   }
-  if (
-    energy?.good &&
-    !recoveryLow &&
-    !symptomsElevated &&
-    !(sleep?.veryShort ?? false)
-  ) {
+  if (energy?.good && !takeItEasy) {
     add('routine.go-for-it', 35 + (recovery?.good ? 10 : 0));
   }
 

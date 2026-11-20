@@ -3,6 +3,7 @@ import type { CyclePhase } from '@/lib/cycle-calculator';
 import { addDaysToDateOnly, dateOnlyToLocalDate } from '@/lib/date-only';
 import { getDietaryRecommendations } from '@/lib/dietary-recommendations';
 import { RECOVERY_ZONE_LABELS } from '@/lib/recovery';
+import { isTakeItEasyDay } from './rules';
 import type { BriefingSignals, Comparison } from './signals';
 import type {
   BriefingDetail,
@@ -388,14 +389,12 @@ export function phraseSuggestion(
   }
 }
 
-/** One friendly sentence at the top of the card. */
+/**
+ * One friendly sentence at the top of the card. Its tone follows `isTakeItEasyDay`, the
+ * same check that keeps "train harder" suggestions off a gentler day.
+ */
 export function buildHeadline(signals: BriefingSignals): string {
-  const takeItEasy =
-    (signals.energy?.low ?? false) ||
-    (signals.recovery?.low ?? false) ||
-    (signals.symptoms?.elevated ?? false) ||
-    (signals.sleep?.short ?? false);
-  if (takeItEasy) {
+  if (isTakeItEasyDay(signals)) {
     return "A gentler day may suit you. Here's what your recent logs suggest.";
   }
   if ((signals.energy?.good ?? false) || (signals.recovery?.good ?? false)) {
