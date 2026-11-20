@@ -195,11 +195,23 @@ describe.skipIf(!isolated)('household management against isolated PostgreSQL', (
       });
     });
 
-    it('lists the invitation for the recipient and pending invitations for managers only', async () => {
+    it('lists the invitation only for a recipient whose email is verified', async () => {
+      // Sign-up does not verify emails: an account that merely claims the invitee's
+      // address must not see (or learn the id of) the invitation without the link.
       as(partnerPersonal);
-      const forPartner = await lib.getHouseholdData(partner.id);
-      expect(forPartner.ok && forPartner.data.invitationsForYou.map((i) => i.id)).toEqual([invitationId]);
+      const unverified = await lib.getHouseholdData(partner.id);
+      expect(unverified.ok && unverified.data.invitationsForYou).toEqual([]);
 
+      await client.user.update({ where: { id: partner.id }, data: { emailVerified: true } });
+      try {
+        const verified = await lib.getHouseholdData(partner.id);
+        expect(verified.ok && verified.data.invitationsForYou.map((i) => i.id)).toEqual([invitationId]);
+      } finally {
+        await client.user.update({ where: { id: partner.id }, data: { emailVerified: null } });
+      }
+    });
+
+    it('lists pending invitations for managers only', async () => {
       as(home);
       const forOwner = await lib.getHouseholdData(owner.id);
       expect(forOwner.ok && forOwner.data.invitations.map((i) => i.email)).toEqual(
@@ -209,8 +221,11 @@ describe.skipIf(!isolated)('household management against isolated PostgreSQL', (
       expect(forViewer.ok && forViewer.data.invitations).toEqual([]);
     });
 
-    it('only the recipient can accept, once', async () => {
+    it('only the recipient can accept, once (with the link, verified or not)', async () => {
       expect(await lib.acceptInvitation(outsider.id, invitationId)).toMatchObject({ ok: false });
+      expect(
+        (await client.user.findUniqueOrThrow({ where: { id: partner.id } })).emailVerified
+      ).toBeFalsy();
       expect(await lib.acceptInvitation(partner.id, invitationId)).toEqual({
         ok: true,
         data: { organizationId: home },

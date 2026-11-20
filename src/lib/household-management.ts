@@ -90,7 +90,10 @@ export type HouseholdData = {
   members: HouseholdMember[];
   /** Pending, unexpired invitations to this organization. Only owners and admins see them. */
   invitations: PendingInvitation[];
-  /** Pending invitations addressed to the signed-in user's email, to any organization. */
+  /**
+   * Pending invitations addressed to the signed-in user's email, to any organization.
+   * Listed only when that email is verified; otherwise the invite link is needed.
+   */
   invitationsForYou: InvitationForYou[];
   /** Roles the user may hand out in an invitation. */
   invitableRoles: AssignableRole[];
@@ -106,7 +109,10 @@ export async function getHouseholdData(userId: string): Promise<Result<Household
   const now = new Date();
 
   const [user, memberRows, invitationRows, membershipCount] = await Promise.all([
-    prisma.user.findUnique({ where: { id: userId }, select: { email: true } }),
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, emailVerified: true },
+    }),
     prisma.member.findMany({
       where: { organizationId },
       include: { user: { select: { id: true, name: true, email: true, image: true } } },
@@ -123,22 +129,27 @@ export async function getHouseholdData(userId: string): Promise<Result<Household
   ]);
   if (!user) return fail('Unauthorized');
 
-  const forYouRows = await prisma.invitation.findMany({
-    where: {
-      email: { equals: normalizeEmail(user.email), mode: 'insensitive' },
-      status: 'pending',
-      expiresAt: { gt: now },
-      organization: { members: { none: { userId } } },
-    },
-    select: {
-      id: true,
-      role: true,
-      expiresAt: true,
-      inviterId: true,
-      organization: { select: { name: true, type: true } },
-    },
-    orderBy: { expiresAt: 'asc' },
-  });
+  // Sign-up does not verify email addresses, so anyone can register with an invitee's
+  // address before they do. Listing by email would hand that account the invitation (and
+  // its id) without the link. Unverified accounts must open the unguessable link instead.
+  const forYouRows = user.emailVerified
+    ? await prisma.invitation.findMany({
+        where: {
+          email: { equals: normalizeEmail(user.email), mode: 'insensitive' },
+          status: 'pending',
+          expiresAt: { gt: now },
+          organization: { members: { none: { userId } } },
+        },
+        select: {
+          id: true,
+          role: true,
+          expiresAt: true,
+          inviterId: true,
+          organization: { select: { name: true, type: true } },
+        },
+        orderBy: { expiresAt: 'asc' },
+      })
+    : [];
   const inviterIds = [...new Set(forYouRows.map((row) => row.inviterId))];
   const inviters = inviterIds.length
     ? await prisma.user.findMany({
