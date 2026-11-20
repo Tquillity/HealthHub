@@ -86,7 +86,7 @@ export function PendingInvitations({
                     disabled={busyId === invitation.id}
                     onClick={() => setToCancel(invitation)}
                     className="min-h-[44px] gap-2"
-                    aria-label={`Cancel invitation for ${invitation.email}`}
+                    aria-label={`Cancel invite for ${invitation.email}`}
                   >
                     <X className="h-4 w-4" aria-hidden />
                     Cancel invite

@@ -8,6 +8,7 @@ import { Check, ChevronsUpDown, Settings } from 'lucide-react';
 import { switchActiveOrganization } from '@/actions/organization-actions';
 import { OrgTypeBadge } from '@/components/household/org-badges';
 import type { OrganizationSummary } from '@/lib/active-organization';
+import { isFocusLeaving } from '@/lib/focus';
 import { useUIStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
 
@@ -20,12 +21,16 @@ type OrgSwitcherProps = {
 /**
  * Switch the household (or collective, community, workplace) the app shows. The server action
  * checks membership and stores the choice in an httpOnly cookie; the page then re-renders.
+ *
+ * A disclosure (button + list of buttons), not an ARIA menu: Tab moves through the spaces, and
+ * Escape or moving focus away closes it.
  */
 export function OrgSwitcher({ organizations, activeOrganizationId, className }: OrgSwitcherProps) {
   const router = useRouter();
   const showToast = useUIStore((state) => state.showToast);
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const [status, setStatus] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const listId = useId();
@@ -46,14 +51,20 @@ export function OrgSwitcher({ organizations, activeOrganizationId, className }: 
 
   const handleSelect = (organization: OrganizationSummary) => {
     setOpen(false);
+    // The button stays focusable while switching (aria-disabled, not disabled), so focus
+    // does not fall back to the top of the page.
     buttonRef.current?.focus();
-    if (organization.id === active.id) return;
+    if (organization.id === active.id || isPending) return;
+    setStatus(`Switching to ${organization.name}…`);
     startTransition(async () => {
       const result = await switchActiveOrganization(organization.id);
       if (result.success) {
+        setStatus(`Now viewing ${organization.name}.`);
         router.refresh();
       } else {
-        showToast(result.error || 'Could not switch space', 'error');
+        const message = result.error || 'Could not switch space';
+        setStatus(message);
+        showToast(message, 'error');
       }
     });
   };
@@ -62,9 +73,12 @@ export function OrgSwitcher({ organizations, activeOrganizationId, className }: 
     <div
       ref={containerRef}
       className={cn('relative flex flex-col gap-1', className)}
+      onBlur={(event) => {
+        if (open && isFocusLeaving(containerRef.current, event.relatedTarget)) setOpen(false);
+      }}
       onKeyDown={(event) => {
         if (event.key === 'Escape' && open) {
-          // Close only this menu, not the mobile drawer around it.
+          // Close only this list, not the mobile drawer around it.
           event.stopPropagation();
           setOpen(false);
           buttonRef.current?.focus();
@@ -77,13 +91,14 @@ export function OrgSwitcher({ organizations, activeOrganizationId, className }: 
       <button
         ref={buttonRef}
         type="button"
-        aria-haspopup="true"
         aria-expanded={open}
-        aria-controls={listId}
+        aria-controls={open ? listId : undefined}
         aria-label={`Current space: ${active.name}. Switch space`}
-        disabled={isPending}
-        onClick={() => setOpen((value) => !value)}
-        className="flex min-h-[44px] w-full items-center justify-between gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-left text-sm transition-colors hover:bg-gray-50 disabled:opacity-60"
+        aria-disabled={isPending || undefined}
+        onClick={() => {
+          if (!isPending) setOpen((value) => !value);
+        }}
+        className="flex min-h-[44px] w-full items-center justify-between gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-left text-sm transition-colors hover:bg-gray-50 aria-disabled:opacity-60"
       >
         <span className="flex min-w-0 flex-col gap-0.5">
           <span className="truncate font-medium text-gray-900">{active.name}</span>
@@ -136,6 +151,9 @@ export function OrgSwitcher({ organizations, activeOrganizationId, className }: 
           </Link>
         </div>
       )}
+      <span role="status" className="sr-only">
+        {status}
+      </span>
     </div>
   );
 }

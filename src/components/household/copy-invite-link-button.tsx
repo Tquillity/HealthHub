@@ -38,7 +38,8 @@ export function CopyInviteLinkButton({
       size="sm"
       onClick={handleCopy}
       className={cn('gap-2', className)}
-      aria-label={`Copy invite link for ${email}`}
+      // Starts with the visible text so voice control ("click Copy link") finds it.
+      aria-label={`${copied ? 'Copied' : 'Copy'} link for ${email}`}
     >
       {copied ? (
         <Check className="h-4 w-4" aria-hidden />

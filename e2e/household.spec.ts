@@ -37,9 +37,9 @@ test.describe('household management', () => {
     await page.getByRole('button', { name: 'Create invite link' }).click();
 
     await expect(
-      page.getByRole('status').getByRole('button', { name: `Copy invite link for ${email}` })
+      page.getByRole('status').getByRole('button', { name: `Copy link for ${email}` })
     ).toBeVisible();
-    const cancel = page.getByRole('button', { name: `Cancel invitation for ${email}` });
+    const cancel = page.getByRole('button', { name: `Cancel invite for ${email}` });
     await expect(cancel).toBeVisible();
 
     await cancel.click();

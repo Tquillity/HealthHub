@@ -20,6 +20,10 @@ interface SafeDeleteModalProps {
   title: string;
   itemName: string;
   description?: string;
+  /** Screen-reader label for the confirmation field. */
+  confirmLabel?: string;
+  /** Verb for the question and the confirm button, e.g. "Remove". */
+  actionLabel?: string;
 }
 
 export function SafeDeleteModal({
@@ -29,6 +33,8 @@ export function SafeDeleteModal({
   title,
   itemName,
   description,
+  confirmLabel = 'Type the recipe name to confirm deletion',
+  actionLabel = 'Delete',
 }: SafeDeleteModalProps) {
   const [verificationText, setVerificationText] = useState('');
   const [isVerified, setIsVerified] = useState(false);
@@ -80,7 +86,7 @@ export function SafeDeleteModal({
 
         <div className="py-4">
           <p className="text-sm text-gray-700">
-            Are you sure you want to delete{' '}
+            Are you sure you want to {actionLabel.toLowerCase()}{' '}
             <span className="font-semibold text-gray-900">&quot;{itemName}&quot;</span>?
           </p>
           <p className="mt-3 text-sm font-medium text-gray-900">
@@ -88,7 +94,7 @@ export function SafeDeleteModal({
           </p>
           <div className="mt-3">
             <label htmlFor="delete-verification" className="sr-only">
-              Type the recipe name to confirm deletion
+              {confirmLabel}
             </label>
             <Input
               id="delete-verification"
@@ -111,7 +117,7 @@ export function SafeDeleteModal({
             onClick={handleConfirm}
             disabled={!isVerified}
           >
-            Delete
+            {actionLabel}
           </Button>
         </DialogFooter>
       </DialogContent>

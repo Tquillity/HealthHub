@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Crown, UserX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -44,6 +44,82 @@ type MemberListProps = {
 const selectClassName =
   'min-h-[44px] rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 disabled:opacity-50';
 
+/**
+ * Role picker that only saves on the Save button. Arrow keys on a closed select change its
+ * value straight away in some browsers, so saving on change would apply every role passed.
+ */
+function MemberRoleControl({
+  member,
+  selectId,
+  roles,
+  busy,
+  onSave,
+}: {
+  member: HouseholdMember;
+  selectId: string;
+  roles: AssignableRole[];
+  busy: boolean;
+  onSave: (role: AssignableRole) => Promise<boolean>;
+}) {
+  const selectRef = useRef<HTMLSelectElement>(null);
+  const saveRef = useRef<HTMLButtonElement>(null);
+  const [saved, setSaved] = useState<OrgRole>(member.role);
+  const [draft, setDraft] = useState<OrgRole>(member.role);
+  // A refresh (or someone else) changed the role: start again from it.
+  const [roleFromServer, setRoleFromServer] = useState<OrgRole>(member.role);
+  if (member.role !== roleFromServer) {
+    setRoleFromServer(member.role);
+    setSaved(member.role);
+    setDraft(member.role);
+  }
+  const changed = draft !== saved;
+
+  const handleSave = async () => {
+    if (!changed || busy) return;
+    const role = draft as AssignableRole;
+    if (await onSave(role)) {
+      // Save is disabled once nothing is left to save; keep focus on the role instead.
+      if (document.activeElement === saveRef.current) selectRef.current?.focus();
+      setSaved(role);
+    }
+  };
+
+  return (
+    <>
+      <label htmlFor={selectId} className="sr-only">
+        Role for {member.name}
+      </label>
+      <select
+        ref={selectRef}
+        id={selectId}
+        value={draft}
+        onChange={(event) => setDraft(event.target.value as AssignableRole)}
+        className={selectClassName}
+      >
+        {/* Whenever options exist they include the current role (owners get none). */}
+        {roles.map((role) => (
+          <option key={role} value={role}>
+            {ROLE_LABELS[role]}
+          </option>
+        ))}
+      </select>
+      <Button
+        ref={saveRef}
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={!changed}
+        aria-disabled={busy || undefined}
+        onClick={() => void handleSave()}
+        className="aria-disabled:opacity-50"
+        aria-label={`Save role for ${member.name}`}
+      >
+        Save
+      </Button>
+    </>
+  );
+}
+
 export function MemberList({
   members,
   currentUserId,
@@ -56,6 +132,13 @@ export function MemberList({
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [memberToRemove, setMemberToRemove] = useState<HouseholdMember | null>(null);
   const [newOwner, setNewOwner] = useState<HouseholdMember | null>(null);
+  // Toasts are not announced, so results are also read out from this status region.
+  const [status, setStatus] = useState('');
+
+  const notify = (message: string, type: 'success' | 'error') => {
+    showToast(message, type);
+    setStatus(message);
+  };
 
   const allowedRoles = (member: HouseholdMember): AssignableRole[] =>
     ASSIGNABLE_ROLES.filter(
@@ -68,17 +151,20 @@ export function MemberList({
         }).ok
     );
 
-  const handleRoleChange = async (member: HouseholdMember, role: AssignableRole) => {
-    if (role === member.role) return;
+  const handleRoleChange = async (
+    member: HouseholdMember,
+    role: AssignableRole
+  ): Promise<boolean> => {
     setPendingId(member.id);
     const result = await updateMemberRole({ memberId: member.id, role });
     setPendingId(null);
     if (result.success) {
-      showToast(`${member.name} is now ${ROLE_LABELS[role].toLowerCase()}.`, 'success');
+      notify(`${member.name} is now ${ROLE_LABELS[role].toLowerCase()}.`, 'success');
       router.refresh();
-    } else {
-      showToast(result.error || 'Could not change the role', 'error');
+      return true;
     }
+    notify(result.error || 'Could not change the role', 'error');
+    return false;
   };
 
   const handleRemove = async () => {
@@ -89,10 +175,10 @@ export function MemberList({
     setPendingId(null);
     setMemberToRemove(null);
     if (result.success) {
-      showToast(`${member.name} has been removed from ${organizationName}.`, 'success');
+      notify(`${member.name} has been removed from ${organizationName}.`, 'success');
       router.refresh();
     } else {
-      showToast(result.error || 'Could not remove member', 'error');
+      notify(result.error || 'Could not remove member', 'error');
     }
   };
 
@@ -104,10 +190,10 @@ export function MemberList({
     setPendingId(null);
     setNewOwner(null);
     if (result.success) {
-      showToast(`${member.name} is now the owner. You are an admin.`, 'success');
+      notify(`${member.name} is now the owner. You are an admin.`, 'success');
       router.refresh();
     } else {
-      showToast(result.error || 'Could not transfer ownership', 'error');
+      notify(result.error || 'Could not transfer ownership', 'error');
     }
   };
 
@@ -160,27 +246,13 @@ export function MemberList({
                 <div className="flex flex-wrap items-center gap-6">
                   <div className="flex flex-wrap items-center gap-2">
                     {roles.length > 0 ? (
-                      <>
-                        <label htmlFor={`member-role-${index}`} className="sr-only">
-                          Role for {member.name}
-                        </label>
-                        <select
-                          id={`member-role-${index}`}
-                          value={member.role}
-                          disabled={busy}
-                          onChange={(event) =>
-                            void handleRoleChange(member, event.target.value as AssignableRole)
-                          }
-                          className={selectClassName}
-                        >
-                          {/* Whenever options exist they include the current role (owners get none). */}
-                          {roles.map((role) => (
-                            <option key={role} value={role}>
-                              {ROLE_LABELS[role]}
-                            </option>
-                          ))}
-                        </select>
-                      </>
+                      <MemberRoleControl
+                        member={member}
+                        selectId={`member-role-${index}`}
+                        roles={roles}
+                        busy={busy}
+                        onSave={(role) => handleRoleChange(member, role)}
+                      />
                     ) : (
                       <RoleBadge role={member.role} />
                     )}
@@ -192,7 +264,7 @@ export function MemberList({
                         disabled={busy}
                         onClick={() => setNewOwner(member)}
                         className="gap-2"
-                        aria-label={`Make ${member.name} the owner`}
+                        aria-label={`Make owner: ${member.name}`}
                       >
                         <Crown className="h-4 w-4" aria-hidden />
                         Make owner
@@ -218,6 +290,9 @@ export function MemberList({
             );
           })}
         </ul>
+        <p role="status" className="sr-only">
+          {status}
+        </p>
       </CardContent>
 
       {memberToRemove && (
@@ -227,6 +302,8 @@ export function MemberList({
           onConfirm={() => void handleRemove()}
           title="Remove member"
           itemName={memberToRemove.name}
+          actionLabel="Remove"
+          confirmLabel="Type the member's name to confirm removal"
           description={`${memberToRemove.name} will lose access to ${organizationName}'s meal plans, grocery list and shared journal. Anything they shared with it becomes private again.`}
         />
       )}
