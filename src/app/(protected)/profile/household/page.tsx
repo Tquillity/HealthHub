@@ -1,60 +1,104 @@
 import { redirect } from 'next/navigation';
-import { getServerSession } from '@/lib/session';
-import { getHouseholdMembers } from '@/actions/household-actions';
-import { HouseholdMemberList } from '@/components/profile/household-member-list';
-import { InviteMemberForm } from '@/components/profile/invite-member-form';
 import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
+import { getServerSession } from '@/lib/session';
+import { getHouseholdData } from '@/lib/household-management';
+import { getSharedJournalEntries } from '@/lib/journal-sharing';
+import { canManage } from '@/lib/org-roles';
 import { PageHeader } from '@/components/ui/page-header';
+import { OrgTypeBadge, RoleBadge } from '@/components/household/org-badges';
+import { MemberList } from '@/components/household/member-list';
+import { InviteForm } from '@/components/household/invite-form';
+import { PendingInvitations } from '@/components/household/pending-invitations';
+import { InvitationsForYou } from '@/components/household/invitations-for-you';
+import { OrgPrivacyCard } from '@/components/household/org-privacy-card';
+import { SharedJournalFeed } from '@/components/household/shared-journal-feed';
+import { CreateOrganizationForm } from '@/components/household/create-organization-form';
+import { LeaveOrganizationCard } from '@/components/household/leave-organization-card';
 
+/** Household management for the active organization (switch it in the sidebar). */
 export default async function HouseholdPage() {
   const session = await getServerSession();
-
   if (!session) {
     redirect('/sign-in');
   }
 
-  const result = await getHouseholdMembers();
-
-  if (!result.success || !result.data) {
+  const result = await getHouseholdData(session.user.id);
+  if (!result.ok) {
     return (
       <div className="p-6">
-        <p className="text-gray-500">
-          {result.error || 'Failed to load household members'}
-        </p>
+        <p className="text-gray-500">{result.error || 'Failed to load your household'}</p>
       </div>
     );
   }
 
-  const { members, currentUserRole } = result.data;
-  const canInvite = currentUserRole === 'owner' || currentUserRole === 'admin';
+  const household = result.data;
+  const { organization } = household;
+  const isManager = canManage(household.currentUserRole);
+  const sharedEntries = await getSharedJournalEntries(session.user.id, organization.id);
 
   return (
-    <div className="p-6">
+    <div className="flex flex-col gap-6 p-6">
       <Link
         href="/profile"
-        className="mb-6 flex items-center text-sm text-gray-500 transition-colors hover:text-blue-600"
+        className="flex min-h-[44px] items-center gap-1 self-start text-sm text-gray-500 transition-colors hover:text-primary-600"
       >
-        <ChevronLeft className="h-4 w-4" />
+        <ChevronLeft className="h-4 w-4" aria-hidden />
         Back to Profile
       </Link>
 
       <PageHeader
-        className="mb-6"
-        title="Household"
-        description="Manage your household members and invitations"
+        title={organization.name}
+        description="Members, invitations and what this space shares. Switch spaces from the menu."
+        actions={
+          <>
+            <OrgTypeBadge type={organization.type} />
+            <RoleBadge role={household.currentUserRole} />
+          </>
+        }
       />
 
-      <div className="flex flex-col gap-6">
-        {/* Member List */}
-        <HouseholdMemberList
-          members={members}
-          currentUserRole={currentUserRole}
-          currentUserId={session.user.id}
-        />
+      <InvitationsForYou invitations={household.invitationsForYou} />
 
-        {/* Invite Form (only for owners and admins) */}
-        {canInvite && <InviteMemberForm />}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <MemberList
+          className="lg:col-span-2"
+          members={household.members}
+          currentUserId={household.currentUserId}
+          currentUserRole={household.currentUserRole}
+          organizationName={organization.name}
+        />
+        <OrgPrivacyCard type={organization.type} />
+
+        {isManager && (
+          <>
+            <InviteForm
+              roles={household.invitableRoles}
+              organizationName={organization.name}
+            />
+            <PendingInvitations
+              className="lg:col-span-2"
+              invitations={household.invitations}
+            />
+          </>
+        )}
+
+        <SharedJournalFeed
+          className="lg:col-span-2"
+          entries={sharedEntries}
+          organizationName={organization.name}
+          organizationType={organization.type}
+        />
+        <div className="flex flex-col gap-6">
+          <CreateOrganizationForm />
+          <LeaveOrganizationCard
+            organizationId={organization.id}
+            organizationName={organization.name}
+            role={household.currentUserRole}
+            ownerCount={household.ownerCount}
+            membershipCount={household.membershipCount}
+          />
+        </div>
       </div>
     </div>
   );
