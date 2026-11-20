@@ -19,22 +19,47 @@ describe('typicalEnergyForCycleDay', () => {
 });
 
 describe('typicalPhaseEnergy', () => {
-  it('is lowest in the menstrual phase and highest around ovulation', () => {
-    const menstrual = typicalPhaseEnergy('menstrual', 28);
-    const follicular = typicalPhaseEnergy('follicular', 28);
-    const ovulation = typicalPhaseEnergy('ovulation', 28);
-    const luteal = typicalPhaseEnergy('luteal', 28);
-    expect(menstrual).toBeCloseTo(3.6);
-    expect(follicular).toBeCloseTo(5.67, 1);
-    expect(ovulation).toBeCloseTo(9.25);
-    expect(luteal).toBeCloseTo(5.75);
-    expect(menstrual).toBeLessThan(follicular);
-    expect(follicular).toBeLessThan(ovulation);
-    expect(luteal).toBeLessThan(ovulation);
+  it('averages the days the phase model gives each phase, as the chart bands do', () => {
+    // 28 days: menstrual 1-5, follicular 6-10, ovulation 11-14, luteal 15-28.
+    const meanOf = (first: number, last: number, cycleLength = 28) => {
+      let total = 0;
+      for (let day = first; day <= last; day++) {
+        total += typicalEnergyForCycleDay(day, cycleLength);
+      }
+      return total / (last - first + 1);
+    };
+    expect(typicalPhaseEnergy('menstrual', 28)).toBeCloseTo(3.6);
+    expect(typicalPhaseEnergy('follicular', 28)).toBeCloseTo(meanOf(6, 10));
+    expect(typicalPhaseEnergy('follicular', 28)).toBeCloseTo(5);
+    // Not the 9.25 of days 15-18, which the briefing and the chart call luteal.
+    expect(typicalPhaseEnergy('ovulation', 28)).toBeCloseTo(meanOf(11, 14));
+    expect(typicalPhaseEnergy('ovulation', 28)).toBeCloseTo(6.5);
+    expect(typicalPhaseEnergy('luteal', 28)).toBeCloseTo(meanOf(15, 28));
+    expect(typicalPhaseEnergy('luteal', 28)).toBeCloseTo(6.75);
+  });
+
+  it('follows the ovulation estimate on other cycle lengths', () => {
+    // 25 days: ovulation days 8-11; 35 days: ovulation days 18-21.
+    const meanOf = (first: number, last: number, cycleLength: number) => {
+      let total = 0;
+      for (let day = first; day <= last; day++) {
+        total += typicalEnergyForCycleDay(day, cycleLength);
+      }
+      return total / (last - first + 1);
+    };
+    expect(typicalPhaseEnergy('ovulation', 25)).toBeCloseTo(meanOf(8, 11, 25));
+    expect(typicalPhaseEnergy('ovulation', 35)).toBeCloseTo(
+      meanOf(18, 21, 35)
+    );
+    expect(typicalPhaseEnergy('luteal', 35)).toBeCloseTo(meanOf(22, 35, 35));
   });
 
   it('handles the shortest cycles the profile allows', () => {
     expect(Number.isFinite(typicalPhaseEnergy('luteal', 20))).toBe(true);
     expect(Number.isFinite(typicalPhaseEnergy('luteal', 18))).toBe(true);
+    // 20 days: ovulation on day 6 right after the period, so no follicular day.
+    expect(typicalPhaseEnergy('follicular', 20)).toBeCloseTo(
+      typicalEnergyForCycleDay(6, 20)
+    );
   });
 });

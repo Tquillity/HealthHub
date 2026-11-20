@@ -30,6 +30,12 @@ import type { BriefingCycleData, BriefingPhaseInfo } from './types';
 export type DayPhase = {
   phase: CyclePhase;
   cycleDay: number;
+  /**
+   * The cycle length the phase was placed with (`getPhaseForDay(cycleDay, length)`): the
+   * real length of a completed cycle, the typical length for the open one, or the
+   * measured ovulation day + 14 after a BBT-confirmed shift.
+   */
+  phaseCycleLength: number;
   /** The day's cycle has a BBT-confirmed ovulation and the day is after it. */
   temperatureConfirmed: boolean;
   /** The day belongs to the current (open) cycle. */
@@ -64,16 +70,19 @@ export function buildPhaseResolver(cycle: BriefingCycleData): PhaseResolver {
       return {
         phase: info.phase,
         cycleDay: info.cycleDay,
+        phaseCycleLength: info.phaseCycleLength,
         temperatureConfirmed: false,
         inOpenCycle: info.cycle.isOpen,
       };
     }
     // getPhaseForDay places ovulation 14 days before the end of the cycle length it is
     // given, so a length of (measured ovulation day + 14) puts it on the measured day.
-    const phase = getPhaseForDay(info.cycleDay, ovulationDay + 14);
+    const phaseCycleLength = ovulationDay + 14;
+    const phase = getPhaseForDay(info.cycleDay, phaseCycleLength);
     return {
       phase,
       cycleDay: info.cycleDay,
+      phaseCycleLength,
       temperatureConfirmed: info.cycleDay > ovulationDay,
       inOpenCycle: info.cycle.isOpen,
     };

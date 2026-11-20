@@ -169,7 +169,19 @@ export function briefingWindow(today: string): string[] {
   );
 }
 
-type PhasedDayValue = { date: string; phase: CyclePhase | null; value: number };
+type PhasedDayValue = {
+  date: string;
+  phase: CyclePhase | null;
+  /** The cycle length the phase was placed with (`DayPhase.phaseCycleLength`). */
+  phaseCycleLength?: number;
+  value: number;
+};
+
+/** Expected value of a day from a typical pattern: its phase, placed on this cycle length. */
+export type TypicalForPhase = (
+  phase: CyclePhase,
+  phaseCycleLength: number | undefined
+) => number;
 
 const SOURCE_RANK: Record<ComparisonSource, number> = {
   typical: 0,
@@ -186,7 +198,7 @@ const SOURCE_RANK: Record<ComparisonSource, number> = {
 export function compareWindow(
   windowValues: readonly PhasedDayValue[],
   history: readonly PhasedDayValue[],
-  typical?: (phase: CyclePhase) => number
+  typical?: TypicalForPhase
 ): Comparison | null {
   const compared = windowValues.flatMap((day) => {
     let baseline: {
@@ -201,7 +213,11 @@ export function compareWindow(
       baseline =
         same.length >= MIN_BASELINE_READINGS
           ? { mean: mean(same), sd: sampleSd(same), source: 'phase' }
-          : { mean: typical(day.phase), sd: 0, source: 'typical' };
+          : {
+              mean: typical(day.phase, day.phaseCycleLength),
+              sd: 0,
+              source: 'typical',
+            };
     } else {
       const picked = pickBaseline(history, day.phase);
       baseline = picked
@@ -309,20 +325,24 @@ function analyzeJournal(
   ): PhasedDayValue[] =>
     days.flatMap((day) => {
       const v = value(day);
-      return v === null
-        ? []
-        : [
-            {
-              date: day.date,
-              phase: phaseOf(day.date)?.phase ?? null,
-              value: v,
-            },
-          ];
+      if (v === null) return [];
+      const placed = phaseOf(day.date);
+      return [
+        {
+          date: day.date,
+          phase: placed?.phase ?? null,
+          phaseCycleLength: placed?.phaseCycleLength,
+          value: v,
+        },
+      ];
     });
 
-  const typicalEnergy =
+  // Averaged over the days the phase model gives the phase on the same cycle length the
+  // day itself was placed with, so "typical for the ovulation phase" means those days.
+  const typicalEnergy: TypicalForPhase | undefined =
     typicalCycleLength !== null
-      ? (phase: CyclePhase) => typicalPhaseEnergy(phase, typicalCycleLength)
+      ? (phase, phaseCycleLength) =>
+          typicalPhaseEnergy(phase, phaseCycleLength ?? typicalCycleLength)
       : undefined;
   const energyComparison = compareWindow(
     phased(inWindow, (d) => d.energy),

@@ -1,4 +1,9 @@
-import { PHASE_LENGTHS, type CyclePhase } from '@/lib/cycle-calculator';
+import {
+  getOvulationDay,
+  getPhaseForDay,
+  PHASE_LENGTHS,
+  type CyclePhase,
+} from '@/lib/cycle-calculator';
 
 /**
  * Typical energy pattern across the cycle, on a 1-10 scale: the "Energy Level" curve of
@@ -15,8 +20,12 @@ import { PHASE_LENGTHS, type CyclePhase } from '@/lib/cycle-calculator';
  * that compares a person with this curve must treat it as a loose reference and prefer
  * their own history.
  *
- * Segments use the chart's fixed wellness-model lengths (`PHASE_LENGTHS`): menstrual
- * days 1-5, follicular 6-14, ovulation 15-18, luteal from day 19 to the end of the cycle.
+ * The curve's shape uses the chart's fixed wellness-model lengths (`PHASE_LENGTHS`):
+ * low on days 1-5, rising on days 6-14, peaking on days 15-18, declining from day 19 to
+ * the end of the cycle. Per-phase means (`typicalPhaseEnergy`) instead average the curve
+ * over the days the phase model (`getPhaseForDay`, ovulation ~14 days before the end of
+ * the cycle) gives that phase: the same days the cycle chart shades as the phase and the
+ * daily briefing calls it.
  */
 
 const FOLLICULAR_END = PHASE_LENGTHS.MENSTRUAL + PHASE_LENGTHS.FOLLICULAR;
@@ -46,28 +55,24 @@ export function typicalEnergyForCycleDay(
   return 8.5 - (lutealDay / lutealLength) * 5;
 }
 
-const PHASE_SEGMENTS: Record<
-  CyclePhase,
-  (cycleLength: number) => [number, number]
-> = {
-  menstrual: () => [1, PHASE_LENGTHS.MENSTRUAL],
-  follicular: () => [PHASE_LENGTHS.MENSTRUAL + 1, FOLLICULAR_END],
-  ovulation: () => [FOLLICULAR_END + 1, OVULATION_END],
-  luteal: (cycleLength) => [
-    OVULATION_END + 1,
-    Math.max(OVULATION_END + 1, cycleLength),
-  ],
-};
-
-/** Mean of the typical curve over the phase's chart segment (e.g. luteal ≈ 5.75 for 28 days). */
+/**
+ * Mean of the typical curve over the days `getPhaseForDay` gives `phase` in a cycle of
+ * `cycleLength` days (for 28 days: ovulation days 11-14 ≈ 6.5, luteal days 15-28 ≈ 6.75).
+ * When the model gives the phase no day at this length (the follicular phase of the
+ * shortest cycles), the curve on the estimated ovulation day is used.
+ */
 export function typicalPhaseEnergy(
   phase: CyclePhase,
   cycleLength: number
 ): number {
-  const [first, last] = PHASE_SEGMENTS[phase](cycleLength);
   let total = 0;
-  for (let day = first; day <= last; day++) {
+  let count = 0;
+  for (let day = 1; day <= cycleLength; day++) {
+    if (getPhaseForDay(day, cycleLength) !== phase) continue;
     total += typicalEnergyForCycleDay(day, cycleLength);
+    count += 1;
   }
-  return total / (last - first + 1);
+  return count > 0
+    ? total / count
+    : typicalEnergyForCycleDay(getOvulationDay(cycleLength), cycleLength);
 }

@@ -146,7 +146,7 @@ describe('energy thresholds', () => {
     expect(
       isEnergyLow(comparison({ source: 'typical', gap: 2.75, actual: 3 }))
     ).toBe(true);
-    // Ovulation's typical level is about 9, but 6/10 is a fine day.
+    // However high the typical level, 6/10 is a fine day.
     expect(
       isEnergyLow(comparison({ source: 'typical', gap: 3.25, actual: 6 }))
     ).toBe(false);
@@ -201,8 +201,50 @@ describe('analyzeBriefing: journal', () => {
       })
     );
     expect(signals.energy?.comparison.source).toBe('typical');
-    expect(signals.energy?.comparison.expected).toBeCloseTo(5.75);
+    // Mean of the typical curve over luteal days 15-28 of a 28-day cycle.
+    expect(signals.energy?.comparison.expected).toBeCloseTo(6.75);
     expect(signals.energy?.low).toBe(true);
+  });
+
+  it("takes the typical level of a phase from the same days the briefing gives it", () => {
+    // Cycle days 11-13 of a 28-day cycle are the ovulation phase (days 11-14), where the
+    // typical curve is about 6.5, not the 9.25 of days 15-18.
+    const signals = analyzeBriefing(
+      input({
+        today: '2026-11-10',
+        cycle: CYCLE,
+        journal: [
+          journalDay('2026-11-08', { energy: 5 }),
+          journalDay('2026-11-09', { energy: 5 }),
+          journalDay('2026-11-10', { energy: 5 }),
+        ],
+      })
+    );
+    expect(signals.phase).toMatchObject({ phase: 'ovulation', cycleDay: 13 });
+    expect(signals.energy?.comparison).toMatchObject({
+      source: 'typical',
+      phase: 'ovulation',
+      actual: 5,
+    });
+    expect(signals.energy?.comparison.expected).toBeCloseTo(6.5);
+    expect(signals.energy?.low).toBe(false);
+  });
+
+  it('places a completed cycle on its real length for the typical level', () => {
+    // A new period started today. 1-28 October was a 28-day cycle although the typical
+    // length is 35: its last days are luteal on 28 days and compared with those days.
+    const signals = analyzeBriefing(
+      input({
+        today: '2026-10-29',
+        cycle: { ...CYCLE, typicalCycleLength: 35 },
+        journal: [
+          journalDay('2026-10-27', { energy: 3 }),
+          journalDay('2026-10-28', { energy: 3 }),
+        ],
+      })
+    );
+    expect(signals.energy?.comparison.phase).toBe('luteal');
+    expect(signals.energy?.comparison.expected).toBeCloseTo(6.75);
   });
 
   it('compares with the overall usual when cycle data is off', () => {
