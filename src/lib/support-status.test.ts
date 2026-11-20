@@ -296,7 +296,7 @@ describe.skipIf(!isolated)('support status against isolated PostgreSQL', () => {
     const changed = await lib.setCycleStatusShare(full.id, {
       organizationId: home,
       level: 'ENERGY',
-      membersListedAt: listed.membersListedAt,
+      listedMembersJoinedBy: listed.listedMembersJoinedBy,
     });
     expect(changed).toMatchObject({ ok: true });
     expect(await idsIn(lateJoiner.id, home)).toEqual([]);
@@ -304,7 +304,7 @@ describe.skipIf(!isolated)('support status against isolated PostgreSQL', () => {
     const included = await lib.setCycleStatusShare(full.id, {
       organizationId: home,
       level: 'FULL',
-      membersListedAt: listed.membersListedAt,
+      listedMembersJoinedBy: listed.listedMembersJoinedBy,
       includeNewMembers: true,
     });
     expect(included.ok && included.data.household.members).toContainEqual({
@@ -326,7 +326,7 @@ describe.skipIf(!isolated)('support status against isolated PostgreSQL', () => {
       await lib.setCycleStatusShare(phaseOnly.id, {
         organizationId: home,
         level: 'NONE',
-        membersListedAt: now.toISOString(),
+        listedMembersJoinedBy: now.toISOString(),
       })
     ).toMatchObject({ ok: true, data: { household: { share: null } } });
     expect(await idsIn(viewer.id, home)).toEqual([full.id]);
@@ -335,7 +335,7 @@ describe.skipIf(!isolated)('support status against isolated PostgreSQL', () => {
     const started = await lib.setCycleStatusShare(phaseOnly.id, {
       organizationId: home,
       level: 'PHASE',
-      membersListedAt: listedBeforeCarol,
+      listedMembersJoinedBy: listedBeforeCarol,
     });
     expect(started).toMatchObject({
       ok: true,
@@ -351,7 +351,7 @@ describe.skipIf(!isolated)('support status against isolated PostgreSQL', () => {
     const future = await lib.setCycleStatusShare(phaseOnly.id, {
       organizationId: home,
       level: 'PHASE',
-      membersListedAt: '2999-01-01T00:00:00.000Z',
+      listedMembersJoinedBy: '2999-01-01T00:00:00.000Z',
       includeNewMembers: true,
     });
     if (!future.ok) throw new Error(future.error);
@@ -369,14 +369,14 @@ describe.skipIf(!isolated)('support status against isolated PostgreSQL', () => {
       await lib.setCycleStatusShare(full.id, {
         organizationId: collective,
         level: 'PHASE',
-        membersListedAt: listedAt,
+        listedMembersJoinedBy: listedAt,
       })
     ).toEqual({ ok: false, error: lib.CYCLE_SHARING_HOUSEHOLDS_ONLY_ERROR });
     expect(
       await lib.setCycleStatusShare(full.id, {
         organizationId: elsewhere,
         level: 'PHASE',
-        membersListedAt: listedAt,
+        listedMembersJoinedBy: listedAt,
       })
     ).toEqual({ ok: false, error: lib.NOT_A_HOUSEHOLD_MEMBER_ERROR });
     expect(
@@ -387,18 +387,30 @@ describe.skipIf(!isolated)('support status against isolated PostgreSQL', () => {
   it('takes effect immediately when someone stops sharing or changes level', async () => {
     // Listed before Carol joined, so she stays out of it.
     const listedAt = agreedAt.toISOString();
-    await lib.setCycleStatusShare(full.id, { organizationId: home, level: 'NONE', membersListedAt: listedAt });
+    await lib.setCycleStatusShare(full.id, {
+      organizationId: home,
+      level: 'NONE',
+      listedMembersJoinedBy: listedAt,
+    });
     expect(await idsIn(viewer.id, home)).toEqual([phaseOnly.id]);
     expect(
       await client.cycleStatusShare.count({ where: { userId: full.id, organizationId: home } })
     ).toBe(0);
 
-    await lib.setCycleStatusShare(full.id, { organizationId: home, level: 'ENERGY', membersListedAt: listedAt });
+    await lib.setCycleStatusShare(full.id, {
+      organizationId: home,
+      level: 'ENERGY',
+      listedMembersJoinedBy: listedAt,
+    });
     const board = await lib.getSupportStatusBoard(viewer.id, home, now);
     expect(board?.statuses.map((s) => s.id)).toEqual([phaseOnly.id, full.id]);
     expect(board?.statuses[1]).toMatchObject({ level: 'ENERGY', todayEnergy: 3 });
     expect(JSON.stringify(board)).not.toContain('quiet evening');
-    await lib.setCycleStatusShare(full.id, { organizationId: home, level: 'FULL', membersListedAt: listedAt });
+    await lib.setCycleStatusShare(full.id, {
+      organizationId: home,
+      level: 'FULL',
+      listedMembersJoinedBy: listedAt,
+    });
   });
 
   it('hides a sharer who is no longer a member, even if a share row was left behind', async () => {
@@ -446,7 +458,19 @@ describe.skipIf(!isolated)('support status against isolated PostgreSQL', () => {
       ['Carol Later', false],
     ]);
     expect(parents.members).toEqual([{ name: 'Gus Mate', seesStatus: false }]);
-    expect(Number.isNaN(Date.parse(ours.membersListedAt))).toBe(false);
+    // Coverage ends with the newest member listed (Carol), not with the time of the read.
+    expect(ours.listedMembersJoinedBy).toBe(at(3).toISOString());
+    const gus = await client.member.findFirstOrThrow({
+      where: { organizationId: otherHome, userId: otherHomeMate.id },
+    });
+    expect(parents.listedMembersJoinedBy).toBe(gus.createdAt.toISOString());
+    // Nobody else listed: the user's own join time, which covers nobody else.
+    const alone = await client.member.findFirstOrThrow({
+      where: { organizationId: elsewhere, userId: outsider.id },
+    });
+    expect((await panelHousehold(outsider.id, elsewhere)).listedMembersJoinedBy).toBe(
+      alone.createdAt.toISOString()
+    );
     expect(data?.supportMessage).toBe('A quiet evening would be lovely');
     expect(data?.cycleConfigured).toBe(true);
     expect(data?.timeZone).toBe('Europe/Stockholm');
@@ -539,7 +563,7 @@ describe.skipIf(!isolated)('support status against isolated PostgreSQL', () => {
     const filledIn = await lib.setCycleStatusShare(phaseOnly.id, {
       organizationId: home,
       level: 'PHASE',
-      membersListedAt: agreedAt.toISOString(),
+      listedMembersJoinedBy: agreedAt.toISOString(),
       deviceTimeZone: 'Australia/Sydney',
     });
     expect(filledIn).toMatchObject({ ok: true, data: { timeZone: 'Australia/Sydney' } });
@@ -547,7 +571,7 @@ describe.skipIf(!isolated)('support status against isolated PostgreSQL', () => {
     const kept = await lib.setCycleStatusShare(full.id, {
       organizationId: home,
       level: 'FULL',
-      membersListedAt: agreedAt.toISOString(),
+      listedMembersJoinedBy: agreedAt.toISOString(),
       deviceTimeZone: 'Australia/Sydney',
     });
     expect(kept).toMatchObject({ ok: true, data: { timeZone: 'Europe/Stockholm' } });

@@ -439,7 +439,7 @@ describe.skipIf(!isolated)('household integrity against isolated PostgreSQL', ()
       cycleSharing.setCycleStatusShare(userId, {
         organizationId,
         level: 'FULL',
-        membersListedAt: listedAt(),
+        listedMembersJoinedBy: listedAt(),
       });
 
     it('leaving deletes the share with the membership', async () => {
@@ -494,6 +494,52 @@ describe.skipIf(!isolated)('household integrity against isolated PostgreSQL', ()
 
       expect(result).toEqual({ ok: false, error: cycleSharing.NOT_A_HOUSEHOLD_MEMBER_ERROR });
       expect(await sharesOf(sharer, space.id)).toBe(0);
+    });
+
+    it('does not cover someone whose join was still being saved while the page was read', async () => {
+      const sharer = await createUser('cs-join-sharer');
+      const partner = await createUser('cs-join-partner');
+      const joiner = await createUser('cs-join-joiner');
+      await client.user.update({
+        where: { id: sharer },
+        data: { enableCycleTracking: true, lastPeriodDate: new Date('2026-11-01T00:00:00Z') },
+      });
+      const space = await createOrg('cs-join-space', [
+        [sharer, 'owner'],
+        [partner, 'member'],
+      ]);
+      const name = async (userId: string) =>
+        (await client.user.findUniqueOrThrow({ where: { id: userId } })).name;
+
+      // The joiner's acceptance has written the membership (its join time is now), but has not
+      // committed when the sharer's Profile reads the household.
+      const join = await holdTransaction([
+        [
+          `INSERT INTO "member" ("id", "organizationId", "userId", "role", "createdAt")
+           VALUES ($1, $2, $3, 'member', $4)`,
+          [`hi-m-join-${run}`, space.id, joiner, new Date()],
+        ],
+      ]);
+      const panel = await cycleSharing.getCycleSharingPanelData(sharer);
+      await join.commit();
+      const listed = panel?.households.find((h) => h.id === space.id);
+      if (!listed) throw new Error('household missing from the panel');
+      expect(listed.members.map((m) => m.name)).toEqual([await name(partner)]);
+
+      // Sharing from that page covers the partner it listed, not the joiner it did not.
+      const result = await cycleSharing.setCycleStatusShare(sharer, {
+        organizationId: space.id,
+        level: 'PHASE',
+        listedMembersJoinedBy: listed.listedMembersJoinedBy,
+      });
+      expect(result.ok && result.data.household.members).toEqual([
+        { name: await name(partner), seesStatus: true },
+        { name: await name(joiner), seesStatus: false },
+      ]);
+      const seenBy = async (viewerId: string) =>
+        (await cycleSharing.getSupportStatusBoard(viewerId, space.id))?.statuses.map((s) => s.id);
+      expect(await seenBy(partner)).toEqual([sharer]);
+      expect(await seenBy(joiner)).toEqual([]);
     });
 
     it('a removal waiting on a share deletes it', async () => {

@@ -231,7 +231,7 @@ function HouseholdShareCard({
     const result = await setCycleStatusSharing({
       organizationId: household.id,
       level: next,
-      membersListedAt: household.membersListedAt,
+      listedMembersJoinedBy: household.listedMembersJoinedBy,
       ...(includeNewMembers && { includeNewMembers: true }),
       deviceTimeZone: deviceTimeZone(),
     });

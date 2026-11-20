@@ -116,9 +116,20 @@ function householdSelect(userId: string) {
   } satisfies Prisma.OrganizationSelect;
 }
 
+/**
+ * Builds one household for the Profile panel. `ownJoinedAt` is when the user joined it.
+ *
+ * `listedMembersJoinedBy` is the join time of the newest member listed (the user's own when
+ * nobody else is), not the time of the read: a join row gets its time when it is written,
+ * before it commits, so someone whose join was still being saved during the read has a join
+ * time before the read but is not listed. Their join time is after every listed member's, so
+ * a share started from this page does not cover them. (Only two joins that overlap the read,
+ * the later one finishing first, could still leave the earlier one covered without being
+ * listed; the confirmation after saving names everyone who sees the status.)
+ */
 function toShareHousehold(
   organization: Prisma.OrganizationGetPayload<{ select: ReturnType<typeof householdSelect> }>,
-  membersListedAt: Date
+  ownJoinedAt: Date
 ): CycleShareHousehold {
   const row = organization.cycleStatusShares[0];
   const share =
@@ -136,7 +147,8 @@ function toShareHousehold(
       name: member.user.name,
       seesStatus: share !== null && isCoveredByShare(member.createdAt, share.coversMembersJoinedBy),
     })),
-    membersListedAt: membersListedAt.toISOString(),
+    listedMembersJoinedBy: (organization.members.at(-1)?.createdAt ?? ownJoinedAt)
+      .toISOString(),
   };
 }
 
@@ -145,19 +157,16 @@ async function getShareHouseholds(
   userId: string,
   organizationId?: string
 ): Promise<CycleShareHousehold[]> {
-  // Taken before the read: someone who joins while it runs is listed but not covered by a
-  // share that uses this time, never the other way round.
-  const listedAt = new Date();
   const memberships = await prisma.member.findMany({
     where: {
       userId,
       ...(organizationId && { organizationId }),
       organization: { type: { in: CYCLE_STATUS_ORG_TYPES } },
     },
-    select: { organization: { select: householdSelect(userId) } },
+    select: { createdAt: true, organization: { select: householdSelect(userId) } },
     orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
   });
-  return memberships.map(({ organization }) => toShareHousehold(organization, listedAt));
+  return memberships.map(({ createdAt, organization }) => toShareHousehold(organization, createdAt));
 }
 
 export type CycleSharingPanelData = {
@@ -233,9 +242,9 @@ export type CycleShareUpdate = {
  * SetCycleStatusShareSchema). Pass the session user id; the household must be one the user
  * belongs to and of a type that allows it.
  *
- * Starting covers the members who had joined by `membersListedAt` (the page's list), never
- * anyone later. Changing the level keeps who is covered; `includeNewMembers` extends it to the
- * members the page listed. NONE deletes the share.
+ * Starting covers the members who had joined by `listedMembersJoinedBy` (the newest member the
+ * page listed), never anyone later. Changing the level keeps who is covered;
+ * `includeNewMembers` extends it to the members the page listed. NONE deletes the share.
  */
 export async function setCycleStatusShare(
   userId: string,
@@ -252,7 +261,7 @@ export async function setCycleStatusShare(
   }
   // A page from the future cannot cover people who have not joined yet.
   const coversMembersJoinedBy = new Date(
-    Math.min(Date.parse(input.membersListedAt), Date.now())
+    Math.min(Date.parse(input.listedMembersJoinedBy), Date.now())
   );
 
   const written = await prisma.$transaction(async (tx) => {

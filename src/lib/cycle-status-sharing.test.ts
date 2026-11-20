@@ -328,7 +328,7 @@ describe('SetCycleStatusShareSchema', () => {
   const valid = {
     organizationId: 'org_home',
     level: 'PHASE',
-    membersListedAt: '2026-11-20T10:00:00.000Z',
+    listedMembersJoinedBy: '2026-11-20T10:00:00.000Z',
   };
 
   it('names one household, a level and when its members were listed', () => {
@@ -344,14 +344,14 @@ describe('SetCycleStatusShareSchema', () => {
       false
     );
     expect(
-      SetCycleStatusShareSchema.safeParse({ ...valid, membersListedAt: undefined }).success
+      SetCycleStatusShareSchema.safeParse({ ...valid, listedMembersJoinedBy: undefined }).success
     ).toBe(false);
     expect(SetCycleStatusShareSchema.safeParse({ ...valid, organizationId: ' ' }).success).toBe(
       false
     );
-    expect(SetCycleStatusShareSchema.safeParse({ ...valid, membersListedAt: 'now' }).success).toBe(
-      false
-    );
+    expect(
+      SetCycleStatusShareSchema.safeParse({ ...valid, listedMembersJoinedBy: 'now' }).success
+    ).toBe(false);
     expect(SetCycleStatusShareSchema.safeParse({ ...valid, level: 'ALL' }).success).toBe(false);
     expect(SetCycleStatusShareSchema.safeParse({ ...valid, level: 'phase' }).success).toBe(false);
     expect(SetCycleStatusShareSchema.safeParse({ ...valid, userId: 'someone-else' }).success).toBe(
@@ -392,7 +392,7 @@ describe('who a share covers', () => {
       { name: 'Robin Partner', seesStatus: false },
       { name: 'Sam Lodger', seesStatus: false },
     ],
-    membersListedAt: '2026-11-20T10:00:00.000Z',
+    listedMembersJoinedBy: '2026-11-20T10:00:00.000Z',
     ...overrides,
   });
   const shared = { level: 'PHASE' as const, coversMembersJoinedBy: '2026-11-20T10:00:00.000Z' };

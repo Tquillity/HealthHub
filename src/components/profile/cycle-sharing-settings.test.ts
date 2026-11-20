@@ -21,7 +21,7 @@ const household: CycleShareHousehold = {
     { name: 'Robin Partner', seesStatus: true },
     { name: 'Carol Later', seesStatus: false },
   ],
-  membersListedAt: '2026-11-20T10:00:00.000Z',
+  listedMembersJoinedBy: '2026-11-20T10:00:00.000Z',
 };
 
 const previewSource = {

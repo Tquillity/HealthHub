@@ -86,10 +86,11 @@ export const SetCycleStatusShareSchema = z
     organizationId: OrganizationIdSchema,
     level: z.enum(CYCLE_SHARE_LEVELS),
     /**
-     * When the page read the member list it showed. Starting to share, or including the people
-     * who joined since, covers the members who had joined by then and nobody who joined later.
+     * When the newest member the page listed joined (CycleShareHousehold). Starting to share, or
+     * including the people who joined since, covers the members who had joined by then and
+     * nobody who joined later.
      */
-    membersListedAt: z.iso.datetime(),
+    listedMembersJoinedBy: z.iso.datetime(),
     /** Also show the status to the members who joined after sharing started. */
     includeNewMembers: z.boolean().optional(),
     /**
@@ -149,10 +150,12 @@ export type CycleShareHousehold = {
   /** The other current members, oldest first, and whether they see the status now. */
   members: { name: string; seesStatus: boolean }[];
   /**
-   * When the member list was read (ISO). Sent back when starting to share or including new
-   * members, so the share covers exactly the people the page listed and nobody who joined later.
+   * When the newest member listed joined (ISO; the user's own join time when nobody else is
+   * listed). Sent back when starting to share or including new members, so the share covers
+   * the people the page listed and nobody who joined later, even someone whose join was still
+   * being saved while the page was read.
    */
-  membersListedAt: string;
+  listedMembersJoinedBy: string;
 };
 
 /** "Robin", "Robin and Sam", "Robin, Sam, and Alex". */
