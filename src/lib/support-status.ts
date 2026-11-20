@@ -332,10 +332,10 @@ export async function setCycleStatusShare(
 /**
  * Journal days are filed under the browser's calendar day, and the profile zone defaults to
  * UTC, which most people never change. While it is still the default, the device's zone is
- * saved so that the household's "today" is the sharer's own day. A zone the person typed in
- * Profile is never replaced.
+ * saved so that the household's "today" is the sharer's own day (and, for circadian
+ * insights, morning is their morning). A zone the person typed in Profile is never replaced.
  */
-async function adoptDeviceTimeZone(userId: string, deviceTimeZone: string | undefined) {
+export async function adoptDeviceTimeZone(userId: string, deviceTimeZone: string | undefined) {
   if (!deviceTimeZone) return;
   const user = await prisma.user.findUnique({
     where: { id: userId },

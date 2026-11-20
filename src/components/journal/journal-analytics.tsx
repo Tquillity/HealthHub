@@ -1,5 +1,9 @@
 'use client';
 
+import type { TimeOfDayEnergySummary } from '@/lib/circadian-data';
+import { isCheckInOnlyDay, type JournalDayContent } from '@/lib/journal-content';
+import { JournalTimeOfDayEnergy } from './journal-time-of-day-energy';
+
 /**
  * JournalAnalytics Component
  * 
@@ -8,24 +12,35 @@
  * - Trend analysis comparing first half vs second half of entries
  * - Visual indicators (icons, colors) for quick pattern recognition
  * 
- * Trend Calculation: Splits entries into two halves and compares averages
- * to show whether metrics are improving, declining, or stable over time.
+ * Trend Calculation: Splits the entries that have a value into two halves and
+ * compares averages to show whether metrics are improving, declining, or stable.
+ *
+ * Days that hold only time-of-day energy check-ins (circadian insights) are not
+ * journal entries here; their energy is in the time-of-day section.
  */
 
 interface JournalAnalyticsProps {
-  entries: Array<{
-    date: Date;
-    mood: number | null;
-    energy: number | null;
-    sleepHours: number | null;
-  }>;
+  entries: Array<{ date: Date } & JournalDayContent>;
+  /** Last 30 days of energy by time of day; null unless circadian insights are on. */
+  timeOfDayEnergy?: TimeOfDayEnergySummary | null;
 }
 
-export function JournalAnalytics({ entries }: JournalAnalyticsProps) {
+export function JournalAnalytics({
+  entries: allEntries,
+  timeOfDayEnergy = null,
+}: JournalAnalyticsProps) {
+  const entries = allEntries.filter((entry) => !isCheckInOnlyDay(entry));
+  const timeOfDaySection = timeOfDayEnergy ? (
+    <JournalTimeOfDayEnergy summary={timeOfDayEnergy} />
+  ) : null;
+
   if (entries.length === 0) {
     return (
-      <div className="text-center py-8">
-        <p className="text-gray-500">Not enough data for analytics. Log more entries to see trends.</p>
+      <div className="flex flex-col gap-6">
+        <div className="text-center py-8">
+          <p className="text-gray-500">Not enough data for analytics. Log more entries to see trends.</p>
+        </div>
+        {timeOfDaySection}
       </div>
     );
   }
@@ -49,40 +64,24 @@ export function JournalAnalytics({ entries }: JournalAnalyticsProps) {
       : null;
 
   /**
-   * Trend Analysis: Compare first half vs second half of entries
-   * 
-   * This provides a simple way to see if metrics are improving or declining
-   * over time. Positive trend = improving, negative = declining.
-   */
-  const midPoint = Math.floor(entries.length / 2);
-  const firstHalf = entries.slice(0, midPoint);
-  const secondHalf = entries.slice(midPoint);
-
-  /**
-   * Calculate trend for a specific field by comparing averages
-   * between first and second half of entries.
-   * 
+   * Trend Analysis: Compare the first half vs the second half of the values
+   *
+   * Only entries that have the field count, so a day without it (a notes-only or
+   * vitals-only day) cannot leave a half empty. Positive trend = improving, negative =
+   * declining, 0 = fewer than two values.
+   *
    * @param field - The metric to analyze ('mood', 'energy', or 'sleepHours')
    * @returns Difference between second half and first half averages
    */
   const getTrend = (field: 'mood' | 'energy' | 'sleepHours') => {
-    const firstAvg =
-      firstHalf.length > 0
-        ? firstHalf
-            .filter((e) => e[field] !== null)
-            .reduce((sum, e) => sum + ((e[field] as number) || 0), 0) /
-          firstHalf.filter((e) => e[field] !== null).length
-        : 0;
-    const secondAvg =
-      secondHalf.length > 0
-        ? secondHalf
-            .filter((e) => e[field] !== null)
-            .reduce((sum, e) => sum + ((e[field] as number) || 0), 0) /
-          secondHalf.filter((e) => e[field] !== null).length
-        : 0;
-
-    if (firstHalf.length === 0 || secondHalf.length === 0) return 0;
-    return secondAvg - firstAvg;
+    const values = entries
+      .map((e) => e[field])
+      .filter((value): value is number => value !== null);
+    const midPoint = Math.floor(values.length / 2);
+    if (midPoint === 0) return 0;
+    const average = (part: number[]) =>
+      part.reduce((sum, value) => sum + value, 0) / part.length;
+    return average(values.slice(midPoint)) - average(values.slice(0, midPoint));
   };
 
   const moodTrend = getTrend('mood');
@@ -211,6 +210,8 @@ export function JournalAnalytics({ entries }: JournalAnalyticsProps) {
           </div>
         </div>
       </div>
+
+      {timeOfDaySection}
     </div>
   );
 }

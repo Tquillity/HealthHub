@@ -1,9 +1,9 @@
 /**
  * Small, pure helpers for "what time / which day is it for this person". The profile stores a
  * free-text IANA time zone (default "UTC"), so every helper falls back to UTC for anything
- * the runtime does not recognize instead of throwing. Partner sync fills in the device's zone
- * while the profile still has the default (timeZoneToAdopt), so a person's "today" matches the
- * day their journal entries are filed under.
+ * the runtime does not recognize instead of throwing. Partner sync and the circadian insights
+ * opt-in fill in the device's zone while the profile still has the default (timeZoneToAdopt),
+ * so a person's "today" matches the day their journal entries are filed under.
  */
 
 export const DEFAULT_TIME_ZONE = 'UTC';
@@ -53,6 +53,15 @@ export function getLocalDateKey(now: Date, timeZone: string): string {
  */
 export function isUnsetTimeZone(stored: string | null | undefined): boolean {
   return !stored || stored === DEFAULT_TIME_ZONE || resolveTimeZone(stored) !== stored;
+}
+
+/** The browser's IANA time zone, if it reports one (client side). */
+export function deviceTimeZone(): string | undefined {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /**

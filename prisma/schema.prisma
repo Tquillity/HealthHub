@@ -43,6 +43,9 @@ model User {
   briefingSources       String[]                   @default(["journal", "cycle", "meals", "vitals"])
   /// Daily briefing detail level: "brief" or "detailed".
   briefingDetail        String                     @default("brief")
+  /// Opt-in for circadian insights: time-of-day suggestions on the dashboard, energy
+  /// check-ins by time of day and time-of-day weighting in the routine lottery.
+  enableCircadianInsights Boolean @default(false)
   members               Member[]
   journalEntries        JournalEntry[]
   periodStarts          PeriodStart[]
@@ -419,6 +422,11 @@ model JournalEntry {
   visibility           JournalVisibility @default(PRIVATE)
   sharedOrganizationId String?
   sharedOrganization   Organization?     @relation(fields: [sharedOrganizationId], references: [id], onDelete: SetNull)
+  /// Self-rated energy (1-10, like `energy`) by time of day in the user's timezone:
+  /// morning 06-12, afternoon 12-18, evening 18-22 (lib/circadian-recommendations).
+  energyMorning        Int?
+  energyAfternoon      Int?
+  energyEvening        Int?
   user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt

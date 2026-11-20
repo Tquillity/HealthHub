@@ -24,6 +24,7 @@ import type {
   BriefingJournalDay,
   BriefingMealData,
   BriefingPhaseInfo,
+  LowEnergyCheckIn,
 } from './types';
 
 /**
@@ -118,6 +119,13 @@ export type BriefingSignals = {
   phase: BriefingPhaseInfo | null;
   /** Journal check-ins in the window; null when the journal source is off. */
   checkInDays: number | null;
+  /**
+   * Window days with a time-of-day energy check-in (circadian insights); null when the
+   * journal source is off.
+   */
+  energyCheckInDays: number | null;
+  /** Today's low energy check-in, if any (`BriefingEngineInput.lowEnergyToday`). */
+  lowEnergyToday: LowEnergyCheckIn | null;
   energy: { comparison: Comparison; low: boolean; good: boolean } | null;
   mood: { comparison: Comparison; low: boolean } | null;
   symptoms: {
@@ -307,7 +315,12 @@ function analyzeJournal(
   typicalCycleLength: number | null
 ): Pick<
   BriefingSignals,
-  'checkInDays' | 'energy' | 'mood' | 'symptoms' | 'sleep'
+  | 'checkInDays'
+  | 'energyCheckInDays'
+  | 'energy'
+  | 'mood'
+  | 'symptoms'
+  | 'sleep'
 > {
   const windowStart = window[0];
   const windowEnd = window[window.length - 1];
@@ -368,6 +381,7 @@ function analyzeJournal(
 
   return {
     checkInDays: windowCheckIns.length,
+    energyCheckInDays: inWindow.filter((d) => d.energyCheckIn).length,
     energy: energyComparison
       ? {
           comparison: energyComparison,
@@ -514,6 +528,7 @@ export function analyzeBriefing(input: BriefingEngineInput): BriefingSignals {
       )
     : {
         checkInDays: null,
+        energyCheckInDays: null,
         energy: null,
         mood: null,
         symptoms: null,
@@ -528,6 +543,8 @@ export function analyzeBriefing(input: BriefingEngineInput): BriefingSignals {
         ? describeTodayPhase(resolver, input.cycle, input.today)
         : null,
     ...journal,
+    // Loaded while circadian insights are on, whatever the journal source (data.ts).
+    lowEnergyToday: input.lowEnergyToday ?? null,
     recovery: analyzeRecovery(input, window),
     meals: analyzeMeals(input.meals, input.today),
   };

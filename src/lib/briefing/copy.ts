@@ -3,7 +3,7 @@ import type { CyclePhase } from '@/lib/cycle-calculator';
 import { addDaysToDateOnly, dateOnlyToLocalDate } from '@/lib/date-only';
 import { getDietaryRecommendations } from '@/lib/dietary-recommendations';
 import { RECOVERY_ZONE_LABELS } from '@/lib/recovery';
-import { isTakeItEasyDay } from './rules';
+import { isTakeItEasyDay, recentLogsSayTakeItEasy } from './rules';
 import type { BriefingSignals, Comparison } from './signals';
 import type {
   BriefingDetail,
@@ -395,7 +395,14 @@ export function phraseSuggestion(
  */
 export function buildHeadline(signals: BriefingSignals): string {
   if (isTakeItEasyDay(signals)) {
-    return "A gentler day may suit you. Here's what your recent logs suggest.";
+    if (recentLogsSayTakeItEasy(signals)) {
+      return "A gentler day may suit you. Here's what your recent logs suggest.";
+    }
+    // A low check-in adds no suggestion of its own, so the headline says why. Only the
+    // current slot's rating is "right now": an earlier one can be hours old.
+    return signals.lowEnergyToday === 'now'
+      ? 'You rated your energy as low right now, so this briefing keeps things gentle.'
+      : 'You rated your energy as low earlier today, so this briefing keeps things gentle.';
   }
   if ((signals.energy?.good ?? false) || (signals.recovery?.good ?? false)) {
     return "You've been doing well lately. Here's how to make the most of it.";
@@ -428,7 +435,9 @@ export function buildNotes(signals: BriefingSignals): string[] {
   const notes: string[] = [];
   if (signals.checkInDays === 0) {
     notes.push(
-      'No journal check-ins in the last 3 days, so energy, sleep and symptoms are not part of this briefing. Log how you feel to make it more personal.'
+      (signals.energyCheckInDays ?? 0) > 0
+        ? 'Your last 3 days have only energy check-ins by time of day, so mood, sleep, symptoms and your daily energy are not part of this briefing. Log them in your journal to make it more personal.'
+        : 'No journal check-ins in the last 3 days, so energy, sleep and symptoms are not part of this briefing. Log how you feel to make it more personal.'
     );
   }
   if (signals.energy?.comparison.source === 'typical') {

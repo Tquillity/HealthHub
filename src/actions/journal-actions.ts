@@ -6,6 +6,8 @@ import { requireSessionUserId } from '@/lib/session';
 import { revalidatePath } from 'next/cache';
 import { encrypt, decrypt, encryptArray, decryptArray } from '@/lib/encryption';
 import { DateOnlyStringSchema, dateOnlyToUtcDate } from '@/lib/date-only';
+import { TimeOfDayEnergyFieldsSchema } from '@/lib/validation/circadian-schemas';
+import { allowedTimeOfDayEnergy } from '@/lib/circadian-data';
 
 // Zod schemas
 // Every item is encrypted individually, so bound list and text sizes to keep saves cheap.
@@ -33,6 +35,8 @@ const CreateJournalSchema = z.object({
   symptomsPhysical: JournalList,
   symptomsMental: JournalList,
   symptomsNotes: JournalText.nullable().optional(),
+  // Energy by time of day (circadian insights opt-in only; ignored while it is off).
+  ...TimeOfDayEnergyFieldsSchema.shape,
 });
 
 /** `undefined` keeps the stored value; `null` or '' clears it (encrypt returns null for empty). */
@@ -55,6 +59,10 @@ export async function logJournalEntry(
     const validated = CreateJournalSchema.parse(data);
 
     const date = dateOnlyToUtcDate(validated.date);
+    const timeOfDayEnergy = await allowedTimeOfDayEnergy(
+      authResult.userId,
+      validated
+    );
 
     // Encrypt sensitive fields before storing (GDPR compliance).
     // encryptArray returns null for an empty list, so fall back to [] to clear it.
@@ -72,6 +80,7 @@ export async function logJournalEntry(
       symptomsPhysical: encryptArray(validated.symptomsPhysical) ?? [],
       symptomsMental: encryptArray(validated.symptomsMental) ?? [],
       symptomsNotes: encryptField(validated.symptomsNotes),
+      ...timeOfDayEnergy,
     };
 
     // Upsert entry (create or update if exists for this date)
