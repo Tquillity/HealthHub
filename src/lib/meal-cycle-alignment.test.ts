@@ -50,6 +50,18 @@ describe('hasCycleEstimate / toGeneratorCycleOptions', () => {
     });
   });
 
+  it('treats a stored date outside 1900-9999 as no date', () => {
+    // Saved before the profile action validated dates (a year typed as "25")
+    const legacy = { ...tracking, lastPeriodDate: new Date('0025-11-03') };
+    expect(hasCycleEstimate(legacy)).toBe(false);
+    expect(toGeneratorCycleOptions(legacy)).toEqual({
+      canAlign: false,
+      alignByDefault: true,
+    });
+    expect(buildPhaseCalendar(legacy, ['2026-11-20'])).toEqual({});
+    expect(hasCycleEstimate({ ...tracking, lastPeriodDate: new Date('invalid') })).toBe(false);
+  });
+
   it('reflects the saved choice', () => {
     expect(toGeneratorCycleOptions({ ...tracking, alignMealsWithCycle: false })).toEqual({
       canAlign: true,
@@ -165,5 +177,16 @@ describe('getMealPlannerCycleData', () => {
       board: null,
     });
     expect(mocks.recipeFindMany).not.toHaveBeenCalled();
+  });
+
+  it('loads the page for a stored date outside 1900-9999 instead of throwing', async () => {
+    mocks.userFindUnique.mockResolvedValue({
+      ...tracking,
+      lastPeriodDate: new Date('0025-11-03'),
+    });
+    expect(await getMealPlannerCycleData('viewer', window)).toEqual({
+      generator: { canAlign: false, alignByDefault: true },
+      board: null,
+    });
   });
 });

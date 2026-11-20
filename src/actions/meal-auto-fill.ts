@@ -22,6 +22,7 @@ import {
   hasCycleEstimate,
 } from '@/lib/meal-cycle-alignment';
 import { resolveRecipeBioProfile, type RecipeBioProfile } from '@/lib/phase-nutrition';
+import { safeErrorLabel } from '@/lib/safe-error';
 
 const OptionList = (maxItems: number, maxLength: number) =>
   z.array(z.string().trim().min(1).max(maxLength)).max(maxItems).default([]);
@@ -247,7 +248,8 @@ export async function generateMealPlan(
       },
     };
   } catch (error) {
-    console.error('[HealthHub action] meal-auto-fill generateMealPlan:', error);
+    // Class and code only: the message may carry cycle data (dates, settings).
+    console.error('[HealthHub action] meal-auto-fill generateMealPlan:', safeErrorLabel(error));
     return {
       success: false,
       error: 'Failed to generate meal plan',

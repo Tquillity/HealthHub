@@ -95,3 +95,32 @@ describe('generateMealPlan follows the space on screen', () => {
     expect(mocks.itemCreateMany).not.toHaveBeenCalled();
   });
 });
+
+describe('generateMealPlan with stored cycle data', () => {
+  const cycleUser = (lastPeriodDate: Date) => ({
+    dietaryRestrictions: [],
+    healthGoals: [],
+    enableCycleTracking: true,
+    cycleLength: 28,
+    lastPeriodDate,
+    alignMealsWithCycle: true,
+  });
+
+  it('plans without the cycle when the stored period date is outside 1900-9999', async () => {
+    // Saved before the profile action validated dates (a year typed as "25")
+    mocks.userFindUnique.mockResolvedValue(cycleUser(new Date('0025-11-03')));
+    const result = await generateMealPlan('family', { ...request, alignWithCycle: true });
+    expect(result).toMatchObject({ success: true, data: { cycleAlignment: null } });
+    expect(console.error).not.toHaveBeenCalled();
+  });
+
+  it('never logs an error message, which may carry cycle data', async () => {
+    mocks.planCreate.mockRejectedValue(new Error('Invalid date-only string: 0025-11-03'));
+    const result = await generateMealPlan('family', request);
+    expect(result).toEqual({ success: false, error: 'Failed to generate meal plan' });
+    expect(console.error).toHaveBeenCalledTimes(1);
+    const logged = vi.mocked(console.error).mock.calls[0].map(String).join(' ');
+    expect(logged).not.toContain('0025');
+    expect(logged).toContain('Error');
+  });
+});

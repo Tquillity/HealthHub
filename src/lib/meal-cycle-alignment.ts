@@ -2,6 +2,7 @@ import { addDays, format } from 'date-fns';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { getPhaseForDateKey, type CyclePhase } from '@/lib/cycle-calculator';
+import { isDateOnlyString, toDateOnlyString } from '@/lib/date-only';
 import { resolveRecipeBioProfile, type RecipeBioProfile } from '@/lib/phase-nutrition';
 
 /**
@@ -34,11 +35,19 @@ export async function getMealCycleSettings(
   });
 }
 
-/** Phase estimates exist only with tracking on and a last period start date. */
+/**
+ * Phase estimates exist only with tracking on and a usable last period start date. A date
+ * outside the years date-only values allow (rows saved before dates were validated) counts
+ * as no date: the profile asks for it again instead of the planner failing.
+ */
 export function hasCycleEstimate(
   settings: MealCycleSettings | null | undefined
 ): settings is MealCycleSettings & { lastPeriodDate: Date } {
-  return Boolean(settings?.enableCycleTracking && settings.lastPeriodDate);
+  return Boolean(
+    settings?.enableCycleTracking &&
+      settings.lastPeriodDate &&
+      isDateOnlyString(toDateOnlyString(settings.lastPeriodDate))
+  );
 }
 
 /** Estimated phase per calendar day; days without an estimate are left out. */

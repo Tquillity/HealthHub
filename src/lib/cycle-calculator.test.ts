@@ -134,4 +134,18 @@ describe('getPhaseForDateKey', () => {
     expect(getPhaseForDateKey(periodStart, 0, '2026-11-02')).toBeNull();
     expect(getPhaseForDateKey(new Date('invalid'), 28, '2026-11-02')).toBeNull();
   });
+
+  it('has no estimate, and does not throw, for a stored date outside 1900-9999', () => {
+    // Rows saved before the profile action validated dates (a year typed as "25")
+    const legacy = [
+      new Date('0025-11-03'),
+      new Date(Date.UTC(1899, 11, 31)),
+      new Date(Date.UTC(10000, 0, 1)),
+      new Date(Date.UTC(-25, 0, 1)),
+    ];
+    for (const lastPeriodDate of legacy) {
+      expect(() => getPhaseForDateKey(lastPeriodDate, 28, '2026-11-20')).not.toThrow();
+      expect(getPhaseForDateKey(lastPeriodDate, 28, '2026-11-20')).toBeNull();
+    }
+  });
 });

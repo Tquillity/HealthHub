@@ -79,7 +79,9 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
  * whole number of UTC days with no timezone or daylight-saving drift.
  *
  * Returns null for days before the last period start (nothing to project from, and a
- * backwards guess would be shown as fact) and for invalid input.
+ * backwards guess would be shown as fact) and for invalid input, including a stored date
+ * outside the years date-only values allow (rows saved before dates were validated). It
+ * never throws: the error message would carry the period date into the logs.
  */
 export function getPhaseForDateKey(
   lastPeriodDate: Date,
@@ -94,7 +96,9 @@ export function getPhaseForDateKey(
   ) {
     return null;
   }
-  const periodStart = dateOnlyToUtcDate(toDateOnlyString(lastPeriodDate));
+  const periodStartKey = toDateOnlyString(lastPeriodDate);
+  if (!isDateOnlyString(periodStartKey)) return null;
+  const periodStart = dateOnlyToUtcDate(periodStartKey);
   const day = dateOnlyToUtcDate(dateKey);
   const daysSinceStart = Math.round(
     (day.getTime() - periodStart.getTime()) / MS_PER_DAY
