@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { cn } from '@/lib/utils';
+import { restoreFocus, tabTrapTarget, useDialogOpener } from './dialog-focus';
 
 interface DialogProps {
   open: boolean;
@@ -36,12 +37,13 @@ const DialogIdsContext = React.createContext<{
   descriptionId: string;
 } | null>(null);
 
+// `:disabled` also matches controls inside a disabled <fieldset>, which cannot take focus.
 const FOCUSABLE = [
   'a[href]',
-  'button:not([disabled])',
-  'input:not([disabled]):not([type="hidden"])',
-  'select:not([disabled])',
-  'textarea:not([disabled])',
+  'button:not(:disabled)',
+  'input:not(:disabled):not([type="hidden"])',
+  'select:not(:disabled)',
+  'textarea:not(:disabled)',
   '[tabindex]:not([tabindex="-1"])',
 ].join(',');
 
@@ -52,11 +54,13 @@ function focusableIn(container: HTMLElement): HTMLElement[] {
 /**
  * Modal dialog. Follows the WAI-ARIA Authoring Practices modal dialog pattern
  * (https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/): focus moves into the
- * dialog when it opens (an element with autoFocus keeps it), Tab stays inside,
- * Escape closes it, and focus returns to the element that opened it.
+ * dialog when it opens (an element with autoFocus keeps it), Tab and Shift+Tab stay
+ * inside, Escape closes it, and focus returns to the element that opened it. The
+ * rules themselves are in ./dialog-focus.
  */
 const Dialog = ({ open, onOpenChange, children }: DialogProps) => {
   const panelRef = React.useRef<HTMLDivElement>(null);
+  const opener = useDialogOpener(open);
   const onOpenChangeRef = React.useRef(onOpenChange);
   const titleId = React.useId();
   const descriptionId = React.useId();
@@ -83,8 +87,6 @@ const Dialog = ({ open, onOpenChange, children }: DialogProps) => {
   React.useEffect(() => {
     const panel = panelRef.current;
     if (!open || !panel) return;
-    const previous =
-      document.activeElement instanceof HTMLElement ? document.activeElement : null;
     if (!panel.contains(document.activeElement)) {
       (focusableIn(panel)[0] ?? panel).focus();
     }
@@ -97,27 +99,28 @@ const Dialog = ({ open, onOpenChange, children }: DialogProps) => {
       }
       if (event.key !== 'Tab') return;
       const items = focusableIn(panel);
+      const active = document.activeElement;
       if (items.length === 0) {
         event.preventDefault();
+        if (!panel.contains(active)) panel.focus();
         return;
       }
-      const first = items[0];
-      const last = items[items.length - 1];
-      const active = document.activeElement;
-      if (event.shiftKey && (active === first || !panel.contains(active))) {
+      const target = tabTrapTarget(
+        items,
+        active && panel.contains(active) ? active : null,
+        event.shiftKey
+      );
+      if (target) {
         event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && (active === last || !panel.contains(active))) {
-        event.preventDefault();
-        first.focus();
+        target.focus();
       }
     };
     document.addEventListener('keydown', onKeyDown);
     return () => {
       document.removeEventListener('keydown', onKeyDown);
-      if (previous && previous.isConnected) previous.focus();
+      restoreFocus(opener, document);
     };
-  }, [open]);
+  }, [open, opener]);
 
   if (!open) return null;
 
