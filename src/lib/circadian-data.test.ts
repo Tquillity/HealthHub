@@ -329,7 +329,11 @@ describe.skipIf(!isolated)(
       const kept: Record<string, Prisma.JournalEntryUncheckedCreateInput> = {
         '2026-11-01': { userId, date: day('2026-11-01'), energy: 5 },
         '2026-11-02': { userId, date: day('2026-11-02'), sleepHours: 7 },
-        '2026-11-03': { userId, date: day('2026-11-03'), notes: encrypt('Note') },
+        '2026-11-03': {
+          userId,
+          date: day('2026-11-03'),
+          notes: encrypt('Note'),
+        },
         '2026-11-04': { userId, date: day('2026-11-04'), tags: ['calm'] },
         '2026-11-05': {
           userId,
@@ -348,11 +352,18 @@ describe.skipIf(!isolated)(
           cervicalMucus: encrypt('creamy'),
         },
         '2026-11-09': { userId, date: day('2026-11-09'), sleepQuality: 6 },
-        '2026-11-10': { userId, date: day('2026-11-10'), goalsNotes: encrypt('Run') },
+        '2026-11-10': {
+          userId,
+          date: day('2026-11-10'),
+          goalsNotes: encrypt('Run'),
+        },
       };
       await client.journalEntry.createMany({
         data: [
-          ...Object.values(kept).map((entry) => ({ ...entry, energyEvening: 4 })),
+          ...Object.values(kept).map((entry) => ({
+            ...entry,
+            energyEvening: 4,
+          })),
           // Only check-ins, saved from the journal form (empty lists): deleted.
           {
             userId,

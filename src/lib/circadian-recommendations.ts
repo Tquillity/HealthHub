@@ -273,7 +273,9 @@ export function leadingEarlyEstimate(
   const personal = logged.filter((slot) => summary[slot].personalized);
   const early = logged.filter((slot) => !summary[slot].personalized);
   if (personal.length === 0 || early.length === 0) return null;
-  const topPersonal = Math.max(...personal.map((s) => averageTenths(summary[s])));
+  const topPersonal = Math.max(
+    ...personal.map((s) => averageTenths(summary[s]))
+  );
   const topEarly = early.reduce((a, b) =>
     averageTenths(summary[b]) > averageTenths(summary[a]) ? b : a
   );

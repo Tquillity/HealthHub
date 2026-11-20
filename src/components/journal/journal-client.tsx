@@ -121,7 +121,9 @@ export function JournalClient({
       setLoadState('error');
       return;
     }
-    const loaded = result.data ? entryToForm(date, result.data) : emptyForm(date);
+    const loaded = result.data
+      ? entryToForm(date, result.data)
+      : emptyForm(date);
     setFormData(loaded);
     setLoadedForm(loaded);
     setLoadState('ready');

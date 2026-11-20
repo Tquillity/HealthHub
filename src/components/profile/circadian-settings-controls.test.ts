@@ -67,7 +67,9 @@ describe('DeleteCheckInsConfirmation', () => {
     const id = html.match(/role="group" aria-labelledby="([^"]+)"/)?.[1];
     expect(id).toBeDefined();
     expect(html).toMatch(
-      new RegExp(`<p id="${id}"[^>]*>This clears morning, afternoon and evening energy`)
+      new RegExp(
+        `<p id="${id}"[^>]*>This clears morning, afternoon and evening energy`
+      )
     );
     expect(html).toContain('It affects 10 days.');
   });

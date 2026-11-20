@@ -4,7 +4,9 @@ import { describe, expect, it, vi } from 'vitest';
 import { findButtons } from '@/components/test-markup';
 import { buildCircadianInsights } from '@/lib/circadian-recommendations';
 
-vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: () => {} }) }));
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ refresh: () => {} }),
+}));
 vi.mock('@/actions/circadian-actions', () => ({ logEnergyNow: vi.fn() }));
 
 import { CircadianPanel, EnergyRatingButtons } from './circadian-panel';
@@ -60,7 +62,9 @@ describe('CircadianPanel energy check-in', () => {
       })
     );
     const buttons = ratingButtons(html);
-    expect(buttons.some((b) => b.attributes.includes('aria-disabled="'))).toBe(false);
+    expect(buttons.some((b) => b.attributes.includes('aria-disabled="'))).toBe(
+      false
+    );
     expect(buttons[3].attributes).toContain('aria-pressed="true"');
   });
 });

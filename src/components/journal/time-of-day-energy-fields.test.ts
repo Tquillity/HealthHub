@@ -11,12 +11,20 @@ describe('changedTimeOfDayEnergy', () => {
     expect(payload).toEqual({});
     expect('energyAfternoon' in payload).toBe(false);
 
-    const loaded = { energyMorning: '6', energyAfternoon: '', energyEvening: '4' };
+    const loaded = {
+      energyMorning: '6',
+      energyAfternoon: '',
+      energyEvening: '4',
+    };
     expect(changedTimeOfDayEnergy(loaded, { ...loaded })).toEqual({});
   });
 
   it('sends only the slots the user edited', () => {
-    const loaded = { energyMorning: '6', energyAfternoon: '', energyEvening: '4' };
+    const loaded = {
+      energyMorning: '6',
+      energyAfternoon: '',
+      energyEvening: '4',
+    };
     expect(
       changedTimeOfDayEnergy(loaded, {
         energyMorning: '6',
@@ -27,7 +35,13 @@ describe('changedTimeOfDayEnergy', () => {
   });
 
   it('sends null for a slot the user cleared', () => {
-    const loaded = { energyMorning: '6', energyAfternoon: '', energyEvening: '' };
-    expect(changedTimeOfDayEnergy(loaded, blank)).toEqual({ energyMorning: null });
+    const loaded = {
+      energyMorning: '6',
+      energyAfternoon: '',
+      energyEvening: '',
+    };
+    expect(changedTimeOfDayEnergy(loaded, blank)).toEqual({
+      energyMorning: null,
+    });
   });
 });
