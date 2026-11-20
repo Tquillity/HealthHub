@@ -64,9 +64,10 @@ export function SupportStatusCard({
           </p>
         )}
         {statuses.length === 0 ? (
+          // "With you": someone may share with members who joined before you, and not with you.
           <p className="text-sm text-gray-600">
-            Nobody in {organizationName} is sharing their cycle status right now. Sharing is
-            always each person&apos;s own choice.
+            Nobody in {organizationName} shares their cycle status with you right now. Sharing
+            is always each person&apos;s own choice.
           </p>
         ) : (
           <ul className="grid grid-cols-1 gap-4 md:grid-cols-2">
