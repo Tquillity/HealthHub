@@ -28,7 +28,6 @@ import { Button } from '@/components/ui/button';
 import { useUIStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
 import { dateOnlyToLocalDate } from '@/lib/date-only';
-import { localDateKey } from '@/lib/quick-log-input';
 import { PHASE_THEMES } from '@/lib/phase-theme';
 import { phaseLabel } from './daily-briefing-view';
 import {
@@ -303,8 +302,8 @@ export function DailyBriefingPanel({
 
   const refresh = async () => {
     setBusyKey('refresh');
-    // The viewer's own calendar day (the profile timezone may differ from the device).
-    const result = await generateDailyBriefing(localDateKey());
+    // The server picks the day (profile timezone), as it did for the page itself.
+    const result = await generateDailyBriefing();
     setBusyKey(null);
     if (!result.success) {
       showToast(result.error, 'error');

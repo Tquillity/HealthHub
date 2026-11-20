@@ -8,7 +8,7 @@ import {
   SUGGESTION_RATINGS,
 } from '@/lib/briefing/types';
 
-/** The briefing day the client is looking at (its local calendar day). */
+/** The day of the briefing the client shows (rendered in the profile timezone). */
 export const BriefingDayInputSchema = z
   .object({ date: DateOnlyStringSchema })
   .strict();

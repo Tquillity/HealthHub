@@ -104,7 +104,7 @@ export type BriefingState =
   | { status: 'off' | 'not_due' | 'dismissed'; date: string }
   | { status: 'ready'; date: string; briefing: DailyBriefing };
 
-/** The user's calendar day for `now`, in their profile timezone. */
+/** The user's calendar day for `now`, in their profile timezone (UTC when unknown). */
 export function userToday(timezone: string, now: Date): string {
   return dateKeyInTimeZone(now, timezone);
 }
@@ -146,7 +146,11 @@ async function readFeedback(
   });
 }
 
-/** Throws `BriefingDateError` unless `date` is within a day of the user's today. */
+/**
+ * Throws `BriefingDateError` unless `date` is within a day of the user's today. The client
+ * sends the day of the briefing it shows (from loadBriefingState); the margin lets a card
+ * left open over midnight still be hidden or rated for the day it shows.
+ */
 async function assertBriefingDay(
   db: Db,
   userId: string,
@@ -522,13 +526,16 @@ async function loadMealData(
 /**
  * The dashboard briefing for the user's day: "off" (frequency never), "not_due" (weekly,
  * not Monday), "dismissed" (hidden for the day) or "ready" with the briefing.
- * `date` is the client's day; it is used only when within a day of the user's today.
+ *
+ * The day is always the user's calendar day in their profile timezone (UTC when the
+ * profile value is not a known IANA zone, see schedule.ts), never the device's: the
+ * server render and the card's Refresh both come here, so the day a hide, dismissal or
+ * rating is stored under is the day every later load looks up.
  */
 export async function loadBriefingState(
   userId: string,
   options: {
     now?: Date;
-    date?: string;
     /** The space whose meal plan to read (the one the dashboard shows); checked here. */
     householdId?: string | null;
   } = {}
@@ -539,10 +546,7 @@ export async function loadBriefingState(
     select: briefingUserSelect,
   });
   const preferences = parseBriefingPreferences(user);
-  const serverToday = userToday(user.timezone, now);
-  const date =
-    (options.date && acceptBriefingDate(options.date, serverToday)) ||
-    serverToday;
+  const date = userToday(user.timezone, now);
 
   if (preferences.frequency === 'never') return { status: 'off', date };
   if (!isBriefingDue(preferences.frequency, date)) {

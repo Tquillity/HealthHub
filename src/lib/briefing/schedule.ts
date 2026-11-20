@@ -11,7 +11,10 @@ import type { BriefingFrequency } from './types';
  * The briefing day is the user's own calendar day in their profile timezone
  * (User.timezone, an IANA name such as "Europe/Stockholm"), so a weekly briefing
  * arrives on their Monday, not the server's. The profile accepts free text, so an
- * unknown timezone falls back to UTC instead of failing.
+ * unknown or empty timezone falls back to UTC (`FALLBACK_TIME_ZONE`, also the profile
+ * default) instead of failing. The device's own timezone is never used: the server
+ * render and a refresh from the card must agree on the day, or feedback stored for one
+ * day would be looked up under another.
  */
 
 /** Weekly briefings are shown on this weekday (0 = Sunday … 6 = Saturday): Monday. */
@@ -77,8 +80,8 @@ export function nextBriefingDate(
 }
 
 /**
- * The day a client asks about, if it is within one day of the user's day on the server
- * (the device may be in another timezone than the profile says); otherwise null.
+ * The briefing day a client sends with feedback, if it is within one day of the user's
+ * day on the server (a card left open over midnight shows yesterday); otherwise null.
  */
 export function acceptBriefingDate(
   requested: string,

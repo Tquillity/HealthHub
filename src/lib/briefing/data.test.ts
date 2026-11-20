@@ -46,9 +46,7 @@ describe.skipIf(!isolated)(
     let client: PrismaClient;
     let data: DataModule;
 
-    const keys = async (
-      options: { now?: Date; date?: string; householdId?: string } = {}
-    ) => {
+    const keys = async (options: { now?: Date; householdId?: string } = {}) => {
       const state = await data.loadBriefingState(me.id, {
         now: NOW,
         ...options,
@@ -255,17 +253,46 @@ describe.skipIf(!isolated)(
       );
     });
 
-    it("uses the client's day only within a day of the user's today", async () => {
-      const tomorrow = await data.loadBriefingState(me.id, {
-        now: NOW,
-        date: '2026-11-21',
-      });
-      expect(tomorrow.date).toBe('2026-11-21');
-      const stale = await data.loadBriefingState(me.id, {
-        now: NOW,
-        date: '2026-11-10',
-      });
-      expect(stale.date).toBe(TODAY);
+    it('uses the profile timezone for the day, and UTC when it is unknown', async () => {
+      // 20:00 on Friday 20 November in New York is already Saturday in UTC.
+      const fridayEveningInNewYork = new Date('2026-11-21T01:00:00Z');
+      const setTimezone = (timezone: string) =>
+        client.user.update({ where: { id: me.id }, data: { timezone } });
+      try {
+        await setTimezone('America/New_York');
+        expect(
+          (await data.loadBriefingState(me.id, { now: fridayEveningInNewYork }))
+            .date
+        ).toBe('2026-11-20');
+        for (const unknown of ['UTC', 'Not/AZone', '']) {
+          await setTimezone(unknown);
+          expect(
+            (
+              await data.loadBriefingState(me.id, {
+                now: fridayEveningInNewYork,
+              })
+            ).date
+          ).toBe('2026-11-21');
+        }
+      } finally {
+        await setTimezone('Europe/Stockholm');
+      }
+    });
+
+    it('finds a hide stored for the day the card showed on every later load', async () => {
+      // The card (server render or Refresh) shows the profile day; hiding stores that day.
+      const shown = await data.loadBriefingState(me.id, { now: NOW });
+      await data.dismissBriefing(me.id, shown.date, NOW);
+      try {
+        // A reload later the same evening still finds it.
+        const later = new Date('2026-11-20T22:30:00Z');
+        expect(await data.loadBriefingState(me.id, { now: later })).toEqual({
+          status: 'dismissed',
+          date: TODAY,
+        });
+      } finally {
+        await data.restoreBriefing(me.id, shown.date, NOW);
+      }
     });
 
     it('never reads sources the user switched off', async () => {

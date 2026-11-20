@@ -59,37 +59,36 @@ afterEach(() => {
 });
 
 describe('generateDailyBriefing', () => {
-  it("loads the signed-in user's briefing for the given day", async () => {
-    expect(await generateDailyBriefing('2026-11-20')).toEqual({
+  it("loads the signed-in user's briefing for their profile-timezone day", async () => {
+    expect(await generateDailyBriefing()).toEqual({
       success: true,
       data: { status: 'off', date: '2026-11-20' },
     });
     // Meals come from the space the dashboard shows (cookie, checked against memberships).
     expect(mocks.getDashboardHouseholdId).toHaveBeenCalledWith('me');
+    // No device day: the server picks the day exactly as for the dashboard render, so
+    // a hide stored after a refresh is found again on reload.
     expect(mocks.loadBriefingState).toHaveBeenCalledWith('me', {
-      date: '2026-11-20',
       householdId: 'home',
     });
   });
 
-  it('rejects guests and invalid days before loading anything', async () => {
+  it('rejects guests before loading anything', async () => {
     mocks.requireSessionUserId.mockResolvedValue({
       ok: false,
       error: 'Unauthorized',
     });
-    expect(await generateDailyBriefing('2026-11-20')).toEqual({
+    expect(await generateDailyBriefing()).toEqual({
       success: false,
       error: 'Unauthorized',
     });
-    mocks.requireSessionUserId.mockResolvedValue({ ok: true, userId: 'me' });
-    expect((await generateDailyBriefing('2026-02-30')).success).toBe(false);
     expect(mocks.loadBriefingState).not.toHaveBeenCalled();
   });
 
   it('logs failures without details', async () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => {});
     mocks.loadBriefingState.mockRejectedValue(new Error('energy was 3'));
-    expect(await generateDailyBriefing('2026-11-20')).toEqual({
+    expect(await generateDailyBriefing()).toEqual({
       success: false,
       error: 'Failed to prepare your briefing',
     });

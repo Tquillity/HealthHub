@@ -54,24 +54,19 @@ function failure(
 }
 
 /**
- * The briefing for `date` (the viewer's local calendar day) for the signed-in user:
- * "off", "not_due", "dismissed", or "ready" with the briefing. A date more than a day
- * from the user's day on the server is replaced by the user's day.
+ * Today's briefing for the signed-in user: "off", "not_due", "dismissed", or "ready" with
+ * the briefing. The day is the user's day in their profile timezone, as in the dashboard
+ * render (never the device's), so a refresh shows the same day the page did.
  */
-export async function generateDailyBriefing(
-  date: string
-): Promise<ActionResult<BriefingState>> {
+export async function generateDailyBriefing(): Promise<
+  ActionResult<BriefingState>
+> {
   try {
     const auth = await requireSessionUserId();
     if (!auth.ok) return { success: false, error: auth.error };
-    const parsed = BriefingDayInputSchema.safeParse({ date });
-    if (!parsed.success) {
-      return { success: false, error: validationError(parsed.error) };
-    }
     return {
       success: true,
       data: await loadBriefingState(auth.userId, {
-        date: parsed.data.date,
         householdId: await getDashboardHouseholdId(auth.userId),
       }),
     };
