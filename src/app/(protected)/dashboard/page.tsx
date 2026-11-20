@@ -3,6 +3,7 @@ import { getServerSession } from '@/lib/session';
 import { prisma } from '@/lib/db';
 import { getActiveMembership } from '@/lib/active-organization';
 import { DashboardClient } from '@/components/dashboard/dashboard-client';
+import { SupportStatusWidget } from '@/components/dashboard/support-status-widget';
 import { getPremiumPomoDashboardSnapshot } from '@/actions/pomo-state';
 import { progressFromPomoPayload } from '@/lib/pomo/utils/pomo-server-progress';
 
@@ -66,6 +67,7 @@ export default async function DashboardPage() {
         isPremiumCloud={pomoSnapshot.isPremium}
         focusGoalProgress={focusGoalProgress}
       />
+      <SupportStatusWidget className="mt-8" />
     </div>
   );
 }
