@@ -72,3 +72,17 @@ export function RecentRoutinesSkeleton() {
     </div>
   );
 }
+
+export function VitalsCardSkeleton() {
+  return (
+    <div
+      role="status"
+      className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm"
+    >
+      <Loading label="Loading your vitals…" />
+      <Bar className="h-6 w-40" />
+      <Bar className="h-4 w-64 max-w-full" />
+      <Bar className="h-11 w-36" />
+    </div>
+  );
+}

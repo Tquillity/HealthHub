@@ -104,7 +104,8 @@ export default async function CyclePage() {
     );
   }
 
-  const { phaseData, recommendations, userPreference } = dashboardResult;
+  const { phaseData, recommendations, userPreference, insights } =
+    dashboardResult;
 
   // Get lastPeriodDate from user data for date calculations
   const user = await prisma.user.findUnique({
@@ -122,6 +123,7 @@ export default async function CyclePage() {
           ...userPreference,
           lastPeriodDate: user?.lastPeriodDate || new Date(),
         }}
+        insights={insights}
       />
 
       {/* Quick Actions Footer */}

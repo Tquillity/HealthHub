@@ -31,6 +31,14 @@ describe.skipIf(!isolated)('account export against isolated PostgreSQL', () => {
         ...me,
         name: 'Me',
         lastPeriodDate: new Date('2026-03-01T00:00:00Z'),
+        temperatureUnit: 'F',
+        trackVitals: true,
+        periodStarts: {
+          create: [
+            { date: new Date('2026-02-01T00:00:00Z') },
+            { date: new Date('2026-03-01T00:00:00Z') },
+          ],
+        },
       },
     });
     await client.user.create({ data: { ...housemate, name: 'Housemate' } });
@@ -88,6 +96,11 @@ describe.skipIf(!isolated)('account export against isolated PostgreSQL', () => {
         mood: 8,
         notes: encrypt('Felt great'),
         gratitudeEntries: encryptArray(['Sunshine']) ?? [],
+        temperature: 36.55,
+        cervicalMucus: encrypt('egg-white'),
+        restingHeartRate: 58,
+        heartRateVariability: 61.5,
+        sleepQuality: 8,
       },
     });
   });
@@ -108,7 +121,13 @@ describe.skipIf(!isolated)('account export against isolated PostgreSQL', () => {
     expect(data.profile).toMatchObject({
       email: me.email,
       lastPeriodDate: '2026-03-01',
+      temperatureUnit: 'F',
+      trackVitals: true,
     });
+    expect(data.periodStarts).toEqual([
+      { date: '2026-02-01', loggedAt: expect.any(Date) },
+      { date: '2026-03-01', loggedAt: expect.any(Date) },
+    ]);
     expect(data.signInMethods).toEqual([
       { provider: 'credential', addedAt: expect.any(Date) },
     ]);
@@ -121,6 +140,11 @@ describe.skipIf(!isolated)('account export against isolated PostgreSQL', () => {
         mood: 8,
         notes: 'Felt great',
         gratitudeEntries: ['Sunshine'],
+        temperature: 36.55,
+        cervicalMucus: 'egg-white',
+        restingHeartRate: 58,
+        heartRateVariability: 61.5,
+        sleepQuality: 8,
       }),
     ]);
 

@@ -41,50 +41,64 @@ export async function buildAccountExport(userId: string) {
       mealPlanDuration: true,
       mealPlanStartDate: true,
       isPremium: true,
+      temperatureUnit: true,
+      trackVitals: true,
     },
   });
 
-  const [accounts, sessions, journalEntries, preferences, timer, memberships] =
-    await Promise.all([
-      prisma.account.findMany({
-        where: { userId },
-        select: { providerId: true, createdAt: true },
-        orderBy: { createdAt: 'asc' },
-      }),
-      prisma.session.findMany({
-        where: { userId },
-        select: {
-          createdAt: true,
-          expiresAt: true,
-          ipAddress: true,
-          userAgent: true,
-        },
-        orderBy: { createdAt: 'asc' },
-      }),
-      prisma.journalEntry.findMany({
-        where: { userId },
-        orderBy: { date: 'asc' },
-      }),
-      prisma.userIngredientPreference.findMany({
-        where: { userId },
-        select: {
-          pattern: true,
-          preferred: true,
-          createdAt: true,
-          updatedAt: true,
-        },
-        orderBy: { pattern: 'asc' },
-      }),
-      prisma.pomoState.findUnique({
-        where: { userId },
-        select: { payloadJson: true, updatedAt: true },
-      }),
-      prisma.member.findMany({
-        where: { userId },
-        select: { organizationId: true, role: true, createdAt: true },
-        orderBy: { createdAt: 'asc' },
-      }),
-    ]);
+  const [
+    accounts,
+    sessions,
+    journalEntries,
+    preferences,
+    timer,
+    memberships,
+    periodStarts,
+  ] = await Promise.all([
+    prisma.account.findMany({
+      where: { userId },
+      select: { providerId: true, createdAt: true },
+      orderBy: { createdAt: 'asc' },
+    }),
+    prisma.session.findMany({
+      where: { userId },
+      select: {
+        createdAt: true,
+        expiresAt: true,
+        ipAddress: true,
+        userAgent: true,
+      },
+      orderBy: { createdAt: 'asc' },
+    }),
+    prisma.journalEntry.findMany({
+      where: { userId },
+      orderBy: { date: 'asc' },
+    }),
+    prisma.userIngredientPreference.findMany({
+      where: { userId },
+      select: {
+        pattern: true,
+        preferred: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+      orderBy: { pattern: 'asc' },
+    }),
+    prisma.pomoState.findUnique({
+      where: { userId },
+      select: { payloadJson: true, updatedAt: true },
+    }),
+    prisma.member.findMany({
+      where: { userId },
+      select: { organizationId: true, role: true, createdAt: true },
+      orderBy: { createdAt: 'asc' },
+    }),
+    prisma.periodStart.findMany({
+      where: { userId },
+      select: { date: true, createdAt: true },
+      orderBy: { date: 'asc' },
+    }),
+  ]);
 
   const households = await Promise.all(
     memberships.map(async (membership) => {
@@ -218,8 +232,18 @@ export async function buildAccountExport(userId: string) {
       symptomsPhysical: decryptArray(entry.symptomsPhysical),
       symptomsMental: decryptArray(entry.symptomsMental),
       symptomsNotes: decrypt(entry.symptomsNotes),
+      // Basal body temperature in °C (the unit preference is in the profile).
+      temperature: entry.temperature,
+      cervicalMucus: decrypt(entry.cervicalMucus),
+      restingHeartRate: entry.restingHeartRate,
+      heartRateVariability: entry.heartRateVariability,
+      sleepQuality: entry.sleepQuality,
       createdAt: entry.createdAt,
       updatedAt: entry.updatedAt,
+    })),
+    periodStarts: periodStarts.map((start) => ({
+      date: dateOnly(start.date),
+      loggedAt: start.createdAt,
     })),
     ingredientPreferences: preferences,
     timerState: timer,
