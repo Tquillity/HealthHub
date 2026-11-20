@@ -21,6 +21,51 @@ const isolated = Boolean(
 
 const day = (key: string) => new Date(`${key}T00:00:00.000Z`);
 
+/** JournalEntry columns that are not journal content: keys, sharing, times, check-ins. */
+const NOT_CONTENT = [
+  'id',
+  'userId',
+  'date',
+  'visibility',
+  'sharedOrganizationId',
+  'createdAt',
+  'updatedAt',
+  'energyMorning',
+  'energyAfternoon',
+  'energyEvening',
+];
+
+/** Every journal content column of JournalEntry, read from the schema. */
+const CONTENT_FIELDS = Object.keys(Prisma.JournalEntryScalarFieldEnum)
+  .filter((field) => !NOT_CONTENT.includes(field))
+  .sort();
+
+/** One stored value for each content column, encrypted where the app encrypts it. */
+function contentExamples(): Partial<
+  Record<keyof Prisma.JournalEntryUncheckedCreateInput, unknown>
+> {
+  return {
+    mood: 6,
+    energy: 5,
+    sleepHours: 7,
+    notes: encrypt('Note'),
+    tags: ['calm'],
+    gratitudeEntries: encryptArray(['Tea']),
+    gratitudeNotes: encrypt('Sun'),
+    goalsAchieved: encryptArray(['Walk']),
+    goalsProgress: encryptArray(['Stretch']),
+    goalsNotes: encrypt('Run'),
+    symptomsPhysical: encryptArray(['Cramps']),
+    symptomsMental: encryptArray(['Foggy']),
+    symptomsNotes: encrypt('Mild'),
+    temperature: 36.6,
+    cervicalMucus: encrypt('creamy'),
+    restingHeartRate: 60,
+    heartRateVariability: 45,
+    sleepQuality: 6,
+  };
+}
+
 describe.skipIf(!isolated)(
   'circadian insights against isolated PostgreSQL',
   () => {
@@ -325,45 +370,27 @@ describe.skipIf(!isolated)(
     });
 
     it('deletes the days that only check-ins created, keeping every other day', async () => {
-      // A day with check-ins and one other kind of journal data each: all of them stay.
-      const kept: Record<string, Prisma.JournalEntryUncheckedCreateInput> = {
-        '2026-11-01': { userId, date: day('2026-11-01'), energy: 5 },
-        '2026-11-02': { userId, date: day('2026-11-02'), sleepHours: 7 },
-        '2026-11-03': {
-          userId,
-          date: day('2026-11-03'),
-          notes: encrypt('Note'),
-        },
-        '2026-11-04': { userId, date: day('2026-11-04'), tags: ['calm'] },
-        '2026-11-05': {
-          userId,
-          date: day('2026-11-05'),
-          gratitudeEntries: encryptArray(['Tea']) ?? [],
-        },
-        '2026-11-06': {
-          userId,
-          date: day('2026-11-06'),
-          symptomsMental: encryptArray(['Foggy']) ?? [],
-        },
-        '2026-11-07': { userId, date: day('2026-11-07'), temperature: 36.6 },
-        '2026-11-08': {
-          userId,
-          date: day('2026-11-08'),
-          cervicalMucus: encrypt('creamy'),
-        },
-        '2026-11-09': { userId, date: day('2026-11-09'), sleepQuality: 6 },
-        '2026-11-10': {
-          userId,
-          date: day('2026-11-10'),
-          goalsNotes: encrypt('Run'),
-        },
-      };
+      // A day with check-ins and one kind of other journal data, for every content
+      // column in the schema: all of them stay.
+      const examples = contentExamples();
+      const kept = CONTENT_FIELDS.map((field, i) => {
+        expect(examples, `an example value for ${field}`).toHaveProperty(field);
+        return {
+          date: addDaysToDateOnly('2026-10-01', i),
+          field,
+          value: examples[field as keyof typeof examples],
+        };
+      });
       await client.journalEntry.createMany({
         data: [
-          ...Object.values(kept).map((entry) => ({
-            ...entry,
-            energyEvening: 4,
-          })),
+          ...kept.map(
+            ({ date, field, value }): Prisma.JournalEntryCreateManyInput => ({
+              userId,
+              date: day(date),
+              [field]: value,
+              energyEvening: 4,
+            })
+          ),
           // Only check-ins, saved from the journal form (empty lists): deleted.
           {
             userId,
@@ -386,14 +413,15 @@ describe.skipIf(!isolated)(
       await data.saveEnergyNow(userId, 6, stockholmMorning);
       await data.saveEnergyNow(userId, 4, new Date('2026-11-20T13:30:00Z'));
 
-      expect(await data.clearTimeOfDayEnergy(userId)).toBe(12);
+      // The kept days, the check-in-only day on 12 November and today's.
+      expect(await data.clearTimeOfDayEnergy(userId)).toBe(kept.length + 2);
 
       const remaining = await client.journalEntry.findMany({
         where: { userId },
         orderBy: { date: 'asc' },
       });
       expect(remaining.map((entry) => toDateOnlyString(entry.date))).toEqual([
-        ...Object.keys(kept),
+        ...kept.map(({ date }) => date),
         '2026-11-13',
       ]);
       for (const entry of remaining) {
@@ -403,27 +431,23 @@ describe.skipIf(!isolated)(
           energyEvening: null,
         });
       }
-      expect(await readEntry('2026-11-04')).toMatchObject({ tags: ['calm'] });
-      expect(decrypt((await readEntry('2026-11-08')).cervicalMucus)).toBe(
+      // Each kept day still holds its journal data.
+      for (const [i, { field, value }] of kept.entries()) {
+        expect(
+          remaining[i][field as keyof (typeof remaining)[number]],
+          field
+        ).toEqual(value);
+      }
+      const mucus = kept.find(({ field }) => field === 'cervicalMucus');
+      expect(decrypt((await readEntry(mucus?.date ?? '')).cervicalMucus)).toBe(
         'creamy'
       );
     });
 
     it('treats every JournalEntry content field as journal data', () => {
       // Keeps the delete above in step with the schema: a new content field must be
-      // listed in noJournalDataBesideCheckIns, or its days would be deleted.
-      const notContent = [
-        'id',
-        'userId',
-        'date',
-        'visibility',
-        'sharedOrganizationId',
-        'createdAt',
-        'updatedAt',
-        'energyMorning',
-        'energyAfternoon',
-        'energyEvening',
-      ];
+      // listed in lib/journal-content (noJournalDataBesideCheckIns), or its days would be
+      // deleted. The test above keeps a day for each field of the same list.
       const fieldsIn = (where: object): string[] =>
         Object.entries(where).flatMap(([key, value]) =>
           key === 'AND' || key === 'OR'
@@ -432,11 +456,7 @@ describe.skipIf(!isolated)(
         );
       expect(
         [...new Set(fieldsIn(data.noJournalDataBesideCheckIns))].sort()
-      ).toEqual(
-        Object.keys(Prisma.JournalEntryScalarFieldEnum)
-          .filter((field) => !notContent.includes(field))
-          .sort()
-      );
+      ).toEqual(CONTENT_FIELDS);
     });
 
     it('turns the opt-in on and off', async () => {
