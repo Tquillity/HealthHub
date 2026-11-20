@@ -52,11 +52,13 @@
  * form, not just a quick-log temperature or vitals). Mood and energy (self-rated 1-10)
  * per phase are given as context only and labelled as such, not as symptom severity.
  *
- * **Notes.** Opt-in. Journal notes, symptom notes and tags in the range, newest kept
- * when there are many, each note cut to a readable length.
+ * **Notes.** Opt-in. Journal notes and tags in the range, newest kept when there are
+ * many, each note cut to a readable length. Symptom notes are free-text symptom details,
+ * so they are included only when both notes and symptoms are (`resolveReportInclusion`).
  */
 
 import { getPhaseForDay, type CyclePhase } from '@/lib/cycle-calculator';
+import type { ClinicalReportOptions } from '@/lib/validation/clinical-report-schemas';
 import {
   buildCycleHistory,
   getCycleDayInfo,
@@ -135,7 +137,33 @@ export type ReportSections = {
   symptoms: boolean;
   vitals: boolean;
   notes: boolean;
+  /** Free-text symptom notes, shown with the notes: only with both notes and symptoms. */
+  symptomNotes: boolean;
 };
+
+/** The include toggles of the export dialog. */
+export type ReportToggles = Omit<ClinicalReportOptions, 'months' | 'today'>;
+
+/**
+ * What a report contains for the user's toggles. The server loads data by this and the
+ * export dialog's preview describes it, so what the user is shown is what they get.
+ * Vitals also need the profile's vitals opt-in (it governs the recovery score), and
+ * symptom notes need both the notes and the symptoms toggle: unticking symptoms keeps
+ * every symptom detail out, free text included.
+ */
+export function resolveReportInclusion(
+  toggles: ReportToggles,
+  { vitalsAvailable }: { vitalsAvailable: boolean }
+): ReportSections {
+  return {
+    name: toggles.includeName,
+    bbt: toggles.includeBbt,
+    symptoms: toggles.includeSymptoms,
+    vitals: toggles.includeVitals && vitalsAvailable,
+    notes: toggles.includeNotes,
+    symptomNotes: toggles.includeNotes && toggles.includeSymptoms,
+  };
+}
 
 export type ReportMeta = {
   name: string | null;
@@ -961,6 +989,10 @@ export function buildClinicalReport(input: ClinicalReportInput): ClinicalReport 
   const name = input.name?.trim()
     ? truncateText(input.name.trim(), MAX_NAME_CHARS)
     : null;
+  // Symptom notes are symptom details: never without the symptoms section, even if a
+  // caller passes them (the loader does not read them then; see resolveReportInclusion).
+  const symptomNotes =
+    input.noteDays !== undefined && input.symptomDays !== undefined;
 
   const report: ClinicalReport = {
     meta: {
@@ -978,6 +1010,7 @@ export function buildClinicalReport(input: ClinicalReportInput): ClinicalReport 
         symptoms: input.symptomDays !== undefined,
         vitals: input.vitalsRows !== undefined,
         notes: input.noteDays !== undefined,
+        symptomNotes,
       },
     },
     cycles: summarizeCycleVariability(cycles, range),
@@ -999,7 +1032,10 @@ export function buildClinicalReport(input: ClinicalReportInput): ClinicalReport 
     report.vitals = summarizeVitals(cycles, input.vitalsRows, range, typical);
   }
   if (input.noteDays) {
-    report.notes = summarizeNotes(cycles, input.noteDays, range, typical);
+    const noteDays = symptomNotes
+      ? input.noteDays
+      : input.noteDays.map((day) => ({ ...day, symptomNote: null }));
+    report.notes = summarizeNotes(cycles, noteDays, range, typical);
   }
   return report;
 }

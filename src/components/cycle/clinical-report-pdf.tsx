@@ -386,6 +386,7 @@ const OPTIONAL_SECTIONS = {
   symptoms: 'symptoms, mood and energy',
   vitals: 'vitals and recovery',
   notes: 'journal notes and tags',
+  symptomNotes: 'symptom notes',
 } as const;
 
 function TitleBlock({ report }: { report: ClinicalReport }) {
@@ -889,8 +890,9 @@ function NotesSection({ report }: { report: ClinicalReport }) {
       lead={
         <>
           <Note>
-            Included at the user&apos;s request: their own journal notes, symptom notes and
-            tags, unedited apart from shortening long notes.
+            {`Included at the user's request: their own journal notes${
+              report.meta.sections.symptomNotes ? ', symptom notes' : ''
+            } and tags, unedited apart from shortening long notes.`}
           </Note>
           {notes.tagCounts.length > 0 && (
             <Paragraph>

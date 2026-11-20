@@ -527,9 +527,45 @@ describe('buildClinicalReport', () => {
       symptoms: false,
       vitals: false,
       notes: false,
+      symptomNotes: false,
     });
     expect(report.meta.name).toBeNull();
     expect(JSON.stringify(report)).not.toContain('Alex');
+  });
+
+  it('keeps symptom notes out of the notes unless symptoms are included', () => {
+    const noteDays = [
+      {
+        date: '2026-11-16',
+        note: 'Travel week',
+        symptomNote: 'Heavy bleeding',
+        tags: [],
+      },
+      { date: '2026-11-17', note: null, symptomNote: 'Panic attack', tags: [] },
+    ];
+    const withoutSymptoms = buildClinicalReport(baseInput({ noteDays }));
+    expect(withoutSymptoms.meta.sections.symptomNotes).toBe(false);
+    expect(withoutSymptoms.notes?.entries).toEqual([
+      {
+        date: '2026-11-16',
+        phase: expect.any(String),
+        note: 'Travel week',
+        symptomNote: null,
+        tags: [],
+      },
+    ]);
+    const json = JSON.stringify(withoutSymptoms);
+    expect(json).not.toContain('Heavy bleeding');
+    expect(json).not.toContain('Panic attack');
+
+    const withSymptoms = buildClinicalReport(
+      baseInput({ noteDays, symptomDays: [] })
+    );
+    expect(withSymptoms.meta.sections.symptomNotes).toBe(true);
+    expect(withSymptoms.notes?.entries.map((e) => e.symptomNote)).toEqual([
+      'Heavy bleeding',
+      'Panic attack',
+    ]);
   });
 
   it('includes exactly the requested sections', () => {

@@ -18,6 +18,7 @@ import {
   buildClinicalReport,
   isJournalCheckIn,
   reportRange,
+  resolveReportInclusion,
   resolveReportToday,
   type ClinicalReport,
   type NoteDay,
@@ -93,25 +94,37 @@ async function loadSymptomDays(
   }));
 }
 
-/** Days with a journal note, symptom note or tags, decrypted. */
-async function loadNoteDays(userId: string, range: Range): Promise<NoteDay[]> {
+/**
+ * Days with a journal note or tags, decrypted. Symptom notes are read (and decrypted)
+ * only when `withSymptomNotes` is set, see resolveReportInclusion.
+ */
+async function loadNoteDays(
+  userId: string,
+  range: Range,
+  withSymptomNotes: boolean
+): Promise<NoteDay[]> {
   const rows = await prisma.journalEntry.findMany({
     where: {
       userId,
       date: dateFilter(range.start, range.end),
       OR: [
         { notes: { not: null } },
-        { symptomsNotes: { not: null } },
+        ...(withSymptomNotes ? [{ symptomsNotes: { not: null } }] : []),
         { tags: { isEmpty: false } },
       ],
     },
-    select: { date: true, notes: true, symptomsNotes: true, tags: true },
+    select: {
+      date: true,
+      notes: true,
+      symptomsNotes: withSymptomNotes,
+      tags: true,
+    },
     orderBy: { date: 'asc' },
   });
   return rows.map((row) => ({
     date: toDateOnlyString(row.date),
     note: decrypt(row.notes),
-    symptomNote: decrypt(row.symptomsNotes),
+    symptomNote: withSymptomNotes ? decrypt(row.symptomsNotes ?? null) : null,
     tags: row.tags,
   }));
 }
@@ -153,29 +166,31 @@ export async function loadClinicalReport(
   );
   const bbtFrom =
     firstCycle && firstCycle.start < range.start ? firstCycle.start : range.start;
-  // Vitals only with the vitals opt-in, which also governs the recovery score.
-  const includeVitals = options.includeVitals && user.trackVitals;
+  // The same rule the export dialog's preview describes.
+  const include = resolveReportInclusion(options, {
+    vitalsAvailable: user.trackVitals,
+  });
 
   const [bbtReadings, symptomDays, vitalsRows, noteDays] = await Promise.all([
-    options.includeBbt
-      ? loadBbtReadings(userId, bbtFrom, range.end)
-      : undefined,
-    options.includeSymptoms ? loadSymptomDays(userId, range) : undefined,
-    includeVitals
+    include.bbt ? loadBbtReadings(userId, bbtFrom, range.end) : undefined,
+    include.symptoms ? loadSymptomDays(userId, range) : undefined,
+    include.vitals
       ? loadDailyMetricsRows(
           userId,
           addDaysToDateOnly(range.start, -RECOVERY_BASELINE_WINDOW_DAYS),
           range.end
         )
       : undefined,
-    options.includeNotes ? loadNoteDays(userId, range) : undefined,
+    include.notes
+      ? loadNoteDays(userId, range, include.symptomNotes)
+      : undefined,
   ]);
 
   return buildClinicalReport({
     today,
     months: options.months,
     generatedAt: now.toISOString(),
-    name: options.includeName ? user.name : null,
+    name: include.name ? user.name : null,
     typicalCycleLength: user.cycleLength,
     temperatureUnit: parseTemperatureUnit(user.temperatureUnit),
     periodStarts,

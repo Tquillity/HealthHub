@@ -178,6 +178,7 @@ describe.skipIf(!isolated)(
         symptoms: true,
         vitals: true,
         notes: true,
+        symptomNotes: true,
       });
 
       expect(report.symptoms?.checkInDays).toBe(2);
@@ -232,6 +233,31 @@ describe.skipIf(!isolated)(
       ]) {
         expect(json).not.toContain(hidden);
       }
+    });
+
+    it('leaves symptom notes out when symptoms are not included', async () => {
+      const report = await data.loadClinicalReport(
+        userId,
+        { ...ALL, includeSymptoms: false },
+        NOW
+      );
+      expect(report.symptoms).toBeUndefined();
+      expect(report.meta.sections).toMatchObject({
+        symptoms: false,
+        notes: true,
+        symptomNotes: false,
+      });
+      // The day that has only a symptom note is not a notes day at all.
+      expect(report.notes?.entries).toEqual([
+        {
+          date: addDaysToDateOnly(TODAY, -70),
+          phase: 'menstrual',
+          note: 'Private note about travel',
+          symptomNote: null,
+          tags: ['Travel'],
+        },
+      ]);
+      expect(JSON.stringify(report)).not.toContain('evening');
     });
 
     it('leaves vitals out while vitals tracking is off', async () => {
