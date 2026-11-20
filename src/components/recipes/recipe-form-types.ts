@@ -15,6 +15,8 @@ export interface Instruction {
 
 export interface RecipeFormProps {
   recipe?: RecipeWithDetails;
+  /** The space a new recipe is filed under: the one the page was rendered for. */
+  organizationId?: string;
   onSuccess?: () => void;
   onCancel?: () => void;
   isSuperadmin?: boolean;

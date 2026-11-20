@@ -24,6 +24,8 @@ export default async function MealPlannerPage() {
   }
 
   const user = profileResult.data;
+  // Changes go to the space this plan belongs to, even if another tab switches spaces.
+  const { organizationId } = plan;
 
   return (
     <div className="flex h-full flex-col p-6">
@@ -38,10 +40,10 @@ export default async function MealPlannerPage() {
             initialDuration={user.mealPlanDuration}
             initialStartDate={user.mealPlanStartDate}
           />
-          <ClearAllMealsButton planId={plan.id} />
-          <SaveTemplateButton planId={plan.id} />
+          <ClearAllMealsButton organizationId={organizationId} planId={plan.id} />
+          <SaveTemplateButton organizationId={organizationId} planId={plan.id} />
           <PrintManager plan={plan} startDate={startDate} />
-          <MealPlanGenerator />
+          <MealPlanGenerator organizationId={organizationId} />
           <Link href="/meal-planner/templates">
             <Button variant="outline" className="gap-2 min-h-[44px]">
               <BookOpen className="h-4 w-4" />
@@ -60,6 +62,7 @@ export default async function MealPlannerPage() {
 
       <AppErrorBoundary sectionLabel="Meal planner">
         <MealBoard
+          organizationId={organizationId}
           plan={plan}
           recipes={recipes}
           duration={duration}

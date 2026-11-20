@@ -8,10 +8,12 @@ import { generateMealPlan } from '@/actions/meal-actions';
 import { Calendar, Sparkles } from 'lucide-react';
 
 interface MealPlanGeneratorProps {
+  /** The space the meal planner was rendered for; the plan is filled there. */
+  organizationId: string;
   onGenerate?: () => void;
 }
 
-export function MealPlanGenerator({ onGenerate }: MealPlanGeneratorProps) {
+export function MealPlanGenerator({ organizationId, onGenerate }: MealPlanGeneratorProps) {
   const router = useRouter();
   const [showDialog, setShowDialog] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -68,7 +70,7 @@ export function MealPlanGenerator({ onGenerate }: MealPlanGeneratorProps) {
     setIsGenerating(true);
     setError(null);
 
-    const result = await generateMealPlan({
+    const result = await generateMealPlan(organizationId, {
       weekStart: formData.weekStart,
       dietaryRestrictions: formData.dietaryRestrictions,
       healthGoals: formData.healthGoals,

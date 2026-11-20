@@ -61,7 +61,13 @@ export default async function GroceriesPage({
         />
       ) : (
         <AppErrorBoundary sectionLabel="Grocery list">
-          <GroceryListClient items={items} weekStart={start} weekEnd={end} />
+          <GroceryListClient
+            key={membership.organizationId}
+            organizationId={membership.organizationId}
+            items={items}
+            weekStart={start}
+            weekEnd={end}
+          />
         </AppErrorBoundary>
       )}
     </div>

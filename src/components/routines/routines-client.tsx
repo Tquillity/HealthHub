@@ -21,6 +21,9 @@ import { RoutinesGrid } from './routines-grid';
 import { RoutineRichForm } from './routine-rich-form';
 
 interface RoutinesClientProps {
+  /** The space the page was rendered for; new routines and the lottery use it. */
+  organizationId: string;
+  /** That space's routines plus system ones. A refresh passes the new list. */
   routines: Routine[];
 }
 
@@ -36,12 +39,9 @@ const lotteryPickTransitionName = (index: number) => `lottery-pick-${index}`;
 
 const NO_MATCH_MESSAGE = 'No routines match your criteria. Try adjusting filters.';
 
-export function RoutinesClient({
-  routines: initialRoutines,
-}: RoutinesClientProps) {
+export function RoutinesClient({ organizationId, routines }: RoutinesClientProps) {
   const router = useRouter();
   const showToast = useUIStore((state) => state.showToast);
-  const [routines] = useState(initialRoutines);
 
   // Get filter params from URL
   const [query, setQuery] = useQueryState('q', parseAsString.withDefault(''));
@@ -109,7 +109,7 @@ export function RoutinesClient({
     let result: Awaited<ReturnType<typeof drawLottery>>;
     try {
       [result] = await Promise.all([
-        drawLottery({
+        drawLottery(organizationId, {
           energy: lotteryEnergy,
           maxTime: lotteryMaxTime,
           count: lotteryCount,
@@ -169,7 +169,7 @@ export function RoutinesClient({
       </div>
 
       {filteredRoutines.length > 0 ? (
-        <RoutinesGrid routines={filteredRoutines} />
+        <RoutinesGrid organizationId={organizationId} routines={filteredRoutines} />
       ) : (
         <EmptyState
           icon={Sparkles}
@@ -216,6 +216,7 @@ export function RoutinesClient({
 
             <div className="overflow-y-auto flex-1">
               <RoutineRichForm
+                organizationId={organizationId}
                 routine={editingRoutine || undefined}
                 onSuccess={() => {
                   setShowCreateDialog(false);
@@ -407,6 +408,7 @@ export function RoutinesClient({
                         }}
                       >
                         <RoutineCard
+                          organizationId={organizationId}
                           routine={routine}
                           onClick={() => {}}
                           showAdminControls={false}

@@ -4,10 +4,11 @@ import { RoutineCard } from './routine-card';
 import type { Routine } from '@prisma/client';
 
 interface RoutinesGridProps {
+  organizationId: string;
   routines: Routine[];
 }
 
-export function RoutinesGrid({ routines }: RoutinesGridProps) {
+export function RoutinesGrid({ organizationId, routines }: RoutinesGridProps) {
   // Note: Admin controls are handled by RoutinesClient parent component
   const isAdmin = false; // This component doesn't need admin check
 
@@ -20,6 +21,7 @@ export function RoutinesGrid({ routines }: RoutinesGridProps) {
       {routines.map((routine) => (
         <RoutineCard
           key={routine.id}
+          organizationId={organizationId}
           routine={routine}
           onEdit={isAdmin ? handleEdit : undefined}
           showAdminControls={isAdmin}

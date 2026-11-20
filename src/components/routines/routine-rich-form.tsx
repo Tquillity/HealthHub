@@ -22,12 +22,15 @@ interface RoutineStep {
 }
 
 interface RoutineRichFormProps {
+  /** The space the routines page was rendered for; the routine is saved there. */
+  organizationId: string;
   routine?: Routine;
   onSuccess: () => void;
   onCancel: () => void;
 }
 
 export function RoutineRichForm({
+  organizationId,
   routine,
   onSuccess,
   onCancel,
@@ -232,8 +235,8 @@ export function RoutineRichForm({
     };
 
     const result = isEditing
-      ? await updateRoutine({ ...routineData, id: routine!.id })
-      : await createRoutine(routineData);
+      ? await updateRoutine(organizationId, { ...routineData, id: routine!.id })
+      : await createRoutine(organizationId, routineData);
 
     if (result.success) {
       router.refresh();

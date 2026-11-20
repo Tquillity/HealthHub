@@ -2,11 +2,23 @@
 
 import { prisma } from '@/lib/db';
 import { requireSessionUserId } from '@/lib/session';
-import { getActiveMembership, NO_HOUSEHOLD_ERROR } from '@/lib/active-organization';
+import {
+  getActiveMembership,
+  getMembershipIn,
+  NO_HOUSEHOLD_ERROR,
+  SPACE_NOT_FOUND_ERROR,
+  type ActiveMembership,
+} from '@/lib/active-organization';
+import { OrganizationIdSchema } from '@/lib/validation/organization-schemas';
 import { addDays } from 'date-fns';
 import { buildRecipeVisibilityFilter } from '@/actions/recipe-shared';
 
-export async function getWeeklyPlan(date?: Date) {
+/**
+ * The plan the meal planner shows, created when missing. `organizationId` names the space a
+ * page was rendered for (the templates page applies a template to that space's plan);
+ * without it the plan follows the active space.
+ */
+export async function getWeeklyPlan(date?: Date, organizationId?: string) {
   const authResult = await requireSessionUserId();
   if (!authResult.ok) throw new Error('Unauthorized');
 
@@ -22,10 +34,18 @@ export async function getWeeklyPlan(date?: Date) {
   const mealPlanDuration = user?.mealPlanDuration ?? null;
   const mealPlanStartDate = user?.mealPlanStartDate ?? null;
 
-  // The household (or other space) picked in the sidebar switcher
-  const membership = await getActiveMembership(authResult.userId);
-
-  if (!membership) throw new Error(NO_HOUSEHOLD_ERROR);
+  // The space the page was rendered for, else the one picked in the sidebar switcher
+  let membership: ActiveMembership | null;
+  if (organizationId === undefined) {
+    membership = await getActiveMembership(authResult.userId);
+    if (!membership) throw new Error(NO_HOUSEHOLD_ERROR);
+  } else {
+    const parsed = OrganizationIdSchema.safeParse(organizationId);
+    membership = parsed.success
+      ? await getMembershipIn(authResult.userId, parsed.data)
+      : null;
+    if (!membership) throw new Error(SPACE_NOT_FOUND_ERROR);
+  }
 
   // Determine start date: use provided date, or user preference, or today
   let startDate: Date;

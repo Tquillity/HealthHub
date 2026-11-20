@@ -16,11 +16,14 @@ import { saveMealPlanAsTemplate } from '@/actions/meal-actions';
 import { Save } from 'lucide-react';
 
 interface SaveTemplateButtonProps {
+  /** The space the meal planner was rendered for. */
+  organizationId: string;
   planId: string;
   disabled?: boolean;
 }
 
 export function SaveTemplateButton({
+  organizationId,
   planId,
   disabled = false,
 }: SaveTemplateButtonProps) {
@@ -38,7 +41,7 @@ export function SaveTemplateButton({
     setIsSaving(true);
     setError(null);
 
-    const result = await saveMealPlanAsTemplate({
+    const result = await saveMealPlanAsTemplate(organizationId, {
       planId,
       name: formData.name,
       description: formData.description || undefined,

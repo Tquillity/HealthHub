@@ -5,6 +5,7 @@ import {
   getActiveMembership,
   getMembershipIn,
   NO_HOUSEHOLD_ERROR,
+  SPACE_NOT_FOUND_ERROR,
 } from '@/lib/active-organization';
 import {
   canManage,
@@ -229,14 +230,18 @@ export type AuthInvitationCreator = (input: {
   role: AssignableRole;
 }) => Promise<string | null>;
 
-/** Invite someone to the active organization by email. Owners and admins only. */
+/**
+ * Invite someone by email to `input.organizationId`: the space the household page was
+ * rendered for, not the active-space cookie (another tab may have switched it since).
+ * Owners and admins of that space only.
+ */
 export async function inviteMember(
   userId: string,
-  input: { email: string; role: AssignableRole },
+  input: { organizationId: string; email: string; role: AssignableRole },
   createWithAuth?: AuthInvitationCreator
 ): Promise<Result<CreatedInvitation>> {
-  const membership = await getActiveMembership(userId);
-  if (!membership) return fail(NO_HOUSEHOLD_ERROR);
+  const membership = await getMembershipIn(userId, input.organizationId);
+  if (!membership) return fail(SPACE_NOT_FOUND_ERROR);
   if (!canManage(membership.role)) {
     return fail('Only owners and admins can invite people.');
   }

@@ -3,7 +3,7 @@
 import { z } from 'zod';
 import { prisma } from '@/lib/db';
 import { requireSessionUserId } from '@/lib/session';
-import { getMembershipIn, getWritableMembership } from '@/lib/active-organization';
+import { getMembershipIn, getWritableMembershipIn } from '@/lib/active-organization';
 import { canWrite } from '@/lib/org-roles';
 import { revalidatePath, revalidateTag, updateTag } from 'next/cache';
 import type { Prisma } from '@prisma/client';
@@ -125,7 +125,14 @@ async function canChangeHouseholdRecipe(
   return canWrite(membership?.role);
 }
 
-export async function createRecipe(data: z.infer<typeof CreateRecipeSchema>) {
+/**
+ * Create a household recipe in `organizationId`, the space the form was rendered for (not the
+ * active-space cookie, which another tab may have switched since).
+ */
+export async function createRecipe(
+  organizationId: string,
+  data: z.infer<typeof CreateRecipeSchema>
+) {
   try {
     const authResult = await requireSessionUserId();
     if (!authResult.ok) {
@@ -151,8 +158,8 @@ export async function createRecipe(data: z.infer<typeof CreateRecipeSchema>) {
       return { success: false, error: 'Forbidden: Only superadmin can verify recipes' };
     }
 
-    // New recipes are filed under the active household; viewers can't add to it.
-    const access = await getWritableMembership(userId);
+    // New recipes are filed under the space the form showed; viewers can't add to it.
+    const access = await getWritableMembershipIn(userId, organizationId);
     if (!access.ok) {
       return { success: false, error: access.error };
     }

@@ -2,7 +2,7 @@
 
 import { prisma } from '@/lib/db';
 import { requireSessionUserId } from '@/lib/session';
-import { getWritableMembership } from '@/lib/active-organization';
+import { getWritableMembershipIn } from '@/lib/active-organization';
 import { revalidatePath } from 'next/cache';
 import { endOfWeek, startOfWeek, eachDayOfInterval } from 'date-fns';
 import type { Prisma } from '@prisma/client';
@@ -18,16 +18,20 @@ import {
 } from '@/lib/meal-auto-fill';
 
 /**
- * Server action: auto-fill empty meal-plan slots.
+ * Server action: auto-fill empty meal-plan slots in `organizationId`, the space the meal
+ * planner was rendered for (not the cookie, which another tab may have switched).
  * Pure selection logic lives in `@/lib/meal-auto-fill` (Vitest-covered).
  */
-export async function generateMealPlan(data: {
-  weekStart: string;
-  dietaryRestrictions: string[];
-  healthGoals: string[];
-  cuisinePreferences: string[];
-  avoidIngredients: string[];
-}) {
+export async function generateMealPlan(
+  organizationId: string,
+  data: {
+    weekStart: string;
+    dietaryRestrictions: string[];
+    healthGoals: string[];
+    cuisinePreferences: string[];
+    avoidIngredients: string[];
+  }
+) {
   try {
     const authResult = await requireSessionUserId();
     if (!authResult.ok) {
@@ -35,7 +39,7 @@ export async function generateMealPlan(data: {
     }
 
     // Viewers can look but not change shared plans and lists.
-    const access = await getWritableMembership(authResult.userId);
+    const access = await getWritableMembershipIn(authResult.userId, organizationId);
     if (!access.ok) {
       return { success: false, error: access.error };
     }
@@ -87,9 +91,10 @@ export async function generateMealPlan(data: {
 
     const existingSlots = buildExistingSlotSet(plan.items);
 
-    // Same visibility rules as the recipe pages (hides secret/private recipes)
+    // Same visibility rules as the recipe pages (hides secret/private recipes), with this
+    // space's household recipes: another space's recipes never land in this plan.
     const recipeWhere: Prisma.RecipeWhereInput = {
-      AND: [await buildRecipeVisibilityFilter(authResult.userId)],
+      AND: [await buildRecipeVisibilityFilter(authResult.userId, membership.organizationId)],
     };
 
     // Every restriction must be satisfied (e.g. vegan AND gluten-free), not just one of them

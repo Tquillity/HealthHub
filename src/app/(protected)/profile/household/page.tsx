@@ -16,7 +16,11 @@ import { SharedJournalFeed } from '@/components/household/shared-journal-feed';
 import { CreateOrganizationForm } from '@/components/household/create-organization-form';
 import { LeaveOrganizationCard } from '@/components/household/leave-organization-card';
 
-/** Household management for the active organization (switch it in the sidebar). */
+/**
+ * Household management for the active organization (switch it in the sidebar). Components
+ * that hold state are keyed by the organization, so a switch remounts them: no invite link,
+ * role choice or open dialog carries over from the previous space.
+ */
 export default async function HouseholdPage() {
   const session = await getServerSession();
   if (!session) {
@@ -62,6 +66,7 @@ export default async function HouseholdPage() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <MemberList
+          key={`members-${organization.id}`}
           className="lg:col-span-2"
           members={household.members}
           currentUserId={household.currentUserId}
@@ -73,10 +78,13 @@ export default async function HouseholdPage() {
         {isManager && (
           <>
             <InviteForm
+              key={`invite-${organization.id}`}
+              organizationId={organization.id}
               roles={household.invitableRoles}
               organizationName={organization.name}
             />
             <PendingInvitations
+              key={`pending-${organization.id}`}
               className="lg:col-span-2"
               invitations={household.invitations}
             />
@@ -92,6 +100,7 @@ export default async function HouseholdPage() {
         <div className="flex flex-col gap-6">
           <CreateOrganizationForm />
           <LeaveOrganizationCard
+            key={`leave-${organization.id}`}
             organizationId={organization.id}
             organizationName={organization.name}
             role={household.currentUserRole}

@@ -126,6 +126,42 @@ describe.skipIf(!isolated)('household management against isolated PostgreSQL', (
       expect(writable.ok && writable.membership.organizationId).toBe(home);
     });
 
+    it('checks writes against the space the page shows, not the cookie', async () => {
+      // The page showed "Our home"; another tab has since switched the cookie elsewhere.
+      as(ownerSpare);
+      const writable = await active.getWritableMembershipIn(owner.id, home);
+      expect(writable.ok && writable.membership.organizationId).toBe(home);
+      as(otherOrg);
+      const forAdmin = await active.getWritableMembershipIn(admin.id, home);
+      expect(forAdmin.ok && forAdmin.membership.role).toBe('admin');
+
+      // Viewers stay read-only in that space, whatever the cookie says.
+      as(home);
+      expect(await active.getWritableMembershipIn(viewer.id, home)).toEqual({
+        ok: false,
+        error: active.VIEW_ONLY_ERROR,
+      });
+    });
+
+    it('refuses writes to a space the user does not belong to', async () => {
+      as(home);
+      expect(await active.getWritableMembershipIn(outsider.id, home)).toEqual({
+        ok: false,
+        error: active.SPACE_NOT_FOUND_ERROR,
+      });
+      // No fallback to another membership, unlike the cookie.
+      expect(await active.getWritableMembershipIn(owner.id, otherOrg)).toEqual({
+        ok: false,
+        error: active.SPACE_NOT_FOUND_ERROR,
+      });
+      for (const malformed of ['', '   ', 'x'.repeat(129), null, undefined, 42, { not: home }]) {
+        expect(await active.getWritableMembershipIn(owner.id, malformed)).toEqual({
+          ok: false,
+          error: active.SPACE_NOT_FOUND_ERROR,
+        });
+      }
+    });
+
     it('lists every organization with its type and role', async () => {
       expect(await active.listUserOrganizations(owner.id)).toEqual([
         { id: home, name: 'Our home', type: 'HOUSEHOLD', role: 'owner' },
@@ -140,6 +176,7 @@ describe.skipIf(!isolated)('household management against isolated PostgreSQL', (
     it('lets an owner invite by email with an unguessable id', async () => {
       as(home);
       const result = await lib.inviteMember(owner.id, {
+        organizationId: home,
         email: `  PARTNER-${run}@Example.COM `,
         role: 'member',
       });
@@ -159,26 +196,71 @@ describe.skipIf(!isolated)('household management against isolated PostgreSQL', (
 
     it('refuses duplicates, existing members and people who cannot invite', async () => {
       as(home);
-      expect(await lib.inviteMember(owner.id, { email: partner.email, role: 'viewer' })).toMatchObject({ ok: false });
-      expect(await lib.inviteMember(owner.id, { email: admin.email.toUpperCase(), role: 'member' })).toEqual({
+      expect(
+        await lib.inviteMember(owner.id, { organizationId: home, email: partner.email, role: 'viewer' })
+      ).toMatchObject({ ok: false });
+      expect(
+        await lib.inviteMember(owner.id, {
+          organizationId: home,
+          email: admin.email.toUpperCase(),
+          role: 'member',
+        })
+      ).toEqual({
         ok: false,
         error: 'This person is already a member.',
       });
-      expect(await lib.inviteMember(admin.id, { email: `new-${run}@example.com`, role: 'admin' })).toEqual({
+      expect(
+        await lib.inviteMember(admin.id, { organizationId: home, email: `new-${run}@example.com`, role: 'admin' })
+      ).toEqual({
         ok: false,
         error: 'Only the owner can invite someone as an admin.',
       });
-      expect(await lib.inviteMember(viewer.id, { email: `new-${run}@example.com`, role: 'viewer' })).toEqual({
+      expect(
+        await lib.inviteMember(viewer.id, { organizationId: home, email: `new-${run}@example.com`, role: 'viewer' })
+      ).toEqual({
         ok: false,
         error: 'Only owners and admins can invite people.',
       });
+    });
+
+    it('invites to the space the page showed, even after a switch in another tab', async () => {
+      // The household page showed "Our home"; another tab has since switched to "Summer house".
+      as(ownerSpare);
+      const result = await lib.inviteMember(owner.id, {
+        organizationId: home,
+        email: `stale-tab-${run}@example.com`,
+        role: 'admin',
+      });
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      const stored = await client.invitation.findUniqueOrThrow({ where: { id: result.data.id } });
+      expect(stored).toMatchObject({ organizationId: home, role: 'admin' });
+      expect(
+        await client.invitation.count({ where: { organizationId: ownerSpare } })
+      ).toBe(0);
+    });
+
+    it('refuses to invite into a space the inviter does not belong to', async () => {
+      as(home);
+      expect(
+        await lib.inviteMember(outsider.id, { organizationId: home, email: `x-${run}@example.com`, role: 'member' })
+      ).toEqual({ ok: false, error: active.SPACE_NOT_FOUND_ERROR });
+      // No fallback to the cookie's space (or any other membership).
+      expect(
+        await lib.inviteMember(owner.id, { organizationId: otherOrg, email: `y-${run}@example.com`, role: 'member' })
+      ).toEqual({ ok: false, error: active.SPACE_NOT_FOUND_ERROR });
+      expect(
+        await client.invitation.count({
+          where: { email: { in: [`x-${run}@example.com`, `y-${run}@example.com`] } },
+        })
+      ).toBe(0);
     });
 
     it('falls back to a direct insert when Better-Auth refuses', async () => {
       as(home);
       const result = await lib.inviteMember(
         admin.id,
-        { email: `fallback-${run}@example.com`, role: 'viewer' },
+        { organizationId: home, email: `fallback-${run}@example.com`, role: 'viewer' },
         async () => {
           throw new Error('schema mismatch');
         }

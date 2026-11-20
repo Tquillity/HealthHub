@@ -6,9 +6,11 @@ import { prisma } from '@/lib/db';
 import { requireSessionUserId } from '@/lib/session';
 import {
   getActiveMembership,
-  getWritableMembership,
-  NO_HOUSEHOLD_ERROR,
+  getMembershipIn,
+  getWritableMembershipIn,
+  SPACE_NOT_FOUND_ERROR,
 } from '@/lib/active-organization';
+import { OrganizationIdSchema } from '@/lib/validation/organization-schemas';
 import { revalidatePath } from 'next/cache';
 import { buildLotteryWhere, drawRandom } from '@/lib/routine-lottery';
 import {
@@ -18,7 +20,14 @@ import {
   UpdateRoutineSchema,
 } from '@/lib/validation/routine-schemas';
 
-export async function createRoutine(data: z.input<typeof CreateRoutineSchema>) {
+/**
+ * Routine writes and the lottery take the organization id the routines page was rendered
+ * for, not the active-space cookie, which another tab may have switched since.
+ */
+export async function createRoutine(
+  organizationId: string,
+  data: z.input<typeof CreateRoutineSchema>
+) {
   try {
     const authResult = await requireSessionUserId();
     if (!authResult.ok) {
@@ -26,7 +35,7 @@ export async function createRoutine(data: z.input<typeof CreateRoutineSchema>) {
     }
 
     // Viewers can look but not change shared plans and lists.
-    const access = await getWritableMembership(authResult.userId);
+    const access = await getWritableMembershipIn(authResult.userId, organizationId);
     if (!access.ok) {
       return { success: false, error: access.error };
     }
@@ -74,7 +83,10 @@ export async function createRoutine(data: z.input<typeof CreateRoutineSchema>) {
   }
 }
 
-export async function updateRoutine(data: z.input<typeof UpdateRoutineSchema>) {
+export async function updateRoutine(
+  organizationId: string,
+  data: z.input<typeof UpdateRoutineSchema>
+) {
   try {
     const authResult = await requireSessionUserId();
     if (!authResult.ok) {
@@ -82,7 +94,7 @@ export async function updateRoutine(data: z.input<typeof UpdateRoutineSchema>) {
     }
 
     // Viewers can look but not change shared plans and lists.
-    const access = await getWritableMembership(authResult.userId);
+    const access = await getWritableMembershipIn(authResult.userId, organizationId);
     if (!access.ok) {
       return { success: false, error: access.error };
     }
@@ -196,7 +208,7 @@ export async function getRoutine(id: string) {
   }
 }
 
-export async function deleteRoutine(id: string) {
+export async function deleteRoutine(organizationId: string, id: string) {
   try {
     const authResult = await requireSessionUserId();
     if (!authResult.ok) {
@@ -209,7 +221,7 @@ export async function deleteRoutine(id: string) {
     }
 
     // Viewers can look but not change shared plans and lists.
-    const access = await getWritableMembership(authResult.userId);
+    const access = await getWritableMembershipIn(authResult.userId, organizationId);
     if (!access.ok) {
       return { success: false, error: access.error };
     }
@@ -242,14 +254,17 @@ export async function deleteRoutine(id: string) {
 
 // Loose input type on purpose: the client sends select values as strings and
 // LotteryFiltersSchema is the single gate that whitelists them.
-export async function drawLottery(filters: {
-  energy?: string;
-  maxTime?: number;
-  count?: number;
-  context?: string;
-  duration?: string;
-  difficulty?: string;
-}) {
+export async function drawLottery(
+  organizationId: string,
+  filters: {
+    energy?: string;
+    maxTime?: number;
+    count?: number;
+    context?: string;
+    duration?: string;
+    difficulty?: string;
+  }
+) {
   try {
     const authResult = await requireSessionUserId();
     if (!authResult.ok) {
@@ -266,9 +281,12 @@ export async function drawLottery(filters: {
     }
 
     // Drawing is read-only, so viewers may use it too.
-    const membership = await getActiveMembership(authResult.userId);
+    const space = OrganizationIdSchema.safeParse(organizationId);
+    const membership = space.success
+      ? await getMembershipIn(authResult.userId, space.data)
+      : null;
     if (!membership) {
-      return { success: false, error: NO_HOUSEHOLD_ERROR, data: null };
+      return { success: false, error: SPACE_NOT_FOUND_ERROR, data: null };
     }
 
     // Fetch candidates matching the validated, whitelisted criteria

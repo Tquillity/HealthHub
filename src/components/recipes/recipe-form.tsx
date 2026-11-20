@@ -12,11 +12,12 @@ export type { RecipeFormProps } from './recipe-form-types';
 
 export function RecipeForm({
   recipe,
+  organizationId,
   onSuccess,
   onCancel,
   isSuperadmin = false,
 }: RecipeFormProps) {
-  const form = useRecipeForm(recipe, isSuperadmin, onSuccess, onCancel);
+  const form = useRecipeForm(recipe, isSuperadmin, onSuccess, onCancel, organizationId);
 
   return (
     <form onSubmit={form.handleSubmit} className="flex flex-col gap-8">

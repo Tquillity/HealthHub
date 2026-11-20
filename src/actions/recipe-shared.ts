@@ -49,8 +49,14 @@ export async function isMainAdmin(userId: string): Promise<boolean> {
   }
 }
 
+/**
+ * Which recipes `userId` may see: public system recipes plus one household's recipes.
+ * That household is the active one (sidebar switcher), or `organizationId` when a write
+ * targets a specific space; the caller must already have checked the user belongs to it.
+ */
 export async function buildRecipeVisibilityFilter(
-  userId: string | null
+  userId: string | null,
+  organizationId?: string
 ): Promise<Prisma.RecipeWhereInput> {
   if (!userId) {
     return {
@@ -60,12 +66,13 @@ export async function buildRecipeVisibilityFilter(
     };
   }
 
-  // Household recipes follow the active household (sidebar switcher), like the rest of the app.
-  const [membership, user] = await Promise.all([
-    getActiveMembership(userId),
+  // Household recipes follow the active household unless the caller names the space.
+  const [householdId, user] = await Promise.all([
+    organizationId ??
+      getActiveMembership(userId).then((membership) => membership?.organizationId),
     prisma.user.findUnique({ where: { id: userId }, select: { role: true } }),
   ]);
-  const organizationIds = membership ? [membership.organizationId] : [];
+  const organizationIds = householdId ? [householdId] : [];
   const mainAdmin = user?.role === 'superadmin';
 
   return {
