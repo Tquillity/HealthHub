@@ -3,31 +3,73 @@
 import { prisma } from '@/lib/db';
 import { requireSessionUserId } from '@/lib/session';
 import { revalidatePath } from 'next/cache';
-import { endOfWeek, startOfWeek, eachDayOfInterval } from 'date-fns';
+import { endOfWeek, startOfWeek, eachDayOfInterval, format } from 'date-fns';
+import { z } from 'zod';
 import type { Prisma } from '@prisma/client';
 import { buildRecipeVisibilityFilter } from '@/actions/recipe-shared';
 import {
-  MEAL_TYPES,
   buildExistingSlotSet,
-  filterRecipesForMealType,
-  isSlotFilled,
-  pickRandomRecipe,
+  planMealSlots,
   recipeMatchesAvoidList,
-  type MealType,
+  summarizeCycleAlignment,
+  type PhaseAlignmentSummary,
 } from '@/lib/meal-auto-fill';
+import { DateOnlyStringSchema, dateOnlyToLocalDate } from '@/lib/date-only';
+import {
+  buildPhaseCalendar,
+  getMealCycleSettings,
+  hasCycleEstimate,
+} from '@/lib/meal-cycle-alignment';
+import { resolveRecipeBioProfile, type RecipeBioProfile } from '@/lib/phase-nutrition';
+
+const OptionList = (maxItems: number, maxLength: number) =>
+  z.array(z.string().trim().min(1).max(maxLength)).max(maxItems).default([]);
+
+const GenerateMealPlanSchema = z.object({
+  weekStart: DateOnlyStringSchema,
+  dietaryRestrictions: OptionList(30, 50),
+  healthGoals: OptionList(30, 50),
+  cuisinePreferences: OptionList(30, 50),
+  avoidIngredients: OptionList(50, 100),
+  /** "Align with cycle phase" toggle. Omitted when the toggle is not shown. */
+  alignWithCycle: z.boolean().optional(),
+});
+
+export type GenerateMealPlanInput = z.input<typeof GenerateMealPlanSchema>;
+
+export interface GenerateMealPlanData {
+  generated: number;
+  /** "Why these recipes", per phase. Null when the plan was not cycle-aligned. */
+  cycleAlignment: PhaseAlignmentSummary[] | null;
+}
 
 /**
  * Server action: auto-fill empty meal-plan slots.
  * Pure selection logic lives in `@/lib/meal-auto-fill` (Vitest-covered).
+ *
+ * With "Align with cycle phase" on (saved per user), each day's estimated phase comes
+ * from the caller's own cycle settings and phase-matching recipes are favored. The
+ * explanation is returned to the caller only; nothing about the cycle is stored on the
+ * shared household plan.
  */
-export async function generateMealPlan(data: {
-  weekStart: string;
-  dietaryRestrictions: string[];
-  healthGoals: string[];
-  cuisinePreferences: string[];
-  avoidIngredients: string[];
-}) {
+export async function generateMealPlan(
+  input: GenerateMealPlanInput
+): Promise<{
+  success: boolean;
+  error?: string;
+  message?: string;
+  data?: GenerateMealPlanData;
+}> {
   try {
+    const parsed = GenerateMealPlanSchema.safeParse(input);
+    if (!parsed.success) {
+      return {
+        success: false,
+        error: parsed.error.issues[0]?.message ?? 'Invalid meal plan options',
+      };
+    }
+    const data = parsed.data;
+
     const authResult = await requireSessionUserId();
     if (!authResult.ok) {
       return { success: false, error: authResult.error };
@@ -47,12 +89,29 @@ export async function generateMealPlan(data: {
       select: { dietaryRestrictions: true, healthGoals: true },
     });
 
+    // Cycle data of the person generating the plan only, never another household member's.
+    const cycleSettings = await getMealCycleSettings(authResult.userId);
+    if (
+      cycleSettings &&
+      data.alignWithCycle !== undefined &&
+      data.alignWithCycle !== cycleSettings.alignMealsWithCycle
+    ) {
+      await prisma.user.update({
+        where: { id: authResult.userId },
+        data: { alignMealsWithCycle: data.alignWithCycle },
+      });
+    }
+    const alignWithCycle =
+      (data.alignWithCycle ?? cycleSettings?.alignMealsWithCycle ?? false) &&
+      hasCycleEstimate(cycleSettings);
+
     const allDietaryRestrictions = Array.from(
       new Set([...(user?.dietaryRestrictions || []), ...data.dietaryRestrictions])
     );
 
-    const weekStart = new Date(data.weekStart);
-    weekStart.setHours(0, 0, 0, 0);
+    // Local midnight of the chosen calendar day (identical to the previous
+    // `new Date(weekStart).setHours(0, 0, 0, 0)` on the UTC production server).
+    const weekStart = dateOnlyToLocalDate(data.weekStart);
     const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
     const weekDays = eachDayOfInterval({ start: weekStart, end: weekEnd });
 
@@ -127,49 +186,43 @@ export async function generateMealPlan(data: {
       };
     }
 
-    const mealPlanItems: Array<{
-      mealPlanId: string;
-      recipeId: string;
-      date: Date;
-      mealType: string;
-      servings: number;
-    }> = [];
+    // Days are planned on the server's calendar (the dates stored on the items), so
+    // their keys use the same local calendar day.
+    const dayKeys = weekDays.map((day) => format(day, 'yyyy-MM-dd'));
+    const phaseCalendar = alignWithCycle ? buildPhaseCalendar(cycleSettings, dayKeys) : {};
+    const profiles: Map<string, RecipeBioProfile> | null = alignWithCycle
+      ? new Map(
+          filteredRecipes.map((recipe) => [recipe.id, resolveRecipeBioProfile(recipe)])
+        )
+      : null;
 
-    for (const day of weekDays) {
-      for (const mealType of MEAL_TYPES) {
-        if (isSlotFilled(existingSlots, day, mealType)) {
-          continue;
-        }
+    const planned = planMealSlots({
+      days: weekDays.map((day, index) => ({
+        date: day,
+        dateKey: dayKeys[index],
+        phase: phaseCalendar[dayKeys[index]] ?? null,
+      })),
+      recipes: filteredRecipes,
+      existingSlots,
+      plannedRecipeIds: plan.items.map((item) => item.recipeId),
+      profiles,
+    });
 
-        const recipesForMeal = filterRecipesForMealType(
-          filteredRecipes,
-          mealType as MealType
-        );
-
-        if (recipesForMeal.length === 0) {
-          return {
-            success: false,
-            error: `No recipes available for ${mealType}. Please add recipes or adjust your filters.`,
-          };
-        }
-
-        const randomRecipe = pickRandomRecipe(recipesForMeal);
-        if (!randomRecipe) {
-          return {
-            success: false,
-            error: `No recipes available for ${mealType}. Please add recipes or adjust your filters.`,
-          };
-        }
-
-        mealPlanItems.push({
-          mealPlanId: plan.id,
-          recipeId: randomRecipe.id,
-          date: day,
-          mealType,
-          servings: randomRecipe.servings || 4,
-        });
-      }
+    if (!planned.ok) {
+      return {
+        success: false,
+        error: `No recipes available for ${planned.mealType}. Please add recipes or adjust your filters.`,
+      };
     }
+
+    const planId = plan.id;
+    const mealPlanItems = planned.meals.map((meal) => ({
+      mealPlanId: planId,
+      recipeId: meal.recipe.id,
+      date: meal.date,
+      mealType: meal.mealType,
+      servings: meal.recipe.servings || 4,
+    }));
 
     if (mealPlanItems.length > 0) {
       await prisma.mealPlanItem.createMany({
@@ -184,6 +237,12 @@ export async function generateMealPlan(data: {
         mealPlanItems.length > 0
           ? `Generated ${mealPlanItems.length} meals for empty slots.`
           : 'All meal slots are already filled. No meals generated.',
+      data: {
+        generated: mealPlanItems.length,
+        cycleAlignment: profiles
+          ? summarizeCycleAlignment(planned.meals, filteredRecipes, profiles)
+          : null,
+      },
     };
   } catch (error) {
     console.error('[HealthHub action] meal-auto-fill generateMealPlan:', error);
