@@ -11,10 +11,14 @@ import {
 import { useUIStore } from '@/lib/store';
 import { Plus, X } from 'lucide-react';
 import { format } from 'date-fns';
+import { TIME_OF_DAY_ENERGY_FIELDS } from './time-of-day-energy-fields';
 import {
-  changedTimeOfDayEnergy,
-  TIME_OF_DAY_ENERGY_FIELDS,
-} from './time-of-day-energy-fields';
+  blankJournalForm,
+  journalSavePayload,
+  loadedJournalForm,
+  type JournalForm,
+  type JournalFormState,
+} from './journal-form';
 
 interface JournalClientProps {
   initialDate?: string;
@@ -30,60 +34,6 @@ interface JournalClientProps {
  */
 type LoadState = 'idle' | 'loading' | 'ready' | 'error';
 
-type FormData = ReturnType<typeof emptyForm>;
-
-type StoredEntry = NonNullable<
-  Awaited<ReturnType<typeof getJournalEntryByDate>>['data']
->;
-
-function emptyForm(date: string) {
-  return {
-    date,
-    mood: '',
-    energy: '',
-    energyMorning: '',
-    energyAfternoon: '',
-    energyEvening: '',
-    sleepHours: '',
-    notes: '',
-    tags: '',
-    gratitudeEntries: [''],
-    gratitudeNotes: '',
-    goalsAchieved: [''],
-    goalsProgress: [''],
-    goalsNotes: '',
-    symptomsPhysical: [''],
-    symptomsMental: [''],
-    symptomsNotes: '',
-  };
-}
-
-function listOrBlank(values: string[] | null | undefined): string[] {
-  return values && values.length > 0 ? values : [''];
-}
-
-function entryToForm(date: string, entry: StoredEntry): FormData {
-  return {
-    date,
-    mood: entry.mood?.toString() || '',
-    energy: entry.energy?.toString() || '',
-    energyMorning: entry.energyMorning?.toString() || '',
-    energyAfternoon: entry.energyAfternoon?.toString() || '',
-    energyEvening: entry.energyEvening?.toString() || '',
-    sleepHours: entry.sleepHours?.toString() || '',
-    notes: entry.notes || '',
-    tags: entry.tags.join(', ') || '',
-    gratitudeEntries: listOrBlank(entry.gratitudeEntries),
-    gratitudeNotes: entry.gratitudeNotes || '',
-    goalsAchieved: listOrBlank(entry.goalsAchieved),
-    goalsProgress: listOrBlank(entry.goalsProgress),
-    goalsNotes: entry.goalsNotes || '',
-    symptomsPhysical: listOrBlank(entry.symptomsPhysical),
-    symptomsMental: listOrBlank(entry.symptomsMental),
-    symptomsNotes: entry.symptomsNotes || '',
-  };
-}
-
 export function JournalClient({
   initialDate,
   onEntrySaved,
@@ -93,12 +43,15 @@ export function JournalClient({
   const showToast = useUIStore((state) => state.showToast);
   const [showDialog, setShowDialog] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formData, setFormData] = useState(() =>
-    emptyForm(initialDate || format(new Date(), 'yyyy-MM-dd'))
+  // The form and its snapshot as the day's entry loaded (see journal-form.ts).
+  const [formState, setFormState] = useState<JournalFormState>(() =>
+    blankJournalForm(initialDate || format(new Date(), 'yyyy-MM-dd'))
   );
+  const formData = formState.form;
+  // Edits change the form only; the snapshot changes when a day loads or the form resets.
+  const setFormData = (form: JournalForm) =>
+    setFormState((state) => ({ ...state, form }));
   const [loadState, setLoadState] = useState<LoadState>('idle');
-  // The form as the day's entry loaded, to send only the time-of-day ratings edited here.
-  const [loadedForm, setLoadedForm] = useState<FormData>(formData);
   // Only the newest load may fill the form: picking another date while a load is in
   // flight must not let the older response overwrite the form (or its date).
   const latestLoadId = useRef(0);
@@ -121,17 +74,13 @@ export function JournalClient({
       setLoadState('error');
       return;
     }
-    const loaded = result.data
-      ? entryToForm(date, result.data)
-      : emptyForm(date);
-    setFormData(loaded);
-    setLoadedForm(loaded);
+    setFormState(loadedJournalForm(date, result.data));
     setLoadState('ready');
   }, []);
 
   useEffect(() => {
     if (initialDate) {
-      setFormData(emptyForm(initialDate));
+      setFormState(blankJournalForm(initialDate));
       void loadExistingEntry(initialDate);
     }
   }, [initialDate, loadExistingEntry]);
@@ -142,7 +91,7 @@ export function JournalClient({
   };
 
   const changeDate = (date: string) => {
-    setFormData(emptyForm(date));
+    setFormState(blankJournalForm(date));
     if (date) {
       void loadExistingEntry(date);
     } else {
@@ -159,57 +108,13 @@ export function JournalClient({
     if (!canEdit || isSubmitting) return;
     setIsSubmitting(true);
 
-    // Parse tags (comma-separated)
-    const tags = formData.tags
-      .split(',')
-      .map((t) => t.trim())
-      .filter((t) => t.length > 0);
-
-    // Parse arrays (filter out empty strings)
-    const gratitudeEntries = formData.gratitudeEntries.filter(
-      (e) => e.trim().length > 0
+    const result = await logJournalEntry(
+      journalSavePayload(formState, showTimeOfDayEnergy)
     );
-    const goalsAchieved = formData.goalsAchieved.filter(
-      (g) => g.trim().length > 0
-    );
-    const goalsProgress = formData.goalsProgress.filter(
-      (g) => g.trim().length > 0
-    );
-    const symptomsPhysical = formData.symptomsPhysical.filter(
-      (s) => s.trim().length > 0
-    );
-    const symptomsMental = formData.symptomsMental.filter(
-      (s) => s.trim().length > 0
-    );
-
-    // Cleared fields are sent as null (not undefined) so the server clears the stored value.
-    const result = await logJournalEntry({
-      date: formData.date,
-      mood: formData.mood ? parseInt(formData.mood, 10) : null,
-      energy: formData.energy ? parseInt(formData.energy, 10) : null,
-      // Only the ones edited in this form: the dashboard check-in writes them too.
-      // Left out (unchanged) unless the fields are shown.
-      ...(showTimeOfDayEnergy && changedTimeOfDayEnergy(loadedForm, formData)),
-      sleepHours: formData.sleepHours ? parseFloat(formData.sleepHours) : null,
-      notes: formData.notes.trim() ? formData.notes : null,
-      tags,
-      gratitudeEntries,
-      gratitudeNotes: formData.gratitudeNotes.trim()
-        ? formData.gratitudeNotes
-        : null,
-      goalsAchieved,
-      goalsProgress,
-      goalsNotes: formData.goalsNotes.trim() ? formData.goalsNotes : null,
-      symptomsPhysical,
-      symptomsMental,
-      symptomsNotes: formData.symptomsNotes.trim()
-        ? formData.symptomsNotes
-        : null,
-    });
 
     if (result.success) {
       setShowDialog(false);
-      setFormData(emptyForm(format(new Date(), 'yyyy-MM-dd')));
+      setFormState(blankJournalForm(format(new Date(), 'yyyy-MM-dd')));
       setLoadState('idle');
       showToast('Journal entry saved successfully!', 'success');
       onEntrySaved?.();
