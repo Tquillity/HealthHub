@@ -36,6 +36,7 @@ A comprehensive household wellness application built with the **Next.js 16 + Pos
     ```
     Seeding (and `pnpm db:repair-admin`) only runs against a local database (`localhost`/`127.0.0.1`) by default.
     For a remote database such as Neon, set `ALLOW_PROD_SEED=1` and a strong `ADMIN_PASSWORD` (the default password is refused). See `.env.example`.
+    System recipes come from `src/db/kitchen-manifest.json`, which is validated before anything is written (including the LEAN Kitchen `leanInfo` and `yield` blocks). Re-running the seed updates system recipes in place by name, so meal plans that use them keep working.
 
 5.  **Run Dev Server**:
     ```bash
