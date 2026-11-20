@@ -3,6 +3,7 @@ import { getServerSession } from '@/lib/session';
 import { prisma } from '@/lib/db';
 import { DashboardClient } from '@/components/dashboard/dashboard-client';
 import { VitalsCard } from '@/components/dashboard/vitals-card';
+import { DailyBriefingCard } from '@/components/dashboard/daily-briefing-card';
 import { getPremiumPomoDashboardSnapshot } from '@/actions/pomo-state';
 import { progressFromPomoPayload } from '@/lib/pomo/utils/pomo-server-progress';
 
@@ -61,6 +62,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="max-w-7xl flex flex-col gap-8">
+      <DailyBriefingCard userId={session.user.id} />
       <DashboardClient
         recentRoutines={routines}
         routinesCount={routinesCount}
