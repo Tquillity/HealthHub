@@ -2,6 +2,7 @@ import { APIError } from 'better-auth/api';
 import { del } from '@vercel/blob';
 import { prisma } from '@/lib/db';
 import { cancelProSubscriptions } from '@/lib/account-billing';
+import { compareSuccessionCandidates, parseOrgRole } from '@/lib/org-roles';
 
 /**
  * Account deletion ("Delete account" on the profile page).
@@ -9,14 +10,16 @@ import { cancelProSubscriptions } from '@/lib/account-billing';
  * Better-Auth's `deleteUser` endpoint checks the password (or a fresh session), calls
  * `beforeAccountDeletion`, then deletes the user row. Deleting the row cascades to the
  * rows that hang off the user: sessions, sign-in accounts, household memberships,
- * journal entries, ingredient preferences and timer state.
+ * journal entries (including any shared with a household), ingredient preferences and
+ * timer state.
  *
  * Everything else the user owns lives in households (Better-Auth organizations), which
  * do not cascade from the user, so this module removes it first:
  * - Households where the user is the only member are deleted with all their recipes,
  *   routines, meal plans, templates and grocery items.
- * - Shared households stay with the remaining members. If the user was the owner, the
- *   longest-standing remaining member becomes owner.
+ * - Shared households stay with the remaining members. If the user was the only owner, the
+ *   remaining member with the highest role becomes owner (an admin before a member before a
+ *   viewer; the longest-standing one among equals).
  * - Invitations the user sent or received are deleted.
  * - Active HealthHub Pro subscriptions are cancelled, so billing stops, and the unused
  *   part of the current billing period is refunded pro rata.
@@ -82,7 +85,7 @@ export async function deleteAccountData(
           organizationId: { in: householdIds },
           userId: { not: user.id },
         },
-        select: { id: true, organizationId: true, role: true },
+        select: { id: true, organizationId: true, role: true, createdAt: true },
         orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       });
       const sharedIds = new Set(otherMembers.map((m) => m.organizationId));
@@ -91,15 +94,15 @@ export async function deleteAccountData(
       // A shared household must keep an owner, or nobody can manage it.
       for (const membership of memberships) {
         if (
-          membership.role !== 'owner' ||
+          parseOrgRole(membership.role) !== 'owner' ||
           !sharedIds.has(membership.organizationId)
         ) {
           continue;
         }
-        const remaining = otherMembers.filter(
-          (m) => m.organizationId === membership.organizationId
-        );
-        if (remaining.some((m) => m.role === 'owner')) continue;
+        const remaining = otherMembers
+          .filter((m) => m.organizationId === membership.organizationId)
+          .sort(compareSuccessionCandidates);
+        if (remaining.some((m) => parseOrgRole(m.role) === 'owner')) continue;
         await tx.member.update({
           where: { id: remaining[0].id },
           data: { role: 'owner' },

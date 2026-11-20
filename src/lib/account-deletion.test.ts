@@ -23,6 +23,15 @@ describe.skipIf(!isolated)(
       id: `del-staying-${run}`,
       email: `staying-${run}@example.com`,
     };
+    // Joined the shared household before `staying`, with lower roles.
+    const earlyViewer = {
+      id: `del-viewer-${run}`,
+      email: `viewer-${run}@example.com`,
+    };
+    const earlyMember = {
+      id: `del-member-${run}`,
+      email: `member-${run}@example.com`,
+    };
     const personal = `del-personal-${run}`;
     const shared = `del-shared-${run}`;
     const other = `del-other-${run}`;
@@ -37,7 +46,7 @@ describe.skipIf(!isolated)(
       client = new PrismaClient({ adapter: new PrismaPg(pool) });
       ({ deleteAccountData } = await import('./account-deletion'));
 
-      for (const u of [leaving, staying]) {
+      for (const u of [leaving, staying, earlyViewer, earlyMember]) {
         await client.user.create({ data: { ...u, name: u.id } });
       }
       for (const id of [personal, shared, other]) {
@@ -61,7 +70,22 @@ describe.skipIf(!isolated)(
             id: `m3-${run}`,
             organizationId: shared,
             userId: staying.id,
+            role: 'admin',
+            createdAt: new Date('2026-01-03T00:00:00Z'),
+          },
+          {
+            id: `m5-${run}`,
+            organizationId: shared,
+            userId: earlyViewer.id,
+            role: 'viewer',
+            createdAt: new Date('2026-01-01T00:00:00Z'),
+          },
+          {
+            id: `m6-${run}`,
+            organizationId: shared,
+            userId: earlyMember.id,
             role: 'member',
+            createdAt: new Date('2026-01-02T00:00:00Z'),
           },
           {
             id: `m4-${run}`,
@@ -177,6 +201,16 @@ describe.skipIf(!isolated)(
       await client.journalEntry.create({
         data: { userId: leaving.id, date: new Date('2026-01-05'), mood: 7 },
       });
+      // A day shared with the household goes with the account, not with the household.
+      await client.journalEntry.create({
+        data: {
+          userId: leaving.id,
+          date: new Date('2026-01-06'),
+          mood: 6,
+          visibility: 'ORGANIZATION',
+          sharedOrganizationId: shared,
+        },
+      });
     });
 
     afterAll(async () => {
@@ -187,7 +221,9 @@ describe.skipIf(!isolated)(
         where: { id: { in: [`r-system-${run}`, `r-shared-${run}`] } },
       });
       await client.user.deleteMany({
-        where: { id: { in: [leaving.id, staying.id] } },
+        where: {
+          id: { in: [leaving.id, staying.id, earlyViewer.id, earlyMember.id] },
+        },
       });
       await client.$disconnect();
       await pool.end();
@@ -242,13 +278,20 @@ describe.skipIf(!isolated)(
         await client.mealPlan.findUnique({ where: { id: `mp-other-${run}` } })
       ).not.toBeNull();
 
-      // The shared household keeps its content and gets a new owner.
+      // The shared household keeps its content. The admin becomes owner, ahead of the
+      // viewer and member who joined earlier.
       expect(
         await client.recipe.findUnique({ where: { id: `r-shared-${run}` } })
       ).not.toBeNull();
       expect(
         await client.member.findUnique({ where: { id: `m3-${run}` } })
       ).toMatchObject({ role: 'owner' });
+      expect(
+        await client.member.findUnique({ where: { id: `m5-${run}` } })
+      ).toMatchObject({ role: 'viewer' });
+      expect(
+        await client.member.findUnique({ where: { id: `m6-${run}` } })
+      ).toMatchObject({ role: 'member' });
 
       expect(
         await client.invitation.count({
@@ -267,7 +310,10 @@ describe.skipIf(!isolated)(
       );
       expect(
         await client.member.count({ where: { organizationId: shared } })
-      ).toBe(1);
+      ).toBe(3);
+      expect(
+        await client.journalEntry.count({ where: { sharedOrganizationId: shared } })
+      ).toBe(0);
     });
   }
 );
