@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { addDaysToDateOnly } from '@/lib/date-only';
-import type { DailyMetricsRow } from '@/lib/cycle-insights';
+import { buildCycleHistory } from '@/lib/cycle-history';
+import {
+  buildTodayRecovery,
+  type DailyMetricsRow,
+} from '@/lib/cycle-insights';
 import {
   analyzeBriefing,
   briefingWindow,
@@ -12,6 +16,7 @@ import {
 import type {
   BriefingCycleData,
   BriefingEngineInput,
+  BriefingVitalsData,
   BriefingJournalDay,
 } from './types';
 
@@ -58,6 +63,14 @@ function input(
     feedback: [],
     ...overrides,
   };
+}
+
+/** Recovery score inputs as the Vitals card loads them. */
+function vitalsData(
+  rows: DailyMetricsRow[],
+  periodStarts: string[] | null = null
+): BriefingVitalsData {
+  return { rows, periodStarts, typicalCycleLength: 28 };
 }
 
 /** Luteal days of the previous (completed, 28-day) cycle: 15-28 October. */
@@ -335,7 +348,7 @@ describe('analyzeBriefing: recovery', () => {
   it('flags low recovery on the latest day', () => {
     const signals = analyzeBriefing(
       input({
-        vitals: [
+        vitals: vitalsData([
           ...usual,
           vitalsRow('2026-11-19', {}),
           vitalsRow('2026-11-20', {
@@ -343,7 +356,7 @@ describe('analyzeBriefing: recovery', () => {
             heartRateVariability: 25,
             sleepQuality: 3,
           }),
-        ],
+        ]),
       })
     );
     expect(signals.recovery?.latest).toMatchObject({
@@ -357,7 +370,7 @@ describe('analyzeBriefing: recovery', () => {
   it('does not call an earlier dip low once the latest day is green', () => {
     const signals = analyzeBriefing(
       input({
-        vitals: [
+        vitals: vitalsData([
           ...usual,
           vitalsRow('2026-11-19', {
             restingHeartRate: 72,
@@ -365,7 +378,7 @@ describe('analyzeBriefing: recovery', () => {
             sleepQuality: 3,
           }),
           vitalsRow('2026-11-20', { restingHeartRate: 58 }),
-        ],
+        ]),
       })
     );
     expect(signals.recovery?.latest.zone).toBe('green');
@@ -375,12 +388,12 @@ describe('analyzeBriefing: recovery', () => {
   it('calls recovery good when every window day is green and above usual', () => {
     const signals = analyzeBriefing(
       input({
-        vitals: [
+        vitals: vitalsData([
           ...usual,
           vitalsRow('2026-11-18', { restingHeartRate: 58 }),
           vitalsRow('2026-11-19', { restingHeartRate: 58 }),
           vitalsRow('2026-11-20', { restingHeartRate: 58 }),
-        ],
+        ]),
       })
     );
     expect(signals.recovery?.scoredDays).toBe(3);
@@ -388,8 +401,54 @@ describe('analyzeBriefing: recovery', () => {
     expect(signals.recovery?.low).toBe(false);
   });
 
+  it('scores recovery exactly as the Vitals card, whatever the journal and cycle sources', () => {
+    // Sleep hours (a journal value) and the cycle phases are part of the card's score.
+    const rows = [
+      ...days('2026-08-20', '2026-11-19').map((date, i) =>
+        vitalsRow(date, {
+          restingHeartRate: 58 + (i % 5),
+          heartRateVariability: 46 + (i % 7),
+          sleepQuality: 7 + (i % 2),
+          sleepHours: 7 + (i % 3) * 0.5,
+        })
+      ),
+      vitalsRow('2026-11-20', {
+        restingHeartRate: 63,
+        heartRateVariability: 44,
+        sleepQuality: 6,
+        sleepHours: 4,
+      }),
+    ];
+    const card = buildTodayRecovery({
+      today: TODAY,
+      rows,
+      cycles: buildCycleHistory(CYCLE.periodStarts),
+      typicalCycleLength: 28,
+    });
+    // Leaving out sleep hours would give another score.
+    const withoutSleepHours = buildTodayRecovery({
+      today: TODAY,
+      rows: rows.map((row) => ({ ...row, sleepHours: null })),
+      cycles: buildCycleHistory(CYCLE.periodStarts),
+      typicalCycleLength: 28,
+    });
+    expect(card?.score).not.toBe(withoutSleepHours?.score);
+
+    // Journal and cycle sources off: the briefing still has the card's score and zone.
+    const signals = analyzeBriefing(
+      input({ vitals: vitalsData(rows, CYCLE.periodStarts) })
+    );
+    expect(signals.recovery?.latest).toMatchObject({
+      date: TODAY,
+      score: card?.score,
+      zone: card?.zone,
+      usualScore: card?.usualScore,
+      comparedWith: card?.comparedWith,
+    });
+  });
+
   it('has no recovery signal without vitals', () => {
-    expect(analyzeBriefing(input({ vitals: [] })).recovery).toBeNull();
+    expect(analyzeBriefing(input({ vitals: vitalsData([]) })).recovery).toBeNull();
   });
 });
 

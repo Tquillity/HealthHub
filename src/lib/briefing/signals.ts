@@ -2,9 +2,9 @@ import type { CyclePhase } from '@/lib/cycle-calculator';
 import { addDaysToDateOnly } from '@/lib/date-only';
 import { typicalPhaseEnergy } from '@/lib/cycle-energy';
 import { normalizeLabel } from '@/lib/clinical-report';
-import { buildRecoveryInputs } from '@/lib/cycle-insights';
+import { buildCycleHistory } from '@/lib/cycle-history';
+import { buildRecoverySeries } from '@/lib/cycle-insights';
 import {
-  computeRecoverySeries,
   mean,
   MIN_BASELINE_READINGS,
   pickBaseline,
@@ -18,7 +18,6 @@ import {
   buildPhaseResolver,
   describeTodayPhase,
   type DayPhase,
-  type PhaseResolver,
 } from './phase';
 import type {
   BriefingEngineInput,
@@ -403,19 +402,21 @@ function analyzeJournal(
   };
 }
 
+/**
+ * Recovery from the score the dashboard Vitals card shows (same function, same inputs),
+ * so the briefing never reports a second, different score for the same day.
+ */
 function analyzeRecovery(
   input: BriefingEngineInput,
-  window: readonly string[],
-  resolver: PhaseResolver | null
+  window: readonly string[]
 ): BriefingSignals['recovery'] {
   if (!input.vitals) return null;
-  const series = computeRecoverySeries(
-    buildRecoveryInputs(
-      input.vitals,
-      resolver && resolver.cycles.length > 0 ? resolver.cycles : null,
-      input.cycle?.typicalCycleLength ?? 28
-    )
-  );
+  const { rows, periodStarts, typicalCycleLength } = input.vitals;
+  const series = buildRecoverySeries({
+    rows,
+    cycles: periodStarts ? buildCycleHistory(periodStarts) : null,
+    typicalCycleLength,
+  });
   const scored = series.filter(
     (r) => window.includes(r.date) && r.score !== null && r.zone !== null
   );
@@ -527,7 +528,7 @@ export function analyzeBriefing(input: BriefingEngineInput): BriefingSignals {
         ? describeTodayPhase(resolver, input.cycle, input.today)
         : null,
     ...journal,
-    recovery: analyzeRecovery(input, window, resolver),
+    recovery: analyzeRecovery(input, window),
     meals: analyzeMeals(input.meals, input.today),
   };
 }

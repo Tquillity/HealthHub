@@ -49,7 +49,7 @@ const SOURCE_TEXT: Record<BriefingSource, { label: string; hint: string }> = {
   },
   vitals: {
     label: 'Vitals and recovery score',
-    hint: 'Resting heart rate, HRV and sleep quality.',
+    hint: 'Your recovery score as on the Vitals card, from resting heart rate, HRV and sleep.',
   },
 };
 

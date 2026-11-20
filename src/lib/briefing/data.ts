@@ -14,10 +14,8 @@ import {
   normalizePeriodStarts,
 } from '@/lib/cycle-history';
 import { isJournalCheckIn } from '@/lib/clinical-report';
-import {
-  RECOVERY_HISTORY_DAYS,
-  type DailyMetricsRow,
-} from '@/lib/cycle-insights';
+import { RECOVERY_HISTORY_DAYS } from '@/lib/cycle-insights';
+import { loadDailyMetricsRows } from '@/lib/daily-metrics';
 import { listPeriodStartDates } from '@/lib/period-starts';
 import type { FocusPreference } from '@/types/cycle';
 import type {
@@ -48,6 +46,7 @@ import {
   type BriefingJournalDay,
   type BriefingMealData,
   type BriefingPreferences,
+  type BriefingVitalsData,
   type DailyBriefing,
 } from './types';
 
@@ -58,7 +57,13 @@ import {
  * - Only the session user's own rows are read. Meal plans come from the space the user has
  *   open (checked against their memberships), never from a household they are not in.
  * - A source the user switched off is never queried; vitals also need the vitals opt-in
- *   and the cycle source needs cycle tracking.
+ *   and the cycle source needs cycle tracking. One exception, by design: the recovery
+ *   score (vitals source) is the dashboard Vitals card's score, so it is computed from the
+ *   card's inputs, which include the journal's sleep hours and, with cycle tracking on,
+ *   the logged period starts for its phase baselines, even when the journal or cycle
+ *   source is off. Otherwise the briefing would show a second, different "recovery today"
+ *   on the same page. Only the score is used from them, and the wording names no phase
+ *   unless the cycle source is on.
  * - Symptoms are decrypted in memory only to count them; nothing is stored or logged.
  * - Feedback suggestion keys are validated against the known keys, then encrypted: a key
  *   with a date says things like "more symptoms than usual that day".
@@ -396,17 +401,25 @@ async function loadJournalDays(
   });
 }
 
-async function loadCycleData(
+/** Logged period starts with User.lastPeriodDate merged in, as the Vitals card reads them. */
+async function loadPeriodStarts(
   userId: string,
-  user: BriefingUser,
-  from: string,
-  to: string
-): Promise<BriefingCycleData> {
-  const periodStarts = normalizePeriodStarts(
+  user: BriefingUser
+): Promise<string[]> {
+  return normalizePeriodStarts(
     await listPeriodStartDates(userId),
     // Safety net for a start saved by code that predates the history table.
     user.lastPeriodDate ? toDateOnlyString(user.lastPeriodDate) : null
   );
+}
+
+async function loadCycleData(
+  userId: string,
+  user: BriefingUser,
+  periodStarts: string[],
+  from: string,
+  to: string
+): Promise<BriefingCycleData> {
   // The thermal shift of the cycle that contains `from` needs its earlier readings.
   const first = findCycleForDate(buildCycleHistory(periodStarts), from);
   const bbtFrom = first && first.start < from ? first.start : from;
@@ -427,38 +440,25 @@ async function loadCycleData(
 }
 
 /**
- * Vitals rows for the recovery score, from far enough back that every scored day has a
- * full baseline (as the dashboard Vitals card loads them). Sleep hours belong to the
- * journal, so they are only read when the journal source is on.
+ * Recovery score inputs exactly as the dashboard Vitals card loads them (lib/daily-metrics
+ * `loadVitalsCardData`): the same rows, sleep hours included, from far enough back that
+ * every scored day has a full baseline, and the period starts when cycle tracking is on.
  */
-async function loadVitalsRows(
+async function loadVitalsData(
   userId: string,
+  user: BriefingUser,
   today: string,
-  includeSleepHours: boolean
-): Promise<DailyMetricsRow[]> {
-  const rows = await prisma.journalEntry.findMany({
-    where: {
+  periodStarts: string[] | null
+): Promise<BriefingVitalsData> {
+  return {
+    rows: await loadDailyMetricsRows(
       userId,
-      date: dateRange(addDaysToDateOnly(today, -RECOVERY_HISTORY_DAYS), today),
-    },
-    select: {
-      date: true,
-      restingHeartRate: true,
-      heartRateVariability: true,
-      sleepQuality: true,
-      sleepHours: includeSleepHours,
-    },
-    orderBy: { date: 'asc' },
-  });
-  return rows.map((row) => ({
-    date: toDateOnlyString(row.date),
-    // Temperature is not part of the recovery score.
-    temperature: null,
-    restingHeartRate: row.restingHeartRate,
-    heartRateVariability: row.heartRateVariability,
-    sleepQuality: row.sleepQuality,
-    sleepHours: includeSleepHours ? (row.sleepHours ?? null) : null,
-  }));
+      addDaysToDateOnly(today, -RECOVERY_HISTORY_DAYS),
+      today
+    ),
+    periodStarts,
+    typicalCycleLength: user.cycleLength,
+  };
 }
 
 /** Days of meal plan items the engine looks at: 10 back (adherence) to 2 ahead. */
@@ -576,19 +576,28 @@ export async function loadBriefingState(
     date,
     -(BRIEFING_WINDOW_DAYS - 1 + BASELINE_WINDOW_DAYS)
   );
-  const useCycle =
-    sources.has('cycle') &&
-    user.enableCycleTracking &&
-    user.lastPeriodDate !== null;
+  const cycleTracked =
+    user.enableCycleTracking && user.lastPeriodDate !== null;
+  const useCycle = sources.has('cycle') && cycleTracked;
   const useVitals = sources.has('vitals') && user.trackVitals;
+  // Period starts feed the cycle source and, as on the Vitals card, the recovery score's
+  // phase baselines (see the module notes).
+  const periodStarts =
+    useCycle || (useVitals && cycleTracked)
+      ? await loadPeriodStarts(userId, user)
+      : null;
 
   const [journal, cycle, meals, vitals] = await Promise.all([
     sources.has('journal') ? loadJournalDays(userId, from, date) : null,
-    useCycle ? loadCycleData(userId, user, from, date) : null,
+    useCycle && periodStarts
+      ? loadCycleData(userId, user, periodStarts, from, date)
+      : null,
     sources.has('meals')
       ? loadMealData(userId, user.timezone, date, options.householdId)
       : null,
-    useVitals ? loadVitalsRows(userId, date, sources.has('journal')) : null,
+    useVitals
+      ? loadVitalsData(userId, user, date, cycleTracked ? periodStarts : null)
+      : null,
   ]);
 
   return {

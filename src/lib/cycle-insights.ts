@@ -222,17 +222,32 @@ export function summarizeRecoveryDay(
   };
 }
 
-/** Today's recovery from the loaded rows (null when today has no usable data). */
-export function buildTodayRecovery(input: {
-  today: string;
+export type RecoverySeriesInput = {
   rows: readonly DailyMetricsRow[];
+  /** Cycles for phase baselines (cycle tracking on), or null. */
   cycles: readonly CycleSpan[] | null;
   typicalCycleLength: number;
-}): RecoverySummary | null {
-  const series = computeRecoverySeries(
+};
+
+/**
+ * The recovery score of every loaded day: the one computation behind the dashboard
+ * Vitals card and the daily briefing, so both show the same score for a day.
+ */
+export function buildRecoverySeries(
+  input: RecoverySeriesInput
+): RecoveryDayResult[] {
+  return computeRecoverySeries(
     buildRecoveryInputs(input.rows, input.cycles, input.typicalCycleLength)
   );
-  return summarizeRecoveryDay(series.find((r) => r.date === input.today));
+}
+
+/** Today's recovery from the loaded rows (null when today has no usable data). */
+export function buildTodayRecovery(
+  input: RecoverySeriesInput & { today: string }
+): RecoverySummary | null {
+  return summarizeRecoveryDay(
+    buildRecoverySeries(input).find((r) => r.date === input.today)
+  );
 }
 
 export type CycleInsightsInput = {

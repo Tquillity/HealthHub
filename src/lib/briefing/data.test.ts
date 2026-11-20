@@ -410,6 +410,69 @@ describe.skipIf(!isolated)(
       ).toBe(1);
     });
 
+    it("shows the Vitals card's recovery score with the journal and cycle sources off", async () => {
+      const metrics = await import('@/lib/daily-metrics');
+      const { RECOVERY_ZONE_LABELS } = await import('@/lib/recovery');
+      const vit = { id: `brf-vit-${run}`, email: `brf-vit-${run}@example.com` };
+      await client.user.create({
+        data: {
+          ...vit,
+          name: 'Vit',
+          timezone: 'UTC',
+          trackVitals: true,
+          enableCycleTracking: true,
+          cycleLength: 28,
+          lastPeriodDate: utcDay('2026-10-29'),
+          periodStarts: {
+            create: [
+              { date: utcDay('2026-10-01') },
+              { date: utcDay('2026-10-29') },
+            ],
+          },
+          // Only vitals: no journal analysis, no cycle phase in the briefing.
+          briefingSources: ['vitals'],
+        },
+      });
+      try {
+        await client.journalEntry.createMany({
+          data: [
+            ...days('2026-08-20', '2026-11-19').map((date, i) => ({
+              userId: vit.id,
+              date: utcDay(date),
+              restingHeartRate: 58 + (i % 5),
+              heartRateVariability: 46 + (i % 7),
+              sleepQuality: 7 + (i % 2),
+              sleepHours: 7 + (i % 3) * 0.5,
+            })),
+            {
+              userId: vit.id,
+              date: utcDay(TODAY),
+              restingHeartRate: 70,
+              heartRateVariability: 30,
+              sleepQuality: 3,
+              sleepHours: 3,
+            },
+          ],
+        });
+        const card = await metrics.loadVitalsCardData(vit.id, TODAY);
+        if (!card.trackVitals || !card.recovery) throw new Error('no score');
+
+        const state = await data.loadBriefingState(vit.id, { now: NOW });
+        if (state.status !== 'ready') throw new Error(state.status);
+        const rest = state.briefing.suggestions.find(
+          (s) => s.key === 'recovery.rest-day'
+        );
+        expect(rest?.evidence[0]).toBe(
+          `Recovery today: ${card.recovery.score}/100 (${RECOVERY_ZONE_LABELS[card.recovery.zone]}).`
+        );
+        // The cycle source is off: the score uses the phase baseline, the text names none.
+        expect(card.recovery.comparedWith).toBe('phase');
+        expect(JSON.stringify(rest)).not.toMatch(/phase/i);
+      } finally {
+        await client.user.delete({ where: { id: vit.id } });
+      }
+    });
+
     it('uses meal adherence only once the household marks meals cooked', async () => {
       await client.mealPlanItem.create({
         data: {

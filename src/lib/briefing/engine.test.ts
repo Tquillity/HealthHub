@@ -5,6 +5,7 @@ import { buildDailyBriefing } from './engine';
 import type {
   BriefingCycleData,
   BriefingEngineInput,
+  BriefingVitalsData,
   BriefingFeedbackEntry,
   BriefingJournalDay,
   DailyBriefing,
@@ -53,6 +54,14 @@ function input(
     feedback: [],
     ...overrides,
   };
+}
+
+/** Recovery score inputs as the Vitals card loads them. */
+function vitalsData(
+  rows: DailyMetricsRow[],
+  periodStarts: string[] | null = null
+): BriefingVitalsData {
+  return { rows, periodStarts, typicalCycleLength: 28 };
 }
 
 const keys = (briefing: DailyBriefing) =>
@@ -232,15 +241,18 @@ describe('buildDailyBriefing: recovery', () => {
       input({
         focus: 'hormonal',
         cycle: CYCLE,
-        vitals: [
-          ...usual,
-          vitalsRow('2026-11-19'),
-          vitalsRow(TODAY, {
-            restingHeartRate: 72,
-            heartRateVariability: 25,
-            sleepQuality: 3,
-          }),
-        ],
+        vitals: vitalsData(
+          [
+            ...usual,
+            vitalsRow('2026-11-19'),
+            vitalsRow(TODAY, {
+              restingHeartRate: 72,
+              heartRateVariability: 25,
+              sleepQuality: 3,
+            }),
+          ],
+          CYCLE.periodStarts
+        ),
       })
     );
     expect(keys(briefing)).toEqual(['recovery.rest-day', 'meal.magnesium']);
@@ -250,14 +262,45 @@ describe('buildDailyBriefing: recovery', () => {
     );
   });
 
+  it('names no phase in the recovery wording when the cycle source is off', () => {
+    // The score still uses the phase baselines (as on the Vitals card) ...
+    const rows = [
+      ...usual,
+      vitalsRow('2026-11-19'),
+      vitalsRow(TODAY, {
+        restingHeartRate: 72,
+        heartRateVariability: 25,
+        sleepQuality: 3,
+      }),
+    ];
+    const withCycle = buildDailyBriefing(
+      input({ cycle: CYCLE, vitals: vitalsData(rows, CYCLE.periodStarts) })
+    );
+    const cycleOff = buildDailyBriefing(
+      input({ vitals: vitalsData(rows, CYCLE.periodStarts) })
+    );
+    const rest = (briefing: DailyBriefing) =>
+      briefing.suggestions.find((s) => s.key === 'recovery.rest-day');
+    expect(rest(cycleOff)?.evidence[0]).toBe(rest(withCycle)?.evidence[0]);
+    expect(rest(withCycle)?.body).toContain('below your usual for this phase');
+    // ... but with the cycle source off nothing mentions a phase.
+    const text = [
+      cycleOff.headline,
+      ...cycleOff.notes,
+      ...cycleOff.suggestions.flatMap((s) => [s.title, s.body, ...s.evidence]),
+    ].join(' ');
+    expect(text).toContain('Recovery today');
+    expect(text).not.toMatch(/phase/i);
+  });
+
   it('encourages when recovery is good', () => {
     const briefing = buildDailyBriefing(
       input({
-        vitals: [
+        vitals: vitalsData([
           ...usual,
           vitalsRow('2026-11-19', { restingHeartRate: 58 }),
           vitalsRow(TODAY, { restingHeartRate: 58 }),
-        ],
+        ]),
       })
     );
     expect(keys(briefing)).toEqual(['recovery.well-recovered']);
@@ -308,11 +351,11 @@ describe('buildDailyBriefing: headline and suggestions agree', () => {
           journalDay('2026-11-19', { symptoms: ['Cramps', 'Headache'] }),
           journalDay(TODAY, { symptoms: ['Cramps', 'Headache'] }),
         ],
-        vitals: [
+        vitals: vitalsData([
           ...days('2026-10-20', '2026-11-18').map((date) => vitalsRow(date)),
           vitalsRow('2026-11-19', { restingHeartRate: 58 }),
           vitalsRow(TODAY, { restingHeartRate: 58 }),
-        ],
+        ]),
       })
     );
     expect(keys(briefing)).toEqual(['recovery.gentle-symptoms']);

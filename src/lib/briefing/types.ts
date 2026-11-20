@@ -134,6 +134,18 @@ export type BriefingCycleData = {
   bbtReadings: BbtReading[];
 };
 
+/**
+ * Inputs of the recovery score, loaded as the dashboard Vitals card loads them, so the
+ * briefing's score for a day is the card's score (lib/cycle-insights `buildRecoverySeries`).
+ */
+export type BriefingVitalsData = {
+  /** Daily metrics rows, sleep hours included. */
+  rows: DailyMetricsRow[];
+  /** Logged period starts for the score's phase baselines; null without cycle tracking. */
+  periodStarts: string[] | null;
+  typicalCycleLength: number;
+};
+
 export type BriefingMealDay = {
   /** `YYYY-MM-DD` in the user's timezone. */
   date: string;
@@ -169,8 +181,8 @@ export type BriefingEngineInput = {
   cycle: BriefingCycleData | null;
   /** null when the meals source is off or the user has no household. */
   meals: BriefingMealData | null;
-  /** Vitals rows for the recovery score; null when the source or the vitals opt-in is off. */
-  vitals: DailyMetricsRow[] | null;
+  /** Recovery score inputs; null when the source or the vitals opt-in is off. */
+  vitals: BriefingVitalsData | null;
   /** Feedback from the last weeks, including today. */
   feedback: BriefingFeedbackEntry[];
 };
