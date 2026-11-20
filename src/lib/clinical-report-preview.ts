@@ -1,13 +1,17 @@
-import type { ClinicalReportOptions } from '@/lib/validation/clinical-report-schemas';
+import {
+  resolveReportInclusion,
+  type ReportToggles,
+} from '@/lib/clinical-report';
 
 /**
  * Plain-language list of what a clinical summary will contain, for the export dialog.
- * Mirrors what the server includes (lib/clinical-report-data): cycle figures always,
- * every other section only when its toggle is on, and vitals only with the vitals
- * opt-in from the profile.
+ * Built from `resolveReportInclusion`, the rule the server loads data by
+ * (lib/clinical-report-data): cycle figures always, every other section only when its
+ * toggle is on, vitals only with the vitals opt-in from the profile, and symptom notes
+ * only with both symptoms and notes.
  */
 
-export type ReportToggles = Omit<ClinicalReportOptions, 'months' | 'today'>;
+export type { ReportToggles };
 
 export interface ReportPreview {
   included: string[];
@@ -22,6 +26,7 @@ export function describeReportContents(
   toggles: ReportToggles,
   { vitalsAvailable }: { vitalsAvailable: boolean }
 ): ReportPreview {
+  const include = resolveReportInclusion(toggles, { vitalsAvailable });
   const included = [
     'Cycle start dates and lengths, with the average, range and variability',
     'Time in each phase and a cycle regularity indicator',
@@ -32,26 +37,31 @@ export function describeReportContents(
     else leftOut.push(whenOff);
   };
 
-  add(toggles.includeName, 'Your name in the header', 'Your name');
+  add(include.name, 'Your name in the header', 'Your name');
   add(
-    toggles.includeBbt,
+    include.bbt,
     'Waking temperatures (BBT) with confirmed ovulation days',
     'Waking temperatures (BBT)'
   );
   add(
-    toggles.includeSymptoms,
+    include.symptoms,
     'Symptom frequency by phase, symptoms that occur together, and mood and energy',
     'Symptoms, mood and energy'
   );
   add(
-    toggles.includeVitals && vitalsAvailable,
+    include.vitals,
     'Resting heart rate, HRV and sleep averages by phase',
     'Vitals (heart rate, HRV and sleep)'
   );
   add(
-    toggles.includeNotes,
+    include.notes,
     'Your journal notes and tags, shortened',
     'Journal notes and tags'
+  );
+  add(
+    include.symptomNotes,
+    'Your symptom notes, shortened',
+    'Symptom notes (need both Symptoms and Journal notes ticked)'
   );
   return { included, leftOut };
 }

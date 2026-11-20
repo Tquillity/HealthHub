@@ -9,7 +9,7 @@
  * which draws the PDF; nothing is stored.
  *
  * Everything here describes the user's own self-reported data. It does not diagnose and
- * it uses no clinical cut-offs except the documented regularity bands below.
+ * it uses no clinical cut-offs except the documented FIGO regularity bands below.
  *
  * **Report range.** The last 3, 6 or 12 calendar months up to and including "today"
  * (`reportRange`). Cycles are rebuilt from logged period starts with lib/cycle-history.
@@ -18,27 +18,34 @@
  * listed cycle is fully known). Average, shortest/longest, the shortest-to-longest
  * difference and the sample standard deviation need at least 2 completed cycles. The
  * trend is the least-squares slope of length over cycle number, shown from 3 cycles; a
- * change of at least 1 day per cycle is called lengthening/shortening (a descriptive
- * heuristic, not a clinical criterion).
+ * change of at least 1 day per cycle (after rounding to the 1 decimal shown) is called
+ * lengthening/shortening (a descriptive heuristic, not a clinical criterion).
  *
- * **Regularity indicator.** FIGO defines regularity by the shortest-to-longest cycle
- * difference: regular when it is at most 7-9 days, depending on age (Munro MG, Critchley
- * HOD, Fraser IS; FIGO Menstrual Disorders Committee, "The two FIGO systems for normal
- * and abnormal uterine bleeding symptoms and classification of causes of abnormal
- * uterine bleeding in the reproductive years: 2018 revisions", Int J Gynaecol Obstet
- * 2018;143:393-408). That difference grows with the number of cycles, so for 3-12 month
- * reports the indicator uses the standard deviation instead: for a handful of cycles
- * (n ≈ 6) the expected range is about 2.5 SD (range factor d2 = 2.534 for n = 6), so
- * 7 days ≈ SD 2.8 and 9 days ≈ SD 3.6. Bands: SD ≤ 2.8 "consistent", ≤ 3.6 "somewhat
- * variable", above that "variable". The raw difference is reported too, so a clinician
- * can apply FIGO directly.
+ * **Regularity indicator.** FIGO's own measure, the shortest-to-longest difference in
+ * completed cycle length: regular when it is at most 7-9 days and irregular from 8-10
+ * days, the limit depending on age (Munro MG, Critchley HOD, Fraser IS; FIGO Menstrual
+ * Disorders Committee, "The two FIGO systems for normal and abnormal uterine bleeding
+ * symptoms and classification of causes of abnormal uterine bleeding in the reproductive
+ * years: 2018 revisions", Int J Gynaecol Obstet 2018;143:393-408). Bands: up to 7 days
+ * "consistent" (regular at any age), 8-9 days "somewhat variable" (regular or not
+ * depending on age), 10 days or more "variable" (irregular at any age). More cycles can
+ * only widen the observed difference, so 10+ days is labelled from 2 completed cycles,
+ * while a smaller difference is labelled only from MIN_CYCLES_FOR_REGULARITY (with 2
+ * cycles it is a single difference). The SD is reported alongside but not used for the
+ * label: the range expected for a given SD grows with the number of cycles (range factor
+ * d2 = 1.13 for 2 cycles, 2.53 for 6, 3.26 for 12), so fixed SD bands would contradict
+ * FIGO for 3- and 12-month reports.
  *
  * **Phases.** The 4-phase wellness model of lib/cycle-calculator (`getPhaseForDay`):
  * completed cycles use their real length, the open cycle the user's typical length.
  * Phase lengths are therefore estimates (luteal ~14 days), not measurements. Where BBT
  * confirms ovulation, the BBT section reports the measured luteal length instead
  * (luteal phase ~12-14 days and fairly constant: NIH/Endotext "The Normal Menstrual
- * Cycle and the Control of Ovulation").
+ * Cycle and the Control of Ovulation"). Days of the open cycle after the typical length
+ * (a late period, or one not logged yet) get no phase: the model would call every one
+ * of them luteal, although ovulation was later than modelled or did not happen. They
+ * are counted separately (`beyondTypicalDays`) and left out of every by-phase figure;
+ * their recovery score is compared with all recent days instead of one phase.
  *
  * **BBT.** lib/bbt's 3-over-6 rule per cycle (Marshall 1968), run on every reading of
  * each cycle that overlaps the range, including readings before the range start. The
@@ -52,15 +59,18 @@
  * form, not just a quick-log temperature or vitals). Mood and energy (self-rated 1-10)
  * per phase are given as context only and labelled as such, not as symptom severity.
  *
- * **Notes.** Opt-in. Journal notes, symptom notes and tags in the range, newest kept
- * when there are many, each note cut to a readable length.
+ * **Notes.** Opt-in. Journal notes and tags in the range, newest kept when there are
+ * many, each note cut to a readable length. Symptom notes are free-text symptom details,
+ * so they are included only when both notes and symptoms are (`resolveReportInclusion`).
  */
 
 import { getPhaseForDay, type CyclePhase } from '@/lib/cycle-calculator';
+import type { ClinicalReportOptions } from '@/lib/validation/clinical-report-schemas';
 import {
   buildCycleHistory,
   getCycleDayInfo,
   normalizePeriodStarts,
+  type CycleDayInfo,
   type CycleSpan,
 } from '@/lib/cycle-history';
 import {
@@ -70,6 +80,7 @@ import {
   type BbtReading,
   type TemperatureUnit,
 } from '@/lib/bbt';
+import { EMOJI_PART } from '@/lib/pdf-text';
 import { computeRecoverySeries, mean, sampleSd } from '@/lib/recovery';
 import { buildRecoveryInputs, type DailyMetricsRow } from '@/lib/cycle-insights';
 import {
@@ -102,10 +113,15 @@ export const MIN_CYCLES_FOR_TREND = 3;
 /** Least-squares change (days per cycle) at which a trend counts as a change. */
 export const TREND_MIN_SLOPE_DAYS = 1;
 /**
- * Regularity bands on the cycle-length SD (days), derived above from FIGO 2018's
- * 7-9 day shortest-to-longest limits divided by the expected range factor of ~2.5.
+ * Regularity bands on the shortest-to-longest cycle length difference (days): FIGO
+ * 2018's 7-9 day limit for regular cycles (see the module notes).
  */
-export const REGULARITY_SD_BANDS = { consistent: 2.8, somewhatVariable: 3.6 } as const;
+export const REGULARITY_DIFFERENCE_BANDS = { consistent: 7, somewhatVariable: 9 } as const;
+/**
+ * Completed cycles needed before a difference within the FIGO limit gets a label. A
+ * difference above it is labelled "variable" from MIN_CYCLES_FOR_VARIABILITY cycles.
+ */
+export const MIN_CYCLES_FOR_REGULARITY = 3;
 
 export const MAX_SYMPTOMS_PER_KIND = 15;
 export const MAX_SYMPTOM_PAIRS = 10;
@@ -135,7 +151,33 @@ export type ReportSections = {
   symptoms: boolean;
   vitals: boolean;
   notes: boolean;
+  /** Free-text symptom notes, shown with the notes: only with both notes and symptoms. */
+  symptomNotes: boolean;
 };
+
+/** The include toggles of the export dialog. */
+export type ReportToggles = Omit<ClinicalReportOptions, 'months' | 'today'>;
+
+/**
+ * What a report contains for the user's toggles. The server loads data by this and the
+ * export dialog's preview describes it, so what the user is shown is what they get.
+ * Vitals also need the profile's vitals opt-in (it governs the recovery score), and
+ * symptom notes need both the notes and the symptoms toggle: unticking symptoms keeps
+ * every symptom detail out, free text included.
+ */
+export function resolveReportInclusion(
+  toggles: ReportToggles,
+  { vitalsAvailable }: { vitalsAvailable: boolean }
+): ReportSections {
+  return {
+    name: toggles.includeName,
+    bbt: toggles.includeBbt,
+    symptoms: toggles.includeSymptoms,
+    vitals: toggles.includeVitals && vitalsAvailable,
+    notes: toggles.includeNotes,
+    symptomNotes: toggles.includeNotes && toggles.includeSymptoms,
+  };
+}
 
 export type ReportMeta = {
   name: string | null;
@@ -196,14 +238,28 @@ export type PhaseShare = {
 };
 
 export type PhaseDistribution = {
-  /** Days in the range on or after the first logged period start. */
+  /** Days in the range with an estimated phase (the base of `percent`). */
   trackedDays: number;
   /** Days in the range before the first logged period start (no phase). */
   untrackedDays: number;
+  /**
+   * Days of the open cycle after the typical cycle length (period late or not logged
+   * yet). No phase is estimated for them. tracked + untracked + beyond = range days.
+   */
+  beyondTypicalDays: number;
   phases: PhaseShare[];
   /** Completed cycles the average phase lengths come from. */
   cyclesForLengths: number;
-  regularity: { level: RegularityLevel; sd: number; cycles: number } | null;
+  /** Null below MIN_CYCLES_FOR_VARIABILITY completed cycles. */
+  regularity: {
+    /** Null when there are too few cycles to call the difference regular. */
+    level: RegularityLevel | null;
+    /** Longest minus shortest completed cycle (days), the basis of `level`. */
+    differenceDays: number;
+    /** Sample standard deviation (days, 1 decimal), for information. */
+    sd: number;
+    cycles: number;
+  } | null;
 };
 
 export type BbtCycleStatus = 'confirmed' | 'no-shift' | 'not-enough-readings';
@@ -256,7 +312,10 @@ export type SymptomPair = { a: string; b: string; days: number };
 export type SymptomClusters = {
   checkInDays: number;
   checkInDaysByPhase: PhaseCounts;
-  /** Check-in days before the first logged period start. */
+  /**
+   * Check-in days with no estimated phase: before the first logged period start, or
+   * after the typical length in the open cycle.
+   */
   checkInDaysWithoutPhase: number;
   daysWithSymptoms: number;
   physical: SymptomStat[];
@@ -401,10 +460,21 @@ export function linearSlope(values: readonly number[]): number {
   return numerator / denominator;
 }
 
-export function classifyRegularity(sd: number): RegularityLevel {
-  if (sd <= REGULARITY_SD_BANDS.consistent) return 'consistent';
-  if (sd <= REGULARITY_SD_BANDS.somewhatVariable) return 'somewhat-variable';
-  return 'variable';
+/**
+ * Regularity label for a shortest-to-longest difference over `cycles` completed cycles,
+ * or null when there are too few cycles to give one (see the module notes).
+ */
+export function classifyRegularity(
+  differenceDays: number,
+  cycles: number
+): RegularityLevel | null {
+  if (cycles < MIN_CYCLES_FOR_VARIABILITY) return null;
+  if (differenceDays > REGULARITY_DIFFERENCE_BANDS.somewhatVariable) return 'variable';
+  // More cycles can only widen the difference, so a small one needs enough of them.
+  if (cycles < MIN_CYCLES_FOR_REGULARITY) return null;
+  return differenceDays <= REGULARITY_DIFFERENCE_BANDS.consistent
+    ? 'consistent'
+    : 'somewhat-variable';
 }
 
 /** Cuts `text` to at most `max` characters (whole code points), ending with "…". */
@@ -414,12 +484,22 @@ export function truncateText(text: string, max: number): string {
   return `${chars.slice(0, Math.max(0, max - 1)).join('').trimEnd()}…`;
 }
 
+/** A day of the open cycle after the typical length: the next period is late or unlogged. */
+function isBeyondTypicalLength(info: CycleDayInfo): boolean {
+  return info.cycle.isOpen && info.cycleDay > info.phaseCycleLength;
+}
+
+/**
+ * Estimated phase of a day, or null before the first logged period start and in the
+ * open cycle after the typical length (see the module notes on phases).
+ */
 function phaseOf(
   cycles: readonly CycleSpan[],
   date: string,
   typicalCycleLength: number
 ): CyclePhase | null {
-  return getCycleDayInfo(cycles, date, typicalCycleLength)?.phase ?? null;
+  const info = getCycleDayInfo(cycles, date, typicalCycleLength);
+  return info && !isBeyondTypicalLength(info) ? info.phase : null;
 }
 
 function completedCyclesInRange(
@@ -446,7 +526,8 @@ export function summarizeCycleVariability(
 
   let trend: CycleTrend | null = null;
   if (lengths.length >= MIN_CYCLES_FOR_TREND) {
-    const slope = linearSlope(lengths);
+    // Classified on the rounded slope the PDF prints, so "+1.0" is never "stable".
+    const slope = round1(linearSlope(lengths));
     trend = {
       direction:
         slope >= TREND_MIN_SLOPE_DAYS
@@ -454,7 +535,7 @@ export function summarizeCycleVariability(
           : slope <= -TREND_MIN_SLOPE_DAYS
             ? 'shortening'
             : 'stable',
-      slopePerCycle: round1(slope),
+      slopePerCycle: slope,
     };
   }
 
@@ -484,16 +565,18 @@ export function summarizePhaseDistribution(
 ): PhaseDistribution {
   const counts = emptyPhaseCounts();
   let untrackedDays = 0;
+  let beyondTypicalDays = 0;
   for (let i = 0; i < range.days; i++) {
-    const phase = phaseOf(
+    const info = getCycleDayInfo(
       cycles,
       addDaysToDateOnly(range.start, i),
       typicalCycleLength
     );
-    if (phase) counts[phase]++;
-    else untrackedDays++;
+    if (!info) untrackedDays++;
+    else if (isBeyondTypicalLength(info)) beyondTypicalDays++;
+    else counts[info.phase]++;
   }
-  const trackedDays = range.days - untrackedDays;
+  const trackedDays = range.days - untrackedDays - beyondTypicalDays;
 
   const completed = completedCyclesInRange(cycles, range);
   const lengthsByPhase: Record<CyclePhase, number[]> = {
@@ -513,11 +596,15 @@ export function summarizePhaseDistribution(
   }
 
   const lengths = completed.map((cycle) => cycle.length);
-  const sd = lengths.length >= MIN_CYCLES_FOR_VARIABILITY ? sampleSd(lengths) : null;
+  const differenceDays =
+    lengths.length >= MIN_CYCLES_FOR_VARIABILITY
+      ? Math.max(...lengths) - Math.min(...lengths)
+      : null;
 
   return {
     trackedDays,
     untrackedDays,
+    beyondTypicalDays,
     phases: REPORT_PHASES.map((phase) => ({
       phase,
       days: counts[phase],
@@ -526,11 +613,12 @@ export function summarizePhaseDistribution(
     })),
     cyclesForLengths: completed.length,
     regularity:
-      sd === null
+      differenceDays === null
         ? null
         : {
-            level: classifyRegularity(round1(sd)),
-            sd: round1(sd),
+            level: classifyRegularity(differenceDays, lengths.length),
+            differenceDays,
+            sd: round1(sampleSd(lengths)),
             cycles: lengths.length,
           },
   };
@@ -636,9 +724,11 @@ export function summarizeBbt(
   };
 }
 
-/** Emoji, their modifiers and joiners: "Tired 😴" is grouped with "Tired". */
-const EMOJI =
-  /\p{Extended_Pictographic}|[\u{1F3FB}-\u{1F3FF}]|\u200D|\uFE0E|\uFE0F/gu;
+/**
+ * Emoji and their parts, flags included (the same set the PDF drops): "Tired 😴" is
+ * grouped with "Tired" and "Trip 🇸🇪" with "Trip".
+ */
+const EMOJI = new RegExp(EMOJI_PART.source, 'gu');
 
 /**
  * Grouping key and display label for a free-text symptom or tag: emoji removed,
@@ -845,7 +935,10 @@ function averageVitals(
 
 /**
  * Vitals and recovery by phase. `rows` should start 90 days before the range so the
- * recovery score of the first days has its baseline (see lib/recovery).
+ * recovery score of the first days has its baseline (see lib/recovery). The score uses
+ * this report's phases (phaseOf): a day past the typical length of a late cycle has no
+ * phase, so it is compared with all recent days, not with luteal days, and it is not
+ * part of the luteal baseline of other days.
  */
 export function summarizeVitals(
   cycles: readonly CycleSpan[],
@@ -853,13 +946,17 @@ export function summarizeVitals(
   range: ReportRange,
   typicalCycleLength: number
 ): VitalsSummary {
-  const series = computeRecoverySeries(
-    buildRecoveryInputs(
-      rows.filter((row) => row.date <= range.end),
-      cycles.length > 0 ? cycles : null,
-      typicalCycleLength
-    )
-  ).filter((result) => inRange(result.date, range));
+  const inputs = buildRecoveryInputs(
+    rows.filter((row) => row.date <= range.end),
+    null,
+    typicalCycleLength
+  ).map((input) => ({
+    ...input,
+    phase: phaseOf(cycles, input.date, typicalCycleLength),
+  }));
+  const series = computeRecoverySeries(inputs).filter((result) =>
+    inRange(result.date, range)
+  );
   const scoreByDate = new Map(
     series.flatMap((result) =>
       result.score === null ? [] : [[result.date, result.score] as const]
@@ -961,6 +1058,10 @@ export function buildClinicalReport(input: ClinicalReportInput): ClinicalReport 
   const name = input.name?.trim()
     ? truncateText(input.name.trim(), MAX_NAME_CHARS)
     : null;
+  // Symptom notes are symptom details: never without the symptoms section, even if a
+  // caller passes them (the loader does not read them then; see resolveReportInclusion).
+  const symptomNotes =
+    input.noteDays !== undefined && input.symptomDays !== undefined;
 
   const report: ClinicalReport = {
     meta: {
@@ -978,6 +1079,7 @@ export function buildClinicalReport(input: ClinicalReportInput): ClinicalReport 
         symptoms: input.symptomDays !== undefined,
         vitals: input.vitalsRows !== undefined,
         notes: input.noteDays !== undefined,
+        symptomNotes,
       },
     },
     cycles: summarizeCycleVariability(cycles, range),
@@ -999,7 +1101,10 @@ export function buildClinicalReport(input: ClinicalReportInput): ClinicalReport 
     report.vitals = summarizeVitals(cycles, input.vitalsRows, range, typical);
   }
   if (input.noteDays) {
-    report.notes = summarizeNotes(cycles, input.noteDays, range, typical);
+    const noteDays = symptomNotes
+      ? input.noteDays
+      : input.noteDays.map((day) => ({ ...day, symptomNote: null }));
+    report.notes = summarizeNotes(cycles, noteDays, range, typical);
   }
   return report;
 }

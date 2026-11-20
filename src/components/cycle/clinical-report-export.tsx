@@ -68,7 +68,7 @@ const TOGGLES: { key: keyof ReportToggles; label: string; hint: string }[] = [
   {
     key: 'includeNotes',
     label: 'Journal notes and tags',
-    hint: 'Your own words, shortened. Add them only if you are happy for someone else to read them.',
+    hint: 'Your own words, shortened, with symptom notes if Symptoms is ticked too. Add them only if you are happy for someone else to read them.',
   },
   {
     key: 'includeName',

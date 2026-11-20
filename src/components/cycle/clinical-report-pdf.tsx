@@ -20,11 +20,12 @@ import {
 } from '@react-pdf/renderer';
 import { format } from 'date-fns';
 import {
+  MIN_CYCLES_FOR_REGULARITY,
   MIN_CYCLES_FOR_TREND,
   MIN_CYCLES_FOR_VARIABILITY,
   PHASE_LABELS,
+  REGULARITY_DIFFERENCE_BANDS,
   REGULARITY_LABELS,
-  REGULARITY_SD_BANDS,
   REPORT_PHASES,
   type BbtCycleSummary,
   type ClinicalReport,
@@ -42,7 +43,7 @@ import {
   formatValue,
   pluralize,
 } from '@/lib/clinical-report-format';
-import { toPdfText } from '@/lib/pdf-text';
+import { toPdfText, UNPRINTABLE_TEXT } from '@/lib/pdf-text';
 import {
   BarRow,
   BbtChart,
@@ -386,6 +387,7 @@ const OPTIONAL_SECTIONS = {
   symptoms: 'symptoms, mood and energy',
   vitals: 'vitals and recovery',
   notes: 'journal notes and tags',
+  symptomNotes: 'symptom notes',
 } as const;
 
 function TitleBlock({ report }: { report: ClinicalReport }) {
@@ -432,6 +434,7 @@ function TitleBlock({ report }: { report: ClinicalReport }) {
 
 function KeyFigures({ report }: { report: ClinicalReport }) {
   const { cycles, phases } = report;
+  const regularity = phases.regularity;
   return (
     <View style={styles.tiles} wrap={false}>
       <Tile
@@ -451,10 +454,14 @@ function KeyFigures({ report }: { report: ClinicalReport }) {
       <Tile label="Std. deviation" value={formatValue(cycles.sdLength, 1, 'd')} />
       <Tile
         label="Regularity"
-        value={
-          phases.regularity ? REGULARITY_LABELS[phases.regularity.level] : EMPTY_VALUE
+        value={regularity?.level ? REGULARITY_LABELS[regularity.level] : EMPTY_VALUE}
+        hint={
+          regularity?.level
+            ? 'FIGO difference, see below'
+            : regularity
+              ? `needs ${MIN_CYCLES_FOR_REGULARITY} cycles`
+              : undefined
         }
-        hint={phases.regularity ? 'from the SD, see below' : undefined}
         last
       />
     </View>
@@ -530,16 +537,18 @@ function CycleSection({ report }: { report: ClinicalReport }) {
 }
 
 function PhaseSection({ report }: { report: ClinicalReport }) {
-  const { phases, cycles } = report;
+  const { phases } = report;
   const regularity = phases.regularity;
+  const typical = report.meta.typicalCycleLength;
   return (
     <Section
       title="Phase distribution"
       lead={
         phases.trackedDays === 0 ? (
           <Empty>
-            No period start is logged on or before the end of this period, so phases
-            cannot be estimated.
+            {phases.beyondTypicalDays > 0
+              ? `The current cycle was already longer than the typical ${typical} days for the whole period, so phases cannot be estimated.`
+              : 'No period start is logged on or before the end of this period, so phases cannot be estimated.'}
           </Empty>
         ) : (
           <View style={{ marginBottom: 6 }}>
@@ -580,20 +589,28 @@ function PhaseSection({ report }: { report: ClinicalReport }) {
           {`${pluralize(phases.untrackedDays, 'day')} before the first logged period start have no phase and are not counted.`}
         </Note>
       )}
+      {phases.beyondTypicalDays > 0 && (
+        <Note>
+          {`${pluralize(phases.beyondTypicalDays, 'day')} of the current cycle after the typical ${typical}-day length have no estimated phase and are not counted here or in any by-phase figure: the next period is late or not logged yet, so ovulation and the luteal phase cannot be placed.`}
+        </Note>
+      )}
       <Block title="Regularity indicator">
         <Paragraph>
-          {regularity
-            ? `${REGULARITY_LABELS[regularity.level]}: cycle length standard deviation ${regularity.sd.toFixed(1)} days over ${pluralize(regularity.cycles, 'completed cycle')}. Shortest-to-longest difference: ${cycles.variationDays} days.`
-            : `Needs at least ${MIN_CYCLES_FOR_VARIABILITY} completed cycles in this period.`}
+          {!regularity
+            ? `Needs at least ${MIN_CYCLES_FOR_VARIABILITY} completed cycles in this period.`
+            : regularity.level
+              ? `${REGULARITY_LABELS[regularity.level]}: shortest-to-longest difference ${pluralize(regularity.differenceDays, 'day')} over ${pluralize(regularity.cycles, 'completed cycle')} (standard deviation ${regularity.sd.toFixed(1)} days).`
+              : `No label yet: shortest-to-longest difference ${pluralize(regularity.differenceDays, 'day')} over only ${pluralize(regularity.cycles, 'completed cycle')}. More cycles can only widen it, so a difference within the FIGO limit is labelled from ${MIN_CYCLES_FOR_REGULARITY} cycles.`}
         </Paragraph>
         <Note>
-          {`Bands: SD up to ${REGULARITY_SD_BANDS.consistent} days "consistent", up to ${REGULARITY_SD_BANDS.somewhatVariable} days "somewhat variable", above that "variable". Derived from the FIGO 2018 limit of a 7-9 day shortest-to-longest difference for regular cycles (about 2.5 standard deviations for a handful of cycles). Descriptive only.`}
+          {`Bands on the shortest-to-longest difference, FIGO 2018's measure of regularity (regular up to 7-9 days, depending on age): up to ${REGULARITY_DIFFERENCE_BANDS.consistent} days "consistent", ${REGULARITY_DIFFERENCE_BANDS.consistent + 1}-${REGULARITY_DIFFERENCE_BANDS.somewhatVariable} days "somewhat variable" (regular or not depending on age), ${REGULARITY_DIFFERENCE_BANDS.somewhatVariable + 1} days or more "variable". A difference within ${REGULARITY_DIFFERENCE_BANDS.somewhatVariable} days is labelled from ${MIN_CYCLES_FOR_REGULARITY} completed cycles. The standard deviation is shown for information only. Descriptive, not a diagnosis.`}
         </Note>
       </Block>
       <Note>
         Phases are estimated from logged period dates with a 4-phase wellness model
         (menstrual days 1-5, ovulation window ending about 14 days before the next period,
-        luteal about 14 days). They are not hormone measurements; where temperature data
+        luteal about 14 days); the current cycle uses the typical length, and days after
+        it get no phase. Phases are not hormone measurements; where temperature data
         confirms ovulation, the measured luteal length is in the temperature section.
       </Note>
     </Section>
@@ -874,7 +891,7 @@ function VitalsSection({ report }: { report: ClinicalReport }) {
       }
     >
       <Note>
-        {`Recovery is HealthHub's 0-100 wellness indicator from HRV, resting heart rate and sleep, compared with the user's own usual values for the same phase over the previous 90 days. It is not a medical measure. Days with a bigger-than-usual dip: ${vitals.dipDays} of ${vitals.scoredDays} scored days.`}
+        {`Recovery is HealthHub's 0-100 wellness indicator from HRV, resting heart rate and sleep, compared with the user's own usual values for the same phase over the previous 90 days (all phases for a day with no estimated phase). It is not a medical measure. Days with a bigger-than-usual dip: ${vitals.dipDays} of ${vitals.scoredDays} scored days.`}
       </Note>
     </Section>
   );
@@ -889,8 +906,9 @@ function NotesSection({ report }: { report: ClinicalReport }) {
       lead={
         <>
           <Note>
-            Included at the user&apos;s request: their own journal notes, symptom notes and
-            tags, unedited apart from shortening long notes.
+            {`Included at the user's request: their own journal notes${
+              report.meta.sections.symptomNotes ? ', symptom notes' : ''
+            } and tags, unedited apart from shortening long notes. Emoji are left out, and words in a script this PDF cannot show are marked ${UNPRINTABLE_TEXT}.`}
           </Note>
           {notes.tagCounts.length > 0 && (
             <Paragraph>

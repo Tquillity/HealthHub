@@ -1,9 +1,15 @@
 import { randomUUID } from 'node:crypto';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
-import { encrypt, encryptArray } from './encryption';
+import { decrypt, encrypt, encryptArray } from './encryption';
+
+// The real decrypt, recorded, so a test can tell which values were decrypted.
+vi.mock('./encryption', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./encryption')>();
+  return { ...actual, decrypt: vi.fn(actual.decrypt) };
+});
 import { addDaysToDateOnly, dateOnlyToUtcDate, toDateOnlyString } from './date-only';
 import type { ClinicalReportOptions } from './validation/clinical-report-schemas';
 
@@ -45,11 +51,17 @@ describe.skipIf(!isolated)(
     let pool: Pool;
     let client: PrismaClient;
     let data: typeof import('./clinical-report-data');
+    // Stored ciphertexts of the symptom notes: on a day with a journal note, and on a
+    // day with nothing else for the notes section.
+    let symptomNoteWithNote: string;
+    let symptomNoteOnly: string;
 
     beforeAll(async () => {
       pool = new Pool({ connectionString: process.env.DATABASE_URL });
       client = new PrismaClient({ adapter: new PrismaPg(pool) });
       data = await import('./clinical-report-data');
+      symptomNoteWithNote = encrypt('Sharp pain at noon') ?? '';
+      symptomNoteOnly = encrypt('Worse in the evening') ?? '';
       await client.user.createMany({
         data: [
           {
@@ -93,6 +105,7 @@ describe.skipIf(!isolated)(
             mood: 4,
             energy: 3,
             notes: encrypt('Private note about travel'),
+            symptomsNotes: symptomNoteWithNote,
             tags: ['travel'],
             symptomsPhysical: encryptArray(['Cramps']) ?? [],
             symptomsMental: encryptArray(['Tired']) ?? [],
@@ -105,7 +118,7 @@ describe.skipIf(!isolated)(
             mood: 5,
             symptomsPhysical: encryptArray(['cramps', 'Headache']) ?? [],
             symptomsMental: encryptArray(['Tired']) ?? [],
-            symptomsNotes: encrypt('Worse in the evening'),
+            symptomsNotes: symptomNoteOnly,
           },
           // Quick-log only: a temperature, not a journal check-in.
           { userId, date: ago(68), temperature: 36.35 },
@@ -162,6 +175,7 @@ describe.skipIf(!isolated)(
         'Cramps',
         'Tired',
         'evening',
+        'noon',
         'Sunshine',
       ]) {
         expect(json).not.toContain(hidden);
@@ -178,6 +192,7 @@ describe.skipIf(!isolated)(
         symptoms: true,
         vitals: true,
         notes: true,
+        symptomNotes: true,
       });
 
       expect(report.symptoms?.checkInDays).toBe(2);
@@ -207,7 +222,7 @@ describe.skipIf(!isolated)(
           date: addDaysToDateOnly(TODAY, -70),
           phase: 'menstrual',
           note: 'Private note about travel',
-          symptomNote: null,
+          symptomNote: 'Sharp pain at noon',
           tags: ['Travel'],
         },
         {
@@ -232,6 +247,84 @@ describe.skipIf(!isolated)(
       ]) {
         expect(json).not.toContain(hidden);
       }
+    });
+
+    it('leaves symptom notes out when symptoms are not included', async () => {
+      const report = await data.loadClinicalReport(
+        userId,
+        { ...ALL, includeSymptoms: false },
+        NOW
+      );
+      expect(report.symptoms).toBeUndefined();
+      expect(report.meta.sections).toMatchObject({
+        symptoms: false,
+        notes: true,
+        symptomNotes: false,
+      });
+      // The day that has only a symptom note is not a notes day at all.
+      expect(report.notes?.entries).toEqual([
+        {
+          date: addDaysToDateOnly(TODAY, -70),
+          phase: 'menstrual',
+          note: 'Private note about travel',
+          symptomNote: null,
+          tags: ['Travel'],
+        },
+      ]);
+      const json = JSON.stringify(report);
+      expect(json).not.toContain('evening');
+      expect(json).not.toContain('noon');
+    });
+
+    it('reads and decrypts symptom notes only with both symptoms and notes', async () => {
+      const decryptSpy = vi.mocked(decrypt);
+      const travelDay = {
+        date: addDaysToDateOnly(TODAY, -70),
+        note: 'Private note about travel',
+        symptomNote: null,
+        tags: ['travel'],
+      };
+
+      // Notes without symptoms: the loader itself, before the builder's guard, returns
+      // no symptom note and not the day that has only one, and decrypts neither.
+      decryptSpy.mockClear();
+      const notesOnly = await data.loadClinicalReportInput(
+        userId,
+        { ...ALL, includeSymptoms: false },
+        NOW
+      );
+      expect(notesOnly.symptomDays).toBeUndefined();
+      expect(notesOnly.noteDays).toEqual([travelDay]);
+      expect(decryptSpy).toHaveBeenCalled();
+      expect(decryptSpy).not.toHaveBeenCalledWith(symptomNoteWithNote);
+      expect(decryptSpy).not.toHaveBeenCalledWith(symptomNoteOnly);
+
+      // Symptoms without notes: the column is read only to spot check-in days.
+      decryptSpy.mockClear();
+      const symptomsOnly = await data.loadClinicalReportInput(
+        userId,
+        { ...ALL, includeNotes: false },
+        NOW
+      );
+      expect(symptomsOnly.noteDays).toBeUndefined();
+      expect(symptomsOnly.symptomDays).toHaveLength(2);
+      expect(decryptSpy).not.toHaveBeenCalledWith(symptomNoteWithNote);
+      expect(decryptSpy).not.toHaveBeenCalledWith(symptomNoteOnly);
+
+      // Both: the symptom notes are decrypted (so the checks above are meaningful).
+      decryptSpy.mockClear();
+      const both = await data.loadClinicalReportInput(userId, ALL, NOW);
+      expect(decryptSpy).toHaveBeenCalledWith(symptomNoteWithNote);
+      expect(decryptSpy).toHaveBeenCalledWith(symptomNoteOnly);
+      expect(both.noteDays).toEqual([
+        { ...travelDay, symptomNote: 'Sharp pain at noon' },
+        {
+          date: addDaysToDateOnly(TODAY, -69),
+          note: null,
+          symptomNote: 'Worse in the evening',
+          tags: [],
+        },
+      ]);
     });
 
     it('leaves vitals out while vitals tracking is off', async () => {

@@ -19,7 +19,8 @@ export type ChartBox = {
 
 export type PlotArea = { left: number; right: number; top: number; bottom: number };
 
-export type AxisTick = { value: number; y: number };
+/** `label` is `value` as printed on the axis (see `formatTickLabels`). */
+export type AxisTick = { value: number; y: number; label: string };
 
 export type Point = { x: number; y: number };
 
@@ -79,6 +80,36 @@ export function niceTicks(min: number, max: number, maxTicks = 5): number[] {
   return ticks;
 }
 
+/** Fewest decimals (at most 6) that print `value` exactly. */
+function decimalsNeeded(value: number): number {
+  for (let decimals = 0; decimals < 6; decimals++) {
+    if (Math.abs(Number(value.toFixed(decimals)) - value) < 1e-9) return decimals;
+  }
+  return 6;
+}
+
+/**
+ * Axis labels with one number of decimals for the whole axis: enough to print every
+ * tick exactly (a 0.25 step gives "97.25", not "97.3"), and at least `minDecimals`. So
+ * a label always matches its gridline and two ticks never share a label.
+ */
+export function formatTickLabels(
+  values: readonly number[],
+  minDecimals = 0
+): string[] {
+  const decimals = Math.max(minDecimals, ...values.map(decimalsNeeded));
+  return values.map((value) => value.toFixed(decimals));
+}
+
+function axisTicks(
+  values: readonly number[],
+  y: (value: number) => number,
+  minDecimals = 0
+): AxisTick[] {
+  const labels = formatTickLabels(values, minDecimals);
+  return values.map((value, index) => ({ value, y: y(value), label: labels[index] }));
+}
+
 export type CycleLengthChart = {
   plot: PlotArea;
   points: (Point & { length: number; start: string })[];
@@ -108,7 +139,7 @@ export function buildCycleLengthChart(
       length: cycle.length,
       start: cycle.start,
     })),
-    yTicks: ticks.map((value) => ({ value, y: y(value) })),
+    yTicks: axisTicks(ticks, y),
     averageY: average === null ? null : y(average),
   };
 }
@@ -208,7 +239,8 @@ export function buildBbtChart(
       };
     }),
     periodStarts: startsInRange.map((date) => ({ x: x(date), date })),
-    yTicks: ticks.map((value) => ({ value, y: y(value) })),
+    // Temperatures read best with at least one decimal (36.0, not 36).
+    yTicks: axisTicks(ticks, y, 1),
     xTicks: monthStartsInRange(range.start, range.end).map((date) => ({
       x: x(date),
       date,

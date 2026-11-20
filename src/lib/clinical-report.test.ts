@@ -80,12 +80,23 @@ describe('helpers', () => {
     expect(linearSlope([28, 30, 27, 29])).toBeCloseTo(0);
   });
 
-  it('classifies regularity with the documented SD bands', () => {
-    expect(classifyRegularity(0)).toBe('consistent');
-    expect(classifyRegularity(2.8)).toBe('consistent');
-    expect(classifyRegularity(2.9)).toBe('somewhat-variable');
-    expect(classifyRegularity(3.6)).toBe('somewhat-variable');
-    expect(classifyRegularity(3.7)).toBe('variable');
+  it('classifies regularity on the FIGO shortest-to-longest difference', () => {
+    expect(classifyRegularity(0, 6)).toBe('consistent');
+    expect(classifyRegularity(7, 6)).toBe('consistent');
+    expect(classifyRegularity(8, 6)).toBe('somewhat-variable');
+    expect(classifyRegularity(9, 6)).toBe('somewhat-variable');
+    expect(classifyRegularity(10, 6)).toBe('variable');
+    // The same difference gets the same label whatever the number of cycles.
+    expect(classifyRegularity(7, 3)).toBe('consistent');
+    expect(classifyRegularity(7, 13)).toBe('consistent');
+    expect(classifyRegularity(10, 13)).toBe('variable');
+  });
+
+  it('labels a small difference only from 3 cycles, a large one from 2', () => {
+    expect(classifyRegularity(10, 1)).toBeNull();
+    expect(classifyRegularity(10, 2)).toBe('variable');
+    expect(classifyRegularity(9, 2)).toBeNull();
+    expect(classifyRegularity(0, 2)).toBeNull();
   });
 
   it('truncates by whole characters with an ellipsis', () => {
@@ -108,6 +119,11 @@ describe('helpers', () => {
     expect(normalizeLabel('   ')).toBeNull();
     expect(normalizeLabel('Tired 😴')).toEqual({ key: 'tired', label: 'Tired' });
     expect(normalizeLabel('❤️‍🩹')).toBeNull();
+    // Flags are emoji too, so "Trip 🇸🇪" is grouped with "Trip".
+    expect(normalizeLabel('Trip 🇸🇪')).toEqual({ key: 'trip', label: 'Trip' });
+    expect(normalizeLabel('Trip 🏴󠁧󠁢󠁳󠁣󠁴󠁿')).toEqual({ key: 'trip', label: 'Trip' });
+    expect(normalizeLabel('🇸🇪')).toBeNull();
+    expect(normalizeLabel('Dose 1️⃣')).toEqual({ key: 'dose 1', label: 'Dose 1' });
     expect(normalizeLabel('x'.repeat(100))?.label).toHaveLength(60);
   });
 
@@ -207,30 +223,53 @@ describe('summarizeCycleVariability', () => {
     expect(two.trend).toBeNull();
     expect(two.sdLength).toBe(5.7);
   });
+
+  it('classifies the trend on the rounded slope it shows', () => {
+    // Raw slope 0.971, shown as +1.0 days per cycle: that is the threshold.
+    const lengths = [27, 28, 28, 30, 32, 31];
+    expect(linearSlope(lengths)).toBeCloseTo(0.971, 3);
+    const up = summarizeCycleVariability(
+      buildCycleHistory(startsFrom('2026-05-25', lengths)),
+      reportRange('2026-11-24', 6)
+    );
+    expect(up.trend).toEqual({ direction: 'lengthening', slopePerCycle: 1 });
+    const down = summarizeCycleVariability(
+      buildCycleHistory(startsFrom('2026-05-25', [...lengths].reverse())),
+      reportRange('2026-11-24', 6)
+    );
+    expect(down.trend).toEqual({ direction: 'shortening', slopePerCycle: -1 });
+  });
 });
 
 describe('summarizePhaseDistribution', () => {
   it('splits the range into phases and averages estimated phase lengths', () => {
     const cycles = buildCycleHistory(['2026-08-21', '2026-09-18', '2026-10-16']);
     const result = summarizePhaseDistribution(cycles, RANGE_3, 28);
-    expect(result.trackedDays).toBe(92);
-    expect(result.untrackedDays).toBe(0);
-    const byPhase = Object.fromEntries(result.phases.map((p) => [p.phase, p]));
     // 28-day model: menstrual 1-5, follicular 6-10, ovulation 11-14, luteal 15-28.
-    // Two complete cycles (56 days) + 36 days of the open cycle at the typical 28
-    // (days 29-36 continue as luteal).
+    // Two complete cycles (56 days) + 36 days of the open cycle at the typical 28:
+    // days 29-36 are past the typical length and get no phase.
+    expect(result.trackedDays).toBe(84);
+    expect(result.untrackedDays).toBe(0);
+    expect(result.beyondTypicalDays).toBe(8);
+    const byPhase = Object.fromEntries(result.phases.map((p) => [p.phase, p]));
     expect(byPhase.menstrual.days).toBe(15);
     expect(byPhase.follicular.days).toBe(15);
     expect(byPhase.ovulation.days).toBe(12);
-    expect(byPhase.luteal.days).toBe(50);
+    expect(byPhase.luteal.days).toBe(42);
     expect(
       result.phases.reduce((sum, phase) => sum + phase.days, 0)
-    ).toBe(92);
-    expect(byPhase.menstrual.percent).toBe(16.3);
+    ).toBe(84);
+    expect(byPhase.menstrual.percent).toBe(17.9);
     expect(byPhase.luteal.averageLength).toBe(14);
     expect(byPhase.follicular.averageLength).toBe(5);
     expect(result.cyclesForLengths).toBe(2);
-    expect(result.regularity).toEqual({ level: 'consistent', sd: 0, cycles: 2 });
+    // Two equal cycles: a single difference, too little to call it regular yet.
+    expect(result.regularity).toEqual({
+      level: null,
+      differenceDays: 0,
+      sd: 0,
+      cycles: 2,
+    });
   });
 
   it('counts days before the first logged period as untracked', () => {
@@ -242,6 +281,56 @@ describe('summarizePhaseDistribution', () => {
     expect(result.phases.every((p) => p.averageLength === null)).toBe(true);
   });
 
+  it('gives no phase to days of a late open cycle after the typical length', () => {
+    // Open cycle from 09-10 is on day 72 on 11-20 with a typical length of 28.
+    const report = buildClinicalReport(
+      baseInput({
+        months: 3,
+        periodStarts: ['2026-07-11', '2026-08-10', '2026-09-10'],
+        bbtReadings: [
+          // Day 21 of the open cycle: luteal at the typical 28.
+          { date: '2026-09-30', celsius: 36.3 },
+          { date: '2026-11-15', celsius: 36.4 },
+        ],
+        symptomDays: [
+          { date: '2026-11-15', mood: 4, energy: 3, physical: ['Cramps'], mental: [] },
+        ],
+        noteDays: [
+          { date: '2026-11-15', note: 'Still no period', symptomNote: null, tags: [] },
+        ],
+      })
+    );
+    expect(report.cycles.current).toEqual({ start: '2026-09-10', day: 72 });
+
+    const { phases } = report;
+    // 08-21..09-09: days 12-31 of the 31-day cycle; 09-10..10-07: days 1-28 of the
+    // open cycle; 10-08..11-20: days 29-72, past the typical length.
+    expect(phases.beyondTypicalDays).toBe(44);
+    expect(phases.untrackedDays).toBe(0);
+    expect(phases.trackedDays).toBe(48);
+    expect(
+      Object.fromEntries(phases.phases.map((p) => [p.phase, p.days]))
+    ).toEqual({ menstrual: 5, follicular: 7, ovulation: 8, luteal: 28 });
+    expect(phases.trackedDays + phases.untrackedDays + phases.beyondTypicalDays).toBe(
+      report.meta.rangeDays
+    );
+
+    // Nothing logged on 11-15 is attributed to a phase.
+    const cramps = report.symptoms?.physical[0];
+    expect(cramps?.days).toBe(1);
+    expect(cramps?.byPhase).toEqual({
+      menstrual: 0,
+      follicular: 0,
+      ovulation: 0,
+      luteal: 0,
+    });
+    expect(report.symptoms?.checkInDaysWithoutPhase).toBe(1);
+    expect(report.symptoms?.moodEnergyByPhase.every((p) => p.days === 0)).toBe(true);
+    const luteal = report.bbt?.phaseAverages.find((p) => p.phase === 'luteal');
+    expect(luteal).toEqual({ phase: 'luteal', averageCelsius: 36.3, readings: 1 });
+    expect(report.notes?.entries[0].phase).toBeNull();
+  });
+
   it('handles no period history at all', () => {
     const result = summarizePhaseDistribution([], RANGE_3, 28);
     expect(result.trackedDays).toBe(0);
@@ -250,13 +339,56 @@ describe('summarizePhaseDistribution', () => {
     );
   });
 
-  it('flags variable cycles with the SD bands', () => {
+  it('flags variable cycles with the FIGO difference bands', () => {
     const cycles = buildCycleHistory(
       startsFrom('2026-05-25', [24, 33, 26, 35])
     );
     const result = summarizePhaseDistribution(cycles, RANGE_6, 28);
     expect(result.regularity?.level).toBe('variable');
+    expect(result.regularity?.differenceDays).toBe(11);
     expect(result.regularity?.cycles).toBe(4);
+  });
+
+  it('does not call a FIGO-regular 3-month report variable', () => {
+    // Two completed cycles of 28 and 34 days: difference 6 (SD 4.2).
+    const two = summarizePhaseDistribution(
+      buildCycleHistory(['2026-09-01', '2026-09-29', '2026-11-02']),
+      RANGE_3,
+      28
+    );
+    expect(two.regularity).toEqual({
+      level: null,
+      differenceDays: 6,
+      sd: 4.2,
+      cycles: 2,
+    });
+    // A third cycle within the limit makes it consistent, however large the SD.
+    const three = summarizePhaseDistribution(
+      buildCycleHistory(startsFrom('2026-08-22', [28, 34, 28])),
+      RANGE_3,
+      28
+    );
+    expect(three.regularity).toMatchObject({
+      level: 'consistent',
+      differenceDays: 6,
+      cycles: 3,
+    });
+  });
+
+  it('does not call a FIGO-irregular 12-month report consistent', () => {
+    const lengths = [28, 28, 28, 28, 23, 28, 28, 28, 33, 28, 28, 28];
+    const result = summarizePhaseDistribution(
+      buildCycleHistory(startsFrom('2025-11-22', lengths)),
+      reportRange(TODAY, 12),
+      28
+    );
+    // SD 2.1 would have been "consistent" with fixed SD bands; the difference is 10.
+    expect(result.regularity).toEqual({
+      level: 'variable',
+      differenceDays: 10,
+      sd: 2.1,
+      cycles: 12,
+    });
   });
 });
 
@@ -468,6 +600,38 @@ describe('summarizeVitals', () => {
     expect(result.scoredDays).toBe(2);
     expect(result.overall.recoveryScore).not.toBeNull();
   });
+
+  it('scores a day past the typical length against all recent days, not luteal ones', () => {
+    // Two 28-day cycles, then an open cycle from 09-18 that is late from 10-16 (day 29).
+    const cycles = buildCycleHistory(['2026-07-24', '2026-08-21', '2026-09-18']);
+    const rhrOnly = (date: string, restingHeartRate: number): DailyMetricsRow => ({
+      date,
+      temperature: null,
+      restingHeartRate,
+      heartRateVariability: null,
+      sleepQuality: null,
+      sleepHours: null,
+    });
+    const rows = [
+      // Before the range: follicular days (cycle days 6-8) at 50 bpm and luteal days
+      // (cycle days 18-20) at 70 bpm.
+      rhrOnly('2026-07-29', 50),
+      rhrOnly('2026-07-30', 50),
+      rhrOnly('2026-07-31', 50),
+      rhrOnly('2026-08-10', 70),
+      rhrOnly('2026-08-11', 70),
+      rhrOnly('2026-08-12', 70),
+      // Day 33 of the late cycle.
+      rhrOnly('2026-10-20', 70),
+    ];
+    const result = summarizeVitals(cycles, rows, RANGE_3, 28);
+    expect(result.overall.days).toBe(1);
+    expect(result.byPhase.every((phase) => phase.days === 0)).toBe(true);
+    expect(result.scoredDays).toBe(1);
+    // All six earlier days (mean 60, SD 10.95): 75 + 25 * (60 - 70) / 10.95 = 52.
+    // Against the luteal days (70 bpm) it would be 75, an ordinary luteal day.
+    expect(result.overall.recoveryScore).toBe(52);
+  });
 });
 
 describe('summarizeNotes', () => {
@@ -527,9 +691,39 @@ describe('buildClinicalReport', () => {
       symptoms: false,
       vitals: false,
       notes: false,
+      symptomNotes: false,
     });
     expect(report.meta.name).toBeNull();
     expect(JSON.stringify(report)).not.toContain('Alex');
+  });
+
+  it('keeps symptom notes out of the notes unless symptoms are included', () => {
+    const noteDays = [
+      {
+        date: '2026-11-16',
+        note: 'Travel week',
+        symptomNote: 'Heavy bleeding',
+        tags: [],
+      },
+      { date: '2026-11-17', note: null, symptomNote: 'Panic attack', tags: [] },
+    ];
+    const withoutSymptoms = buildClinicalReport(baseInput({ noteDays }));
+    expect(withoutSymptoms.meta.sections.symptomNotes).toBe(false);
+    expect(withoutSymptoms.notes?.entries).toMatchObject([
+      { date: '2026-11-16', note: 'Travel week', symptomNote: null, tags: [] },
+    ]);
+    const json = JSON.stringify(withoutSymptoms);
+    expect(json).not.toContain('Heavy bleeding');
+    expect(json).not.toContain('Panic attack');
+
+    const withSymptoms = buildClinicalReport(
+      baseInput({ noteDays, symptomDays: [] })
+    );
+    expect(withSymptoms.meta.sections.symptomNotes).toBe(true);
+    expect(withSymptoms.notes?.entries.map((e) => e.symptomNote)).toEqual([
+      'Heavy bleeding',
+      'Panic attack',
+    ]);
   });
 
   it('includes exactly the requested sections', () => {
