@@ -1,6 +1,8 @@
 import Stripe from 'stripe';
 import { NextResponse } from 'next/server';
+import { revalidateTag } from 'next/cache';
 import {
+  billingNoticeTag,
   isPremiumSubscriptionStatus,
   isSafeStripeSearchId,
   isStripeConfigured,
@@ -77,6 +79,8 @@ export async function POST(request: Request) {
 
   try {
     let premiumChange: PremiumChange | null = null;
+    // User whose "update your card" banner may have changed, even when Pro itself did not.
+    let billingNoticeUserId: string | null = null;
     switch (event.type) {
       case 'checkout.session.completed':
       case 'checkout.session.async_payment_succeeded': {
@@ -117,6 +121,7 @@ export async function POST(request: Request) {
           );
           break;
         }
+        billingNoticeUserId = userId;
         // Fetch current state so an out-of-order update cannot restore stale access.
         const current = await stripe.subscriptions.retrieve(subscription.id);
         const isPremium = isPremiumSubscriptionStatus(current.status);
@@ -139,6 +144,7 @@ export async function POST(request: Request) {
           );
           break;
         }
+        billingNoticeUserId = userId;
         if (await hasOtherLiveSubscription(stripe, userId, subscription.id))
           break;
         premiumChange = { userId, isPremium: false };
@@ -147,6 +153,17 @@ export async function POST(request: Request) {
     }
 
     const result = await processStripeEvent(event, premiumChange);
+    if (billingNoticeUserId) {
+      try {
+        revalidateTag(billingNoticeTag(billingNoticeUserId), 'max');
+      } catch (error) {
+        // The banner also refreshes on its own timer; never fail a webhook over it.
+        console.warn(
+          '[HealthHub stripe] Billing notice refresh failed:',
+          error
+        );
+      }
+    }
     return NextResponse.json({ received: true, ...result });
   } catch (error) {
     console.error(

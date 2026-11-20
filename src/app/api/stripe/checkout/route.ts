@@ -61,7 +61,8 @@ export async function POST() {
     const { default: Stripe } = await import('stripe');
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
-    // A lapsed (past_due) subscription clears isPremium; don't let the user start a second one
+    // Stripe search can list a subscription the isPremium flag has not caught up with yet;
+    // don't let the user start a second one
     if (isSafeStripeSearchId(session.user.id)) {
       const existing = await stripe.subscriptions.search({
         query: subscriptionsForUserQuery(session.user.id),
