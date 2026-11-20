@@ -668,12 +668,28 @@ describe('buildCircadianInsights', () => {
     expect(afterNoon.suggestions[0].key).toBe('personal.best-now');
     expect(pushes(afterNoon)).toEqual([]);
 
+    // 15:30: past the dip, usually the time for harder sessions. Still unrated, so the
+    // card's "Good fit right now" and the lottery stay at medium too.
+    const lateAfternoon = at('15:30');
+    expect(lateAfternoon.currentEnergy).toBeNull();
+    expect(pushes(lateAfternoon)).toEqual([]);
+    expect(lateAfternoon.recommendedIntensity).toBe('medium');
+    expect(lotteryTargetFromInsights(lateAfternoon).intensity).toBe(1);
+    expect(lotteryHintFromInsights(lateAfternoon).recommendedIntensity).toBe(
+      'medium'
+    );
+
     // Rating the afternoon brings the push back.
-    const rated = at('12:05', [
+    const ratedRows = [
       ...history('2026-11-19', 6, [5, 8, null]),
       row('2026-11-20', 2, 8, null),
-    ]);
+    ];
+    const rated = at('12:05', ratedRows);
     expect(pushes(rated).length).toBeGreaterThan(0);
+    const ratedLate = at('15:30', ratedRows);
+    expect(pushes(ratedLate).length).toBeGreaterThan(0);
+    expect(ratedLate.recommendedIntensity).toBe('high');
+    expect(lotteryTargetFromInsights(ratedLate).intensity).toBeGreaterThan(1);
     // A fine morning holds nothing back.
     const fineMorning = at('12:05', [
       ...history('2026-11-19', 6, [5, 8, null]),

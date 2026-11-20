@@ -514,8 +514,9 @@ export function isLowEnergy(rating: number | null): boolean {
 }
 
 /**
- * The highest intensity target (medium) on a day the daily briefing calls a take-it-easy
- * day, as its "swap high intensity for moderate".
+ * The highest intensity target (medium) while the card holds back: on a day the daily
+ * briefing calls a take-it-easy day, as its "swap high intensity for moderate", and after
+ * a low check-in today.
  */
 export const EASY_DAY_MAX_INTENSITY = 1;
 
@@ -751,15 +752,6 @@ export function buildCircadianInsights(input: {
   const todayEnergy = todayEnergyOf(input.rows, local.dateKey);
   const currentEnergy = slot ? todayEnergy[slot] : null;
 
-  // How the user feels now: today's check-in, else their usual for this slot.
-  const slotUsual =
-    slot && slots[slot].personalized ? slots[slot].average : null;
-  const target = routineIntensityTarget(local.hour, currentEnergy ?? slotUsual);
-  // Capped on a take-it-easy day, so the card and the lottery agree with the briefing.
-  const intensityTarget = easyDay
-    ? Math.min(target, EASY_DAY_MAX_INTENSITY)
-    : target;
-
   // Today's most recent check-in from an earlier slot.
   const earlier = slot
     ? ENERGY_SLOTS.slice(0, ENERGY_SLOTS.indexOf(slot))
@@ -774,6 +766,17 @@ export function buildCircadianInsights(input: {
   // low. That last one is not called "right now": it can be hours old.
   const holdBack =
     lowNow || easyDay || (currentEnergy === null && isLowEnergy(lastEarlier));
+
+  // How the user feels now: today's check-in, else their usual for this slot.
+  const slotUsual =
+    slot && slots[slot].personalized ? slots[slot].average : null;
+  const target = routineIntensityTarget(local.hour, currentEnergy ?? slotUsual);
+  // Capped while holding back, so the card's "Good fit right now" and the lottery lean
+  // the same way as its suggestions and, on a take-it-easy day, the briefing.
+  const intensityTarget = holdBack
+    ? Math.min(target, EASY_DAY_MAX_INTENSITY)
+    : target;
+
   const base: CircadianSuggestion[] = MOMENT_SUGGESTIONS[moment]
     .filter((suggestion) => !(holdBack && suggestion.demanding))
     .map(({ key, kind, title, body }) => ({ key, kind, title, body }));
