@@ -56,6 +56,7 @@ import { getPhaseTheme } from '@/lib/phase-theme';
 import { getJournalSnippet } from '@/actions/journal-actions';
 import type { CycleDashboardInsights } from '@/lib/daily-metrics';
 import { BbtQuickLog } from './bbt-quick-log';
+import { ClinicalReportExport } from './clinical-report-export';
 import {
   dateOnlyToLocalDate,
   isDateOnlyString,
@@ -302,13 +303,17 @@ export function CyclePageClient({
           </button>
         </div>
 
-        {/* Right: Mode Toggle + Focus Preference (Compact) */}
-        <div className="flex items-center gap-2">
+        {/* Right: Mode Toggle + Focus Preference (Compact) + Clinical Summary */}
+        <div className="flex flex-wrap items-center justify-end gap-2">
           <ModeToggle currentPhase={phaseData.currentPhase} />
           <FocusPreferenceSelector
             currentPreference={userPreference.focusPreference}
             onPreferenceChange={() => {}}
             compact={true}
+          />
+          {/* The recovery overlay exists only with the vitals opt-in. */}
+          <ClinicalReportExport
+            vitalsAvailable={insights.overlays.recovery !== null}
           />
         </div>
       </div>

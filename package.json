@@ -29,6 +29,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@prisma/adapter-pg": "^7.10.1",
     "@prisma/client": "^7.10.1",
+    "@react-pdf/renderer": "^4.9.0",
     "@tailwindcss/postcss": "^4.3.5",
     "@vercel/blob": "^2.9.0",
     "bcryptjs": "^3.0.3",

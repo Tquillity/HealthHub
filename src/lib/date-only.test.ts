@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   addDaysToDateOnly,
+  addMonthsToDateOnly,
   daysBetweenDateOnly,
   DateOnlyStringSchema,
   dateOnlyToLocalDate,
@@ -123,5 +124,24 @@ describe('addDaysToDateOnly / daysBetweenDateOnly', () => {
   it('rejects invalid dates', () => {
     expect(() => addDaysToDateOnly('2026-02-30', 1)).toThrow();
     expect(() => daysBetweenDateOnly('nope', '2026-01-01')).toThrow();
+  });
+});
+
+describe('addMonthsToDateOnly', () => {
+  it('moves by calendar months across year boundaries', () => {
+    expect(addMonthsToDateOnly('2026-11-20', -3)).toBe('2026-08-20');
+    expect(addMonthsToDateOnly('2026-11-20', -12)).toBe('2025-11-20');
+    expect(addMonthsToDateOnly('2026-02-10', -6)).toBe('2025-08-10');
+    expect(addMonthsToDateOnly('2026-11-20', 2)).toBe('2027-01-20');
+  });
+
+  it('clamps to the last day of shorter months', () => {
+    expect(addMonthsToDateOnly('2026-05-31', -3)).toBe('2026-02-28');
+    expect(addMonthsToDateOnly('2024-08-31', -6)).toBe('2024-02-29');
+    expect(addMonthsToDateOnly('2026-03-31', -1)).toBe('2026-02-28');
+  });
+
+  it('rejects invalid dates', () => {
+    expect(() => addMonthsToDateOnly('2026-02-30', 1)).toThrow();
   });
 });

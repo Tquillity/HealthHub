@@ -100,6 +100,23 @@ export function addDaysToDateOnly(value: string, days: number): string {
   return toDateOnlyString(new Date(date.getTime() + days * MS_PER_DAY));
 }
 
+/**
+ * `YYYY-MM-DD` plus `months` calendar months (negative goes back). The day is clamped to
+ * the last day of the target month, so 2026-05-31 minus 3 months is 2026-02-28.
+ * Throws on an invalid date.
+ */
+export function addMonthsToDateOnly(value: string, months: number): string {
+  const parts = parseParts(value);
+  if (!parts) {
+    throw new Error(`Invalid date-only string: ${value}`);
+  }
+  const monthIndex = parts.month - 1 + months;
+  const lastDay = new Date(Date.UTC(parts.year, monthIndex + 1, 0)).getUTCDate();
+  return toDateOnlyString(
+    new Date(Date.UTC(parts.year, monthIndex, Math.min(parts.day, lastDay)))
+  );
+}
+
 /** Whole calendar days from `from` to `to` (`to` minus `from`; negative when `to` is earlier). */
 export function daysBetweenDateOnly(from: string, to: string): number {
   return Math.round(
