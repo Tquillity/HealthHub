@@ -44,7 +44,8 @@ export async function getRecipeFilterOptions() {
     const userId = await getSessionUserId();
     const visibilityFilter = await buildRecipeVisibilityFilter(userId);
 
-    const [difficulties, cuisines, dietaryTags, leanRoles] = await Promise.all([
+    // LEAN roles are a fixed list (src/lib/lean-kitchen.ts), so they are not queried.
+    const [difficulties, cuisines, dietaryTags] = await Promise.all([
       prisma.recipe.findMany({
         where: {
           AND: [visibilityFilter],
@@ -67,14 +68,6 @@ export async function getRecipeFilterOptions() {
         },
         select: { dietaryTags: true },
       }),
-      prisma.recipe.findMany({
-        where: {
-          AND: [visibilityFilter],
-          leanRole: { not: null },
-        },
-        select: { leanRole: true },
-        distinct: ['leanRole'],
-      }),
     ]);
 
     const allDietaryTags = new Set<string>();
@@ -92,14 +85,10 @@ export async function getRecipeFilterOptions() {
         .filter((c): c is string => c !== null)
         .sort(),
       dietaryTags: Array.from(allDietaryTags).sort(),
-      leanRoles: leanRoles
-        .map((r) => r.leanRole)
-        .filter((r): r is string => r !== null)
-        .sort(),
     };
   } catch (error) {
     console.error('[HealthHub action] recipe-queries', 'Failed to get filter options:', error);
-    return { difficulties: [], cuisines: [], dietaryTags: [], leanRoles: [] };
+    return { difficulties: [], cuisines: [], dietaryTags: [] };
   }
 }
 

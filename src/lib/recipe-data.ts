@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db';
 import type { Prisma } from '@prisma/client';
+import { QUICK_PREP_MAX_ACTIVE_MINUTES } from '@/lib/lean-kitchen';
 
 export interface GetRecipesParams {
   query?: string;
@@ -8,6 +9,8 @@ export interface GetRecipesParams {
   cuisine?: string;
   dietaryTags?: string[];
   leanRole?: string;
+  /** Only recipes with a recorded hands-on time ≤ QUICK_PREP_MAX_ACTIVE_MINUTES. */
+  quickPrep?: boolean;
   page?: number;
 }
 
@@ -19,6 +22,7 @@ export async function queryRecipes(
     cuisine,
     dietaryTags,
     leanRole,
+    quickPrep,
     page: _page = 1,
   }: GetRecipesParams,
   visibilityFilter: Prisma.RecipeWhereInput
@@ -62,8 +66,18 @@ export async function queryRecipes(
     filterConditions.push({ dietaryTags: { hasSome: validDietaryTags } });
   }
 
+  // Same semantics as matchesRecipeFilters in recipe-filters.ts (case-insensitive role,
+  // unknown active time never counts as quick).
   if (leanRole) {
-    filterConditions.push({ leanRole });
+    filterConditions.push({
+      leanRole: { equals: leanRole, mode: 'insensitive' },
+    });
+  }
+
+  if (quickPrep) {
+    filterConditions.push({
+      activeTime: { lte: QUICK_PREP_MAX_ACTIVE_MINUTES },
+    });
   }
 
   const where: Prisma.RecipeWhereInput = {

@@ -3,6 +3,12 @@
 import { useState, useMemo } from 'react';
 import { Edit, Trash2, ArrowUpDown } from 'lucide-react';
 import type { RecipeWithDetails } from '@/actions/recipe-actions';
+import {
+  formatMinutes,
+  getRecipeTimeSummary,
+  normalizeLeanRole,
+} from '@/lib/lean-kitchen';
+import { LeanRoleBadge } from './lean-role-badge';
 
 interface RecipeListViewProps {
   recipes: RecipeWithDetails[];
@@ -52,8 +58,8 @@ export function RecipeListView({
           break;
         }
         case 'totalTime':
-          valA = (a.prepTime || 0) + (a.cookTime || 0);
-          valB = (b.prepTime || 0) + (b.cookTime || 0);
+          valA = getRecipeTimeSummary(a).totalMinutes;
+          valB = getRecipeTimeSummary(b).totalMinutes;
           break;
       }
 
@@ -74,11 +80,6 @@ export function RecipeListView({
         }`}
       />
     );
-  };
-
-  // Helper to safely get leanRole
-  const getLeanRole = (recipe: RecipeWithDetails): string => {
-    return recipe.leanRole || '';
   };
 
   const getCategoryColor = (category?: string | null) => {
@@ -150,7 +151,7 @@ export function RecipeListView({
           <tbody className="divide-y divide-gray-200 bg-white">
             {sortedRecipes.length > 0 ? (
               sortedRecipes.map((recipe) => {
-                const totalTime = (recipe.prepTime || 0) + (recipe.cookTime || 0);
+                const totalTime = getRecipeTimeSummary(recipe).totalMinutes;
                 return (
                   <tr
                     key={recipe.id}
@@ -184,16 +185,14 @@ export function RecipeListView({
                       )}
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                      {getLeanRole(recipe) ? (
-                        <span className="inline-flex rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 capitalize">
-                          {getLeanRole(recipe)}
-                        </span>
+                      {normalizeLeanRole(recipe.leanRole) ? (
+                        <LeanRoleBadge role={recipe.leanRole} />
                       ) : (
                         <span className="text-gray-400">—</span>
                       )}
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                      {totalTime > 0 ? `${totalTime} min` : '—'}
+                      {totalTime > 0 ? formatMinutes(totalTime) : '—'}
                     </td>
                     {isAdmin && (
                       <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">

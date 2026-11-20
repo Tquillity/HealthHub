@@ -43,6 +43,7 @@ vi.mock('next/cache', () => ({
 }));
 
 import { getCachedRecipe, getCachedRecipes } from './recipe-cache';
+import { QUICK_PREP_MAX_ACTIVE_MINUTES } from './lean-kitchen';
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -131,6 +132,20 @@ describe('recipe cache visibility', () => {
           AND: expect.arrayContaining([
             { isSystem: true, isSecret: false, isPrivate: false },
             { dietaryTags: { hasSome: ['vegan'] } },
+          ]),
+        },
+      })
+    );
+  });
+
+  it('applies the LEAN role and quick prep filters like the client predicate', async () => {
+    await getCachedRecipes({ leanRole: 'infrastructure', quickPrep: true });
+    expect(mocks.recipes).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          AND: expect.arrayContaining([
+            { leanRole: { equals: 'infrastructure', mode: 'insensitive' } },
+            { activeTime: { lte: QUICK_PREP_MAX_ACTIVE_MINUTES } },
           ]),
         },
       })

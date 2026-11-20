@@ -1,8 +1,16 @@
-import { createLoader, parseAsArrayOf, parseAsString } from 'nuqs/server';
+import {
+  createLoader,
+  parseAsArrayOf,
+  parseAsBoolean,
+  parseAsString,
+  parseAsStringLiteral,
+} from 'nuqs/server';
+import { LEAN_ROLES } from '@/lib/lean-kitchen';
 
 /**
- * Recipe list filters, shared by the server page and the client filters so both read the
+ * Recipe list filters, shared by the filter controls and the recipe list so both read the
  * URL the same way (nuqs writes arrays comma-separated: `?dietaryTags=vegan,keto`).
+ * `loadRecipeSearchParams` parses the same URL on the server.
  */
 export const recipeSearchParams = {
   q: parseAsString.withDefault(''),
@@ -10,7 +18,10 @@ export const recipeSearchParams = {
   difficulty: parseAsString,
   cuisine: parseAsString,
   dietaryTags: parseAsArrayOf(parseAsString),
-  leanRole: parseAsString,
+  /** Unknown roles read as null (no filter). */
+  leanRole: parseAsStringLiteral(LEAN_ROLES),
+  /** `?quickPrep=true`: only recipes with little hands-on time. */
+  quickPrep: parseAsBoolean.withDefault(false),
 };
 
 export const loadRecipeSearchParams = createLoader(recipeSearchParams);
