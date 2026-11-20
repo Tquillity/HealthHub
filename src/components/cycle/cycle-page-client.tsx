@@ -54,7 +54,11 @@ import { Calendar, Sparkles } from 'lucide-react';
 import { differenceInDays, format } from 'date-fns';
 import { getPhaseTheme } from '@/lib/phase-theme';
 import { getJournalSnippet } from '@/actions/journal-actions';
-import { dateOnlyToLocalDate, isDateOnlyString } from '@/lib/date-only';
+import {
+  dateOnlyToLocalDate,
+  isDateOnlyString,
+  toDateOnlyString,
+} from '@/lib/date-only';
 
 const CYCLE_PHASES = [
   'menstrual',
@@ -194,8 +198,12 @@ export function CyclePageClient({
 
         // Calculate phase for selected date (not current date)
         // We need to manually calculate since calculateCyclePhase uses "today"
-        const lastPeriod = new Date(userPreference.lastPeriodDate);
-        lastPeriod.setHours(0, 0, 0, 0);
+        // lastPeriodDate is a date-only value stored as UTC midnight. Read its UTC
+        // calendar day, then compare in local time like dateObj; local getters on the
+        // raw Date would land on the previous day west of UTC.
+        const lastPeriod = dateOnlyToLocalDate(
+          toDateOnlyString(new Date(userPreference.lastPeriodDate))
+        );
 
         // Handle edge case: selected date is before last period
         if (dateObj < lastPeriod) {
