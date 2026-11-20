@@ -347,7 +347,7 @@ export const NUTRIENT_KEYWORD_RULES: readonly NutrientKeywordRule[] = [
     prefixes: ['ägg'],
     words: ['egg', 'eggs', 'yolk', 'yolks'],
     // Eggplant ("äggplanta") and egg-free products
-    exclude: ['eggplant', 'äggplant', 'äggfri', 'äggersättning', 'egg-free', 'egg replacer'],
+    exclude: ['eggplant', 'egg plant', 'äggplant', 'äggfri', 'äggersättning', 'egg-free', 'egg replacer'],
     nutrients: ['protein'],
   },
   {
@@ -374,8 +374,8 @@ export const NUTRIENT_KEYWORD_RULES: readonly NutrientKeywordRule[] = [
     prefixes: ['lins'],
     words: ['bean', 'beans', 'lentil', 'lentils', 'chickpea', 'chickpeas', 'garbanzo', 'garbanzos', 'legumes'],
     phrases: ['gula ärtor', 'split peas'],
-    // Green beans and bean sprouts ("mungbönsgroddar") are vegetables
-    exclude: ['kaffe', 'coffee', 'kakao', 'cocoa', 'vanilj', 'vanilla', 'jelly', 'brytbön', 'haricot', 'vaxbön', 'gröna bönor', 'green beans', 'string beans', 'linseed', 'linfrö', 'grodd', 'sprouts'],
+    // Green beans and bean sprouts ("mungbönsgroddar", "mungbönsskott", "beansprout") are vegetables
+    exclude: ['kaffe', 'coffee', 'kakao', 'cocoa', 'vanilj', 'vanilla', 'jelly', 'brytbön', 'haricot', 'vaxbön', 'gröna bönor', 'green beans', 'string beans', 'linseed', 'linfrö', 'grodd', 'skott', 'sprout'],
     nutrients: ['protein', 'fiber', 'complex-carbs', 'iron'],
   },
   {

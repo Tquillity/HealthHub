@@ -57,7 +57,10 @@ export default async function MealPlannerPage() {
           <ClearAllMealsButton organizationId={organizationId} planId={plan.id} />
           <SaveTemplateButton organizationId={organizationId} planId={plan.id} />
           <PrintManager plan={plan} startDate={startDate} />
+          {/* Keyed by space: switching spaces only refreshes the page, which would keep the
+              generator's switch state from the space shown before. */}
           <MealPlanGenerator
+            key={organizationId}
             organizationId={organizationId}
             cycleOptions={cycle.generator}
           />

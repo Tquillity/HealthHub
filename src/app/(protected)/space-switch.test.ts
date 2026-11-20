@@ -289,6 +289,9 @@ describe('meal planner page', () => {
       canAlign: true,
       alignByDefault: false,
     });
+    // A new generator per space, so the switch starts from that space's saved choice
+    // after a switch (which only refreshes the page) instead of keeping the last one.
+    expect(findOne(home, MealPlanGenerator).key).toBe('family');
 
     const weekly = await mocks.weeklyPlan();
     for (const organizationType of ['COLLECTIVE', 'COMMUNITY', 'CORPORATE']) {

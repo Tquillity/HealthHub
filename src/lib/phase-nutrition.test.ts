@@ -128,9 +128,13 @@ describe('inferIngredientNutrients', () => {
     expect(nutrientsOf('Juniper berries', 'st')).toEqual([]);
     // Eggplant
     expect(nutrientsOf('Äggplanta', 'st')).toEqual([]);
+    expect(nutrientsOf('Egg plant', 'st')).toEqual([]);
     // Bean sprouts are a vegetable
     expect(nutrientsOf('Mungbönsgroddar', 'g')).toEqual([]);
+    expect(nutrientsOf('Mungbönsskott', 'g')).toEqual([]);
     expect(nutrientsOf('Bean sprouts', 'g')).toEqual([]);
+    expect(nutrientsOf('Bean sprout', 'g')).toEqual([]);
+    expect(nutrientsOf('Beansprouts', 'g')).toEqual([]);
     expect(nutrientsOf('Böngroddar', 'g')).toEqual([]);
     // The real things still count
     expect(nutrientsOf('Linser', 'dl')).toContain('iron');
