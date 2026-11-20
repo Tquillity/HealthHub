@@ -6,6 +6,8 @@ import { ProtectedMobileNav } from '@/components/layout/protected-mobile-nav';
 import { ProtectedNavIcon } from '@/components/layout/protected-nav-icon';
 import { protectedNavItems } from '@/components/layout/protected-nav-items';
 import { SignOutButton } from '@/components/layout/sign-out-button';
+import { PaymentFailedBanner } from '@/components/billing/payment-failed-banner';
+import { getBillingNotice } from '@/lib/billing-notice';
 import { ensurePersonalHousehold } from '@/lib/household';
 
 /**
@@ -41,6 +43,9 @@ export default async function DashboardLayout({
   } catch (error) {
     console.error('[HealthHub household] Failed to ensure household:', error);
   }
+
+  // Pro stays on while Stripe retries a failed payment; ask the user to update their card.
+  const billingNotice = await getBillingNotice(session.user.id);
 
   return (
     <div className="flex min-h-screen bg-gray-50 text-gray-900">
@@ -86,6 +91,8 @@ export default async function DashboardLayout({
             v2.0.0
           </div>
         </header>
+
+        {billingNotice.paymentFailed && <PaymentFailedBanner />}
 
         <div className="flex-1 p-4 sm:p-6 md:p-8">{children}</div>
 

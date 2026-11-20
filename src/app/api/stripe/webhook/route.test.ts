@@ -6,7 +6,9 @@ const mocks = vi.hoisted(() => ({
   subscriptions: vi.fn(),
   search: vi.fn(),
   list: vi.fn(),
+  revalidateTag: vi.fn(),
 }));
+vi.mock('next/cache', () => ({ revalidateTag: mocks.revalidateTag }));
 vi.mock('@/lib/stripe-webhook', () => ({ processStripeEvent: mocks.process }));
 vi.mock('stripe', async (importOriginal) => {
   const { default: StripeClient } =
@@ -127,7 +129,8 @@ describe('signed Stripe webhooks', () => {
   it.each([
     ['active', true],
     ['trialing', true],
-    ['past_due', false],
+    // Grace period: Pro stays while Stripe retries the failed payment.
+    ['past_due', true],
     ['unpaid', false],
     ['canceled', false],
     ['incomplete_expired', false],
@@ -149,11 +152,15 @@ describe('signed Stripe webhooks', () => {
         expect.objectContaining({ id: 'evt_fixture' }),
         { userId: 'user_fixture', isPremium }
       );
+      expect(mocks.revalidateTag).toHaveBeenCalledWith(
+        'billing-notice-user_fixture',
+        'max'
+      );
     }
   );
 
   it('maps legacy subscription updates through the original checkout', async () => {
-    mocks.subscriptions.mockResolvedValue({ status: 'past_due' });
+    mocks.subscriptions.mockResolvedValue({ status: 'unpaid' });
     mocks.list.mockResolvedValue({
       data: [{ metadata: {}, client_reference_id: 'legacy_user' }],
     });
