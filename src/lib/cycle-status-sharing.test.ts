@@ -6,6 +6,7 @@ import {
   CYCLE_SHARE_LEVELS,
   CYCLE_SHARE_LEVEL_INFO,
   describeAudience,
+  describeShareChange,
   firstNameOf,
   getEffectiveShareLevel,
   getTimeOfDay,
@@ -395,6 +396,39 @@ describe('who a share covers', () => {
     expect(describeAudience(household({ members: [] }))).toBe('Nobody else is in Our home yet.');
     expect(describeAudience(household({ members: [], share: shared }))).toBe(
       'Nobody else is in Our home yet. People who join later see nothing until you include them.'
+    );
+  });
+
+  it('confirms a save with what is actually shared, and with whom', () => {
+    const robinSees = [
+      { name: 'Robin Partner', seesStatus: true },
+      { name: 'Carol Later', seesStatus: false },
+    ];
+    expect(describeShareChange(household({ share: shared, members: robinSees }), true)).toBe(
+      'Robin Partner now sees your cycle status: Phase only.'
+    );
+    expect(
+      describeShareChange(
+        household({
+          share: { ...shared, level: 'FULL' },
+          members: robinSees.map((member) => ({ ...member, seesStatus: true })),
+        }),
+        true
+      )
+    ).toBe('Robin Partner and Carol Later now see your cycle status: Full status.');
+    // Nothing is shown without cycle tracking set up.
+    expect(describeShareChange(household({ share: shared, members: robinSees }), false)).toBe(
+      'Sharing with Our home is on, but nothing is shown until cycle tracking and your last period date are set.'
+    );
+    // Nobody to see it.
+    expect(describeShareChange(household({ share: shared, members: [] }), true)).toBe(
+      'Sharing with Our home is on, but nobody else is in it yet.'
+    );
+    expect(describeShareChange(household({ share: shared }), true)).toBe(
+      'Sharing with Our home is on, but nobody there sees it yet.'
+    );
+    expect(describeShareChange(household(), true)).toBe(
+      'Our home can no longer see your cycle status.'
     );
   });
 

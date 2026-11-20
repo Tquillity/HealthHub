@@ -165,6 +165,23 @@ export function membersNotYetIncluded(household: CycleShareHousehold): string[] 
   return household.members.filter((member) => !member.seesStatus).map((member) => member.name);
 }
 
+/**
+ * What a saved change actually shares, for the confirmation after saving: who sees what in
+ * this household now. `household` is the server's state after the save.
+ */
+export function describeShareChange(household: CycleShareHousehold, cycleConfigured: boolean): string {
+  const { name, share, members } = household;
+  if (!share) return `${name} can no longer see your cycle status.`;
+  if (!cycleConfigured) {
+    return `Sharing with ${name} is on, but nothing is shown until cycle tracking and your last period date are set.`;
+  }
+  if (members.length === 0) return `Sharing with ${name} is on, but nobody else is in it yet.`;
+  const seen = members.filter((member) => member.seesStatus).map((member) => member.name);
+  if (seen.length === 0) return `Sharing with ${name} is on, but nobody there sees it yet.`;
+  const label = CYCLE_SHARE_LEVEL_INFO[share.level].label;
+  return `${listNames(seen)} now ${seen.length === 1 ? 'sees' : 'see'} your cycle status: ${label}.`;
+}
+
 /** Who sees the status in this household, or would see it if the user shared. */
 export function describeAudience(household: CycleShareHousehold): string {
   const { name, members, share } = household;

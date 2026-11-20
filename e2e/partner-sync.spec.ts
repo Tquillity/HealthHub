@@ -51,28 +51,40 @@ test.describe('partner sync', () => {
     await expect(household.getByText('Nothing. They see nothing about your cycle.')).toBeVisible();
     await expect(household.getByRole('radio')).toHaveCount(0);
 
+    // Results are read out from each household's status region (toasts are not announced).
+    const status = household.getByRole('status');
     await toggle.click();
-    await expect(page.getByText('E2E household can now see your cycle status.')).toBeVisible();
+    await expect(status).toHaveText('Robin Partner now sees your cycle status: Phase only.');
     await expect(toggle).toBeChecked();
+    // Focus stays on the switch while and after saving.
+    await expect(toggle).toBeFocused();
     await expect(household).toContainText('Seen by Robin Partner');
     await expect(household.getByRole('radio', { name: /^Phase only/ })).toBeChecked();
     const preview = household.getByRole('article');
     await expect(preview).toContainText(/is in the \w+ phase\./);
     await expect(preview.getByText('Energy logged today')).toHaveCount(0);
 
-    await household.getByRole('radio', { name: /^Full status/ }).click();
+    // Arrow keys move through the levels; each one saves and focus stays in the group.
+    await household.getByRole('radio', { name: /^Phase only/ }).focus();
+    await page.keyboard.press('ArrowDown');
+    await expect(status).toHaveText('Robin Partner now sees your cycle status: Phase and energy.');
+    await page.keyboard.press('ArrowDown');
+    await expect(status).toHaveText('Robin Partner now sees your cycle status: Full status.');
     await expect(household.getByRole('radio', { name: /^Full status/ })).toBeChecked();
+    await expect(household.getByRole('radio', { name: /^Full status/ })).toBeFocused();
     await expect(preview.getByText('Next period')).toBeVisible();
 
     await section.getByLabel('Message for your household (optional)').fill('Back rubs welcome');
     await expect(preview).toContainText('Back rubs welcome');
     await expect(household.getByText('Message not saved yet')).toBeVisible();
     await section.getByRole('button', { name: 'Save message' }).click();
-    await expect(page.getByText('Your message is saved.')).toBeVisible();
+    await expect(
+      section.getByRole('status').filter({ hasText: 'Your message is saved.' })
+    ).toHaveCount(1);
     await expect(household.getByText('Message not saved yet')).toHaveCount(0);
 
     await toggle.click();
-    await expect(page.getByText('E2E household can no longer see your cycle status.')).toBeVisible();
+    await expect(status).toHaveText('E2E household can no longer see your cycle status.');
     await expect(toggle).not.toBeChecked();
     await expect(household.getByText('Nothing. They see nothing about your cycle.')).toBeVisible();
   });

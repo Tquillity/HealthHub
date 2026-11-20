@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState, type Ref } from 'react';
 import Link from 'next/link';
 import type { CycleShareLevel } from '@prisma/client';
 import { Eye, EyeOff, Info } from 'lucide-react';
@@ -10,6 +10,7 @@ import { saveSupportMessage, setCycleStatusSharing } from '@/actions/support-sta
 import {
   CYCLE_SHARE_LEVEL_INFO,
   describeAudience,
+  describeShareChange,
   getEffectiveShareLevel,
   listNames,
   membersNotYetIncluded,
@@ -30,12 +31,20 @@ type HouseholdShareFieldsProps = {
   index: number;
   /** The level shown: the saved one, or the one being saved. NONE when not shared. */
   level: CycleShareLevel;
+  /**
+   * A save is running. Controls stay enabled and focusable (aria-disabled); the handlers ignore
+   * input until it ends. Disabling them would drop keyboard focus to the page.
+   */
   saving: boolean;
   preview: ProjectedCycleStatus | null;
   /** The message in the box differs from the saved one (shown in a Full preview). */
   messageDirty: boolean;
+  /** The result of the last save, read out by screen readers. Empty until something is saved. */
+  status: string;
   onLevelChange: (level: CycleShareLevel) => void;
   onIncludeNewMembers: () => void;
+  switchRef?: Ref<HTMLInputElement>;
+  includeRef?: Ref<HTMLButtonElement>;
 };
 
 /** One household's switch, level, audience and preview. No state of its own. */
@@ -46,8 +55,11 @@ export function HouseholdShareFields({
   saving,
   preview,
   messageDirty,
+  status,
   onLevelChange,
   onIncludeNewMembers,
+  switchRef,
+  includeRef,
 }: HouseholdShareFieldsProps) {
   const prefix = `cycle-share-${index}`;
   const on = level !== 'NONE';
@@ -65,14 +77,15 @@ export function HouseholdShareFields({
       <div className="flex flex-col gap-1">
         <div className="flex items-center gap-3">
           <input
+            ref={switchRef}
             type="checkbox"
             role="switch"
             id={`${prefix}-enabled`}
             checked={on}
-            disabled={saving}
+            aria-disabled={saving || undefined}
             aria-describedby={`${prefix}-audience`}
             onChange={(event) => onLevelChange(event.target.checked ? 'PHASE' : 'NONE')}
-            className="h-5 w-5 shrink-0 rounded border-gray-300 text-primary-600 focus:ring-2 focus:ring-primary-600"
+            className="h-5 w-5 shrink-0 rounded border-gray-300 text-primary-600 focus:ring-2 focus:ring-primary-600 aria-disabled:opacity-60"
           />
           <label
             htmlFor={`${prefix}-enabled`}
@@ -93,11 +106,13 @@ export function HouseholdShareFields({
             nothing.
           </p>
           <Button
+            ref={includeRef}
             type="button"
             variant="outline"
             size="sm"
-            disabled={saving}
+            aria-disabled={saving || undefined}
             onClick={onIncludeNewMembers}
+            className="aria-disabled:opacity-60"
           >
             Share with {listNames(newMembers)} too
           </Button>
@@ -105,7 +120,7 @@ export function HouseholdShareFields({
       )}
 
       {on && (
-        <fieldset disabled={saving} className="flex flex-col gap-3 disabled:opacity-60">
+        <fieldset className="flex flex-col gap-3">
           <legend className="mb-2 text-sm font-medium text-gray-900">
             How much {household.name} sees
           </legend>
@@ -128,6 +143,7 @@ export function HouseholdShareFields({
                   name={`${prefix}-level`}
                   value={option}
                   checked={checked}
+                  aria-disabled={saving || undefined}
                   onChange={() => onLevelChange(option)}
                   className="mt-1 h-4 w-4 shrink-0 text-primary-600 focus:ring-2 focus:ring-primary-600"
                 />
@@ -141,6 +157,11 @@ export function HouseholdShareFields({
         </fieldset>
       )}
 
+      <p role="status" className="sr-only">
+        {status}
+      </p>
+
+      {/* Not a live region: the preview changes with every keystroke in the message box. */}
       <div className="flex flex-col gap-3 rounded-lg border border-dashed border-gray-300 p-4">
         <h4 className="flex flex-wrap items-center gap-2 text-sm font-semibold text-gray-900">
           {preview ? (
@@ -155,13 +176,11 @@ export function HouseholdShareFields({
             </span>
           )}
         </h4>
-        <div aria-live="polite">
-          {preview ? (
-            <SupportStatusItem status={preview} />
-          ) : (
-            <p className="text-sm text-gray-600">Nothing. They see nothing about your cycle.</p>
-          )}
-        </div>
+        {preview ? (
+          <SupportStatusItem status={preview} />
+        ) : (
+          <p className="text-sm text-gray-600">Nothing. They see nothing about your cycle.</p>
+        )}
       </div>
     </section>
   );
@@ -198,10 +217,14 @@ function HouseholdShareCard({
   // Shown straight away while saving; cleared (back to the saved level) when the save ends.
   const [pendingLevel, setPendingLevel] = useState<CycleShareLevel | null>(null);
   const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState('');
+  const switchRef = useRef<HTMLInputElement>(null);
+  const includeRef = useRef<HTMLButtonElement>(null);
 
   const level = pendingLevel ?? household.share?.level ?? 'NONE';
 
-  const save = async (next: CycleShareLevel, includeNewMembers: boolean, successMessage: string) => {
+  const save = async (next: CycleShareLevel, includeNewMembers: boolean) => {
+    // The controls stay focusable while saving, so input during a save is ignored here.
     if (saving) return;
     setPendingLevel(next);
     setSaving(true);
@@ -215,23 +238,25 @@ function HouseholdShareCard({
     setSaving(false);
     setPendingLevel(null);
     if (result.success && result.data) {
+      // The button goes once everyone is included; keep focus in this household.
+      if (document.activeElement === includeRef.current) switchRef.current?.focus();
       setHousehold(result.data.household);
       onTimeZoneChange(result.data.timeZone);
-      showToast(successMessage, 'success');
+      // Says what is actually shared now, from the server's answer.
+      const message = describeShareChange(result.data.household, result.data.cycleConfigured);
+      setStatus(message);
+      showToast(message, 'success');
     } else {
-      showToast(result.error || 'Could not update sharing', 'error');
+      const reason = (result.error || 'Could not update sharing').replace(/\.$/, '');
+      const message = `${reason}. Nothing changed.`;
+      setStatus(message);
+      showToast(message, 'error');
     }
   };
 
   const handleLevelChange = (next: CycleShareLevel) => {
-    if (next === level) return;
-    const message =
-      next === 'NONE'
-        ? `${household.name} can no longer see your cycle status.`
-        : level === 'NONE'
-          ? `${household.name} can now see your cycle status.`
-          : `Sharing level for ${household.name}: ${CYCLE_SHARE_LEVEL_INFO[next].label}.`;
-    void save(next, false, message);
+    if (saving || next === level) return;
+    void save(next, false);
   };
 
   const preview = projectCycleStatus(
@@ -255,14 +280,11 @@ function HouseholdShareCard({
       saving={saving}
       preview={preview}
       messageDirty={messageDirty}
+      status={status}
       onLevelChange={handleLevelChange}
-      onIncludeNewMembers={() =>
-        void save(
-          level,
-          true,
-          `${listNames(membersNotYetIncluded(household))} can now see your cycle status too.`
-        )
-      }
+      onIncludeNewMembers={() => void save(level, true)}
+      switchRef={switchRef}
+      includeRef={includeRef}
     />
   );
 }
@@ -278,24 +300,35 @@ export function CycleSharingSettingsPanel({ data }: { data: CycleSharingPanelDat
   const [savedMessage, setSavedMessage] = useState(data.supportMessage ?? '');
   const [draftMessage, setDraftMessage] = useState(data.supportMessage ?? '');
   const [savingMessage, setSavingMessage] = useState(false);
+  const [messageStatus, setMessageStatus] = useState('');
   const [timeZone, setTimeZone] = useState(data.timeZone);
+  const messageRef = useRef<HTMLTextAreaElement>(null);
+  const removeRef = useRef<HTMLButtonElement>(null);
 
   // From props: saving the profile form above re-renders this with fresh cycle data.
   const cycleConfigured = data.cycleConfigured;
   const messageDirty = draftMessage.trim() !== savedMessage;
 
   const saveMessage = async (supportMessage: string | null, successMessage: string) => {
+    // The box and buttons stay focusable while saving, so input during a save is ignored here.
     if (savingMessage) return;
+    const sentDraft = draftMessage;
     setSavingMessage(true);
     const result = await saveSupportMessage({ supportMessage });
     setSavingMessage(false);
     if (result.success && result.data) {
       const saved = result.data.supportMessage ?? '';
+      // Remove message goes once there is nothing saved; keep focus on the message box.
+      if (!saved && document.activeElement === removeRef.current) messageRef.current?.focus();
       setSavedMessage(saved);
-      setDraftMessage(saved);
+      // Keep anything typed while saving.
+      setDraftMessage((current) => (current === sentDraft ? saved : current));
+      setMessageStatus(successMessage);
       showToast(successMessage, 'success');
     } else {
-      showToast(result.error || 'Could not save your message', 'error');
+      const message = result.error || 'Could not save your message';
+      setMessageStatus(message);
+      showToast(message, 'error');
     }
   };
 
@@ -358,15 +391,15 @@ export function CycleSharingSettingsPanel({ data }: { data: CycleSharingPanelDat
           Message for your household (optional)
         </label>
         <textarea
+          ref={messageRef}
           id="cycle-support-message"
           value={draftMessage}
           maxLength={SUPPORT_MESSAGE_MAX_LENGTH}
           rows={3}
-          disabled={savingMessage}
           aria-describedby="cycle-support-message-help"
           onChange={(event) => setDraftMessage(event.target.value)}
           placeholder="For example: A quiet evening and a cup of tea would mean a lot this week."
-          className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 disabled:opacity-60"
+          className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600"
         />
         <p id="cycle-support-message-help" className="text-xs text-gray-500">
           Shown only to households that see Full status. Stored encrypted.{' '}
@@ -376,23 +409,32 @@ export function CycleSharingSettingsPanel({ data }: { data: CycleSharingPanelDat
           <Button
             type="button"
             size="sm"
-            disabled={savingMessage || !messageDirty}
-            onClick={() => void saveMessage(draftMessage, 'Your message is saved.')}
+            aria-disabled={savingMessage || !messageDirty || undefined}
+            onClick={() => {
+              if (!messageDirty) return;
+              void saveMessage(draftMessage, 'Your message is saved.');
+            }}
+            className="aria-disabled:opacity-50"
           >
             Save message
           </Button>
           {savedMessage && (
             <Button
+              ref={removeRef}
               type="button"
               variant="outline"
               size="sm"
-              disabled={savingMessage}
+              aria-disabled={savingMessage || undefined}
               onClick={() => void saveMessage(null, 'Your message is removed.')}
+              className="aria-disabled:opacity-50"
             >
               Remove message
             </Button>
           )}
         </div>
+        <p role="status" className="sr-only">
+          {messageStatus}
+        </p>
       </div>
     </div>
   );
