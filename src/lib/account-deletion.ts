@@ -18,7 +18,8 @@ import { cancelProSubscriptions } from '@/lib/account-billing';
  * - Shared households stay with the remaining members. If the user was the owner, the
  *   longest-standing remaining member becomes owner.
  * - Invitations the user sent or received are deleted.
- * - Active HealthHub Pro subscriptions are cancelled, so billing stops.
+ * - Active HealthHub Pro subscriptions are cancelled, so billing stops, and the unused
+ *   part of the current billing period is refunded pro rata.
  * - Uploaded images of deleted recipes and routines are removed from Vercel Blob.
  */
 
@@ -29,6 +30,8 @@ export type AccountDeletionContext = {
   hasPassword: boolean;
   /** The main admin (superadmin) cannot delete itself from the app. */
   isMainAdmin: boolean;
+  /** Pro members get an extra warning: Pro ends at once, with a pro-rata refund. */
+  isPremium: boolean;
 };
 
 export async function getAccountDeletionContext(
@@ -39,11 +42,15 @@ export async function getAccountDeletionContext(
       where: { userId, providerId: 'credential', password: { not: null } },
       select: { id: true },
     }),
-    prisma.user.findUnique({ where: { id: userId }, select: { role: true } }),
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true, isPremium: true },
+    }),
   ]);
   return {
     hasPassword: Boolean(credential),
     isMainAdmin: user?.role === 'superadmin',
+    isPremium: Boolean(user?.isPremium),
   };
 }
 
@@ -224,9 +231,12 @@ async function cancelBilling(user: DeletableUser): Promise<void> {
       process.env.STRIPE_PRICE_ID_PRO?.trim()
     );
   } catch (error) {
-    console.error('[account deletion] Failed to cancel subscriptions:', error);
+    console.error(
+      '[account deletion] Failed to refund or cancel subscriptions:',
+      error
+    );
     throw new AccountDeletionError(
-      "We couldn't cancel your HealthHub Pro subscription, so your account was not deleted. Please try again in a few minutes."
+      "We couldn't cancel and refund your HealthHub Pro subscription, so your account was not deleted. Please try again in a few minutes."
     );
   }
 }

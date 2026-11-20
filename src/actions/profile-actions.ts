@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db';
 import { requireSessionUserId } from '@/lib/session';
 import { revalidatePath } from 'next/cache';
 import { UpdateProfileSchema } from '@/lib/validation/profile-schemas';
+import { dateOnlyToUtcDate } from '@/lib/date-only';
 
 export async function updateProfile(data: z.infer<typeof UpdateProfileSchema>) {
   try {
@@ -29,9 +30,13 @@ export async function updateProfile(data: z.infer<typeof UpdateProfileSchema>) {
           healthGoals: validated.healthGoals,
         }),
         ...(validated.timezone && { timezone: validated.timezone }),
-        ...(validated.mealPlanDuration && { mealPlanDuration: validated.mealPlanDuration }),
+        ...(validated.mealPlanDuration && {
+          mealPlanDuration: validated.mealPlanDuration,
+        }),
         ...(validated.mealPlanStartDate !== undefined && {
-          mealPlanStartDate: validated.mealPlanStartDate,
+          mealPlanStartDate: validated.mealPlanStartDate
+            ? dateOnlyToUtcDate(validated.mealPlanStartDate)
+            : null,
         }),
         ...(validated.enableCycleTracking !== undefined && {
           enableCycleTracking: validated.enableCycleTracking,
@@ -40,7 +45,9 @@ export async function updateProfile(data: z.infer<typeof UpdateProfileSchema>) {
           cycleLength: validated.cycleLength,
         }),
         ...(validated.lastPeriodDate !== undefined && {
-          lastPeriodDate: validated.lastPeriodDate ? new Date(validated.lastPeriodDate) : null,
+          lastPeriodDate: validated.lastPeriodDate
+            ? dateOnlyToUtcDate(validated.lastPeriodDate)
+            : null,
         }),
         ...(validated.focusPreference !== undefined && {
           focusPreference: validated.focusPreference,
@@ -64,7 +71,9 @@ export async function updateProfile(data: z.infer<typeof UpdateProfileSchema>) {
         : null,
       enableCycleTracking: updatedUser.enableCycleTracking,
       cycleLength: updatedUser.cycleLength,
-      lastPeriodDate: updatedUser.lastPeriodDate ? updatedUser.lastPeriodDate.toISOString() : null,
+      lastPeriodDate: updatedUser.lastPeriodDate
+        ? updatedUser.lastPeriodDate.toISOString()
+        : null,
       focusPreference: updatedUser.focusPreference || 'both',
     };
 
@@ -73,7 +82,10 @@ export async function updateProfile(data: z.infer<typeof UpdateProfileSchema>) {
   } catch (error) {
     if (error instanceof z.ZodError) {
       // Zod v4 uses `issues` (Zod v3 used `errors`)
-      return { success: false, error: error.issues?.[0]?.message || 'Validation failed' };
+      return {
+        success: false,
+        error: error.issues?.[0]?.message || 'Validation failed',
+      };
     }
     console.error('Error updating profile:', error);
     return { success: false, error: 'Failed to update profile' };
@@ -111,7 +123,9 @@ export async function getProfile() {
         : null,
       enableCycleTracking: user.enableCycleTracking,
       cycleLength: user.cycleLength,
-      lastPeriodDate: user.lastPeriodDate ? user.lastPeriodDate.toISOString() : null,
+      lastPeriodDate: user.lastPeriodDate
+        ? user.lastPeriodDate.toISOString()
+        : null,
       focusPreference: user.focusPreference || 'both',
     };
 
@@ -121,4 +135,3 @@ export async function getProfile() {
     return { success: false, error: 'Failed to fetch profile', data: null };
   }
 }
-

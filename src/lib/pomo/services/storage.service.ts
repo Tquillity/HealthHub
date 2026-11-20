@@ -4,6 +4,7 @@ import { useTaskStore } from '@/lib/pomo-store/useTaskStore';
 import { useSettingsStore } from '@/lib/pomo-store/useSettingsStore';
 import {
   PomoStatePayloadSchema,
+  sanitizePomoHistory,
   type PomoStatePayload,
 } from '@/lib/pomo/validation/pomo-state-schema';
 
@@ -51,7 +52,9 @@ const SettingsFileSchema = z.object({
 });
 
 const downloadJSON = (data: unknown, filename: string) => {
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify(data, null, 2)], {
+    type: 'application/json',
+  });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -74,7 +77,8 @@ export const buildExportSnapshot = (): PomoStatePayload => {
       timeLeft: time.timeLeft,
       isRunning: time.isRunning,
       sessionEndAt: time.sessionEndAt,
-      history: time.history,
+      // Legacy/oversized history would make every cloud save fail validation.
+      history: sanitizePomoHistory(time.history) ?? {},
     },
     taskStore: {
       tasks: tasks.tasks,
@@ -108,13 +112,16 @@ export const applyPomoStatePayload = (data: PomoStatePayload): void => {
   if (data.settingsStore) {
     useSettingsStore.setState({
       durations: effectiveDurations,
-      themeColors: data.settingsStore.themeColors ?? currentSettings.themeColors,
+      themeColors:
+        data.settingsStore.themeColors ?? currentSettings.themeColors,
       zenTrack: data.settingsStore.zenTrack ?? currentSettings.zenTrack,
       zenVolume: data.settingsStore.zenVolume ?? currentSettings.zenVolume,
-      zenStrategy: data.settingsStore.zenStrategy ?? currentSettings.zenStrategy,
+      zenStrategy:
+        data.settingsStore.zenStrategy ?? currentSettings.zenStrategy,
       presets: data.settingsStore.presets ?? [],
       dailyGoalPomodoros:
-        data.settingsStore.dailyGoalPomodoros ?? currentSettings.dailyGoalPomodoros,
+        data.settingsStore.dailyGoalPomodoros ??
+        currentSettings.dailyGoalPomodoros,
       autoStartBreaks:
         data.settingsStore.autoStartBreaks ??
         data.settingsStore.autoStart ??
@@ -123,10 +130,13 @@ export const applyPomoStatePayload = (data: PomoStatePayload): void => {
         data.settingsStore.autoStartPomodoros ??
         data.settingsStore.autoStart ??
         currentSettings.autoStartPomodoros,
-      soundEnabled: data.settingsStore.soundEnabled ?? currentSettings.soundEnabled,
+      soundEnabled:
+        data.settingsStore.soundEnabled ?? currentSettings.soundEnabled,
       notificationsEnabled:
-        data.settingsStore.notificationsEnabled ?? currentSettings.notificationsEnabled,
-      zenModeEnabled: data.settingsStore.zenModeEnabled ?? currentSettings.zenModeEnabled,
+        data.settingsStore.notificationsEnabled ??
+        currentSettings.notificationsEnabled,
+      zenModeEnabled:
+        data.settingsStore.zenModeEnabled ?? currentSettings.zenModeEnabled,
     });
   }
 
@@ -148,7 +158,10 @@ export const applyPomoStatePayload = (data: PomoStatePayload): void => {
 };
 
 export const exportData = () => {
-  downloadJSON(buildExportSnapshot(), `pomozen-backup-${new Date().toISOString().slice(0, 10)}.json`);
+  downloadJSON(
+    buildExportSnapshot(),
+    `pomozen-backup-${new Date().toISOString().slice(0, 10)}.json`
+  );
 };
 
 export const importData = async (file: File): Promise<boolean> => {
@@ -167,7 +180,9 @@ export const importData = async (file: File): Promise<boolean> => {
     if (typeof window !== 'undefined') {
       window.dispatchEvent(
         new CustomEvent('storage-error', {
-          detail: { message: 'Failed to import file. It may be corrupt or invalid.' },
+          detail: {
+            message: 'Failed to import file. It may be corrupt or invalid.',
+          },
         })
       );
     }
@@ -211,9 +226,11 @@ export const importSettingsOnly = async (file: File): Promise<boolean> => {
       zenTrack: data.zenTrack,
       zenVolume: data.zenVolume,
       zenStrategy: data.zenStrategy,
-      dailyGoalPomodoros: data.dailyGoalPomodoros ?? currentSettings.dailyGoalPomodoros,
+      dailyGoalPomodoros:
+        data.dailyGoalPomodoros ?? currentSettings.dailyGoalPomodoros,
       autoStartBreaks: data.autoStartBreaks ?? currentSettings.autoStartBreaks,
-      autoStartPomodoros: data.autoStartPomodoros ?? currentSettings.autoStartPomodoros,
+      autoStartPomodoros:
+        data.autoStartPomodoros ?? currentSettings.autoStartPomodoros,
       presets: data.presets,
     });
     return true;
@@ -221,7 +238,9 @@ export const importSettingsOnly = async (file: File): Promise<boolean> => {
     if (typeof window !== 'undefined') {
       window.dispatchEvent(
         new CustomEvent('storage-error', {
-          detail: { message: 'Invalid settings file. It may be corrupt or invalid.' },
+          detail: {
+            message: 'Invalid settings file. It may be corrupt or invalid.',
+          },
         })
       );
     }
@@ -244,5 +263,7 @@ export function clearLocalPomoStorageKeys(): void {
 
 export function hasLocalPomoData(): boolean {
   if (typeof window === 'undefined') return false;
-  return POMO_LOCAL_STORAGE_KEYS.some((key) => window.localStorage.getItem(key) !== null);
+  return POMO_LOCAL_STORAGE_KEYS.some(
+    (key) => window.localStorage.getItem(key) !== null
+  );
 }

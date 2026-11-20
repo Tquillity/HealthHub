@@ -77,7 +77,10 @@ jobs:
           node-version: "22"
       - uses: pnpm/action-setup@v4
       - run: pnpm install --frozen-lockfile
-      - run: pnpm db:push
+      # Build the test database from the migration files, the same way production
+      # is migrated, then fail if schema.prisma has changes without a migration.
+      - run: pnpm db:migrate:deploy
+      - run: pnpm db:migrate:check
       - run: pnpm db:repair-admin -- --use-default
       - run: pnpm exec tsx scripts/seed-e2e.ts
       - run: pnpm exec vitest run src/lib/stripe-webhook.test.ts src/lib/account-deletion.test.ts src/lib/account-export.test.ts

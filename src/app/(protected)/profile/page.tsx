@@ -97,6 +97,7 @@ export default async function ProfilePage() {
         <DeleteAccountSection
           hasPassword={deletion.hasPassword}
           isMainAdmin={deletion.isMainAdmin}
+          isPremium={deletion.isPremium}
         />
       </div>
     </div>
