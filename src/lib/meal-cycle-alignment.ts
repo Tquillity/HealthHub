@@ -2,9 +2,10 @@ import { addDays, format } from 'date-fns';
 import type { OrganizationType, Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { getPhaseForDateKey, type CyclePhase } from '@/lib/cycle-calculator';
-import { isDateOnlyString, toDateOnlyString } from '@/lib/date-only';
+import { dateOnlyToUtcDate, isDateOnlyString, toDateOnlyString } from '@/lib/date-only';
 import { canAlignMealPlanWithCycle } from '@/lib/org-policy';
 import { resolveRecipeBioProfile, type RecipeBioProfile } from '@/lib/phase-nutrition';
+import { getLocalDateKey, resolveTimeZone } from '@/lib/time-zone';
 
 /**
  * Server-side cycle data for the meal planner (issue #2, Biological Fueling).
@@ -28,6 +29,7 @@ export const mealCycleSettingsSelect = {
   cycleLength: true,
   lastPeriodDate: true,
   alignMealsWithCycle: true,
+  timezone: true,
 } as const satisfies Prisma.UserSelect;
 
 export type MealCycleSettings = Prisma.UserGetPayload<{
@@ -58,10 +60,24 @@ export function hasCycleEstimate(
   );
 }
 
-/** Estimated phase per calendar day; days without an estimate are left out. */
+/**
+ * The user's own calendar day (`YYYY-MM-DD`) at `now`: in their profile time zone, or in UTC
+ * when that is not a zone the runtime knows. Decides whether their period is already late.
+ */
+export function cycleTodayKey(settings: Pick<MealCycleSettings, 'timezone'>, now: Date): string {
+  return getLocalDateKey(now, resolveTimeZone(settings.timezone));
+}
+
+/**
+ * Estimated phase per calendar day; days without an estimate are left out. `todayKey` is the
+ * user's own day (cycleTodayKey): once it is past their typical cycle length the period is
+ * late or not logged, and the days after that length get no phase, so no badge and no
+ * alignment (the daily briefing pauses phase-based ideas then too).
+ */
 export function buildPhaseCalendar(
   settings: MealCycleSettings | null | undefined,
-  dateKeys: readonly string[]
+  dateKeys: readonly string[],
+  todayKey: string
 ): Record<string, CyclePhase> {
   const calendar: Record<string, CyclePhase> = {};
   if (!hasCycleEstimate(settings)) return calendar;
@@ -69,19 +85,42 @@ export function buildPhaseCalendar(
     const phase = getPhaseForDateKey(
       settings.lastPeriodDate,
       settings.cycleLength,
-      dateKey
+      dateKey,
+      todayKey
     );
     if (phase) calendar[dateKey] = phase;
   }
   return calendar;
 }
 
+/**
+ * True once `todayKey` (the user's own day, cycleTodayKey) is at or past their typical cycle
+ * length since the last period start: the period is late or not logged, so no phase is
+ * estimated for the days after that length (buildPhaseCalendar, the daily briefing).
+ */
+export function isCycleLongerThanUsual(
+  settings: MealCycleSettings & { lastPeriodDate: Date },
+  todayKey: string
+): boolean {
+  if (!isDateOnlyString(todayKey)) return false;
+  const start = dateOnlyToUtcDate(toDateOnlyString(settings.lastPeriodDate));
+  const daysSinceStart = Math.round(
+    (dateOnlyToUtcDate(todayKey).getTime() - start.getTime()) / 86_400_000
+  );
+  return daysSinceStart >= settings.cycleLength;
+}
+
 /** What the Meal Plan Generator needs to show its "Align with cycle phase" toggle. */
 export interface GeneratorCycleOptions {
-  /** Toggle can be used (tracking on and a last period date). */
+  /** Toggle can be used (tracking on, a last period date, and the cycle not past its usual length). */
   canAlign: boolean;
   /** The user's saved choice (User.alignMealsWithCycle). */
   alignByDefault: boolean;
+  /**
+   * The cycle is past its usual length (period late or not logged), so there are no phases
+   * to align with: the toggle is off and says why, instead of planning without phases.
+   */
+  cycleLongerThanUsual: boolean;
 }
 
 /**
@@ -90,13 +129,17 @@ export interface GeneratorCycleOptions {
  */
 export function toGeneratorCycleOptions(
   settings: MealCycleSettings | null | undefined,
-  organizationType: OrganizationType
+  organizationType: OrganizationType,
+  todayKey: string
 ): GeneratorCycleOptions | null {
   if (!settings?.enableCycleTracking) return null;
   if (!canAlignMealPlanWithCycle(organizationType)) return null;
+  const longerThanUsual =
+    hasCycleEstimate(settings) && isCycleLongerThanUsual(settings, todayKey);
   return {
-    canAlign: hasCycleEstimate(settings),
+    canAlign: hasCycleEstimate(settings) && !longerThanUsual,
     alignByDefault: settings.alignMealsWithCycle,
+    cycleLongerThanUsual: longerThanUsual,
   };
 }
 
@@ -137,10 +180,13 @@ export function boardDateKeys(startDate: Date, days: number): string[] {
 export async function getMealPlannerCycleData(
   userId: string,
   window: { startDate: Date; days: number; recipeIds: readonly string[] },
-  organizationType: OrganizationType
+  organizationType: OrganizationType,
+  now: Date = new Date()
 ): Promise<MealPlannerCycleData> {
   const settings = await getMealCycleSettings(userId);
-  const generator = toGeneratorCycleOptions(settings, organizationType);
+  const generator = settings
+    ? toGeneratorCycleOptions(settings, organizationType, cycleTodayKey(settings, now))
+    : null;
   if (!hasCycleEstimate(settings)) return { generator, board: null };
 
   const recipeIds = [...new Set(window.recipeIds)];
@@ -167,7 +213,8 @@ export async function getMealPlannerCycleData(
     board: {
       phaseByDate: buildPhaseCalendar(
         settings,
-        boardDateKeys(window.startDate, window.days)
+        boardDateKeys(window.startDate, window.days),
+        cycleTodayKey(settings, now)
       ),
       profiles,
     },

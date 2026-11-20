@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { parseAsBoolean, useQueryState } from 'nuqs';
 import { HeartHandshake, Settings2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card';
 import { SupportStatusItem } from '@/components/household/support-status-item';
 import type { ProjectedCycleStatus } from '@/lib/cycle-status-sharing';
 import { cn } from '@/lib/utils';
@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 /**
  * Dashboard card: the cycle status other household members chose to share, already projected
  * on the server (src/lib/support-status.ts). Support mode (?support=true) is a simpler view.
+ * Its title is an h2, like every dashboard section under the page's h1.
  */
 export function SupportStatusCard({
   organizationName,
@@ -28,10 +29,13 @@ export function SupportStatusCard({
     <Card className={className} role="region" aria-labelledby="support-status-title">
       <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-4">
         <div className="flex flex-col gap-1.5">
-          <CardTitle id="support-status-title" className="flex items-center gap-2 text-xl">
+          <h2
+            id="support-status-title"
+            className="flex items-center gap-2 text-xl font-semibold leading-none tracking-tight text-gray-900"
+          >
             <HeartHandshake className="h-5 w-5 text-primary-600" aria-hidden />
             Support status
-          </CardTitle>
+          </h2>
           <CardDescription>
             How people in {organizationName} are doing, from what they chose to share.
           </CardDescription>

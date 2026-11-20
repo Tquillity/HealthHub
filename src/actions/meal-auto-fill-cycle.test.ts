@@ -149,9 +149,14 @@ describe.skipIf(!isolated)('generateMealPlan against isolated PostgreSQL', () =>
     cookies.mockReset();
     cookies.mockRejectedValue(new Error('cookies() read in a space-scoped write'));
     vi.spyOn(console, 'error').mockImplementation(() => {});
+    // A fixed "today" before every period start below: whether a period is late depends on
+    // it, so the planned phases must not change as the real date moves on.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-20T12:00:00Z'));
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     expect(cookies).not.toHaveBeenCalled();
   });
 

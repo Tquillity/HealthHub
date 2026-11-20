@@ -19,6 +19,7 @@ import { DateOnlyStringSchema, dateOnlyToLocalDate } from '@/lib/date-only';
 import {
   buildPhaseCalendar,
   CYCLE_ALIGNMENT_HOUSEHOLD_ONLY_ERROR,
+  cycleTodayKey,
   getMealCycleSettings,
   hasCycleEstimate,
 } from '@/lib/meal-cycle-alignment';
@@ -203,9 +204,13 @@ export async function generateMealPlan(
     }
 
     // Days are planned on the server's calendar (the dates stored on the items), so
-    // their keys use the same local calendar day.
+    // their keys use the same local calendar day. Whether the period is already late is
+    // decided by the user's own day.
     const dayKeys = weekDays.map((day) => format(day, 'yyyy-MM-dd'));
-    const phaseCalendar = alignWithCycle ? buildPhaseCalendar(cycleSettings, dayKeys) : {};
+    const phaseCalendar =
+      alignWithCycle && cycleSettings
+        ? buildPhaseCalendar(cycleSettings, dayKeys, cycleTodayKey(cycleSettings, new Date()))
+        : {};
     const profiles: Map<string, RecipeBioProfile> | null = alignWithCycle
       ? new Map(
           filteredRecipes.map((recipe) => [recipe.id, resolveRecipeBioProfile(recipe)])

@@ -21,6 +21,8 @@ import type { FocusPreference } from '@/types/cycle';
  * - PHASE: first name, current phase (name and color) and a supportive suggestion.
  * - ENERGY: PHASE + the typical energy pattern for that phase + today's self-logged energy.
  * - FULL: ENERGY + cycle day, days until the next period and the personal support message.
+ * Once the cycle is longer than usual (the next period is late or not logged), no phase is
+ * estimated: members see a note saying so, and nothing that depends on a phase.
  * Journal notes, symptoms, mood, sleep, body temperature and every other field are never part
  * of any level. Pure and client-safe; unit-tested in cycle-status-sharing.test.ts.
  */
@@ -264,24 +266,34 @@ export const TYPICAL_PHASE_ENERGY: Record<CyclePhase, { summary: string; detail:
   },
 };
 
-export type CycleSnapshot = {
-  phase: CyclePhase;
-  /** 1-based day of the current cycle. */
-  cycleDay: number;
-  /** 1 means the next period is expected tomorrow. */
-  daysUntilNextPeriod: number;
-};
+export type CycleSnapshot =
+  | {
+      phase: CyclePhase;
+      /** 1-based day of the current cycle. */
+      cycleDay: number;
+      /** 1 means the next period is expected tomorrow. */
+      daysUntilNextPeriod: number;
+    }
+  /**
+   * The cycle is longer than usual: the next period is late or not logged, so no phase, cycle
+   * day or next-period date can be placed.
+   */
+  | { phase: null };
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 /**
  * Where someone is in their cycle on `dayKey` (`YYYY-MM-DD`), their own calendar day. Same
- * model and phase boundaries as calculateCyclePhase (getPhaseForDay), but for a given day
- * rather than the server's, so the phase and cycle day match the day their energy is read for.
+ * phase boundaries as calculateCyclePhase (getPhaseForDay), but for a given day rather than
+ * the server's, so the phase and cycle day match the day their energy is read for.
  *
  * Both values are date-only (stored as UTC midnight), so the difference is whole days. A start
  * date after `dayKey` means the person saved their own "today" before the time zone used here
  * reached it: the period has started, so it is day 1 of the menstrual phase.
+ *
+ * The cycle never wraps: wrapping would tell others that a new period started when none was
+ * logged. From the day after the typical length on, the period is late (or not logged) and the
+ * snapshot has no phase, the same rule as the daily briefing (lib/briefing/phase.ts).
  * Null for invalid input.
  */
 export function cycleSnapshotOn(
@@ -301,7 +313,8 @@ export function cycleSnapshotOn(
   const daysSinceStart = Math.round(
     (dateOnlyToUtcDate(dayKey).getTime() - periodStart.getTime()) / MS_PER_DAY
   );
-  const cycleDay = daysSinceStart < 0 ? 1 : (daysSinceStart % cycleLength) + 1;
+  if (daysSinceStart >= cycleLength) return { phase: null };
+  const cycleDay = daysSinceStart < 0 ? 1 : daysSinceStart + 1;
   return {
     phase: getPhaseForDay(cycleDay, cycleLength),
     cycleDay,
@@ -430,21 +443,34 @@ export type SupportSuggestionInput = {
   todayEnergy?: number | null;
 };
 
+/** A sentence about low or high logged energy, with a leading space; '' otherwise. */
+function energyNote(firstName: string, todayEnergy: number | null | undefined): string {
+  const energy = validEnergy(todayEnergy);
+  if (energy !== null && energy <= LOW_ENERGY_MAX) {
+    return ` ${firstName} logged low energy today, so keeping plans easy could mean a lot.`;
+  }
+  if (energy !== null && energy >= HIGH_ENERGY_MIN) {
+    return ` ${firstName} logged plenty of energy today.`;
+  }
+  return '';
+}
+
 /** One short, empathetic, non-medical idea for the people around them. */
 export function buildSupportSuggestion(input: SupportSuggestionInput): string {
   const { firstName, phase, viewerFocus, timeOfDay } = input;
   const opener = `${firstName} is in the ${PHASE_LABELS[phase].toLowerCase()} phase.`;
   const idea =
     timeOfDay === 'night' ? NIGHT_IDEAS[phase] : DAYTIME_IDEAS[phase][viewerFocus](WHEN[timeOfDay]);
+  return `${opener} ${idea}${energyNote(firstName, input.todayEnergy)}`;
+}
 
-  const energy = validEnergy(input.todayEnergy);
-  let energyNote = '';
-  if (energy !== null && energy <= LOW_ENERGY_MAX) {
-    energyNote = ` ${firstName} logged low energy today, so keeping plans easy could mean a lot.`;
-  } else if (energy !== null && energy >= HIGH_ENERGY_MIN) {
-    energyNote = ` ${firstName} logged plenty of energy today.`;
-  }
-  return `${opener} ${idea}${energyNote}`;
+/**
+ * Shown instead of a suggestion while someone's cycle is longer than usual (no phase in the
+ * snapshot): there is no phase, so there is no phase-based idea. `todayEnergy` as for
+ * buildSupportSuggestion: pass it only when the sharer shares energy.
+ */
+export function buildLongerCycleNote(firstName: string, todayEnergy?: number | null): string {
+  return `${firstName}'s cycle is longer than usual right now, so no phase is shown.${energyNote(firstName, todayEnergy)}`;
 }
 
 export type SharedPhase = {
@@ -457,19 +483,27 @@ export type SharedPhase = {
 type PhaseLevelStatus = {
   id: string;
   firstName: string;
-  phase: SharedPhase;
+  /**
+   * Null while their cycle is longer than usual (see CycleSnapshot). The person is still
+   * shown, with nothing that depends on a phase.
+   */
+  phase: SharedPhase | null;
+  /** A supportive idea for the phase, or without a phase the note that none is shown. */
   suggestion: string;
 };
 
 type EnergyLevelFields = {
-  typicalEnergy: { summary: string; detail: string };
+  /** The typical energy pattern for the phase; null without a phase. */
+  typicalEnergy: { summary: string; detail: string } | null;
   /** Today's self-logged energy (1-10), or null when nothing was logged today. */
   todayEnergy: number | null;
 };
 
 type FullLevelFields = {
-  cycleDay: number;
-  daysUntilNextPeriod: number;
+  /** Null without a phase. */
+  cycleDay: number | null;
+  /** Null without a phase. */
+  daysUntilNextPeriod: number | null;
   supportMessage: string | null;
 };
 
@@ -497,6 +531,11 @@ export type SupportViewer = { focus: FocusPreference; timeOfDay: TimeOfDay };
 /**
  * What a household member sees of `source`, or null when nothing is shared. Every returned
  * field is chosen explicitly here; nothing is spread from the source.
+ *
+ * While the sharer's cycle is longer than usual (a snapshot without a phase) they are still
+ * shown, so nobody reads that they stopped sharing: with the note that no phase is shown and
+ * what their level allows without one (today's energy, the personal message), but no phase,
+ * suggestion, typical energy, cycle day or next-period date.
  */
 export function projectCycleStatus(
   source: CycleStatusSource,
@@ -508,26 +547,30 @@ export function projectCycleStatus(
   const firstName = firstNameOf(source.name);
   const sharesEnergy = levelIncludes(source.level, 'ENERGY');
   const todayEnergy = sharesEnergy ? validEnergy(source.todayEnergy) : null;
+  const sharedEnergy = sharesEnergy ? todayEnergy : undefined;
+  const phase = snapshot.phase;
   const base: PhaseLevelStatus = {
     id: source.id,
     firstName,
-    phase: {
-      key: snapshot.phase,
-      name: PHASE_LABELS[snapshot.phase],
-      color: PHASE_THEMES[snapshot.phase].color.primary,
+    phase: phase && {
+      key: phase,
+      name: PHASE_LABELS[phase],
+      color: PHASE_THEMES[phase].color.primary,
     },
-    suggestion: buildSupportSuggestion({
-      firstName,
-      phase: snapshot.phase,
-      viewerFocus: viewer.focus,
-      timeOfDay: viewer.timeOfDay,
-      todayEnergy: sharesEnergy ? todayEnergy : undefined,
-    }),
+    suggestion: phase
+      ? buildSupportSuggestion({
+          firstName,
+          phase,
+          viewerFocus: viewer.focus,
+          timeOfDay: viewer.timeOfDay,
+          todayEnergy: sharedEnergy,
+        })
+      : buildLongerCycleNote(firstName, sharedEnergy),
   };
   if (source.level === 'PHASE') return { level: 'PHASE', ...base };
 
   const energy: EnergyLevelFields = {
-    typicalEnergy: { ...TYPICAL_PHASE_ENERGY[snapshot.phase] },
+    typicalEnergy: phase ? { ...TYPICAL_PHASE_ENERGY[phase] } : null,
     todayEnergy,
   };
   if (source.level === 'ENERGY') return { level: 'ENERGY', ...base, ...energy };
@@ -537,8 +580,8 @@ export function projectCycleStatus(
     level: 'FULL',
     ...base,
     ...energy,
-    cycleDay: snapshot.cycleDay,
-    daysUntilNextPeriod: snapshot.daysUntilNextPeriod,
+    cycleDay: snapshot.phase === null ? null : snapshot.cycleDay,
+    daysUntilNextPeriod: snapshot.phase === null ? null : snapshot.daysUntilNextPeriod,
     supportMessage: message || null,
   };
 }

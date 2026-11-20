@@ -82,14 +82,22 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
  * backwards guess would be shown as fact) and for invalid input, including a stored date
  * outside the years date-only values allow (rows saved before dates were validated). It
  * never throws: the error message would carry the period date into the logs.
+ *
+ * `todayKey` is the person's own calendar day. While today is still inside the cycle, later
+ * days are projected into the next cycles. Once today is past the typical length, the next
+ * period is late or not logged, so its start is unknown: every day from the end of the
+ * typical length on is null instead of a made-up new cycle, the same rule as the daily
+ * briefing (lib/briefing/phase.ts). An invalid `todayKey` gives null.
  */
 export function getPhaseForDateKey(
   lastPeriodDate: Date,
   cycleLength: number,
-  dateKey: string
+  dateKey: string,
+  todayKey?: string
 ): CyclePhase | null {
   if (
     !isDateOnlyString(dateKey) ||
+    (todayKey !== undefined && !isDateOnlyString(todayKey)) ||
     !Number.isInteger(cycleLength) ||
     cycleLength < 1 ||
     Number.isNaN(lastPeriodDate.getTime())
@@ -99,11 +107,19 @@ export function getPhaseForDateKey(
   const periodStartKey = toDateOnlyString(lastPeriodDate);
   if (!isDateOnlyString(periodStartKey)) return null;
   const periodStart = dateOnlyToUtcDate(periodStartKey);
-  const day = dateOnlyToUtcDate(dateKey);
-  const daysSinceStart = Math.round(
-    (day.getTime() - periodStart.getTime()) / MS_PER_DAY
-  );
+  const daysSince = (key: string) =>
+    Math.round(
+      (dateOnlyToUtcDate(key).getTime() - periodStart.getTime()) / MS_PER_DAY
+    );
+  const daysSinceStart = daysSince(dateKey);
   if (daysSinceStart < 0) return null;
+  if (
+    daysSinceStart >= cycleLength &&
+    todayKey !== undefined &&
+    daysSince(todayKey) >= cycleLength
+  ) {
+    return null;
+  }
   return getPhaseForDay((daysSinceStart % cycleLength) + 1, cycleLength);
 }
 

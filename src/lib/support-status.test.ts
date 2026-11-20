@@ -20,7 +20,8 @@ vi.mock('next/headers', () => ({
 
 describe.skipIf(!isolated)('support status against isolated PostgreSQL', () => {
   const run = randomUUID().slice(0, 8);
-  const lastPeriodDate = new Date('2026-05-01T00:00:00Z');
+  // June 15 is day 15 of a 28-day cycle: inside the cycle, so there is a phase.
+  const lastPeriodDate = new Date('2026-06-01T00:00:00Z');
   // Fixed clock for "today" (journal energy) and time of day: 10:00 UTC, a morning.
   const now = new Date('2026-06-15T10:00:00Z');
   const today = new Date('2026-06-15T00:00:00Z');
@@ -182,7 +183,7 @@ describe.skipIf(!isolated)('support status against isolated PostgreSQL', () => {
   // June 15 is the sharers' own day at `now` (UTC and Stockholm alike).
   const expectedSnapshot = () => {
     const snapshot = cycleSnapshotOn(lastPeriodDate, 28, '2026-06-15');
-    if (!snapshot) throw new Error('no snapshot');
+    if (!snapshot || snapshot.phase === null) throw new Error('no phase');
     return snapshot;
   };
   const idsIn = async (viewerId: string, organizationId: string) =>
@@ -310,6 +311,19 @@ describe.skipIf(!isolated)('support status against isolated PostgreSQL', () => {
     expect(included.ok && included.data.household.members).toContainEqual({
       name: 'Carol Later',
       seesStatus: true,
+    });
+    expect(await idsIn(lateJoiner.id, home)).toEqual([full.id]);
+
+    // "Include new members" from an older page (listed before Carol joined) never narrows it.
+    const fromOlderPage = await lib.setCycleStatusShare(full.id, {
+      organizationId: home,
+      level: 'FULL',
+      listedMembersJoinedBy: agreedAt.toISOString(),
+      includeNewMembers: true,
+    });
+    expect(fromOlderPage).toMatchObject({
+      ok: true,
+      data: { household: { share: { coversMembersJoinedBy: listed.listedMembersJoinedBy } } },
     });
     expect(await idsIn(lateJoiner.id, home)).toEqual([full.id]);
 
@@ -635,7 +649,7 @@ describe.skipIf(!isolated)('support status against isolated PostgreSQL', () => {
     const suggestionFor = async (viewerId: string) => {
       const board = await lib.getSupportStatusBoard(viewerId, todHome, instant);
       const [status] = board?.statuses ?? [];
-      if (!status) throw new Error('no status');
+      if (!status?.phase) throw new Error('no status with a phase');
       return { text: status.suggestion, phase: status.phase.key };
     };
     type Input = Parameters<typeof buildSupportSuggestion>[0];
@@ -656,5 +670,68 @@ describe.skipIf(!isolated)('support status against isolated PostgreSQL', () => {
       (await lib.getCycleSharingPanelData(userId, instant))?.preview.timeOfDay;
     expect(await preview(unset.id)).toBe('unknown');
     expect(await preview(west.id)).toBe('evening');
+  });
+
+  it('keeps showing a sharer whose cycle is longer than usual, without a made-up phase', async () => {
+    // June 15 is day 35 of a 28-day cycle (a week late), and months after an old date.
+    const late = person('late-sharer', 'Robin Late', {
+      lastPeriodDate: new Date('2026-05-12T00:00:00Z'),
+    });
+    const stale = person('stale-sharer', 'Sam Stale', {
+      lastPeriodDate: new Date('2026-01-10T00:00:00Z'),
+    });
+    const partner = person('late-partner', 'Pat Partner');
+    const lateHome = `ss-late-home-${run}`;
+    const people = [late, stale, partner];
+    allUsers.push(...people);
+    allOrgs.push(lateHome);
+    for (const user of people) await client.user.create({ data: user });
+    await client.user.update({
+      where: { id: late.id },
+      data: { supportMessage: encrypt('Tea would be lovely') },
+    });
+    await client.organization.create({ data: { id: lateHome, name: 'Late home', slug: lateHome } });
+    await client.member.createMany({
+      data: people.map((user) => ({
+        id: randomUUID(),
+        organizationId: lateHome,
+        userId: user.id,
+        role: 'member',
+        createdAt: at(1),
+      })),
+    });
+    await client.cycleStatusShare.createMany({
+      data: [share(late.id, lateHome, 'FULL'), share(stale.id, lateHome, 'PHASE')],
+    });
+    await client.journalEntry.create({ data: { userId: late.id, date: today, energy: 2 } });
+
+    const board = await lib.getSupportStatusBoard(partner.id, lateHome, now);
+    expect(board?.statuses).toEqual([
+      {
+        level: 'FULL',
+        id: late.id,
+        firstName: 'Robin',
+        phase: null,
+        suggestion:
+          "Robin's cycle is longer than usual right now, so no phase is shown. Robin logged low energy today, so keeping plans easy could mean a lot.",
+        typicalEnergy: null,
+        todayEnergy: 2,
+        cycleDay: null,
+        daysUntilNextPeriod: null,
+        supportMessage: 'Tea would be lovely',
+      },
+      {
+        level: 'PHASE',
+        id: stale.id,
+        firstName: 'Sam',
+        phase: null,
+        suggestion: "Sam's cycle is longer than usual right now, so no phase is shown.",
+      },
+    ]);
+    expect(JSON.stringify(board)).not.toMatch(/menstrual|follicular|ovulation|luteal/i);
+
+    // Her own Profile preview gives the same as what the household sees.
+    const preview = (await lib.getCycleSharingPanelData(late.id, now))?.preview;
+    expect(preview).toMatchObject({ snapshot: { phase: null }, todayEnergy: 2 });
   });
 });

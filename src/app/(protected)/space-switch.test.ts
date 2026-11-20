@@ -278,16 +278,21 @@ describe('meal planner page', () => {
   });
 
   it('offers cycle alignment in households only, where the shared plan may follow it', async () => {
+    // Five days into the cycle on the real clock, so the period is never late here.
+    const today = new Date();
     mocks.userFindUnique.mockResolvedValue({
       enableCycleTracking: true,
       cycleLength: 28,
-      lastPeriodDate: new Date(Date.UTC(2026, 10, 1)),
+      lastPeriodDate: new Date(
+        Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() - 5)
+      ),
       alignMealsWithCycle: false,
     });
     const home = await MealPlannerPage();
     expect(findOne(home, MealPlanGenerator).props.cycleOptions).toEqual({
       canAlign: true,
       alignByDefault: false,
+      cycleLongerThanUsual: false,
     });
     // A new generator per space, so the switch starts from that space's saved choice
     // after a switch (which only refreshes the page) instead of keeping the last one.
