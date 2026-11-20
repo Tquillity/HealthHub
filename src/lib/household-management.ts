@@ -24,7 +24,7 @@ import {
   normalizeEmail,
 } from '@/lib/invitations';
 import { createPersonalHousehold } from '@/lib/household';
-import { lockUserMemberships } from '@/lib/membership-locks';
+import { lockOrganizationMembers, lockUserMemberships } from '@/lib/membership-locks';
 import { generateInvitationId, generateRecordId } from '@/lib/record-ids';
 
 /**
@@ -61,8 +61,11 @@ async function unshareJournalEntries(
   });
 }
 
-async function countOwners(organizationId: string): Promise<number> {
-  const members = await prisma.member.findMany({
+async function countOwners(
+  tx: Pick<typeof prisma, 'member'>,
+  organizationId: string
+): Promise<number> {
+  const members = await tx.member.findMany({
     where: { organizationId },
     select: { role: true },
   });
@@ -590,17 +593,31 @@ export async function leaveOrganization(
 ): Promise<Result<{ organizationId: string }>> {
   const membership = await getMembershipIn(userId, organizationId);
   if (!membership) return fail('You are not a member of this space.');
-  const [ownerCount, membershipCount] = await Promise.all([
-    countOwners(organizationId),
-    prisma.member.count({ where: { userId } }),
-  ]);
-  const check = checkLeave({ role: membership.role, ownerCount, membershipCount });
-  if (!check.ok) return fail(check.error);
-  await prisma.$transaction(async (tx) => {
-    await tx.member.deleteMany({ where: { userId, organizationId } });
+  return prisma.$transaction(async (tx): Promise<Result<{ organizationId: string }>> => {
+    // The checks run under the user's and the organization's lock, in the transaction that
+    // deletes. Two leaves at once (two tabs, or two owners) then see each other's result, so
+    // nobody is left without a space and no organization is left without an owner.
+    await lockUserMemberships(tx, userId);
+    await lockOrganizationMembers(tx, organizationId);
+    const own = await tx.member.findUnique({
+      where: { organizationId_userId: { organizationId, userId } },
+      select: { id: true, role: true },
+    });
+    if (!own) return fail('You are not a member of this space.');
+    const ownerCount = await countOwners(tx, organizationId);
+    const membershipCount = await tx.member.count({ where: { userId } });
+    const check = checkLeave({
+      role: parseOrgRole(own.role) ?? 'viewer',
+      ownerCount,
+      membershipCount,
+    });
+    if (!check.ok) return fail(check.error);
+    // Only while the role is the one checked: someone just made owner must transfer first.
+    const deleted = await tx.member.deleteMany({ where: { id: own.id, role: own.role } });
+    if (deleted.count === 0) return fail(MEMBERSHIP_CHANGED_ERROR);
     await unshareJournalEntries(tx, userId, organizationId);
+    return { ok: true, data: { organizationId } };
   });
-  return { ok: true, data: { organizationId } };
 }
 
 function slugify(name: string): string {

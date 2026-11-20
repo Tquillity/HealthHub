@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
+import { ORGANIZATION_LOCK_SPACE, USER_LOCK_SPACE } from './membership-locks';
 
 const url = process.env.DATABASE_URL ? new URL(process.env.DATABASE_URL) : null;
 const isolated = Boolean(
@@ -493,6 +494,89 @@ describe.skipIf(!isolated)('household integrity against isolated PostgreSQL', ()
 
       expect(result).toEqual(changed);
       expect(await ownersOf(t.space)).toEqual([t.m]);
+    });
+
+    it('two owners leaving at once leave one of them owner', async () => {
+      const first = await createUser('two-first');
+      const second = await createUser('two-second');
+      const member = await createUser('two-member');
+      const space = await createOrg('two-space', [
+        [first, 'owner'],
+        [second, 'owner'],
+        [member, 'member'],
+      ]);
+      for (const userId of [first, second]) await createOrg(`two-own-${userId}`, [[userId, 'owner']]);
+
+      const results = await Promise.all([
+        lib.leaveOrganization(first, space.id),
+        lib.leaveOrganization(second, space.id),
+      ]);
+      expect(results.filter((r) => r.ok)).toHaveLength(1);
+      expect(results.filter((r) => !r.ok)).toEqual([
+        { ok: false, error: 'Transfer ownership to someone else before you leave.' },
+      ]);
+      expect(await ownersOf(space.id)).toHaveLength(1);
+    });
+
+    it('someone made owner while leaving stays', async () => {
+      const t = await setUp('leave');
+      const transfer = await transferInFlight(t.ownerMember, t.mMember);
+      const result = await runWhileHeld(transfer, () => lib.leaveOrganization(t.m, t.space));
+
+      expect(result).toEqual(changed);
+      expect(await ownersOf(t.space)).toEqual([t.m]);
+    });
+  });
+
+  describe('leaving', () => {
+    it('leaving several spaces at once (several tabs) keeps one', async () => {
+      const owner = await createUser('tabs-owner');
+      const leaver = await createUser('tabs-leaver');
+      const spaces = [];
+      for (const key of ['tabs-a', 'tabs-b', 'tabs-c']) {
+        spaces.push(
+          await createOrg(key, [
+            [owner, 'owner'],
+            [leaver, 'member'],
+          ])
+        );
+      }
+
+      const results = await Promise.all(
+        spaces.map((space) => lib.leaveOrganization(leaver, space.id))
+      );
+      expect(results.filter((r) => r.ok)).toHaveLength(2);
+      expect(results.filter((r) => !r.ok)).toEqual([
+        { ok: false, error: "You can't leave your only space. Create or join another one first." },
+      ]);
+      expect(await membershipsOf(leaver)).toHaveLength(1);
+    });
+
+    it('a leave that read the old count waits for the other leave and is refused', async () => {
+      const owner = await createUser('race-owner');
+      const leaver = await createUser('race-leaver');
+      const first = await createOrg('race-a', [
+        [owner, 'owner'],
+        [leaver, 'member'],
+      ]);
+      const second = await createOrg('race-b', [
+        [owner, 'owner'],
+        [leaver, 'member'],
+      ]);
+
+      // Leaving the second space in another tab: under its locks, deleted, not committed yet.
+      const otherTab = await holdTransaction([
+        ['SELECT pg_advisory_xact_lock($1::int4, hashtext($2))', [USER_LOCK_SPACE, leaver]],
+        ['SELECT pg_advisory_xact_lock($1::int4, hashtext($2))', [ORGANIZATION_LOCK_SPACE, second.id]],
+        ['DELETE FROM "member" WHERE id = $1', [second.memberIds[1]]],
+      ]);
+      const result = await runWhileHeld(otherTab, () => lib.leaveOrganization(leaver, first.id));
+
+      expect(result).toEqual({
+        ok: false,
+        error: "You can't leave your only space. Create or join another one first.",
+      });
+      expect(await membershipsOf(leaver)).toEqual([{ organizationId: first.id, role: 'member' }]);
     });
   });
 });

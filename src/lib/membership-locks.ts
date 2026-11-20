@@ -11,12 +11,17 @@ import type { Prisma } from '@prisma/client';
 
 type Tx = Pick<Prisma.TransactionClient, '$executeRaw'>;
 
+/** First key of pg_advisory_xact_lock(int4, int4); the second is hashtext(id). */
+export const USER_LOCK_SPACE = 7301;
+export const ORGANIZATION_LOCK_SPACE = 7302;
+
 /** Serializes changes to one user's set of memberships. */
 export async function lockUserMemberships(tx: Tx, userId: string): Promise<void> {
-  await tx.$executeRaw`SELECT pg_advisory_xact_lock(7301, hashtext(${userId}))`;
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(${USER_LOCK_SPACE}::int4, hashtext(${userId}))`;
 }
 
 /** Serializes leaving one organization. Take it after the user lock. */
 export async function lockOrganizationMembers(tx: Tx, organizationId: string): Promise<void> {
-  await tx.$executeRaw`SELECT pg_advisory_xact_lock(7302, hashtext(${organizationId}))`;
+  await tx.$executeRaw`
+    SELECT pg_advisory_xact_lock(${ORGANIZATION_LOCK_SPACE}::int4, hashtext(${organizationId}))`;
 }
