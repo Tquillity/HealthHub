@@ -2,14 +2,17 @@ import { z } from 'zod';
 import type { CycleShareLevel } from '@prisma/client';
 import type { CyclePhase, CyclePhaseResult } from '@/lib/cycle-calculator';
 import { PHASE_THEMES } from '@/lib/phase-theme';
+import { OrganizationIdSchema } from '@/lib/validation/organization-schemas';
 import type { FocusPreference } from '@/types/cycle';
 
 /**
  * Partner sync (issue #3): what household members may see of someone's current cycle status.
  *
- * Sharing is off by default. It is effective only while the master switch is on, the level is
- * not NONE and the person has cycle tracking set up (see getEffectiveShareLevel). Where it may
- * be shown is decided by org-policy (households only).
+ * Sharing is off by default and chosen per household: each share names one household, a level,
+ * and the members it covers (those who had joined when the person agreed; people who join
+ * later see nothing until they are included). It is effective only while the person has cycle
+ * tracking set up (see getEffectiveShareLevel). Where it may be shown at all is decided by
+ * org-policy (households only).
  *
  * `projectCycleStatus` is the single definition of what each level reveals. The dashboard
  * widget and the Profile preview both use it, so the preview is exactly what others see:
@@ -64,12 +67,37 @@ export const CYCLE_SHARE_LEVEL_INFO: Record<
 export const NEVER_SHARED_NOTE =
   'Your journal notes, symptoms, mood, sleep, temperature and other health details are never shared at any level.';
 
-/** Settings update from Profile. Only the fields that are sent change. */
-export const UpdateCycleSharingSchema = z
+/** Levels a share can have. NONE is no share at all (the row is deleted). */
+export const SHARED_LEVELS = ['PHASE', 'ENERGY', 'FULL'] as const satisfies readonly Exclude<
+  CycleShareLevel,
+  'NONE'
+>[];
+
+export type SharedLevel = (typeof SHARED_LEVELS)[number];
+
+/**
+ * Start, change or stop sharing with one household, from Profile. The household is the one the
+ * Profile page listed (checked on the server); NONE stops sharing there.
+ */
+export const SetCycleStatusShareSchema = z
   .object({
-    shareCycleStatus: z.boolean().optional(),
-    shareCycleLevel: z.enum(CYCLE_SHARE_LEVELS).optional(),
-    /** Plain text; '' or null clears it. Stored encrypted. */
+    organizationId: OrganizationIdSchema,
+    level: z.enum(CYCLE_SHARE_LEVELS),
+    /**
+     * When the page read the member list it showed. Starting to share, or including the people
+     * who joined since, covers the members who had joined by then and nobody who joined later.
+     */
+    membersListedAt: z.iso.datetime(),
+    /** Also show the status to the members who joined after sharing started. */
+    includeNewMembers: z.boolean().optional(),
+  })
+  .strict();
+
+export type SetCycleStatusShareInput = z.infer<typeof SetCycleStatusShareSchema>;
+
+/** The personal message. Plain text; '' or null clears it. Stored encrypted. */
+export const UpdateSupportMessageSchema = z
+  .object({
     supportMessage: z
       .string()
       .trim()
@@ -77,27 +105,73 @@ export const UpdateCycleSharingSchema = z
         SUPPORT_MESSAGE_MAX_LENGTH,
         `Keep your message to ${SUPPORT_MESSAGE_MAX_LENGTH} characters or fewer`
       )
-      .nullable()
-      .optional(),
+      .nullable(),
   })
-  .strict()
-  .refine((value) => Object.values(value).some((field) => field !== undefined), {
-    message: 'Nothing to update',
-  });
-
-export type UpdateCycleSharingInput = z.infer<typeof UpdateCycleSharingSchema>;
+  .strict();
 
 /**
- * The level that actually applies: NONE unless the master switch is on and cycle tracking is
- * set up (tracking enabled and a last period date), whatever level is stored.
+ * The level that actually applies in one household: NONE unless the person shares with it and
+ * has cycle tracking set up (tracking enabled and a last period date), whatever is stored.
  */
 export function getEffectiveShareLevel(settings: {
-  shareCycleStatus: boolean;
-  shareCycleLevel: CycleShareLevel;
+  /** The household's share level; NONE when there is no share. */
+  level: CycleShareLevel;
   cycleConfigured: boolean;
 }): CycleShareLevel {
-  if (!settings.shareCycleStatus || !settings.cycleConfigured) return 'NONE';
-  return settings.shareCycleLevel;
+  if (!settings.cycleConfigured) return 'NONE';
+  return settings.level;
+}
+
+/**
+ * Who sees a share: members who had joined by `coversMembersJoinedBy`. Members who joined
+ * later are not covered until the sharer includes them. Times compare as instants.
+ */
+export function isCoveredByShare(
+  memberJoinedAt: Date | string,
+  coversMembersJoinedBy: Date | string
+): boolean {
+  return new Date(memberJoinedAt).getTime() <= new Date(coversMembersJoinedBy).getTime();
+}
+
+/** One household in Profile > Cycle status sharing (built in src/lib/support-status.ts). */
+export type CycleShareHousehold = {
+  id: string;
+  name: string;
+  /** Null when nothing is shared with this household. */
+  share: { level: SharedLevel; coversMembersJoinedBy: string } | null;
+  /** The other current members, oldest first, and whether they see the status now. */
+  members: { name: string; seesStatus: boolean }[];
+  /**
+   * When the member list was read (ISO). Sent back when starting to share or including new
+   * members, so the share covers exactly the people the page listed and nobody who joined later.
+   */
+  membersListedAt: string;
+};
+
+/** "Robin", "Robin and Sam", "Robin, Sam, and Alex". */
+export function listNames(names: string[]): string {
+  return new Intl.ListFormat('en', { style: 'long', type: 'conjunction' }).format(names);
+}
+
+/** Members of a shared household who joined after sharing started and do not see it. */
+export function membersNotYetIncluded(household: CycleShareHousehold): string[] {
+  if (!household.share) return [];
+  return household.members.filter((member) => !member.seesStatus).map((member) => member.name);
+}
+
+/** Who sees the status in this household, or would see it if the user shared. */
+export function describeAudience(household: CycleShareHousehold): string {
+  const { name, members, share } = household;
+  if (members.length === 0) {
+    return share
+      ? `Nobody else is in ${name} yet. People who join later see nothing until you include them.`
+      : `Nobody else is in ${name} yet.`;
+  }
+  if (!share) {
+    return `If you share, ${listNames(members.map((member) => member.name))} will see it. People who join later will not, until you include them.`;
+  }
+  const seen = members.filter((member) => member.seesStatus).map((member) => member.name);
+  return seen.length > 0 ? `Seen by ${listNames(seen)}.` : `Nobody in ${name} sees it yet.`;
 }
 
 export const PHASE_LABELS: Record<CyclePhase, string> = {

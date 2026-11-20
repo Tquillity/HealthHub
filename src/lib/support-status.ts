@@ -1,33 +1,48 @@
-import type { CycleShareLevel, OrganizationType } from '@prisma/client';
+import type { CycleShareLevel, OrganizationType, Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { decrypt, encrypt } from '@/lib/encryption';
 import { calculateCyclePhase } from '@/lib/cycle-calculator';
 import { dateOnlyToUtcDate } from '@/lib/date-only';
-import { getMembershipIn } from '@/lib/active-organization';
 import { canShowIndividualCycleStatus, CYCLE_STATUS_ORG_TYPES } from '@/lib/org-policy';
+import { generateRecordId } from '@/lib/record-ids';
 import {
   getEffectiveShareLevel,
   getTimeOfDay,
+  isCoveredByShare,
   levelIncludes,
   parseFocusPreference,
   projectCycleStatus,
+  SHARED_LEVELS,
   toCycleSnapshot,
+  type CycleShareHousehold,
   type CycleSnapshot,
   type ProjectedCycleStatus,
+  type SetCycleStatusShareInput,
+  type SharedLevel,
   type TimeOfDay,
-  type UpdateCycleSharingInput,
 } from '@/lib/cycle-status-sharing';
 import { getLocalDateKey, getLocalHour, resolveTimeZone } from '@/lib/time-zone';
 
 /**
- * Partner sync (issue #3), server side. Reads and writes the sharing settings and builds the
- * Support Status board for one viewer and one organization.
+ * Partner sync (issue #3), server side. Reads and writes each person's per-household shares and
+ * builds the Support Status board for one viewer and one organization.
+ *
+ * Consent is per household (CycleStatusShare): it names the household, the level, and the
+ * members it covers. Members who join later see nothing until the sharer includes them, so a
+ * new viewer never gets someone's status without that person seeing their name first.
  *
  * Every check happens here, on the server: the viewer must be a member, the organization must
- * be a household (org-policy), and each sharer must still be a member and have opted in. Only
- * the fields chosen by projectCycleStatus leave this module. People who did not opt in are
- * filtered out in the query itself, so their cycle data is never even loaded.
+ * be a household (org-policy), and each sharer must still be a member, share with this
+ * household and cover the viewer. Only the fields chosen by projectCycleStatus leave this
+ * module. People who do not share are filtered out in the query itself, so their cycle data is
+ * never even loaded.
  */
+
+export type Result<T> = { ok: true; data: T } | { ok: false; error: string };
+
+export const NOT_A_HOUSEHOLD_MEMBER_ERROR = 'You are not a member of that household.';
+export const CYCLE_SHARING_HOUSEHOLDS_ONLY_ERROR =
+  'Cycle status can only be shared with a household.';
 
 type CycleFields = {
   enableCycleTracking: boolean;
@@ -66,69 +81,84 @@ async function getTodayEnergyByUser(
   return byUser;
 }
 
-const settingsSelect = {
+const sharerSelect = {
   name: true,
   timezone: true,
   enableCycleTracking: true,
   lastPeriodDate: true,
   cycleLength: true,
-  shareCycleStatus: true,
-  shareCycleLevel: true,
   supportMessage: true,
 } as const;
 
-export type CycleSharingSettings = {
-  shareCycleStatus: boolean;
-  shareCycleLevel: CycleShareLevel;
-  /** Decrypted. */
-  supportMessage: string | null;
-  /** Cycle tracking is on and a last period date is set; sharing needs both. */
-  cycleConfigured: boolean;
-  effectiveLevel: CycleShareLevel;
-};
+function isSharedLevel(level: CycleShareLevel): level is SharedLevel {
+  return (SHARED_LEVELS as readonly CycleShareLevel[]).includes(level);
+}
 
-function toSettings(user: {
-  shareCycleStatus: boolean;
-  shareCycleLevel: CycleShareLevel;
-  supportMessage: string | null;
-} & CycleFields): CycleSharingSettings {
-  const cycleConfigured = isCycleConfigured(user);
+function householdSelect(userId: string) {
   return {
-    shareCycleStatus: user.shareCycleStatus,
-    shareCycleLevel: user.shareCycleLevel,
-    supportMessage: decrypt(user.supportMessage),
-    cycleConfigured,
-    effectiveLevel: getEffectiveShareLevel({ ...user, cycleConfigured }),
+    id: true,
+    name: true,
+    members: {
+      where: { userId: { not: userId } },
+      select: { createdAt: true, user: { select: { name: true } } },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    },
+    cycleStatusShares: {
+      where: { userId },
+      select: { level: true, coversMembersJoinedBy: true },
+    },
+  } satisfies Prisma.OrganizationSelect;
+}
+
+function toShareHousehold(
+  organization: Prisma.OrganizationGetPayload<{ select: ReturnType<typeof householdSelect> }>,
+  membersListedAt: Date
+): CycleShareHousehold {
+  const row = organization.cycleStatusShares[0];
+  const share =
+    row && isSharedLevel(row.level)
+      ? { level: row.level, coversMembersJoinedBy: row.coversMembersJoinedBy }
+      : null;
+  return {
+    id: organization.id,
+    name: organization.name,
+    share: share && {
+      level: share.level,
+      coversMembersJoinedBy: share.coversMembersJoinedBy.toISOString(),
+    },
+    members: organization.members.map((member) => ({
+      name: member.user.name,
+      seesStatus: share !== null && isCoveredByShare(member.createdAt, share.coversMembersJoinedBy),
+    })),
+    membersListedAt: membersListedAt.toISOString(),
   };
 }
 
-export async function getCycleSharingSettings(
-  userId: string
-): Promise<CycleSharingSettings | null> {
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: settingsSelect });
-  return user ? toSettings(user) : null;
-}
-
-/** Saves only the fields in `input` (already validated with UpdateCycleSharingSchema). */
-export async function updateCycleSharingSettings(
+/** The households (only) the user belongs to, oldest membership first, with their shares. */
+async function getShareHouseholds(
   userId: string,
-  input: UpdateCycleSharingInput
-): Promise<CycleSharingSettings> {
-  const user = await prisma.user.update({
-    where: { id: userId },
-    data: {
-      ...(input.shareCycleStatus !== undefined && { shareCycleStatus: input.shareCycleStatus }),
-      ...(input.shareCycleLevel !== undefined && { shareCycleLevel: input.shareCycleLevel }),
-      // encrypt('') is null, so an empty message clears it.
-      ...(input.supportMessage !== undefined && { supportMessage: encrypt(input.supportMessage) }),
+  organizationId?: string
+): Promise<CycleShareHousehold[]> {
+  // Taken before the read: someone who joins while it runs is listed but not covered by a
+  // share that uses this time, never the other way round.
+  const listedAt = new Date();
+  const memberships = await prisma.member.findMany({
+    where: {
+      userId,
+      ...(organizationId && { organizationId }),
+      organization: { type: { in: CYCLE_STATUS_ORG_TYPES } },
     },
-    select: settingsSelect,
+    select: { organization: { select: householdSelect(userId) } },
+    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
   });
-  return toSettings(user);
+  return memberships.map(({ organization }) => toShareHousehold(organization, listedAt));
 }
 
 export type CycleSharingPanelData = {
-  settings: CycleSharingSettings;
+  /** Decrypted. Shown only in households the user shares Full status with. */
+  supportMessage: string | null;
+  /** Cycle tracking is on and a last period date is set; sharing shows nothing without both. */
+  cycleConfigured: boolean;
   /** The user's own data, for the live preview in their own Profile. */
   preview: {
     id: string;
@@ -137,42 +167,26 @@ export type CycleSharingPanelData = {
     todayEnergy: number | null;
     timeOfDay: TimeOfDay;
   };
-  /** Households whose other members would see the status. */
-  households: { id: string; name: string; otherMemberCount: number }[];
+  /** Every household the user belongs to; collectives, communities and workplaces never show it. */
+  households: CycleShareHousehold[];
 };
 
 export async function getCycleSharingPanelData(
   userId: string,
   now: Date = new Date()
 ): Promise<CycleSharingPanelData | null> {
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: settingsSelect });
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: sharerSelect });
   if (!user) return null;
 
   const timeZone = resolveTimeZone(user.timezone);
-  const [energy, memberships] = await Promise.all([
+  const [energy, households] = await Promise.all([
     getTodayEnergyByUser([{ userId, timeZone }], now),
-    prisma.member.findMany({
-      where: { userId, organization: { type: { in: CYCLE_STATUS_ORG_TYPES } } },
-      select: {
-        organization: {
-          select: { id: true, name: true, _count: { select: { members: true } } },
-        },
-      },
-      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-    }),
+    getShareHouseholds(userId),
   ]);
 
-  const households = new Map<string, CycleSharingPanelData['households'][number]>();
-  for (const { organization } of memberships) {
-    households.set(organization.id, {
-      id: organization.id,
-      name: organization.name,
-      otherMemberCount: Math.max(0, organization._count.members - 1),
-    });
-  }
-
   return {
-    settings: toSettings(user),
+    supportMessage: decrypt(user.supportMessage),
+    cycleConfigured: isCycleConfigured(user),
     preview: {
       id: userId,
       name: user.name,
@@ -180,8 +194,114 @@ export async function getCycleSharingPanelData(
       todayEnergy: energy.get(userId) ?? null,
       timeOfDay: getTimeOfDay(getLocalHour(now, timeZone)),
     },
-    households: [...households.values()],
+    households,
   };
+}
+
+/** The level the user shares with one household; NONE when there is no share. */
+export async function getCycleShareLevel(
+  userId: string,
+  organizationId: string
+): Promise<CycleShareLevel> {
+  const share = await prisma.cycleStatusShare.findUnique({
+    where: { userId_organizationId: { userId, organizationId } },
+    select: { level: true },
+  });
+  return share?.level ?? 'NONE';
+}
+
+export type CycleShareUpdate = {
+  household: CycleShareHousehold;
+  cycleConfigured: boolean;
+};
+
+/**
+ * Start, change or stop sharing with one household (already validated with
+ * SetCycleStatusShareSchema). Pass the session user id; the household must be one the user
+ * belongs to and of a type that allows it.
+ *
+ * Starting covers the members who had joined by `membersListedAt` (the page's list), never
+ * anyone later. Changing the level keeps who is covered; `includeNewMembers` extends it to the
+ * members the page listed. NONE deletes the share.
+ */
+export async function setCycleStatusShare(
+  userId: string,
+  input: SetCycleStatusShareInput
+): Promise<Result<CycleShareUpdate>> {
+  const { organizationId } = input;
+  const membership = await prisma.member.findUnique({
+    where: { organizationId_userId: { organizationId, userId } },
+    select: { organization: { select: { type: true } } },
+  });
+  if (!membership) return { ok: false, error: NOT_A_HOUSEHOLD_MEMBER_ERROR };
+  if (!canShowIndividualCycleStatus(membership.organization.type, { sharerOptedIn: true })) {
+    return { ok: false, error: CYCLE_SHARING_HOUSEHOLDS_ONLY_ERROR };
+  }
+  // A page from the future cannot cover people who have not joined yet.
+  const coversMembersJoinedBy = new Date(
+    Math.min(Date.parse(input.membersListedAt), Date.now())
+  );
+
+  const written = await prisma.$transaction(async (tx) => {
+    // Hold the membership until the share is written. A removal or leave running now either
+    // waits for this commit and then deletes the share, or has already deleted the membership
+    // and this fails, so no share outlives the membership.
+    const locked = await tx.$queryRaw<Array<{ id: string }>>`
+      SELECT "id" FROM "member"
+      WHERE "userId" = ${userId} AND "organizationId" = ${organizationId}
+      FOR SHARE`;
+    if (locked.length === 0) return false;
+
+    if (input.level === 'NONE') {
+      await tx.cycleStatusShare.deleteMany({ where: { userId, organizationId } });
+      return true;
+    }
+    await tx.cycleStatusShare.upsert({
+      where: { userId_organizationId: { userId, organizationId } },
+      create: {
+        id: generateRecordId('css'),
+        userId,
+        organizationId,
+        level: input.level,
+        coversMembersJoinedBy,
+      },
+      // A level change keeps who is covered.
+      update: { level: input.level },
+    });
+    if (input.includeNewMembers) {
+      // Only ever widens to the people the page listed; an older page changes nothing.
+      await tx.cycleStatusShare.updateMany({
+        where: { userId, organizationId, coversMembersJoinedBy: { lt: coversMembersJoinedBy } },
+        data: { coversMembersJoinedBy },
+      });
+    }
+    return true;
+  });
+  if (!written) return { ok: false, error: NOT_A_HOUSEHOLD_MEMBER_ERROR };
+
+  const [[household], user] = await Promise.all([
+    getShareHouseholds(userId, organizationId),
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { enableCycleTracking: true, lastPeriodDate: true, cycleLength: true },
+    }),
+  ]);
+  if (!household || !user) return { ok: false, error: NOT_A_HOUSEHOLD_MEMBER_ERROR };
+  return { ok: true, data: { household, cycleConfigured: isCycleConfigured(user) } };
+}
+
+/** Save or clear the personal message (already validated). Returns it decrypted. */
+export async function updateSupportMessage(
+  userId: string,
+  supportMessage: string | null
+): Promise<string | null> {
+  const user = await prisma.user.update({
+    where: { id: userId },
+    // encrypt('') is null, so an empty message clears it.
+    data: { supportMessage: encrypt(supportMessage) },
+    select: { supportMessage: true },
+  });
+  return decrypt(user.supportMessage);
 }
 
 export type SupportStatusBoard = {
@@ -190,7 +310,7 @@ export type SupportStatusBoard = {
   sharingAllowed: boolean;
   /** Other people in the organization, whether or not they share. */
   otherMemberCount: number;
-  /** Other members who opted in, as projected for this viewer. Never the viewer. */
+  /** Other members who share with the viewer, as projected for this viewer. Never the viewer. */
   statuses: ProjectedCycleStatus[];
 };
 
@@ -203,7 +323,10 @@ export async function getSupportStatusBoard(
   organizationId: string,
   now: Date = new Date()
 ): Promise<SupportStatusBoard | null> {
-  const membership = await getMembershipIn(viewerId, organizationId);
+  const membership = await prisma.member.findUnique({
+    where: { organizationId_userId: { organizationId, userId: viewerId } },
+    select: { createdAt: true, organization: { select: { id: true, name: true, type: true } } },
+  });
   if (!membership) return null;
   const organization = membership.organization;
 
@@ -212,37 +335,35 @@ export async function getSupportStatusBoard(
     return { organization, sharingAllowed: false, otherMemberCount: 0, statuses: [] };
   }
 
-  const [viewer, otherMemberCount, sharers] = await Promise.all([
+  const [viewer, otherMemberCount, shares] = await Promise.all([
     prisma.user.findUnique({
       where: { id: viewerId },
       select: { focusPreference: true, timezone: true },
     }),
     prisma.member.count({ where: othersWhere }),
-    prisma.member.findMany({
+    prisma.cycleStatusShare.findMany({
       where: {
         ...othersWhere,
-        // Opted in with a real level and cycle tracking set up; nobody else is loaded.
+        level: { not: 'NONE' },
+        // Only sharers who agreed after the viewer joined, or included them since.
+        coversMembersJoinedBy: { gte: membership.createdAt },
         user: {
-          shareCycleStatus: true,
-          shareCycleLevel: { not: 'NONE' },
           enableCycleTracking: true,
           lastPeriodDate: { not: null },
+          // Leaving deletes the share; this is the backstop.
+          members: { some: { organizationId } },
         },
       },
-      select: { userId: true, user: { select: settingsSelect } },
+      select: { userId: true, level: true, user: { select: sharerSelect } },
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
     }),
   ]);
 
-  const seen = new Set<string>();
-  const visible: { userId: string; level: CycleShareLevel; user: (typeof sharers)[number]['user'] }[] =
+  const visible: { userId: string; level: CycleShareLevel; user: (typeof shares)[number]['user'] }[] =
     [];
-  for (const { userId, user } of sharers) {
-    if (seen.has(userId)) continue;
-    seen.add(userId);
+  for (const { userId, level: storedLevel, user } of shares) {
     const level = getEffectiveShareLevel({
-      shareCycleStatus: user.shareCycleStatus,
-      shareCycleLevel: user.shareCycleLevel,
+      level: storedLevel,
       cycleConfigured: isCycleConfigured(user),
     });
     // Backstop for the query filter above, and the single policy rule for org types.

@@ -44,8 +44,6 @@ export async function buildAccountExport(userId: string) {
       isPremium: true,
       temperatureUnit: true,
       trackVitals: true,
-      shareCycleStatus: true,
-      shareCycleLevel: true,
       supportMessage: true,
     },
   });
@@ -58,6 +56,7 @@ export async function buildAccountExport(userId: string) {
     timer,
     memberships,
     periodStarts,
+    cycleStatusShares,
   ] = await Promise.all([
     prisma.account.findMany({
       where: { userId },
@@ -102,6 +101,17 @@ export async function buildAccountExport(userId: string) {
       where: { userId },
       select: { date: true, createdAt: true },
       orderBy: { date: 'asc' },
+    }),
+    prisma.cycleStatusShare.findMany({
+      where: { userId },
+      select: {
+        level: true,
+        coversMembersJoinedBy: true,
+        createdAt: true,
+        updatedAt: true,
+        organization: { select: { id: true, name: true } },
+      },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
     }),
   ]);
 
@@ -218,9 +228,18 @@ export async function buildAccountExport(userId: string) {
       ...user,
       lastPeriodDate: dateOnly(user.lastPeriodDate),
       mealPlanStartDate: dateOnly(user.mealPlanStartDate),
-      // Cycle status sharing with households (#3): the switch, the level and your message.
+      // The message for households you share Full cycle status with (#3).
       supportMessage: decrypt(user.supportMessage),
     },
+    // Cycle status sharing (#3): each household you share with, how much, and since when.
+    // Members who had joined by coversMembersJoinedBy see it.
+    cycleStatusSharing: cycleStatusShares.map((share) => ({
+      household: share.organization,
+      level: share.level,
+      coversMembersJoinedBy: share.coversMembersJoinedBy,
+      sharedSince: share.createdAt,
+      updatedAt: share.updatedAt,
+    })),
     signInMethods: accounts.map((account) => ({
       provider: account.providerId,
       addedAt: account.createdAt,

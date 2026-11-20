@@ -41,8 +41,6 @@ describe.skipIf(!isolated)('account export against isolated PostgreSQL', () => {
           ],
         },
         alignMealsWithCycle: false,
-        shareCycleStatus: true,
-        shareCycleLevel: 'FULL',
         supportMessage: encrypt('Tea and a quiet evening, please'),
       },
     });
@@ -94,6 +92,16 @@ describe.skipIf(!isolated)('account export against isolated PostgreSQL', () => {
           createdAt: new Date('2099-01-01T00:00:00Z'),
         },
       ],
+    });
+    // Cycle status shared with the household only, at Full.
+    await client.cycleStatusShare.create({
+      data: {
+        id: `css-${run}`,
+        userId: me.id,
+        organizationId: household,
+        level: 'FULL',
+        coversMembersJoinedBy: new Date('2026-03-05T00:00:00Z'),
+      },
     });
     await client.recipe.create({
       data: {
@@ -156,10 +164,17 @@ describe.skipIf(!isolated)('account export against isolated PostgreSQL', () => {
       temperatureUnit: 'F',
       trackVitals: true,
       alignMealsWithCycle: false,
-      shareCycleStatus: true,
-      shareCycleLevel: 'FULL',
       supportMessage: 'Tea and a quiet evening, please',
     });
+    expect(data.cycleStatusSharing).toEqual([
+      {
+        household: { id: household, name: 'Our home' },
+        level: 'FULL',
+        coversMembersJoinedBy: new Date('2026-03-05T00:00:00Z'),
+        sharedSince: expect.any(Date),
+        updatedAt: expect.any(Date),
+      },
+    ]);
     expect(data.periodStarts).toEqual([
       { date: '2026-02-01', loggedAt: expect.any(Date) },
       { date: '2026-03-01', loggedAt: expect.any(Date) },

@@ -22,7 +22,8 @@ export async function CycleSharingSection({ userId }: { userId: string }) {
             Cycle status sharing
           </h2>
           <p className="text-sm text-gray-500">
-            Help the people you live with support you. Off unless you turn it on.
+            Help the people you live with support you. Off unless you turn it on for a
+            household.
           </p>
         </div>
       </div>

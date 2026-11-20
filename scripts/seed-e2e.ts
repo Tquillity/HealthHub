@@ -37,8 +37,8 @@ try {
     },
     update: { userId: user.id },
   });
-  // Partner sync (#3): the signed-in user tracks their cycle and starts with sharing off;
-  // a second household member shares their full status with them.
+  // Partner sync (#3): the signed-in user tracks their cycle and shares with no household;
+  // a second household member shares their full status with everyone in it.
   const daysAgo = (days: number) => {
     const date = new Date();
     date.setUTCHours(0, 0, 0, 0);
@@ -51,18 +51,15 @@ try {
       enableCycleTracking: true,
       cycleLength: 28,
       lastPeriodDate: daysAgo(9),
-      shareCycleStatus: false,
-      shareCycleLevel: 'NONE',
       supportMessage: null,
     },
   });
+  await prisma.cycleStatusShare.deleteMany({ where: { userId: user.id } });
   const partner = {
     name: 'Robin Partner',
     enableCycleTracking: true,
     cycleLength: 28,
     lastPeriodDate: daysAgo(20),
-    shareCycleStatus: true,
-    shareCycleLevel: 'FULL' as const,
     supportMessage: encrypt('Tea and a short walk would be lovely.'),
   };
   await prisma.user.upsert({
@@ -79,6 +76,26 @@ try {
       role: 'member',
     },
     update: { organizationId: 'hh-e2e-household' },
+  });
+  // Covers everyone who is in the household now, the signed-in user included.
+  const partnerShare = {
+    level: 'FULL' as const,
+    coversMembersJoinedBy: new Date(),
+  };
+  await prisma.cycleStatusShare.upsert({
+    where: {
+      userId_organizationId: {
+        userId: 'hh-e2e-partner',
+        organizationId: 'hh-e2e-household',
+      },
+    },
+    create: {
+      id: 'hh-e2e-partner-cycle-share',
+      userId: 'hh-e2e-partner',
+      organizationId: 'hh-e2e-household',
+      ...partnerShare,
+    },
+    update: partnerShare,
   });
   for (const recipe of [
     {

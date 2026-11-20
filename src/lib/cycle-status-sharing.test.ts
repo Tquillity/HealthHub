@@ -4,16 +4,22 @@ import {
   buildSupportSuggestion,
   CYCLE_SHARE_LEVELS,
   CYCLE_SHARE_LEVEL_INFO,
+  describeAudience,
   firstNameOf,
   getEffectiveShareLevel,
   getTimeOfDay,
+  isCoveredByShare,
   levelIncludes,
+  listNames,
+  membersNotYetIncluded,
   parseFocusPreference,
   projectCycleStatus,
+  SetCycleStatusShareSchema,
   SUPPORT_MESSAGE_MAX_LENGTH,
   toCycleSnapshot,
   TYPICAL_PHASE_ENERGY,
-  UpdateCycleSharingSchema,
+  UpdateSupportMessageSchema,
+  type CycleShareHousehold,
   type CycleStatusSource,
   type SupportViewer,
   type TimeOfDay,
@@ -129,12 +135,11 @@ describe('projectCycleStatus', () => {
 });
 
 describe('getEffectiveShareLevel', () => {
-  it('needs the master switch and cycle tracking', () => {
-    const on = { shareCycleStatus: true, shareCycleLevel: 'ENERGY' as const, cycleConfigured: true };
+  it('needs a share with the household and cycle tracking', () => {
+    const on = { level: 'ENERGY' as const, cycleConfigured: true };
     expect(getEffectiveShareLevel(on)).toBe('ENERGY');
-    expect(getEffectiveShareLevel({ ...on, shareCycleStatus: false })).toBe('NONE');
     expect(getEffectiveShareLevel({ ...on, cycleConfigured: false })).toBe('NONE');
-    expect(getEffectiveShareLevel({ ...on, shareCycleLevel: 'NONE' })).toBe('NONE');
+    expect(getEffectiveShareLevel({ ...on, level: 'NONE' })).toBe('NONE');
   });
 
   it('orders levels from least to most', () => {
@@ -264,30 +269,121 @@ describe('helpers', () => {
   });
 });
 
-describe('UpdateCycleSharingSchema', () => {
-  it('accepts partial updates and trims the message', () => {
-    expect(UpdateCycleSharingSchema.parse({ shareCycleStatus: false })).toEqual({
-      shareCycleStatus: false,
+describe('SetCycleStatusShareSchema', () => {
+  const valid = {
+    organizationId: 'org_home',
+    level: 'PHASE',
+    membersListedAt: '2026-11-20T10:00:00.000Z',
+  };
+
+  it('names one household, a level and when its members were listed', () => {
+    expect(SetCycleStatusShareSchema.parse(valid)).toEqual(valid);
+    expect(SetCycleStatusShareSchema.parse({ ...valid, level: 'NONE' }).level).toBe('NONE');
+    expect(SetCycleStatusShareSchema.parse({ ...valid, includeNewMembers: true })).toMatchObject({
+      includeNewMembers: true,
     });
-    expect(UpdateCycleSharingSchema.parse({ supportMessage: '  Tea, please  ' })).toEqual({
+  });
+
+  it('rejects a missing household or list time, unknown levels and unknown fields', () => {
+    expect(SetCycleStatusShareSchema.safeParse({ ...valid, organizationId: undefined }).success).toBe(
+      false
+    );
+    expect(
+      SetCycleStatusShareSchema.safeParse({ ...valid, membersListedAt: undefined }).success
+    ).toBe(false);
+    expect(SetCycleStatusShareSchema.safeParse({ ...valid, organizationId: ' ' }).success).toBe(
+      false
+    );
+    expect(SetCycleStatusShareSchema.safeParse({ ...valid, membersListedAt: 'now' }).success).toBe(
+      false
+    );
+    expect(SetCycleStatusShareSchema.safeParse({ ...valid, level: 'ALL' }).success).toBe(false);
+    expect(SetCycleStatusShareSchema.safeParse({ ...valid, level: 'phase' }).success).toBe(false);
+    expect(SetCycleStatusShareSchema.safeParse({ ...valid, userId: 'someone-else' }).success).toBe(
+      false
+    );
+  });
+});
+
+describe('UpdateSupportMessageSchema', () => {
+  it('trims the message and accepts null to clear it', () => {
+    expect(UpdateSupportMessageSchema.parse({ supportMessage: '  Tea, please  ' })).toEqual({
       supportMessage: 'Tea, please',
     });
-    expect(UpdateCycleSharingSchema.parse({ supportMessage: null })).toEqual({
+    expect(UpdateSupportMessageSchema.parse({ supportMessage: null })).toEqual({
       supportMessage: null,
     });
   });
 
-  it('rejects empty updates, unknown levels, unknown fields and long messages', () => {
-    expect(UpdateCycleSharingSchema.safeParse({}).success).toBe(false);
-    expect(UpdateCycleSharingSchema.safeParse({ shareCycleLevel: 'ALL' }).success).toBe(false);
-    expect(UpdateCycleSharingSchema.safeParse({ shareCycleLevel: 'phase' }).success).toBe(false);
+  it('rejects empty updates, unknown fields and long messages', () => {
+    expect(UpdateSupportMessageSchema.safeParse({}).success).toBe(false);
     expect(
-      UpdateCycleSharingSchema.safeParse({ shareCycleStatus: true, userId: 'someone-else' }).success
+      UpdateSupportMessageSchema.safeParse({ supportMessage: 'Hi', userId: 'someone-else' }).success
     ).toBe(false);
-    const long = UpdateCycleSharingSchema.safeParse({
+    const long = UpdateSupportMessageSchema.safeParse({
       supportMessage: 'x'.repeat(SUPPORT_MESSAGE_MAX_LENGTH + 1),
     });
     expect(long.success).toBe(false);
     expect(long.error?.issues[0]?.message).toBe('Keep your message to 280 characters or fewer');
+  });
+});
+
+describe('who a share covers', () => {
+  const household = (overrides: Partial<CycleShareHousehold> = {}): CycleShareHousehold => ({
+    id: 'org_home',
+    name: 'Our home',
+    share: null,
+    members: [
+      { name: 'Robin Partner', seesStatus: false },
+      { name: 'Sam Lodger', seesStatus: false },
+    ],
+    membersListedAt: '2026-11-20T10:00:00.000Z',
+    ...overrides,
+  });
+  const shared = { level: 'PHASE' as const, coversMembersJoinedBy: '2026-11-20T10:00:00.000Z' };
+
+  it('covers members who had joined by the time the sharer agreed, nobody later', () => {
+    expect(isCoveredByShare('2026-11-20T09:59:59.999Z', shared.coversMembersJoinedBy)).toBe(true);
+    expect(isCoveredByShare('2026-11-20T10:00:00.000Z', shared.coversMembersJoinedBy)).toBe(true);
+    expect(isCoveredByShare('2026-11-20T10:00:00.001Z', shared.coversMembersJoinedBy)).toBe(false);
+    expect(isCoveredByShare(new Date('2026-11-21T00:00:00Z'), new Date(shared.coversMembersJoinedBy))).toBe(false);
+  });
+
+  it('names who would see it before sharing, and who sees it after', () => {
+    expect(describeAudience(household())).toBe(
+      'If you share, Robin Partner and Sam Lodger will see it. People who join later will not, until you include them.'
+    );
+    expect(
+      describeAudience(
+        household({
+          share: shared,
+          members: [
+            { name: 'Robin Partner', seesStatus: true },
+            { name: 'Sam Lodger', seesStatus: false },
+          ],
+        })
+      )
+    ).toBe('Seen by Robin Partner.');
+    expect(describeAudience(household({ share: shared }))).toBe('Nobody in Our home sees it yet.');
+    expect(describeAudience(household({ members: [] }))).toBe('Nobody else is in Our home yet.');
+    expect(describeAudience(household({ members: [], share: shared }))).toBe(
+      'Nobody else is in Our home yet. People who join later see nothing until you include them.'
+    );
+  });
+
+  it('lists the members who joined later and do not see it', () => {
+    expect(membersNotYetIncluded(household())).toEqual([]);
+    expect(
+      membersNotYetIncluded(
+        household({
+          share: shared,
+          members: [
+            { name: 'Robin Partner', seesStatus: true },
+            { name: 'Carol Sitter', seesStatus: false },
+          ],
+        })
+      )
+    ).toEqual(['Carol Sitter']);
+    expect(listNames(['A', 'B', 'C'])).toBe('A, B, and C');
   });
 });
