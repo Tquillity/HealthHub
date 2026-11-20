@@ -8,6 +8,10 @@ import {
 } from '@/lib/date-only';
 import { isValidTimeZone } from '@/lib/briefing/schedule';
 import { loadEasyDay } from '@/lib/easy-day';
+import {
+  JOURNAL_LIST_FIELDS,
+  JOURNAL_VALUE_FIELDS,
+} from '@/lib/journal-content';
 import { safeErrorLabel } from '@/lib/safe-error';
 import {
   buildCircadianInsights,
@@ -282,58 +286,22 @@ export async function allowedTimeOfDayEnergy(
 /**
  * Every journal field other than the time-of-day check-ins is empty. A day like that exists
  * only because of its check-ins (`saveEnergyNow` creates the day when there is no entry
- * yet). Lists every content field of JournalEntry: a new one must be added here, which
- * circadian-data.test.ts checks against the schema.
+ * yet). Built from the content field lists in lib/journal-content, which
+ * circadian-data.test.ts checks against the schema; the journal's analytics use the same
+ * lists (`isCheckInOnlyDay`).
  */
-export const noJournalDataBesideCheckIns = {
-  mood: null,
-  energy: null,
-  sleepHours: null,
-  notes: null,
-  gratitudeNotes: null,
-  goalsNotes: null,
-  symptomsNotes: null,
-  temperature: null,
-  cervicalMucus: null,
-  restingHeartRate: null,
-  heartRateVariability: null,
-  sleepQuality: null,
+export const noJournalDataBesideCheckIns: Prisma.JournalEntryWhereInput = {
+  ...(Object.fromEntries(
+    JOURNAL_VALUE_FIELDS.map((field) => [field, null])
+  ) as Record<(typeof JOURNAL_VALUE_FIELDS)[number], null>),
   // A list is empty when it is NULL (a day created without it) or '{}'. Prisma reads
   // both as [], but `isEmpty` only matches '{}'.
-  AND: [
-    { OR: [{ tags: { equals: null } }, { tags: { isEmpty: true } }] },
-    {
-      OR: [
-        { gratitudeEntries: { equals: null } },
-        { gratitudeEntries: { isEmpty: true } },
-      ],
-    },
-    {
-      OR: [
-        { goalsAchieved: { equals: null } },
-        { goalsAchieved: { isEmpty: true } },
-      ],
-    },
-    {
-      OR: [
-        { goalsProgress: { equals: null } },
-        { goalsProgress: { isEmpty: true } },
-      ],
-    },
-    {
-      OR: [
-        { symptomsPhysical: { equals: null } },
-        { symptomsPhysical: { isEmpty: true } },
-      ],
-    },
-    {
-      OR: [
-        { symptomsMental: { equals: null } },
-        { symptomsMental: { isEmpty: true } },
-      ],
-    },
-  ],
-} satisfies Prisma.JournalEntryWhereInput;
+  AND: JOURNAL_LIST_FIELDS.map(
+    (field): Prisma.JournalEntryWhereInput => ({
+      OR: [{ [field]: { equals: null } }, { [field]: { isEmpty: true } }],
+    })
+  ),
+};
 
 /**
  * "Delete my energy check-ins": deletes the journal days that hold nothing but check-ins
