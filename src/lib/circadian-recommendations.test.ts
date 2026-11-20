@@ -4,8 +4,11 @@ import {
   buildCircadianInsights,
   detectBestWindow,
   ENERGY_HISTORY_DAYS,
+  energyNowFrom,
   intensityLabel,
+  isLowEnergy,
   leadingEarlyEstimate,
+  LOW_ENERGY_RATING,
   localTimeIn,
   lotteryHintFromInsights,
   lotteryTargetFromInsights,
@@ -507,6 +510,112 @@ describe('buildCircadianInsights', () => {
     expect(bestLater?.body).toBe(
       'Over the last 30 days your energy has averaged 8/10 in the afternoon, compared with 4.6/10 in the morning.'
     );
+  });
+
+  it('holds back harder training on a day the briefing calls a take-it-easy day', () => {
+    // 16:10 in Stockholm: late afternoon, usually the time for harder sessions.
+    const lateAfternoon = new Date('2026-11-20T15:10:00Z');
+    const usual = buildCircadianInsights({
+      now: lateAfternoon,
+      timeZone: zone,
+      rows: [],
+    });
+    expect(usual.suggestions.map((s) => s.key)).toContain('afternoon.training');
+    expect(usual.recommendedIntensity).toBe('high');
+
+    const easy = buildCircadianInsights({
+      now: lateAfternoon,
+      timeZone: zone,
+      rows: [],
+      easyDay: true,
+    });
+    expect(easy.easyDay).toBe(true);
+    expect(easy.suggestions.map((s) => s.key)).toEqual([
+      'personal.easy-day',
+      'afternoon.caffeine',
+    ]);
+    expect(easy.suggestions[0]).toMatchObject({
+      title: 'A gentler day may suit you',
+      body: 'Your recent logs point to an easier day, so harder training is left out for now.',
+    });
+    // Medium at most, so the lottery leans the same way as the briefing.
+    expect(easy.recommendedIntensity).toBe('medium');
+    expect(lotteryTargetFromInsights(easy).intensity).toBe(1);
+    expect(lotteryHintFromInsights(easy).recommendedIntensity).toBe('medium');
+  });
+
+  it('gives no best-window or high-energy push on a take-it-easy day', () => {
+    // Mornings usually 8, afternoons 5; 9/10 this morning.
+    const rows = [
+      ...history('2026-11-19', 6, [8, 5, null]),
+      row('2026-11-20', 9, null, null),
+    ];
+    const easy = buildCircadianInsights({
+      now: lateMorning,
+      timeZone: zone,
+      rows,
+      easyDay: true,
+    });
+    const keys = easy.suggestions.map((s) => s.key);
+    expect(keys).toEqual([
+      'personal.easy-day',
+      'personal.best-now',
+      'morning.hormones',
+      'morning.light',
+    ]);
+    for (const suggestion of easy.suggestions) {
+      expect(suggestion.body).not.toMatch(/demanding|harder session/i);
+    }
+    expect(easy.recommendedIntensity).toBe('medium');
+
+    // A low check-in right now already says why: no second note.
+    const lowNow = buildCircadianInsights({
+      now: lateMorning,
+      timeZone: zone,
+      rows: [row('2026-11-20', 2, null, null)],
+      easyDay: true,
+    });
+    expect(lowNow.suggestions.map((s) => s.key)).not.toContain(
+      'personal.easy-day'
+    );
+    expect(lowNow.suggestions[0].key).toBe('personal.low-now');
+
+    // Lighter moments keep their lighter target.
+    const evening = buildCircadianInsights({
+      now: new Date('2026-11-20T18:30:00Z'),
+      timeZone: zone,
+      rows: [],
+      easyDay: true,
+    });
+    expect(evening.intensityTarget).toBe(0);
+  });
+
+  it('reads "right now" the same way for the card and the briefing', () => {
+    // Today's check-ins in every slot, in UTC; the card's current energy for every hour.
+    const rows = [row('2026-11-20', 2, 6, 9), row('2026-11-19', 1, 1, 1)];
+    for (let hour = 0; hour < 24; hour++) {
+      const now = new Date(Date.UTC(2026, 10, 20, hour, 30));
+      expect(energyNowFrom(rows, now, 'UTC')).toBe(
+        buildCircadianInsights({ now, timeZone: 'UTC', rows }).currentEnergy
+      );
+    }
+    expect(energyNowFrom(rows, new Date('2026-11-20T08:00:00Z'), 'UTC')).toBe(
+      2
+    );
+    expect(energyNowFrom(rows, new Date('2026-11-20T23:00:00Z'), 'UTC')).toBe(
+      null
+    );
+    // The profile time zone decides the slot: 08:00 UTC is 03:00 in New York (night, no
+    // slot), and 14:00 UTC is 09:00 there, the morning of the 20th.
+    expect(
+      energyNowFrom(rows, new Date('2026-11-20T08:00:00Z'), 'America/New_York')
+    ).toBe(null);
+    expect(
+      energyNowFrom(rows, new Date('2026-11-20T14:00:00Z'), 'America/New_York')
+    ).toBe(2);
+    expect(isLowEnergy(LOW_ENERGY_RATING)).toBe(true);
+    expect(isLowEnergy(LOW_ENERGY_RATING + 1)).toBe(false);
+    expect(isLowEnergy(null)).toBe(false);
   });
 
   it('never pushes hard training for an evening best window', () => {

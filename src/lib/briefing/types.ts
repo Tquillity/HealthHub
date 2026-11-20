@@ -183,6 +183,12 @@ export type BriefingEngineInput = {
   meals: BriefingMealData | null;
   /** Recovery score inputs; null when the source or the vitals opt-in is off. */
   vitals: BriefingVitalsData | null;
+  /**
+   * Today's time-of-day energy check-in for right now is at or below LOW_ENERGY_RATING,
+   * as the circadian card's "Running low right now" (lib/easy-day). False unless the
+   * journal source and circadian insights are on.
+   */
+  lowEnergyNow?: boolean;
   /** Feedback from the last weeks, including today. */
   feedback: BriefingFeedbackEntry[];
 };

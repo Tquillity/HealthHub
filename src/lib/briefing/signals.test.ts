@@ -326,6 +326,17 @@ describe('analyzeBriefing: journal', () => {
     expect(off.energy).toBeNull();
     expect(off.phase).toBeNull();
   });
+
+  it('uses a low energy check-in for right now only with the journal source on', () => {
+    expect(analyzeBriefing(input({ journal: [] })).lowEnergyNow).toBe(false);
+    expect(
+      analyzeBriefing(input({ journal: [], lowEnergyNow: true })).lowEnergyNow
+    ).toBe(true);
+    // The check-in is journal data: ignored with the journal source off.
+    expect(analyzeBriefing(input({ lowEnergyNow: true })).lowEnergyNow).toBe(
+      false
+    );
+  });
 });
 
 describe('analyzeBriefing: recovery', () => {

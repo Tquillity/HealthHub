@@ -118,6 +118,8 @@ export type BriefingSignals = {
   phase: BriefingPhaseInfo | null;
   /** Journal check-ins in the window; null when the journal source is off. */
   checkInDays: number | null;
+  /** The user rated their energy as low right now (`BriefingEngineInput.lowEnergyNow`). */
+  lowEnergyNow: boolean;
   energy: { comparison: Comparison; low: boolean; good: boolean } | null;
   mood: { comparison: Comparison; low: boolean } | null;
   symptoms: {
@@ -528,6 +530,8 @@ export function analyzeBriefing(input: BriefingEngineInput): BriefingSignals {
         ? describeTodayPhase(resolver, input.cycle, input.today)
         : null,
     ...journal,
+    // Journal data: only with the journal source on.
+    lowEnergyNow: input.journal !== null && (input.lowEnergyNow ?? false),
     recovery: analyzeRecovery(input, window),
     meals: analyzeMeals(input.meals, input.today),
   };

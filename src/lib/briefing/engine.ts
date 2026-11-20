@@ -1,5 +1,5 @@
 import { analyzeBriefing } from './signals';
-import { buildCandidates, urgencyOfScore } from './rules';
+import { buildCandidates, isTakeItEasyDay, urgencyOfScore } from './rules';
 import {
   rankCandidates,
   selectVisible,
@@ -51,4 +51,27 @@ export function buildDailyBriefing(input: BriefingEngineInput): DailyBriefing {
     })),
     notes: buildNotes(signals),
   };
+}
+
+/**
+ * Whether the briefing for this input calls the day a take-it-easy day (its headline
+ * says "A gentler day may suit you"), without building the briefing. lib/easy-day uses
+ * it so the circadian card holds back on the same days. Focus, detail, meals and
+ * feedback only rank and word the briefing, so they are not needed.
+ */
+export function isTakeItEasyInput(
+  input: Pick<
+    BriefingEngineInput,
+    'today' | 'journal' | 'cycle' | 'vitals' | 'lowEnergyNow'
+  >
+): boolean {
+  return isTakeItEasyDay(
+    analyzeBriefing({
+      focus: 'both',
+      detail: 'brief',
+      meals: null,
+      feedback: [],
+      ...input,
+    })
+  );
 }

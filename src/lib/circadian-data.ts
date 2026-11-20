@@ -7,9 +7,11 @@ import {
   toDateOnlyString,
 } from '@/lib/date-only';
 import { isValidTimeZone } from '@/lib/briefing/schedule';
+import { loadEasyDay } from '@/lib/easy-day';
 import { safeErrorLabel } from '@/lib/safe-error';
 import {
   buildCircadianInsights,
+  detectBestWindow,
   ENERGY_HISTORY_DAYS,
   ENERGY_SLOT_FIELDS,
   LIGHT_DINNER_MAX_KCAL,
@@ -18,6 +20,7 @@ import {
   lotteryTargetFromInsights,
   PROTEIN_RICH_BREAKFAST_MIN_GRAMS,
   slotForWindow,
+  summarizeSlotEnergy,
   windowForHour,
   type CircadianInsights,
   type CircadianLotteryHint,
@@ -46,6 +49,9 @@ import type {
  *   (User.timezone), never from the client.
  * - Only the session user's rows are read; meal ideas use the same recipe visibility
  *   as the recipe pages (system and household recipes, no secret or private ones).
+ * - On a day the daily briefing calls a take-it-easy day, the card and the lottery hold
+ *   back on harder training too (lib/easy-day: the briefing's own check, on the inputs
+ *   the briefing reads), so the dashboard never says both.
  */
 
 /** Check-ins were sent while the user's opt-in is off. */
@@ -118,6 +124,23 @@ export async function loadTimeOfDayEnergyRows(
   return rows.map((row) => ({ ...row, date: toDateOnlyString(row.date) }));
 }
 
+/**
+ * Whether the daily briefing calls today a take-it-easy day (lib/easy-day), so the card
+ * and the lottery hold back on harder training on the same days. Never throws: without
+ * it the card works as before.
+ */
+async function loadEasyDayOrFalse(userId: string, now: Date): Promise<boolean> {
+  try {
+    return await loadEasyDay(userId, now);
+  } catch (error) {
+    console.error(
+      '[circadian] Failed to check for a take-it-easy day:',
+      safeErrorLabel(error)
+    );
+    return false;
+  }
+}
+
 /** Insights for `now`, or null when the user has not turned circadian insights on. */
 export async function loadCircadianInsights(
   userId: string,
@@ -126,8 +149,16 @@ export async function loadCircadianInsights(
   const user = await readCircadianUser(userId);
   if (!user.enableCircadianInsights) return null;
   const today = localTimeIn(now, user.timezone).dateKey;
-  const rows = await loadTimeOfDayEnergyRows(userId, today);
-  return buildCircadianInsights({ now, timeZone: user.timezone, rows });
+  const [rows, easyDay] = await Promise.all([
+    loadTimeOfDayEnergyRows(userId, today),
+    loadEasyDayOrFalse(userId, now),
+  ]);
+  return buildCircadianInsights({
+    now,
+    timeZone: user.timezone,
+    rows,
+    easyDay,
+  });
 }
 
 /** Routine lottery weighting for now, or null (unbiased draw) when the opt-in is off. */
@@ -176,12 +207,18 @@ export async function loadTimeOfDayEnergySummary(
   now: Date = new Date()
 ): Promise<TimeOfDayEnergySummary | null> {
   try {
-    const insights = await loadCircadianInsights(userId, now);
-    if (!insights) return null;
+    // The pattern only (the same averages as the dashboard card), no suggestions.
+    const user = await readCircadianUser(userId);
+    if (!user.enableCircadianInsights) return null;
+    const today = localTimeIn(now, user.timezone).dateKey;
+    const slots = summarizeSlotEnergy(
+      await loadTimeOfDayEnergyRows(userId, today),
+      today
+    );
     return {
       days: ENERGY_HISTORY_DAYS,
-      slots: insights.slots,
-      bestWindow: insights.bestWindow,
+      slots,
+      bestWindow: detectBestWindow(slots),
     };
   } catch (error) {
     console.error(

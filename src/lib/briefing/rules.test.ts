@@ -87,6 +87,7 @@ function signals(overrides: Partial<BriefingSignals>): BriefingSignals {
     window: ['2026-11-18', '2026-11-19', '2026-11-20'],
     phase: null,
     checkInDays: 3,
+    lowEnergyNow: false,
     energy: null,
     mood: null,
     symptoms: null,
@@ -104,31 +105,57 @@ describe('headline and suggestions', () => {
       for (const recoveryValue of Object.values(RECOVERY)) {
         for (const symptoms of Object.values(SYMPTOMS)) {
           for (const sleepValue of Object.values(SLEEP)) {
-            const s = signals({
-              energy,
-              recovery: recoveryValue,
-              symptoms,
-              sleep: sleepValue,
-            });
-            const headline = buildHeadline(s);
-            const keys = buildCandidates(s).map((c) => c.key);
-            const label = JSON.stringify({ headline, keys });
-            if (headline === GENTLER) {
-              gentlerDays += 1;
-              expect(isTakeItEasyDay(s)).toBe(true);
-              expect(keys.filter((k) => PUSH.includes(k)), label).toEqual([]);
-            } else {
-              // "Doing well" or a neutral headline: nothing says go gently either.
-              expect(keys.filter((k) => EASE.includes(k)), label).toEqual([]);
-            }
-            if (keys.includes('routine.go-for-it')) {
-              expect(headline).toBe(DOING_WELL);
+            for (const lowEnergyNow of [false, true]) {
+              const s = signals({
+                energy,
+                recovery: recoveryValue,
+                symptoms,
+                sleep: sleepValue,
+                lowEnergyNow,
+              });
+              const headline = buildHeadline(s);
+              const keys = buildCandidates(s).map((c) => c.key);
+              const label = JSON.stringify({ headline, keys });
+              if (headline === GENTLER) {
+                gentlerDays += 1;
+                expect(isTakeItEasyDay(s)).toBe(true);
+                expect(
+                  keys.filter((k) => PUSH.includes(k)),
+                  label
+                ).toEqual([]);
+              } else {
+                // "Doing well" or a neutral headline: nothing says go gently either.
+                expect(
+                  keys.filter((k) => EASE.includes(k)),
+                  label
+                ).toEqual([]);
+              }
+              if (keys.includes('routine.go-for-it')) {
+                expect(headline).toBe(DOING_WELL);
+              }
             }
           }
         }
       }
     }
     expect(gentlerDays).toBeGreaterThan(0);
+  });
+
+  it('takes it easy right after a low energy check-in, even on a good week', () => {
+    // A good 3 days and good recovery, but the time-of-day check-in for right now is low.
+    const good = signals({ energy: ENERGY.good, recovery: RECOVERY.good });
+    expect(buildCandidates(good).map((c) => c.key)).toEqual([
+      'recovery.well-recovered',
+      'routine.go-for-it',
+    ]);
+    const lowNow = signals({
+      energy: ENERGY.good,
+      recovery: RECOVERY.good,
+      lowEnergyNow: true,
+    });
+    expect(isTakeItEasyDay(lowNow)).toBe(true);
+    expect(buildHeadline(lowNow)).toBe(GENTLER);
+    expect(buildCandidates(lowNow)).toEqual([]);
   });
 
   it('drops "try a more challenging routine" after short (6-7 h) nights', () => {
