@@ -15,7 +15,6 @@ import {
 } from '@/lib/cycle-history';
 import { isJournalCheckIn } from '@/lib/clinical-report';
 import { RECOVERY_HISTORY_DAYS } from '@/lib/cycle-insights';
-import { loadDailyMetricsRows } from '@/lib/daily-metrics';
 import { listPeriodStartDates } from '@/lib/period-starts';
 import type { FocusPreference } from '@/types/cycle';
 import type {
@@ -440,9 +439,10 @@ async function loadCycleData(
 }
 
 /**
- * Recovery score inputs exactly as the dashboard Vitals card loads them (lib/daily-metrics
- * `loadVitalsCardData`): the same rows, sleep hours included, from far enough back that
- * every scored day has a full baseline, and the period starts when cycle tracking is on.
+ * Recovery score inputs as the dashboard Vitals card loads them (lib/daily-metrics
+ * `loadVitalsCardData`): every value the score uses, sleep hours included, from far
+ * enough back that every scored day has a full baseline, and the period starts when
+ * cycle tracking is on. Temperature is not part of the score, so it is not read.
  */
 async function loadVitalsData(
   userId: string,
@@ -450,12 +450,26 @@ async function loadVitalsData(
   today: string,
   periodStarts: string[] | null
 ): Promise<BriefingVitalsData> {
-  return {
-    rows: await loadDailyMetricsRows(
+  const rows = await prisma.journalEntry.findMany({
+    where: {
       userId,
-      addDaysToDateOnly(today, -RECOVERY_HISTORY_DAYS),
-      today
-    ),
+      date: dateRange(addDaysToDateOnly(today, -RECOVERY_HISTORY_DAYS), today),
+    },
+    select: {
+      date: true,
+      restingHeartRate: true,
+      heartRateVariability: true,
+      sleepQuality: true,
+      sleepHours: true,
+    },
+    orderBy: { date: 'asc' },
+  });
+  return {
+    rows: rows.map((row) => ({
+      ...row,
+      date: toDateOnlyString(row.date),
+      temperature: null,
+    })),
     periodStarts,
     typicalCycleLength: user.cycleLength,
   };
