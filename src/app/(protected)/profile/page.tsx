@@ -5,6 +5,7 @@ import { ProfileClient } from '@/components/profile/profile-client';
 import { DeleteAccountSection } from '@/components/profile/delete-account-section';
 import { VitalsPrivacyCard } from '@/components/profile/vitals-privacy-card';
 import { BriefingSettingsCard } from '@/components/profile/briefing-settings-card';
+import { CircadianSettingsCard } from '@/components/profile/circadian-settings-card';
 import { getAccountDeletionContext } from '@/lib/account-deletion';
 import { Users, ChevronRight, Download } from 'lucide-react';
 import Link from 'next/link';
@@ -98,6 +99,7 @@ export default async function ProfilePage() {
 
         <VitalsPrivacyCard userId={session.user.id} />
         <BriefingSettingsCard userId={session.user.id} />
+        <CircadianSettingsCard userId={session.user.id} />
 
         <DeleteAccountSection
           hasPassword={deletion.hasPassword}
