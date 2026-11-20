@@ -7,6 +7,11 @@ import {
   yieldAmountSchema,
   yieldUnitSchema,
 } from '@/lib/lean-kitchen';
+import {
+  nutrientHighlightsSchema,
+  phaseTagsSchema,
+  resolveRecipeBioProfile,
+} from '@/lib/phase-nutrition';
 
 /**
  * Runtime shape of `kitchen-manifest.json` (the system recipe catalog seeded by
@@ -17,6 +22,12 @@ import {
  *   "yield":    { "amount", "unit" }
  * Times are minutes: activeTime is hands-on work, passiveTime is waiting (oven,
  * rising, soaking, chilling, simmering).
+ *
+ * Biological Fueling (issue #2) adds two optional lists per recipe, set where we are
+ * confident about them:
+ *   "phaseTags":          ["menstrual" | "follicular" | "ovulation" | "luteal", ...]
+ *   "nutrientHighlights": ["iron", "magnesium", ...]  (src/lib/phase-nutrition.ts)
+ * Anything left out is worked out from the ingredient names when the seed runs.
  */
 
 const leanInfoSchema = z
@@ -54,6 +65,8 @@ const manifestRecipeSchema = z.object({
   isSecret: z.boolean().optional(),
   leanInfo: leanInfoSchema.optional(),
   yield: yieldSchema.optional(),
+  phaseTags: phaseTagsSchema.optional(),
+  nutrientHighlights: nutrientHighlightsSchema.optional(),
   ingredients: z
     .array(
       z.object({
@@ -119,8 +132,17 @@ export function parseKitchenManifest(json: unknown): KitchenManifest {
 /**
  * Recipe columns the seed owns for a system recipe. Images and the HH Chefs Verified
  * flag are not in the manifest, so an update leaves what an admin set there.
+ *
+ * Phase tags and nutrient highlights: explicit manifest values win; otherwise they are
+ * inferred from the ingredients (same rules as at runtime, see resolveRecipeBioProfile).
  */
 export function toSystemRecipeFields(recipe: KitchenManifestRecipe) {
+  const bio = resolveRecipeBioProfile({
+    phaseTags: recipe.phaseTags,
+    nutrientHighlights: recipe.nutrientHighlights,
+    ingredients: recipe.ingredients,
+    leanRole: recipe.leanInfo?.leanRole,
+  });
   return {
     name: recipe.name,
     description: recipe.description ?? null,
@@ -139,6 +161,8 @@ export function toSystemRecipeFields(recipe: KitchenManifestRecipe) {
     batchEfficiency: recipe.leanInfo?.batchEfficiency ?? null,
     yieldAmount: recipe.yield?.amount ?? null,
     yieldUnit: recipe.yield?.unit ?? null,
+    phaseTags: bio.phases,
+    nutrientHighlights: bio.nutrients,
     isSystem: true,
     isSecret: recipe.isSecret ?? false,
     isPrivate: false,
