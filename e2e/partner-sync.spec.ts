@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 
 const hasSeededAuth =
   Boolean(process.env.PLAYWRIGHT_TEST_EMAIL) &&
@@ -8,6 +8,34 @@ const hasSeededAuth =
 // Fixtures (scripts/seed-e2e.ts): the signed-in user tracks their cycle and shares with no
 // household, and "Robin Partner" shares their full status with "E2E household", which they
 // are both in.
+
+/**
+ * Puts the signed-in user's sharing back to the seeded state (off for E2E household, no
+ * message) through the UI. CI retries a failed test without reseeding, and a local rerun may
+ * not reseed either, so the Profile test must not depend on an earlier attempt having
+ * finished. Turning sharing off deletes the share, so turning it on again starts at Phase only.
+ */
+async function resetOwnSharing(page: Page) {
+  await page.goto('/profile');
+  const section = page.getByRole('region', { name: 'Cycle status sharing' });
+  const household = section.getByRole('region', { name: 'E2E household' });
+  const toggle = household.getByRole('switch', {
+    name: 'Share my cycle status with E2E household',
+  });
+  await expect(toggle).toBeVisible();
+  if (await toggle.isChecked()) {
+    await toggle.click();
+    await expect(household.getByRole('status')).toHaveText(
+      'E2E household can no longer see your cycle status.'
+    );
+  }
+  const remove = section.getByRole('button', { name: 'Remove message' });
+  if (await remove.isVisible()) {
+    await remove.click();
+    await expect(remove).toHaveCount(0);
+  }
+}
+
 test.describe('partner sync', () => {
   test.beforeEach(() => {
     test.skip(!hasSeededAuth, 'Requires authenticated E2E with the isolated fixtures');
@@ -39,6 +67,7 @@ test.describe('partner sync', () => {
   test('sharing is off by default, chosen per household, and the preview follows each choice', async ({
     page,
   }) => {
+    await resetOwnSharing(page);
     await page.goto('/profile');
     const section = page.getByRole('region', { name: 'Cycle status sharing' });
     const household = section.getByRole('region', { name: 'E2E household' });
