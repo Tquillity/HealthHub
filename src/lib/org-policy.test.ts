@@ -6,6 +6,7 @@ import {
   canShowAggregate,
   canShowIndividualCycleStatus,
   canViewSharedJournals,
+  CYCLE_STATUS_ORG_TYPES,
   getOrgPolicy,
   MIN_AGGREGATE_GROUP_SIZE,
   ORGANIZATION_TYPES,
@@ -23,6 +24,7 @@ describe('intimacy scale', () => {
       mealPlans: 'shared',
       grocerySources: true,
       individualSharing: 'opt-in',
+      cycleStatusSharing: 'opt-in',
       aggregatesOnly: false,
     });
   });
@@ -32,6 +34,7 @@ describe('intimacy scale', () => {
       mealPlans: 'opt-in',
       grocerySources: true,
       individualSharing: 'opt-in',
+      cycleStatusSharing: 'never',
     });
   });
 
@@ -39,6 +42,7 @@ describe('intimacy scale', () => {
     for (const type of ['COMMUNITY', 'CORPORATE'] as const) {
       expect(getOrgPolicy(type)).toMatchObject({
         individualSharing: 'never',
+        cycleStatusSharing: 'never',
         aggregatesOnly: true,
         grocerySources: false,
       });
@@ -59,12 +63,17 @@ describe('journal sharing', () => {
 });
 
 describe('canShowIndividualCycleStatus (partner sync)', () => {
-  it('needs both an intimate organization and the person opting in', () => {
+  it('needs both a household and the person opting in', () => {
     expect(canShowIndividualCycleStatus('HOUSEHOLD', { sharerOptedIn: true })).toBe(true);
-    expect(canShowIndividualCycleStatus('COLLECTIVE', { sharerOptedIn: true })).toBe(true);
     expect(canShowIndividualCycleStatus('HOUSEHOLD', { sharerOptedIn: false })).toBe(false);
     expect(canShowIndividualCycleStatus('COMMUNITY', { sharerOptedIn: true })).toBe(false);
     expect(canShowIndividualCycleStatus('CORPORATE', { sharerOptedIn: true })).toBe(false);
+  });
+
+  it('keeps cycle status out of collectives, even though journal days may be shared there', () => {
+    expect(canShowIndividualCycleStatus('COLLECTIVE', { sharerOptedIn: true })).toBe(false);
+    expect(canShareJournalWith('COLLECTIVE')).toBe(true);
+    expect(CYCLE_STATUS_ORG_TYPES).toEqual(['HOUSEHOLD']);
   });
 });
 

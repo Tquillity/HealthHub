@@ -4,6 +4,7 @@ import { getProfile } from '@/actions/profile-actions';
 import { ProfileClient } from '@/components/profile/profile-client';
 import { DeleteAccountSection } from '@/components/profile/delete-account-section';
 import { VitalsPrivacyCard } from '@/components/profile/vitals-privacy-card';
+import { CycleSharingSection } from '@/components/profile/cycle-sharing-section';
 import { getAccountDeletionContext } from '@/lib/account-deletion';
 import { Users, ChevronRight, Download } from 'lucide-react';
 import Link from 'next/link';
@@ -73,6 +74,8 @@ export default async function ProfilePage() {
             </Link>
           </div>
         </div>
+
+        <CycleSharingSection userId={session.user.id} />
 
         {/* Data export: GDPR data portability */}
         <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">

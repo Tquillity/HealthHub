@@ -13,6 +13,7 @@ import {
   VitalsCardSkeleton,
 } from '@/components/dashboard/dashboard-skeletons';
 import { VitalsCard } from '@/components/dashboard/vitals-card';
+import { SupportStatusWidget } from '@/components/dashboard/support-status-widget';
 
 /**
  * The shell (greeting, quick actions, today's tip) needs only the session, so it renders at once.
@@ -52,6 +53,10 @@ export default async function DashboardPage() {
             </Suspense>
             <Suspense fallback={<VitalsCardSkeleton />}>
               <VitalsCard userId={userId} />
+            </Suspense>
+            {/* Renders nothing unless household members share their status. */}
+            <Suspense fallback={null}>
+              <SupportStatusWidget />
             </Suspense>
             <Suspense fallback={<DashboardStatsSkeleton />}>
               <DashboardStats userId={userId} />

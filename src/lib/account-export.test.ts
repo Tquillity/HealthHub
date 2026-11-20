@@ -41,6 +41,9 @@ describe.skipIf(!isolated)('account export against isolated PostgreSQL', () => {
           ],
         },
         alignMealsWithCycle: false,
+        shareCycleStatus: true,
+        shareCycleLevel: 'FULL',
+        supportMessage: encrypt('Tea and a quiet evening, please'),
       },
     });
     await client.user.create({ data: { ...housemate, name: 'Housemate' } });
@@ -153,6 +156,9 @@ describe.skipIf(!isolated)('account export against isolated PostgreSQL', () => {
       temperatureUnit: 'F',
       trackVitals: true,
       alignMealsWithCycle: false,
+      shareCycleStatus: true,
+      shareCycleLevel: 'FULL',
+      supportMessage: 'Tea and a quiet evening, please',
     });
     expect(data.periodStarts).toEqual([
       { date: '2026-02-01', loggedAt: expect.any(Date) },
