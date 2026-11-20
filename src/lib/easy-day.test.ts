@@ -422,6 +422,39 @@ describe.skipIf(!isolated)(
       expect(later.keys).not.toContain('routine.go-for-it');
     });
 
+    it('reads the check-in in the profile time zone on both cards', async () => {
+      await client.user.update({
+        where: { id: userId },
+        data: { timezone: 'America/Los_Angeles' },
+      });
+      await writeJournal(
+        { energy: 5, sleepHours: 8 },
+        { energy: 8, sleepHours: 8 }
+      );
+      // 10:30 in Los Angeles (UTC-8) is 18:30 UTC, the UTC evening.
+      const morningThere = new Date('2026-11-20T18:30:00Z');
+      expect((await loadDashboard(morningThere)).briefing.headline).toBe(
+        DOING_WELL
+      );
+      await circadian.saveEnergyNow(userId, 2, morningThere);
+      const low = await loadDashboard(morningThere);
+      expect(low.card.slot).toBe('morning');
+      expect(low.card.todayEnergy.morning).toBe(2);
+      expect(low.cardKeys[0]).toBe('personal.low-now');
+      expect(low.briefing.headline).toBe(LOW_NOW);
+      expect(low.keys.filter((k) => BRIEFING_PUSH.includes(k))).toEqual([]);
+
+      // 21:30 there is 05:30 UTC on the next day, still the 20th in Los Angeles.
+      const eveningThere = new Date('2026-11-21T05:30:00Z');
+      const evening = await loadDashboard(eveningThere);
+      expect(evening.card.lowCheckIn).toBe('earlier');
+      expect(evening.briefing.headline).toBe(LOW_EARLIER);
+      await circadian.saveEnergyNow(userId, 2, eveningThere);
+      const lowEvening = await loadDashboard(eveningThere);
+      expect(lowEvening.cardKeys[0]).toBe('personal.low-now');
+      expect(lowEvening.briefing.headline).toBe(LOW_NOW);
+    });
+
     it('keeps both cards gentle after a low check-in until the next slot is rated', async () => {
       await writeJournal(
         { energy: 5, sleepHours: 8 },
