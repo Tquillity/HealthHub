@@ -1,5 +1,7 @@
 import type { ChangeEvent, Dispatch, RefObject, SetStateAction } from 'react';
 import type { RecipeWithDetails } from '@/actions/recipe-actions';
+import type { CyclePhase } from '@/lib/cycle-calculator';
+import type { NutrientHighlight } from '@/lib/phase-nutrition';
 
 export interface Ingredient {
   name: string;
@@ -37,6 +39,9 @@ export type FormData = {
   yieldAmount: string;
   yieldUnit: string;
   batchEfficiency: string;
+  /** Explicit tags; empty means "infer from the ingredients". */
+  phaseTags: CyclePhase[];
+  nutrientHighlights: NutrientHighlight[];
   dietaryTags: string;
   calories: string;
   protein: string;
@@ -109,6 +114,12 @@ export interface RecipeFormLeanSectionProps {
   formData: FormData;
   setFormData: Dispatch<SetStateAction<FormData>>;
   errors: Record<string, string>;
+}
+
+export interface RecipeFormCycleSectionProps {
+  formData: FormData;
+  setFormData: Dispatch<SetStateAction<FormData>>;
+  ingredients: Ingredient[];
 }
 
 export interface RecipeFormNutritionSectionProps {

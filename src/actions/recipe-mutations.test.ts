@@ -187,3 +187,60 @@ describe('updateRecipe LEAN fields', () => {
     expect(mocks.tx.recipe.update).not.toHaveBeenCalled();
   });
 });
+
+describe('recipe cycle fields', () => {
+  it('stores phase tags and nutrient highlights in vocabulary order', async () => {
+    const result = await createRecipe({
+      ...baseRecipe,
+      phaseTags: ['luteal', 'Menstrual' as 'menstrual'],
+      nutrientHighlights: ['magnesium', 'iron', 'iron'],
+    });
+
+    expect(result.success).toBe(true);
+    expect(mocks.tx.recipe.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        phaseTags: ['menstrual', 'luteal'],
+        nutrientHighlights: ['iron', 'magnesium'],
+      }),
+    });
+  });
+
+  it('stores empty lists when they are left out', async () => {
+    await createRecipe(baseRecipe);
+    expect(mocks.tx.recipe.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ phaseTags: [], nutrientHighlights: [] }),
+    });
+  });
+
+  it('rejects values outside the vocabulary before touching the database', async () => {
+    const phase = await createRecipe({
+      ...baseRecipe,
+      phaseTags: ['pms' as 'luteal'],
+    });
+    expect(phase).toEqual({
+      success: false,
+      error: 'Cycle phase must be menstrual, follicular, ovulation or luteal',
+    });
+    const nutrient = await updateRecipe({
+      id: 'recipe-1',
+      nutrientHighlights: ['vitamin-z' as 'iron'],
+    });
+    expect(nutrient.success).toBe(false);
+    expect(nutrient.error).toMatch(/^Nutrient must be one of: iron, /);
+    expect(mocks.tx.recipe.create).not.toHaveBeenCalled();
+    expect(mocks.tx.recipe.update).not.toHaveBeenCalled();
+  });
+
+  it('updates or clears the lists and leaves them alone when not sent', async () => {
+    await updateRecipe({ id: 'recipe-1', phaseTags: ['follicular'], nutrientHighlights: [] });
+    expect(mocks.tx.recipe.update.mock.calls[0][0].data).toMatchObject({
+      phaseTags: ['follicular'],
+      nutrientHighlights: [],
+    });
+
+    await updateRecipe({ id: 'recipe-1', name: 'Renamed' });
+    const { data } = mocks.tx.recipe.update.mock.calls[1][0];
+    expect(data).not.toHaveProperty('phaseTags');
+    expect(data).not.toHaveProperty('nutrientHighlights');
+  });
+});

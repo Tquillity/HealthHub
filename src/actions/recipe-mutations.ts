@@ -16,6 +16,7 @@ import {
   yieldAmountSchema,
   yieldUnitSchema,
 } from '@/lib/lean-kitchen';
+import { nutrientHighlightsSchema, phaseTagsSchema } from '@/lib/phase-nutrition';
 
 const RecipeFieldsSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -47,6 +48,10 @@ const RecipeFieldsSchema = z.object({
   yieldAmount: yieldAmountSchema.optional(),
   yieldUnit: yieldUnitSchema.optional(),
   batchEfficiency: batchEfficiencySchema.optional(),
+  // Biological Fueling (issue #2): controlled vocabularies; an empty list means
+  // "work it out from the ingredients" (src/lib/phase-nutrition.ts).
+  phaseTags: phaseTagsSchema.optional(),
+  nutrientHighlights: nutrientHighlightsSchema.optional(),
   calories: z.number().positive().optional(),
   protein: z.number().positive().optional(),
   carbs: z.number().positive().optional(),
@@ -169,6 +174,8 @@ export async function createRecipe(data: z.infer<typeof CreateRecipeSchema>) {
           yieldAmount: validated.yieldAmount ?? null,
           yieldUnit: validated.yieldUnit ?? null,
           batchEfficiency: validated.batchEfficiency ?? null,
+          phaseTags: validated.phaseTags ?? [],
+          nutrientHighlights: validated.nutrientHighlights ?? [],
           calories: validated.calories || null,
           protein: validated.protein || null,
           carbs: validated.carbs || null,

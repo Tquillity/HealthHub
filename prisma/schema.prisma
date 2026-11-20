@@ -28,6 +28,9 @@ model User {
   focusPreference       String?
   mealPlanDuration      String?
   mealPlanStartDate     DateTime?
+  /// Meal Plan Generator favors recipes that suit each day's estimated cycle phase.
+  /// Only takes effect while cycle tracking is on and a last period date is set.
+  alignMealsWithCycle   Boolean                    @default(true)
   isPremium             Boolean                    @default(false) @map("is_premium")
   members               Member[]
   journalEntries        JournalEntry[]
@@ -156,6 +159,12 @@ model Recipe {
   yieldUnit             String?
   /// High | Medium | Low (validated in src/lib/lean-kitchen.ts)
   batchEfficiency       String?
+  /// Cycle phases the recipe suits: menstrual | follicular | ovulation | luteal.
+  /// Empty means "infer from nutrients/ingredients" (src/lib/phase-nutrition.ts).
+  phaseTags             String[]               @default([])
+  /// Key nutrients from the controlled vocabulary in src/lib/phase-nutrition.ts.
+  /// Empty means "infer from ingredient names".
+  nutrientHighlights    String[]               @default([])
   isSystem              Boolean                @default(false)
   isSecret              Boolean                @default(false)
   isPrivate             Boolean                @default(false)

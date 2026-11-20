@@ -23,6 +23,10 @@ import {
   normalizeLeanRole,
   YIELD_PAIR_MESSAGE,
 } from '@/lib/lean-kitchen';
+import {
+  sanitizeNutrientHighlights,
+  sanitizePhaseTags,
+} from '@/lib/phase-nutrition';
 import type { FormData, Ingredient, Instruction } from './recipe-form-types';
 
 type LeanFormFields = Pick<
@@ -46,6 +50,16 @@ function buildLeanFormFields(recipe?: RecipeWithDetails): LeanFormFields {
       recipe?.yieldAmount != null ? recipe.yieldAmount.toString() : '',
     yieldUnit: recipe?.yieldUnit ?? '',
     batchEfficiency: normalizeBatchEfficiency(recipe?.batchEfficiency) ?? '',
+  };
+}
+
+/** Stored tags outside the vocabulary are dropped; the checkboxes only know known ones. */
+function buildCycleFormFields(
+  recipe?: RecipeWithDetails
+): Pick<FormData, 'phaseTags' | 'nutrientHighlights'> {
+  return {
+    phaseTags: sanitizePhaseTags(recipe?.phaseTags),
+    nutrientHighlights: sanitizeNutrientHighlights(recipe?.nutrientHighlights),
   };
 }
 
@@ -73,6 +87,7 @@ function buildInitialFormData(recipe?: RecipeWithDetails): FormData {
     difficulty: recipe?.difficulty || '',
     cuisine: recipe?.cuisine || '',
     ...buildLeanFormFields(recipe),
+    ...buildCycleFormFields(recipe),
     dietaryTags: recipe?.dietaryTags?.join(', ') || '',
     calories: recipe?.calories?.toString() || '',
     protein: recipe?.protein?.toString() || '',
@@ -168,6 +183,7 @@ export function useRecipeForm(
         difficulty: recipe.difficulty || '',
         cuisine: recipe.cuisine || '',
         ...buildLeanFormFields(recipe),
+        ...buildCycleFormFields(recipe),
         dietaryTags: recipe.dietaryTags?.join(', ') || '',
         isSecret: recipe.isSecret || false,
         isHhChefsVerified: recipe.isHhChefsVerified || false,
@@ -429,6 +445,8 @@ export function useRecipeForm(
       yieldAmount,
       yieldUnit,
       batchEfficiency: normalizeBatchEfficiency(formData.batchEfficiency),
+      phaseTags: formData.phaseTags,
+      nutrientHighlights: formData.nutrientHighlights,
       dietaryTags: formData.dietaryTags
         .split(',')
         .map((t: string) => t.trim())
