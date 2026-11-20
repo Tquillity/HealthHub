@@ -11,10 +11,16 @@ import {
 import { useUIStore } from '@/lib/store';
 import { Plus, X } from 'lucide-react';
 import { format } from 'date-fns';
+import {
+  changedTimeOfDayEnergy,
+  TIME_OF_DAY_ENERGY_FIELDS,
+} from './time-of-day-energy-fields';
 
 interface JournalClientProps {
   initialDate?: string;
   onEntrySaved?: () => void;
+  /** Morning, afternoon and evening energy (circadian insights opt-in). */
+  showTimeOfDayEnergy?: boolean;
 }
 
 /**
@@ -35,6 +41,9 @@ function emptyForm(date: string) {
     date,
     mood: '',
     energy: '',
+    energyMorning: '',
+    energyAfternoon: '',
+    energyEvening: '',
     sleepHours: '',
     notes: '',
     tags: '',
@@ -58,6 +67,9 @@ function entryToForm(date: string, entry: StoredEntry): FormData {
     date,
     mood: entry.mood?.toString() || '',
     energy: entry.energy?.toString() || '',
+    energyMorning: entry.energyMorning?.toString() || '',
+    energyAfternoon: entry.energyAfternoon?.toString() || '',
+    energyEvening: entry.energyEvening?.toString() || '',
     sleepHours: entry.sleepHours?.toString() || '',
     notes: entry.notes || '',
     tags: entry.tags.join(', ') || '',
@@ -75,6 +87,7 @@ function entryToForm(date: string, entry: StoredEntry): FormData {
 export function JournalClient({
   initialDate,
   onEntrySaved,
+  showTimeOfDayEnergy = false,
 }: JournalClientProps) {
   const router = useRouter();
   const showToast = useUIStore((state) => state.showToast);
@@ -84,6 +97,8 @@ export function JournalClient({
     emptyForm(initialDate || format(new Date(), 'yyyy-MM-dd'))
   );
   const [loadState, setLoadState] = useState<LoadState>('idle');
+  // The form as the day's entry loaded, to send only the time-of-day ratings edited here.
+  const [loadedForm, setLoadedForm] = useState<FormData>(formData);
   // Only the newest load may fill the form: picking another date while a load is in
   // flight must not let the older response overwrite the form (or its date).
   const latestLoadId = useRef(0);
@@ -106,7 +121,11 @@ export function JournalClient({
       setLoadState('error');
       return;
     }
-    setFormData(result.data ? entryToForm(date, result.data) : emptyForm(date));
+    const loaded = result.data
+      ? entryToForm(date, result.data)
+      : emptyForm(date);
+    setFormData(loaded);
+    setLoadedForm(loaded);
     setLoadState('ready');
   }, []);
 
@@ -168,6 +187,9 @@ export function JournalClient({
       date: formData.date,
       mood: formData.mood ? parseInt(formData.mood, 10) : null,
       energy: formData.energy ? parseInt(formData.energy, 10) : null,
+      // Only the ones edited in this form: the dashboard check-in writes them too.
+      // Left out (unchanged) unless the fields are shown.
+      ...(showTimeOfDayEnergy && changedTimeOfDayEnergy(loadedForm, formData)),
       sleepHours: formData.sleepHours ? parseFloat(formData.sleepHours) : null,
       notes: formData.notes.trim() ? formData.notes : null,
       tags,
@@ -310,6 +332,48 @@ export function JournalClient({
                     />
                   </div>
                 </div>
+
+                {showTimeOfDayEnergy && (
+                  <fieldset className="m-0 flex min-w-0 flex-col gap-2 border-0 p-0">
+                    <legend className="mb-1.5 text-sm font-medium text-gray-700">
+                      Energy by time of day (1-10)
+                    </legend>
+                    <div className="grid grid-cols-3 gap-4">
+                      {TIME_OF_DAY_ENERGY_FIELDS.map((field) => (
+                        <div key={field.key} className="flex flex-col gap-1.5">
+                          <label
+                            htmlFor={`journal-${field.key}`}
+                            className="text-sm text-gray-700"
+                          >
+                            {field.label}{' '}
+                            <span className="text-xs text-gray-500">
+                              ({field.hours})
+                            </span>
+                          </label>
+                          <Input
+                            id={`journal-${field.key}`}
+                            name={`journal-${field.key}`}
+                            type="number"
+                            min="1"
+                            max="10"
+                            value={formData[field.key]}
+                            onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                [field.key]: e.target.value,
+                              })
+                            }
+                            placeholder="1-10"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      Optional. Rate how you felt in each part of the day to see
+                      your own rhythm in Analytics.
+                    </p>
+                  </fieldset>
+                )}
 
                 <div>
                   <label

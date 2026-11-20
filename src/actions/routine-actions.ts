@@ -12,7 +12,9 @@ import {
 } from '@/lib/active-organization';
 import { OrganizationIdSchema } from '@/lib/validation/organization-schemas';
 import { revalidatePath } from 'next/cache';
-import { buildLotteryWhere, drawRandom } from '@/lib/routine-lottery';
+import { buildLotteryWhere, drawLotteryRoutines } from '@/lib/routine-lottery';
+import { loadLotteryCircadianTarget } from '@/lib/circadian-data';
+import { safeErrorLabel } from '@/lib/safe-error';
 import {
   CreateRoutineSchema,
   LotteryFiltersSchema,
@@ -298,7 +300,23 @@ export async function drawLottery(
       return { success: true, error: null, data: [] };
     }
 
-    const selected = drawRandom(candidates, parsed.data.count);
+    // Unbiased unless the user turned circadian insights on; then weighted (never
+    // filtered) towards routines that suit the time of day and their energy.
+    // An optional extra: if it cannot load, the draw stays unbiased.
+    const circadianTarget = await loadLotteryCircadianTarget(
+      authResult.userId
+    ).catch((error: unknown) => {
+      console.error(
+        '[circadian] Lottery weighting unavailable:',
+        safeErrorLabel(error)
+      );
+      return null;
+    });
+    const selected = drawLotteryRoutines(
+      candidates,
+      parsed.data.count,
+      circadianTarget
+    );
     return { success: true, error: null, data: selected };
   } catch (error) {
     console.error('Error drawing lottery:', error);

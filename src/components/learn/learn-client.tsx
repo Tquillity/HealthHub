@@ -18,6 +18,7 @@ const categoryIcons: Record<string, string> = {
   wellness: '🧘',
   mental: '🧠',
   sleep: '😴',
+  circadian: '🌅',
   default: '📚',
 };
 

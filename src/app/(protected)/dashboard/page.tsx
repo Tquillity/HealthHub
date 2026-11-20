@@ -16,6 +16,7 @@ import {
 import { VitalsCard } from '@/components/dashboard/vitals-card';
 import { DailyBriefingCard } from '@/components/dashboard/daily-briefing-card';
 import { SupportStatusWidget } from '@/components/dashboard/support-status-widget';
+import { CircadianCard } from '@/components/dashboard/circadian-card';
 
 /**
  * The shell (greeting, quick actions, today's tip) needs only the session, so it renders at once.
@@ -63,6 +64,10 @@ export default async function DashboardPage() {
             {/* Renders nothing unless household members share their status. */}
             <Suspense fallback={null}>
               <SupportStatusWidget />
+            </Suspense>
+            {/* Renders nothing unless circadian insights are on. */}
+            <Suspense fallback={null}>
+              <CircadianCard userId={userId} />
             </Suspense>
             <Suspense fallback={<DashboardStatsSkeleton />}>
               <DashboardStats userId={userId} />

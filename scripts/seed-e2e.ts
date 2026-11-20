@@ -45,6 +45,8 @@ try {
       briefingFrequency: 'daily',
       briefingSources: ['journal', 'cycle', 'meals', 'vitals'],
       briefingDetail: 'brief',
+      // Circadian insights start off, with no energy check-ins.
+      enableCircadianInsights: false,
     },
   });
 
@@ -107,6 +109,10 @@ try {
       ...partnerShare,
     },
     update: partnerShare,
+  });
+  await prisma.journalEntry.updateMany({
+    where: { userId: user.id },
+    data: { energyMorning: null, energyAfternoon: null, energyEvening: null },
   });
   for (const recipe of [
     {
