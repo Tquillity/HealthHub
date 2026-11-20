@@ -19,13 +19,19 @@ interface ServingsScalerProps {
   defaultServings: number;
   ingredients: Ingredient[];
   recipeId?: string;
-  canAddToGroceryList?: boolean;
+  /**
+   * The signed-in user's space when the page was rendered. Ingredients go to its grocery
+   * list; without it (signed out) the button asks the user to sign in.
+   */
+  groceryOrganizationId?: string | null;
 }
 
 function AddToGroceryButton({
+  organizationId,
   ingredients,
   recipeId,
 }: {
+  organizationId: string;
   ingredients: Array<{ name: string; quantity: number; unit: string }>;
   recipeId?: string;
 }) {
@@ -36,6 +42,7 @@ function AddToGroceryButton({
   const handleAdd = async () => {
     setIsLoading(true);
     const result = await addScaledIngredientsToGroceryList(
+      organizationId,
       ingredients,
       recipeId
     );
@@ -64,7 +71,7 @@ export function ServingsScaler({
   defaultServings,
   ingredients,
   recipeId,
-  canAddToGroceryList = false,
+  groceryOrganizationId,
 }: ServingsScalerProps) {
   const initialServings = defaultServings || 4;
   const [servings, setServings] = useState(initialServings);
@@ -123,8 +130,9 @@ export function ServingsScaler({
         <p className="mb-4 text-center text-xs text-gray-400">
           Scaling for {servings} servings
         </p>
-        {canAddToGroceryList ? (
+        {groceryOrganizationId ? (
           <AddToGroceryButton
+            organizationId={groceryOrganizationId}
             ingredients={ingredients
               // Send the unrounded scaled quantity so small amounts don't round
               // to 0; the server only accepts positive quantities.

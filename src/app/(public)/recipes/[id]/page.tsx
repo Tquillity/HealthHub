@@ -5,6 +5,8 @@ import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/db';
 import { getUserRole, type RecipeWithDetails } from '@/actions/recipe-actions';
 import { getCachedRecipe } from '@/lib/recipe-cache';
+import { getActiveMembership } from '@/lib/active-organization';
+import { getSessionUserId } from '@/lib/session';
 import { createPageMetadata, getMetadataBase } from '@/lib/site-metadata';
 import { buildRecipeJsonLd } from '@/lib/structured-data/recipe-jsonld';
 import { serializeJsonLd } from '@/lib/structured-data/serialize-json-ld';
@@ -60,9 +62,10 @@ export default async function RecipeDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [recipeResult, roleResult] = await Promise.all([
+  const [recipeResult, roleResult, userId] = await Promise.all([
     getCachedRecipe(id),
     getUserRole(),
+    getSessionUserId(),
   ]);
 
   if (!recipeResult.success || !recipeResult.data) {
@@ -84,7 +87,11 @@ export default async function RecipeDetailPage({
 
   const isAdmin =
     roleResult.role === 'admin' || roleResult.role === 'superadmin';
-  const canAddToGroceryList = roleResult.success && roleResult.role !== null;
+  // Scaled ingredients go to the grocery list of the space shown in the sidebar right now.
+  // The id is sent back with the click, so a switch in another tab cannot redirect them.
+  const groceryOrganizationId = userId
+    ? ((await getActiveMembership(userId))?.organizationId ?? null)
+    : null;
 
   // Find related educational resource
   // Look for resources that share tags with the recipe or have relevant title
@@ -397,7 +404,7 @@ export default async function RecipeDetailPage({
             defaultServings={recipe.servings || 4}
             ingredients={recipe.ingredients}
             recipeId={recipe.id}
-            canAddToGroceryList={canAddToGroceryList}
+            groceryOrganizationId={groceryOrganizationId}
           />
         </div>
       </div>
