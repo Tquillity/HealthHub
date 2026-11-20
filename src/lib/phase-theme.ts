@@ -198,8 +198,8 @@ export const PHASE_BADGE_CLASSES: Record<CyclePhase, string> = {
 /**
  * A phase name in small text on the phase's light backgrounds (white up to *-50, such as
  * `bg.muted` on a white card): it needs 4.5:1 (WCAG AA), and the accent colors (*-600) fall
- * short for menstrual and ovulation. Same text shades as PHASE_BADGE_CLASSES. Checked
- * against tailwindcss/theme.css in support-status-item.test.ts.
+ * short for menstrual, follicular and ovulation. Same text shades as PHASE_BADGE_CLASSES.
+ * Checked against tailwindcss/theme.css in support-status-item.test.ts.
  */
 export const PHASE_NAME_TEXT_CLASSES: Record<CyclePhase, string> = {
   menstrual: 'text-rose-700',
