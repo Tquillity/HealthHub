@@ -8,6 +8,7 @@
  * into `recipe-types.ts` in a follow-up PR.
  */
 import { prisma } from '@/lib/db';
+import { getActiveMembership } from '@/lib/active-organization';
 import type { Prisma } from '@prisma/client';
 
 export type RecipeWithDetails = Prisma.RecipeGetPayload<{
@@ -59,15 +60,12 @@ export async function buildRecipeVisibilityFilter(
     };
   }
 
-  const [memberships, user] = await Promise.all([
-    prisma.member.findMany({
-      where: { userId },
-      select: { organizationId: true },
-      orderBy: { organizationId: 'asc' },
-    }),
+  // Household recipes follow the active household (sidebar switcher), like the rest of the app.
+  const [membership, user] = await Promise.all([
+    getActiveMembership(userId),
     prisma.user.findUnique({ where: { id: userId }, select: { role: true } }),
   ]);
-  const organizationIds = memberships.map((membership) => membership.organizationId);
+  const organizationIds = membership ? [membership.organizationId] : [];
   const mainAdmin = user?.role === 'superadmin';
 
   return {

@@ -350,7 +350,7 @@ export function GroceryListClient({
               >
                 {item.name}
               </p>
-              {!isExpanded ? (
+              {item.recipes.length === 0 ? null : !isExpanded ? (
                 <div className="flex items-center gap-2">
                   <p className="text-xs text-gray-500 truncate">
                     Used in:{' '}

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   inCache: false,
   session: vi.fn(),
-  memberships: vi.fn(),
+  activeMembership: vi.fn(),
   user: vi.fn(),
   recipe: vi.fn(),
   recipes: vi.fn(),
@@ -15,9 +15,11 @@ vi.mock('@/lib/session', () => ({
     return mocks.session();
   },
 }));
+vi.mock('@/lib/active-organization', () => ({
+  getActiveMembership: mocks.activeMembership,
+}));
 vi.mock('@/lib/db', () => ({
   prisma: {
-    member: { findMany: mocks.memberships },
     user: { findUnique: mocks.user },
     recipe: { findFirst: mocks.recipe, findMany: mocks.recipes },
   },
@@ -48,7 +50,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.inCache = false;
   mocks.session.mockResolvedValue(null);
-  mocks.memberships.mockResolvedValue([]);
+  mocks.activeMembership.mockResolvedValue(null);
   mocks.user.mockResolvedValue({ role: 'user' });
   mocks.recipe.mockResolvedValue(null);
   mocks.recipes.mockResolvedValue([]);
@@ -67,15 +69,12 @@ describe('recipe cache visibility', () => {
         },
       })
     );
-    expect(mocks.memberships).not.toHaveBeenCalled();
+    expect(mocks.activeMembership).not.toHaveBeenCalled();
   });
 
-  it('includes household membership in the key and drops access after membership removal', async () => {
+  it('includes the active household in the key and drops access after membership removal', async () => {
     mocks.session.mockResolvedValue('member');
-    mocks.memberships.mockResolvedValue([
-      { organizationId: 'household-a' },
-      { organizationId: 'household-b' },
-    ]);
+    mocks.activeMembership.mockResolvedValue({ organizationId: 'household-a' });
     mocks.recipe
       .mockResolvedValueOnce({ id: 'household-example' })
       .mockResolvedValueOnce(null);
@@ -92,7 +91,7 @@ describe('recipe cache visibility', () => {
                 {
                   OR: [
                     { isSystem: true },
-                    { organizationId: { in: ['household-a', 'household-b'] } },
+                    { organizationId: { in: ['household-a'] } },
                   ],
                 },
                 { isSecret: false },
@@ -103,8 +102,19 @@ describe('recipe cache visibility', () => {
         },
       })
     );
-    mocks.memberships.mockResolvedValue([]);
+    mocks.activeMembership.mockResolvedValue(null);
     expect((await getCachedRecipe('household-example')).data).toBeNull();
+    expect(mocks.recipe).toHaveBeenCalledTimes(2);
+  });
+
+  it('switching the active household changes the key', async () => {
+    mocks.session.mockResolvedValue('member');
+    mocks.activeMembership.mockResolvedValue({ organizationId: 'household-a' });
+    mocks.recipe.mockResolvedValue({ id: 'switch-example' });
+    await getCachedRecipe('switch-example');
+    mocks.activeMembership.mockResolvedValue({ organizationId: 'household-b' });
+    mocks.recipe.mockResolvedValue(null);
+    expect((await getCachedRecipe('switch-example')).data).toBeNull();
     expect(mocks.recipe).toHaveBeenCalledTimes(2);
   });
 

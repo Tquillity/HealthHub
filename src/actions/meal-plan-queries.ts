@@ -2,6 +2,7 @@
 
 import { prisma } from '@/lib/db';
 import { requireSessionUserId } from '@/lib/session';
+import { getActiveMembership, NO_HOUSEHOLD_ERROR } from '@/lib/active-organization';
 import { addDays } from 'date-fns';
 import { buildRecipeVisibilityFilter } from '@/actions/recipe-shared';
 
@@ -21,12 +22,10 @@ export async function getWeeklyPlan(date?: Date) {
   const mealPlanDuration = user?.mealPlanDuration ?? null;
   const mealPlanStartDate = user?.mealPlanStartDate ?? null;
 
-  const membership = await prisma.member.findFirst({
-    where: { userId: authResult.userId },
-    select: { organizationId: true },
-  });
+  // The household (or other space) picked in the sidebar switcher
+  const membership = await getActiveMembership(authResult.userId);
 
-  if (!membership) throw new Error('No household found');
+  if (!membership) throw new Error(NO_HOUSEHOLD_ERROR);
 
   // Determine start date: use provided date, or user preference, or today
   let startDate: Date;
@@ -118,13 +117,10 @@ export async function getMealPlanTemplates() {
       return { success: false, error: authResult.error };
     }
 
-    const membership = await prisma.member.findFirst({
-      where: { userId: authResult.userId },
-      select: { organizationId: true },
-    });
+    const membership = await getActiveMembership(authResult.userId);
 
     if (!membership) {
-      return { success: false, error: 'No household found' };
+      return { success: false, error: NO_HOUSEHOLD_ERROR };
     }
 
     const templates = await prisma.mealPlanTemplate.findMany({

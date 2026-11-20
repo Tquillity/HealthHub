@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getServerSession } from '@/lib/session';
 import { prisma } from '@/lib/db';
+import { getActiveMembership } from '@/lib/active-organization';
 import { RoutinesClient } from '@/components/routines/routines-client';
 import { RoutineFilters } from '@/components/routines/routine-filters';
 import { PageHeader } from '@/components/ui/page-header';
@@ -13,11 +14,8 @@ export default async function RoutinesPage() {
     redirect('/sign-in');
   }
 
-  // Get user's organization
-  const membership = await prisma.member.findFirst({
-    where: { userId: session.user.id },
-    select: { organizationId: true },
-  });
+  // The household (or other space) picked in the sidebar switcher
+  const membership = await getActiveMembership(session.user.id);
 
   if (!membership) {
     return (

@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getServerSession } from '@/lib/session';
 import { prisma } from '@/lib/db';
+import { getActiveMembership } from '@/lib/active-organization';
 import { DashboardClient } from '@/components/dashboard/dashboard-client';
 import { getPremiumPomoDashboardSnapshot } from '@/actions/pomo-state';
 import { progressFromPomoPayload } from '@/lib/pomo/utils/pomo-server-progress';
@@ -12,11 +13,8 @@ export default async function DashboardPage() {
     redirect('/sign-in');
   }
 
-  // Fetch household details from DB (session may not include active org yet)
-  const membership = await prisma.member.findFirst({
-    where: { userId: session.user.id },
-    include: { organization: true },
-  });
+  // The household (or other space) picked in the sidebar switcher
+  const membership = await getActiveMembership(session.user.id);
 
   if (!membership) {
     return <div>No household assigned.</div>;
