@@ -44,7 +44,8 @@
  * Cycle and the Control of Ovulation"). Days of the open cycle after the typical length
  * (a late period, or one not logged yet) get no phase: the model would call every one
  * of them luteal, although ovulation was later than modelled or did not happen. They
- * are counted separately (`beyondTypicalDays`) and left out of every by-phase figure.
+ * are counted separately (`beyondTypicalDays`) and left out of every by-phase figure;
+ * their recovery score is compared with all recent days instead of one phase.
  *
  * **BBT.** lib/bbt's 3-over-6 rule per cycle (Marshall 1968), run on every reading of
  * each cycle that overlaps the range, including readings before the range start. The
@@ -934,7 +935,10 @@ function averageVitals(
 
 /**
  * Vitals and recovery by phase. `rows` should start 90 days before the range so the
- * recovery score of the first days has its baseline (see lib/recovery).
+ * recovery score of the first days has its baseline (see lib/recovery). The score uses
+ * this report's phases (phaseOf): a day past the typical length of a late cycle has no
+ * phase, so it is compared with all recent days, not with luteal days, and it is not
+ * part of the luteal baseline of other days.
  */
 export function summarizeVitals(
   cycles: readonly CycleSpan[],
@@ -942,13 +946,17 @@ export function summarizeVitals(
   range: ReportRange,
   typicalCycleLength: number
 ): VitalsSummary {
-  const series = computeRecoverySeries(
-    buildRecoveryInputs(
-      rows.filter((row) => row.date <= range.end),
-      cycles.length > 0 ? cycles : null,
-      typicalCycleLength
-    )
-  ).filter((result) => inRange(result.date, range));
+  const inputs = buildRecoveryInputs(
+    rows.filter((row) => row.date <= range.end),
+    null,
+    typicalCycleLength
+  ).map((input) => ({
+    ...input,
+    phase: phaseOf(cycles, input.date, typicalCycleLength),
+  }));
+  const series = computeRecoverySeries(inputs).filter((result) =>
+    inRange(result.date, range)
+  );
   const scoreByDate = new Map(
     series.flatMap((result) =>
       result.score === null ? [] : [[result.date, result.score] as const]

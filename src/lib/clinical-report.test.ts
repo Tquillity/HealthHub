@@ -600,6 +600,38 @@ describe('summarizeVitals', () => {
     expect(result.scoredDays).toBe(2);
     expect(result.overall.recoveryScore).not.toBeNull();
   });
+
+  it('scores a day past the typical length against all recent days, not luteal ones', () => {
+    // Two 28-day cycles, then an open cycle from 09-18 that is late from 10-16 (day 29).
+    const cycles = buildCycleHistory(['2026-07-24', '2026-08-21', '2026-09-18']);
+    const rhrOnly = (date: string, restingHeartRate: number): DailyMetricsRow => ({
+      date,
+      temperature: null,
+      restingHeartRate,
+      heartRateVariability: null,
+      sleepQuality: null,
+      sleepHours: null,
+    });
+    const rows = [
+      // Before the range: follicular days (cycle days 6-8) at 50 bpm and luteal days
+      // (cycle days 18-20) at 70 bpm.
+      rhrOnly('2026-07-29', 50),
+      rhrOnly('2026-07-30', 50),
+      rhrOnly('2026-07-31', 50),
+      rhrOnly('2026-08-10', 70),
+      rhrOnly('2026-08-11', 70),
+      rhrOnly('2026-08-12', 70),
+      // Day 33 of the late cycle.
+      rhrOnly('2026-10-20', 70),
+    ];
+    const result = summarizeVitals(cycles, rows, RANGE_3, 28);
+    expect(result.overall.days).toBe(1);
+    expect(result.byPhase.every((phase) => phase.days === 0)).toBe(true);
+    expect(result.scoredDays).toBe(1);
+    // All six earlier days (mean 60, SD 10.95): 75 + 25 * (60 - 70) / 10.95 = 52.
+    // Against the luteal days (70 bpm) it would be 75, an ordinary luteal day.
+    expect(result.overall.recoveryScore).toBe(52);
+  });
 });
 
 describe('summarizeNotes', () => {

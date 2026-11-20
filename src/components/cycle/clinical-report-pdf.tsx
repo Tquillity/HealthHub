@@ -891,7 +891,7 @@ function VitalsSection({ report }: { report: ClinicalReport }) {
       }
     >
       <Note>
-        {`Recovery is HealthHub's 0-100 wellness indicator from HRV, resting heart rate and sleep, compared with the user's own usual values for the same phase over the previous 90 days. It is not a medical measure. Days with a bigger-than-usual dip: ${vitals.dipDays} of ${vitals.scoredDays} scored days.`}
+        {`Recovery is HealthHub's 0-100 wellness indicator from HRV, resting heart rate and sleep, compared with the user's own usual values for the same phase over the previous 90 days (all phases for a day with no estimated phase). It is not a medical measure. Days with a bigger-than-usual dip: ${vitals.dipDays} of ${vitals.scoredDays} scored days.`}
       </Note>
     </Section>
   );
