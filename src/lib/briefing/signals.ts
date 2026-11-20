@@ -118,6 +118,11 @@ export type BriefingSignals = {
   phase: BriefingPhaseInfo | null;
   /** Journal check-ins in the window; null when the journal source is off. */
   checkInDays: number | null;
+  /**
+   * Window days with a time-of-day energy check-in (circadian insights); null when the
+   * journal source is off.
+   */
+  energyCheckInDays: number | null;
   /** The user rated their energy as low right now (`BriefingEngineInput.lowEnergyNow`). */
   lowEnergyNow: boolean;
   energy: { comparison: Comparison; low: boolean; good: boolean } | null;
@@ -309,7 +314,12 @@ function analyzeJournal(
   typicalCycleLength: number | null
 ): Pick<
   BriefingSignals,
-  'checkInDays' | 'energy' | 'mood' | 'symptoms' | 'sleep'
+  | 'checkInDays'
+  | 'energyCheckInDays'
+  | 'energy'
+  | 'mood'
+  | 'symptoms'
+  | 'sleep'
 > {
   const windowStart = window[0];
   const windowEnd = window[window.length - 1];
@@ -370,6 +380,7 @@ function analyzeJournal(
 
   return {
     checkInDays: windowCheckIns.length,
+    energyCheckInDays: inWindow.filter((d) => d.energyCheckIn).length,
     energy: energyComparison
       ? {
           comparison: energyComparison,
@@ -516,6 +527,7 @@ export function analyzeBriefing(input: BriefingEngineInput): BriefingSignals {
       )
     : {
         checkInDays: null,
+        energyCheckInDays: null,
         energy: null,
         mood: null,
         symptoms: null,

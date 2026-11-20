@@ -87,6 +87,7 @@ function signals(overrides: Partial<BriefingSignals>): BriefingSignals {
     window: ['2026-11-18', '2026-11-19', '2026-11-20'],
     phase: null,
     checkInDays: 3,
+    energyCheckInDays: 0,
     lowEnergyNow: false,
     energy: null,
     mood: null,

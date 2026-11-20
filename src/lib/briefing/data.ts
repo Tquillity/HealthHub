@@ -55,7 +55,8 @@ import {
  *   on the same page. Only the score is used from them, and the wording names no phase
  *   unless the cycle source is on.
  * - With circadian insights on, the journal source also reads the time-of-day energy
- *   check-ins: which days have one, and whether today's for right now is low (lib/easy-day).
+ *   check-ins: they stand in for a day's energy when it has no daily rating, and today's
+ *   for right now counts when it is low (lib/easy-day).
  * - Symptoms are decrypted in memory only to count them; nothing is stored or logged.
  * - Feedback suggestion keys are validated against the known keys, then encrypted: a key
  *   with a date says things like "more symptoms than usual that day".

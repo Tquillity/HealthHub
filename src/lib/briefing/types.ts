@@ -116,13 +116,21 @@ export type BriefingJournalDay = {
   date: string;
   /** Self-rated 1-10. */
   mood: number | null;
-  /** Self-rated 1-10. */
+  /**
+   * Self-rated 1-10. Without a daily rating, the mean of the day's time-of-day energy
+   * check-ins (same scale) while circadian insights are on.
+   */
   energy: number | null;
   sleepHours: number | null;
   /** Physical and mental symptoms, decrypted. */
   symptoms: string[];
   /** Anything entered in the journal form (not just a quick-log temperature or vitals). */
   checkIn: boolean;
+  /**
+   * A time-of-day energy check-in (circadian insights) on this day. Only read while
+   * circadian insights are on; such a day alone is not a journal `checkIn`.
+   */
+  energyCheckIn?: boolean;
 };
 
 export type BriefingCycleData = {

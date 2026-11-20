@@ -428,7 +428,9 @@ export function buildNotes(signals: BriefingSignals): string[] {
   const notes: string[] = [];
   if (signals.checkInDays === 0) {
     notes.push(
-      'No journal check-ins in the last 3 days, so energy, sleep and symptoms are not part of this briefing. Log how you feel to make it more personal.'
+      (signals.energyCheckInDays ?? 0) > 0
+        ? 'Your last 3 days have only energy check-ins by time of day, so mood, sleep and symptoms are not part of this briefing. Log them in your journal to make it more personal.'
+        : 'No journal check-ins in the last 3 days, so energy, sleep and symptoms are not part of this briefing. Log how you feel to make it more personal.'
     );
   }
   if (signals.energy?.comparison.source === 'typical') {

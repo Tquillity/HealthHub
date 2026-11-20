@@ -12,6 +12,10 @@ import {
   normalizePeriodStarts,
 } from '@/lib/cycle-history';
 import { isJournalCheckIn } from '@/lib/clinical-report';
+import {
+  ENERGY_SLOTS,
+  ENERGY_SLOT_FIELDS,
+} from '@/lib/circadian-recommendations';
 import { RECOVERY_HISTORY_DAYS } from '@/lib/cycle-insights';
 import { listPeriodStartDates } from '@/lib/period-starts';
 import { BASELINE_WINDOW_DAYS, BRIEFING_WINDOW_DAYS } from './signals';
@@ -54,7 +58,9 @@ export type BriefingUser = Prisma.UserGetPayload<{
 async function loadJournalDays(
   userId: string,
   from: string,
-  to: string
+  to: string,
+  /** Also note the days with a time-of-day energy check-in (circadian insights on). */
+  timeOfDayEnergy: boolean
 ): Promise<BriefingJournalDay[]> {
   const rows = await prisma.journalEntry.findMany({
     where: { userId, date: dateRange(from, to) },
@@ -74,15 +80,29 @@ async function loadJournalDays(
       gratitudeEntries: true,
       goalsAchieved: true,
       goalsProgress: true,
+      energyMorning: timeOfDayEnergy,
+      energyAfternoon: timeOfDayEnergy,
+      energyEvening: timeOfDayEnergy,
     },
     orderBy: { date: 'asc' },
   });
   return rows.map((row) => {
     const checkIn = isJournalCheckIn(row);
+    const ratings = timeOfDayEnergy
+      ? ENERGY_SLOTS.flatMap((slot) => {
+          const rating = row[ENERGY_SLOT_FIELDS[slot]];
+          return typeof rating === 'number' ? [rating] : [];
+        })
+      : [];
     return {
       date: toDateOnlyString(row.date),
       mood: row.mood,
-      energy: row.energy,
+      // Same 1-10 scale: a day without a daily rating takes its check-ins by time of day.
+      energy:
+        row.energy ??
+        (ratings.length > 0
+          ? ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length
+          : null),
       sleepHours: row.sleepHours,
       symptoms: checkIn
         ? [
@@ -91,6 +111,7 @@ async function loadJournalDays(
           ]
         : [],
       checkIn,
+      energyCheckIn: ratings.length > 0,
     };
   });
 }
@@ -202,7 +223,9 @@ export async function loadSignalInputs(
       : null;
 
   const [journal, cycle, vitals] = await Promise.all([
-    sources.has('journal') ? loadJournalDays(userId, from, date) : null,
+    sources.has('journal')
+      ? loadJournalDays(userId, from, date, user.enableCircadianInsights)
+      : null,
     useCycle && periodStarts
       ? loadCycleData(userId, user, periodStarts, from, date)
       : null,

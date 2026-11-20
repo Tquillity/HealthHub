@@ -473,6 +473,66 @@ describe.skipIf(!isolated)(
       }
     });
 
+    it('reads energy check-ins by time of day only with circadian insights on', async () => {
+      const tod = { id: `brf-tod-${run}`, email: `brf-tod-${run}@example.com` };
+      await client.user.create({
+        data: {
+          ...tod,
+          name: 'Tod',
+          timezone: 'UTC',
+          enableCircadianInsights: true,
+        },
+      });
+      try {
+        // Only dashboard check-ins: about 7 for two weeks, 2-3 over the last 3 days.
+        // None for the afternoon (right now at 12:00 UTC), so only the trend counts.
+        await client.journalEntry.createMany({
+          data: [
+            ...days('2026-11-01', '2026-11-14').map((date) => ({
+              userId: tod.id,
+              date: utcDay(date),
+              energyMorning: 7,
+              energyAfternoon: 7,
+            })),
+            ...days('2026-11-18', '2026-11-19').map((date) => ({
+              userId: tod.id,
+              date: utcDay(date),
+              energyMorning: 3,
+              energyEvening: 2,
+            })),
+            { userId: tod.id, date: utcDay(TODAY), energyMorning: 3 },
+          ],
+        });
+        const briefing = async () => {
+          const state = await data.loadBriefingState(tod.id, { now: NOW });
+          if (state.status !== 'ready') throw new Error(state.status);
+          return state.briefing;
+        };
+
+        const on = await briefing();
+        expect(on.notes).toEqual([
+          'Your last 3 days have only energy check-ins by time of day, so mood, sleep and symptoms are not part of this briefing. Log them in your journal to make it more personal.',
+        ]);
+        expect(on.headline).toBe(
+          "A gentler day may suit you. Here's what your recent logs suggest."
+        );
+
+        await client.user.update({
+          where: { id: tod.id },
+          data: { enableCircadianInsights: false },
+        });
+        const off = await briefing();
+        expect(off.notes[0]).toContain(
+          'No journal check-ins in the last 3 days'
+        );
+        expect(off.headline).toBe(
+          'Check in with your journal to make your briefing more personal.'
+        );
+      } finally {
+        await client.user.delete({ where: { id: tod.id } });
+      }
+    });
+
     it('uses meal adherence only once the household marks meals cooked', async () => {
       await client.mealPlanItem.create({
         data: {
