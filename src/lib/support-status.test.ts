@@ -562,4 +562,61 @@ describe.skipIf(!isolated)('support status against isolated PostgreSQL', () => {
     });
     await client.user.update({ where: { id: phaseOnly.id }, data: { timezone: 'UTC' } });
   });
+
+  it('words ideas for each viewer’s own time of day, and neutrally while their zone is unset', async () => {
+    const sharer = person('tod-sharer', 'Sol Sharer', { timezone: 'Europe/Stockholm' });
+    // Only views, so nothing ever fills in their zone: it stays the UTC default.
+    const unset = person('tod-unset', 'Una Unset', { focusPreference: 'hormonal' });
+    const west = person('tod-west', 'Lea West', {
+      focusPreference: 'hormonal',
+      timezone: 'America/Los_Angeles',
+    });
+    const east = person('tod-east', 'Syd East', {
+      focusPreference: 'hormonal',
+      timezone: 'Australia/Sydney',
+    });
+    const todHome = `ss-tod-home-${run}`;
+    const people = [sharer, unset, west, east];
+    allUsers.push(...people);
+    allOrgs.push(todHome);
+    for (const user of people) await client.user.create({ data: user });
+    await client.organization.create({ data: { id: todHome, name: 'Clocks', slug: todHome } });
+    await client.member.createMany({
+      data: people.map((user) => ({
+        id: randomUUID(),
+        organizationId: todHome,
+        userId: user.id,
+        role: 'member',
+        createdAt: at(1),
+      })),
+    });
+    await client.cycleStatusShare.create({ data: share(sharer.id, todHome, 'PHASE') });
+
+    // 03:00 UTC: 19:00 the evening before in Los Angeles, 13:00 in Sydney, and night in UTC.
+    const instant = new Date('2026-06-16T03:00:00Z');
+    const suggestionFor = async (viewerId: string) => {
+      const board = await lib.getSupportStatusBoard(viewerId, todHome, instant);
+      const [status] = board?.statuses ?? [];
+      if (!status) throw new Error('no status');
+      return { text: status.suggestion, phase: status.phase.key };
+    };
+    type Input = Parameters<typeof buildSupportSuggestion>[0];
+    const expected = (phase: Input['phase'], timeOfDay: Input['timeOfDay']) =>
+      buildSupportSuggestion({ firstName: 'Sol', phase, viewerFocus: 'hormonal', timeOfDay });
+
+    const forUnset = await suggestionFor(unset.id);
+    // Not the UTC night idea: the viewer's own hour is not known, so the wording says "today".
+    expect(forUnset.text).toBe(expected(forUnset.phase, 'morning'));
+    expect(forUnset.text).not.toBe(expected(forUnset.phase, 'night'));
+    const forWest = await suggestionFor(west.id);
+    expect(forWest.text).toBe(expected(forWest.phase, 'evening'));
+    const forEast = await suggestionFor(east.id);
+    expect(forEast.text).toBe(expected(forEast.phase, 'afternoon'));
+
+    // The sharer's own preview follows the same rule.
+    const preview = async (userId: string) =>
+      (await lib.getCycleSharingPanelData(userId, instant))?.preview.timeOfDay;
+    expect(await preview(unset.id)).toBe('unknown');
+    expect(await preview(west.id)).toBe('evening');
+  });
 });

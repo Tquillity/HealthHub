@@ -3,6 +3,7 @@ import type { CycleShareLevel } from '@prisma/client';
 import { getPhaseForDay, type CyclePhase } from '@/lib/cycle-calculator';
 import { dateOnlyToUtcDate, isDateOnlyString, toDateOnlyString } from '@/lib/date-only';
 import { PHASE_THEMES } from '@/lib/phase-theme';
+import { getLocalHour, isUnsetTimeZone, resolveTimeZone } from '@/lib/time-zone';
 import { OrganizationIdSchema } from '@/lib/validation/organization-schemas';
 import type { FocusPreference } from '@/types/cycle';
 
@@ -275,13 +276,25 @@ export function cycleSnapshotOn(
   };
 }
 
-export type TimeOfDay = 'morning' | 'afternoon' | 'evening' | 'night';
+/** 'unknown': the person's local hour is not known, so ideas use neutral daytime wording. */
+export type TimeOfDay = 'morning' | 'afternoon' | 'evening' | 'night' | 'unknown';
 
 export function getTimeOfDay(hour: number): TimeOfDay {
   if (hour >= 5 && hour < 12) return 'morning';
   if (hour >= 12 && hour < 17) return 'afternoon';
   if (hour >= 17 && hour < 22) return 'evening';
   return 'night';
+}
+
+/**
+ * Someone's time of day at `now`, from the time zone in their profile. While that is still
+ * unset (the UTC default, empty or unknown; see isUnsetTimeZone), their hour is not known:
+ * guessing UTC would offer night ideas on a Los Angeles evening or a Sydney morning, so it is
+ * 'unknown' and the wording stays neutral ("today").
+ */
+export function timeOfDayIn(storedTimeZone: string | null | undefined, now: Date): TimeOfDay {
+  if (isUnsetTimeZone(storedTimeZone)) return 'unknown';
+  return getTimeOfDay(getLocalHour(now, resolveTimeZone(storedTimeZone)));
 }
 
 /** "Mikael Andersson" -> "Mikael". Other members only ever see the first name. */
@@ -301,6 +314,7 @@ const WHEN: Record<Exclude<TimeOfDay, 'night'>, string> = {
   morning: 'today',
   afternoon: 'this afternoon',
   evening: 'this evening',
+  unknown: 'today',
 };
 
 /**

@@ -18,6 +18,7 @@ import {
   projectCycleStatus,
   SetCycleStatusShareSchema,
   SUPPORT_MESSAGE_MAX_LENGTH,
+  timeOfDayIn,
   TYPICAL_PHASE_ENERGY,
   UpdateSupportMessageSchema,
   type CycleShareHousehold,
@@ -29,7 +30,7 @@ import type { FocusPreference } from '@/types/cycle';
 
 const PHASES: CyclePhase[] = ['menstrual', 'follicular', 'ovulation', 'luteal'];
 const FOCUSES: FocusPreference[] = ['workout', 'hormonal', 'both'];
-const TIMES: TimeOfDay[] = ['morning', 'afternoon', 'evening', 'night'];
+const TIMES: TimeOfDay[] = ['morning', 'afternoon', 'evening', 'night', 'unknown'];
 
 const viewer: SupportViewer = { focus: 'workout', timeOfDay: 'morning' };
 
@@ -187,6 +188,18 @@ describe('buildSupportSuggestion', () => {
     );
   });
 
+  it('uses neutral daytime wording when the viewer’s hour is unknown, never night ideas', () => {
+    for (const phase of PHASES) {
+      for (const viewerFocus of FOCUSES) {
+        const input = { firstName: 'Sarah', phase, viewerFocus };
+        const text = buildSupportSuggestion({ ...input, timeOfDay: 'unknown' });
+        expect(text).toBe(buildSupportSuggestion({ ...input, timeOfDay: 'morning' }));
+        expect(text).not.toBe(buildSupportSuggestion({ ...input, timeOfDay: 'night' }));
+        expect(text).not.toMatch(/tonight|this evening|this afternoon|end of the day/);
+      }
+    }
+  });
+
   it('does not push hard training during a period; it follows their lead', () => {
     const text = buildSupportSuggestion({
       firstName: 'Sarah',
@@ -242,6 +255,20 @@ describe('helpers', () => {
     expect(getTimeOfDay(21)).toBe('evening');
     expect(getTimeOfDay(22)).toBe('night');
     expect(getTimeOfDay(0)).toBe('night');
+  });
+
+  it('takes the time of day from a chosen time zone, and calls it unknown while the zone is unset', () => {
+    // 03:00 UTC is 19:00 the evening before in Los Angeles; 22:00 UTC is 08:00 in Sydney.
+    const lateUtc = new Date('2026-11-20T03:00:00Z');
+    const eveningUtc = new Date('2026-11-20T22:00:00Z');
+    expect(timeOfDayIn('America/Los_Angeles', lateUtc)).toBe('evening');
+    expect(timeOfDayIn('Australia/Sydney', eveningUtc)).toBe('morning');
+    expect(timeOfDayIn('Europe/Stockholm', lateUtc)).toBe('night');
+    // The UTC default (or no usable zone) says nothing about where the viewer is.
+    for (const stored of ['UTC', '', null, undefined, 'Not/AZone']) {
+      expect(timeOfDayIn(stored, lateUtc)).toBe('unknown');
+      expect(timeOfDayIn(stored, eveningUtc)).toBe('unknown');
+    }
   });
 
   it('uses only the first name', () => {

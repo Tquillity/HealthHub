@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { getLocalDateKey, getLocalHour, resolveTimeZone, timeZoneToAdopt } from './time-zone';
+import {
+  getLocalDateKey,
+  getLocalHour,
+  isUnsetTimeZone,
+  resolveTimeZone,
+  timeZoneToAdopt,
+} from './time-zone';
 
 describe('time zone helpers', () => {
   const now = new Date('2026-11-20T23:30:00Z');
@@ -45,5 +51,14 @@ describe('time zone helpers', () => {
     expect(timeZoneToAdopt('UTC', 'Not/AZone')).toBeNull();
     expect(timeZoneToAdopt('UTC', undefined)).toBeNull();
     expect(timeZoneToAdopt('UTC', '')).toBeNull();
+  });
+
+  it('treats the UTC default, an empty zone and an unknown zone as unset', () => {
+    for (const stored of ['UTC', '', null, undefined, 'Not/AZone']) {
+      expect(isUnsetTimeZone(stored)).toBe(true);
+    }
+    for (const stored of ['Europe/Stockholm', 'America/Los_Angeles', 'Australia/Sydney']) {
+      expect(isUnsetTimeZone(stored)).toBe(false);
+    }
   });
 });

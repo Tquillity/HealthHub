@@ -7,12 +7,12 @@ import { generateRecordId } from '@/lib/record-ids';
 import {
   cycleSnapshotOn,
   getEffectiveShareLevel,
-  getTimeOfDay,
   isCoveredByShare,
   levelIncludes,
   parseFocusPreference,
   projectCycleStatus,
   SHARED_LEVELS,
+  timeOfDayIn,
   type CycleShareHousehold,
   type CycleSnapshot,
   type ProjectedCycleStatus,
@@ -20,12 +20,7 @@ import {
   type SharedLevel,
   type TimeOfDay,
 } from '@/lib/cycle-status-sharing';
-import {
-  getLocalDateKey,
-  getLocalHour,
-  resolveTimeZone,
-  timeZoneToAdopt,
-} from '@/lib/time-zone';
+import { getLocalDateKey, resolveTimeZone, timeZoneToAdopt } from '@/lib/time-zone';
 
 /**
  * Partner sync (issue #3), server side. Reads and writes each person's per-household shares and
@@ -207,7 +202,8 @@ export async function getCycleSharingPanelData(
       name: user.name,
       snapshot: cycleSnapshotFor(user, dayKey),
       todayEnergy: energy.get(userId) ?? null,
-      timeOfDay: getTimeOfDay(getLocalHour(now, timeZone)),
+      // Their own time of day, as a viewer would get it (neutral wording while the zone is unset).
+      timeOfDay: timeOfDayIn(user.timezone, now),
     },
     households,
   };
@@ -433,7 +429,9 @@ export async function getSupportStatusBoard(
 
   const supportViewer = {
     focus: parseFocusPreference(viewer?.focusPreference),
-    timeOfDay: getTimeOfDay(getLocalHour(now, resolveTimeZone(viewer?.timezone))),
+    // The viewer's own time of day. Someone who only views keeps the default zone (only sharing
+    // fills in the device's), so while it is unset the wording is neutral rather than a UTC guess.
+    timeOfDay: timeOfDayIn(viewer?.timezone, now),
   };
 
   const statuses: ProjectedCycleStatus[] = [];

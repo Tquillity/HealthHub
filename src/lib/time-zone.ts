@@ -47,18 +47,24 @@ export function getLocalDateKey(now: Date, timeZone: string): string {
 }
 
 /**
+ * True when the stored zone says nothing about where the person is: empty, not a zone the
+ * runtime knows, or UTC. UTC is the column default, which most people never change, so a stored
+ * UTC counts as never set (someone who really lives on UTC is treated the same way).
+ */
+export function isUnsetTimeZone(stored: string | null | undefined): boolean {
+  return !stored || stored === DEFAULT_TIME_ZONE || resolveTimeZone(stored) !== stored;
+}
+
+/**
  * The device's time zone, when it should replace the one in the profile: the stored zone is
- * still the default (UTC), empty or not recognized, and the device reports a zone the runtime
- * knows. A zone the person typed in Profile is never replaced. UTC is the column default, so a
- * stored UTC counts as never set. Null when nothing should change.
+ * still unset (isUnsetTimeZone) and the device reports a zone the runtime knows. A zone the
+ * person typed in Profile is never replaced. Null when nothing should change.
  */
 export function timeZoneToAdopt(
   stored: string | null | undefined,
   device: string | null | undefined
 ): string | null {
   if (!device || resolveTimeZone(device) !== device) return null;
-  const storedIsUnset =
-    !stored || stored === DEFAULT_TIME_ZONE || resolveTimeZone(stored) !== stored;
-  if (!storedIsUnset || device === stored) return null;
+  if (!isUnsetTimeZone(stored) || device === stored) return null;
   return device;
 }
