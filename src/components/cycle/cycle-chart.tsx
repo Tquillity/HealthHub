@@ -2,9 +2,9 @@
 
 /**
  * CycleChart Component
- * 
+ *
  * Interactive Recharts visualization of the menstrual cycle with phase-based backgrounds.
- * 
+ *
  * Features:
  * - Line chart showing energy/intensity levels throughout the cycle
  * - Color-coded phase backgrounds (ReferenceArea) for visual phase identification:
@@ -15,7 +15,7 @@
  * - Interactive tooltips showing day, phase, and energy level
  * - Current day indicator (vertical dashed line)
  * - Phase legend and contextual information card
- * 
+ *
  * Technical Implementation:
  * - Uses Recharts ResponsiveContainer for mobile-friendly rendering
  * - ReferenceArea components create seamless phase backgrounds with 0.5 offset for full coverage
@@ -47,7 +47,11 @@ import { generateHormoneCurves } from '@/lib/hormone-math';
 import { useQueryState } from 'nuqs';
 import { parseAsString } from 'nuqs';
 import { useRouter } from 'next/navigation';
-import { SeriesSelector, getVisibleSeries, SeriesType } from './series-selector';
+import {
+  SeriesSelector,
+  getVisibleSeries,
+  SeriesType,
+} from './series-selector';
 
 interface CycleChartProps {
   phaseData: CyclePhaseResult;
@@ -79,14 +83,14 @@ const PHASE_NAMES: Record<CyclePhase, string> = {
 function generateEnergyData(cycleLength: number, currentDay: number) {
   return Array.from({ length: cycleLength }, (_, i) => {
     const day = i + 1;
-    
+
     // Calculate intensity based on phase
     // Menstrual: Lower energy (2-4)
     // Follicular: Rising energy (4-7)
     // Ovulation: Peak energy (8-10)
     // Luteal: Declining energy (6-3)
     let intensity = 5;
-    
+
     if (day <= PHASE_LENGTHS.MENSTRUAL) {
       // Menstrual phase: low energy
       intensity = 3 + (day / PHASE_LENGTHS.MENSTRUAL) * 1;
@@ -94,13 +98,27 @@ function generateEnergyData(cycleLength: number, currentDay: number) {
       // Follicular phase: rising energy
       const follicularDay = day - PHASE_LENGTHS.MENSTRUAL;
       intensity = 4 + (follicularDay / PHASE_LENGTHS.FOLLICULAR) * 3;
-    } else if (day <= PHASE_LENGTHS.MENSTRUAL + PHASE_LENGTHS.FOLLICULAR + PHASE_LENGTHS.OVULATION) {
+    } else if (
+      day <=
+      PHASE_LENGTHS.MENSTRUAL +
+        PHASE_LENGTHS.FOLLICULAR +
+        PHASE_LENGTHS.OVULATION
+    ) {
       // Ovulation phase: peak energy
-      intensity = 8 + (day - PHASE_LENGTHS.MENSTRUAL - PHASE_LENGTHS.FOLLICULAR) * 0.5;
+      intensity =
+        8 + (day - PHASE_LENGTHS.MENSTRUAL - PHASE_LENGTHS.FOLLICULAR) * 0.5;
     } else {
       // Luteal phase: declining energy
-      const lutealDay = day - PHASE_LENGTHS.MENSTRUAL - PHASE_LENGTHS.FOLLICULAR - PHASE_LENGTHS.OVULATION;
-      const lutealLength = cycleLength - PHASE_LENGTHS.MENSTRUAL - PHASE_LENGTHS.FOLLICULAR - PHASE_LENGTHS.OVULATION;
+      const lutealDay =
+        day -
+        PHASE_LENGTHS.MENSTRUAL -
+        PHASE_LENGTHS.FOLLICULAR -
+        PHASE_LENGTHS.OVULATION;
+      const lutealLength =
+        cycleLength -
+        PHASE_LENGTHS.MENSTRUAL -
+        PHASE_LENGTHS.FOLLICULAR -
+        PHASE_LENGTHS.OVULATION;
       intensity = 8.5 - (lutealDay / lutealLength) * 5;
     }
 
@@ -164,12 +182,18 @@ interface CustomTooltipProps {
 
 /**
  * Custom Tooltip Component for Recharts
- * 
+ *
  * Displays detailed information when hovering over chart data points.
  * Shows: day number, current phase name, energy level, hormone levels (only visible ones), and "Today" indicator.
  * Also triggers onPhaseHover callback to update hovered phase state.
  */
-const CustomTooltip = ({ active, payload, label, onPhaseHover, visibleSeries }: CustomTooltipProps) => {
+const CustomTooltip = ({
+  active,
+  payload,
+  label,
+  onPhaseHover,
+  visibleSeries,
+}: CustomTooltipProps) => {
   useEffect(() => {
     if (active && payload && payload.length) {
       const day = payload[0].payload.day;
@@ -179,7 +203,12 @@ const CustomTooltip = ({ active, payload, label, onPhaseHover, visibleSeries }: 
         phase = 'menstrual';
       } else if (day <= PHASE_LENGTHS.MENSTRUAL + PHASE_LENGTHS.FOLLICULAR) {
         phase = 'follicular';
-      } else if (day <= PHASE_LENGTHS.MENSTRUAL + PHASE_LENGTHS.FOLLICULAR + PHASE_LENGTHS.OVULATION) {
+      } else if (
+        day <=
+        PHASE_LENGTHS.MENSTRUAL +
+          PHASE_LENGTHS.FOLLICULAR +
+          PHASE_LENGTHS.OVULATION
+      ) {
         phase = 'ovulation';
       }
       onPhaseHover?.(phase);
@@ -191,14 +220,19 @@ const CustomTooltip = ({ active, payload, label, onPhaseHover, visibleSeries }: 
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     const day = data.day;
-    
+
     // Determine phase for this day based on PHASE_LENGTHS constants
     let phase: CyclePhase = 'luteal';
     if (day <= PHASE_LENGTHS.MENSTRUAL) {
       phase = 'menstrual';
     } else if (day <= PHASE_LENGTHS.MENSTRUAL + PHASE_LENGTHS.FOLLICULAR) {
       phase = 'follicular';
-    } else if (day <= PHASE_LENGTHS.MENSTRUAL + PHASE_LENGTHS.FOLLICULAR + PHASE_LENGTHS.OVULATION) {
+    } else if (
+      day <=
+      PHASE_LENGTHS.MENSTRUAL +
+        PHASE_LENGTHS.FOLLICULAR +
+        PHASE_LENGTHS.OVULATION
+    ) {
       phase = 'ovulation';
     }
 
@@ -221,7 +255,7 @@ const CustomTooltip = ({ active, payload, label, onPhaseHover, visibleSeries }: 
         <p className="text-sm text-gray-600 mb-2">
           <span className="font-medium">{PHASE_NAMES[phase]}</span> Phase
         </p>
-        
+
         {/* Energy Level - Only show if visible */}
         {visibleSeries?.includes('energy') && energy !== undefined && (
           <p className="text-sm text-gray-700 mb-1">
@@ -229,22 +263,30 @@ const CustomTooltip = ({ active, payload, label, onPhaseHover, visibleSeries }: 
             Energy: <span className="font-medium">{energy}/10</span>
           </p>
         )}
-        
+
         {/* Hormone Levels - Only show if visible */}
         {hasVisibleHormones && (
           <div className="flex flex-col gap-1 mt-2 pt-2 border-t border-gray-100">
+            <p className="text-[11px] text-gray-400">
+              Illustrative typical pattern, not your levels
+            </p>
             {visibleSeries?.includes('estrogen') && estrogen !== undefined && (
               <p className="text-xs text-gray-600">
                 <span className="inline-block w-2 h-2 rounded-full bg-blue-500 mr-2" />
-                Estrogen: <span className="font-medium">{Math.round(estrogen)}%</span>
+                Estrogen:{' '}
+                <span className="font-medium">{Math.round(estrogen)}%</span>
               </p>
             )}
-            {visibleSeries?.includes('progesterone') && progesterone !== undefined && (
-              <p className="text-xs text-gray-600">
-                <span className="inline-block w-2 h-2 rounded-full bg-purple-500 mr-2" />
-                Progesterone: <span className="font-medium">{Math.round(progesterone)}%</span>
-              </p>
-            )}
+            {visibleSeries?.includes('progesterone') &&
+              progesterone !== undefined && (
+                <p className="text-xs text-gray-600">
+                  <span className="inline-block w-2 h-2 rounded-full bg-purple-500 mr-2" />
+                  Progesterone:{' '}
+                  <span className="font-medium">
+                    {Math.round(progesterone)}%
+                  </span>
+                </p>
+              )}
             {visibleSeries?.includes('lh') && lh !== undefined && (
               <p className="text-xs text-gray-600">
                 <span className="inline-block w-2 h-2 rounded-full bg-green-500 mr-2" />
@@ -257,17 +299,23 @@ const CustomTooltip = ({ active, payload, label, onPhaseHover, visibleSeries }: 
                 FSH: <span className="font-medium">{Math.round(fsh)}%</span>
               </p>
             )}
-            {visibleSeries?.includes('testosterone') && testosterone !== undefined && (
-              <p className="text-xs text-gray-600">
-                <span className="inline-block w-2 h-2 rounded-full bg-orange-500 mr-2" />
-                Testosterone: <span className="font-medium">{Math.round(testosterone)}%</span>
-              </p>
-            )}
+            {visibleSeries?.includes('testosterone') &&
+              testosterone !== undefined && (
+                <p className="text-xs text-gray-600">
+                  <span className="inline-block w-2 h-2 rounded-full bg-orange-500 mr-2" />
+                  Testosterone:{' '}
+                  <span className="font-medium">
+                    {Math.round(testosterone)}%
+                  </span>
+                </p>
+              )}
           </div>
         )}
-        
+
         {data.isCurrentDay && (
-          <p className="text-xs text-primary-600 font-medium mt-2 pt-2 border-t border-gray-100">Today</p>
+          <p className="text-xs text-primary-600 font-medium mt-2 pt-2 border-t border-gray-100">
+            Today
+          </p>
         )}
       </div>
     );
@@ -275,7 +323,14 @@ const CustomTooltip = ({ active, payload, label, onPhaseHover, visibleSeries }: 
   return null;
 };
 
-export function CycleChart({ phaseData, cycleLength, onPhaseHover, onPhaseClick, onDayClick, mode = 'lifestyle' }: CycleChartProps) {
+export function CycleChart({
+  phaseData,
+  cycleLength,
+  onPhaseHover,
+  onPhaseClick,
+  onDayClick,
+  mode = 'lifestyle',
+}: CycleChartProps) {
   const { currentPhase, daysIntoCycle, ovulationDay } = phaseData;
   const router = useRouter();
 
@@ -284,7 +339,10 @@ export function CycleChart({ phaseData, cycleLength, onPhaseHover, onPhaseClick,
     'show',
     parseAsString.withDefault('energy')
   );
-  const visibleSeries = useMemo(() => getVisibleSeries(visibleSeriesStr), [visibleSeriesStr]);
+  const visibleSeries = useMemo(
+    () => getVisibleSeries(visibleSeriesStr),
+    [visibleSeriesStr]
+  );
 
   // Memoize data generation for performance
   const energyData = useMemo(
@@ -310,7 +368,10 @@ export function CycleChart({ phaseData, cycleLength, onPhaseHover, onPhaseClick,
     const menstrualEnd = PHASE_LENGTHS.MENSTRUAL + 0.5; // End of day 5
     // Ovulation window covers days (ovulationDay - 3)..ovulationDay; on short cycles it starts right
     // after menstruation, so the follicular band collapses to zero width instead of going negative.
-    const ovulationStart = Math.max(calculatedOvulationDay - 3 - 0.5, menstrualEnd);
+    const ovulationStart = Math.max(
+      calculatedOvulationDay - 3 - 0.5,
+      menstrualEnd
+    );
     const ovulationEnd = calculatedOvulationDay + 0.5;
 
     // Each day d spans d-0.5..d+0.5, so adjacent bands share an edge (no gap days)
@@ -363,7 +424,9 @@ export function CycleChart({ phaseData, cycleLength, onPhaseHover, onPhaseClick,
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-gray-900">Cycle Overview</h3>
         <div className="flex items-center gap-2 text-sm text-gray-600">
-          <span className="font-medium">Day {daysIntoCycle} of {cycleLength}</span>
+          <span className="font-medium">
+            Day {daysIntoCycle} of {cycleLength}
+          </span>
           <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
             {PHASE_NAMES[currentPhase]} Phase
           </span>
@@ -371,7 +434,10 @@ export function CycleChart({ phaseData, cycleLength, onPhaseHover, onPhaseClick,
       </div>
 
       {/* Recharts Visualization - Full Height Card */}
-      <div className="w-full flex-1 min-h-[350px]" style={{ width: '100%', minHeight: '350px' }}>
+      <div
+        className="w-full flex-1 min-h-[350px]"
+        style={{ width: '100%', minHeight: '350px' }}
+      >
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
             data={chartData}
@@ -379,7 +445,7 @@ export function CycleChart({ phaseData, cycleLength, onPhaseHover, onPhaseClick,
             onMouseLeave={() => onPhaseHover?.(null)}
           >
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-            
+
             {/* Phase Background Areas - Clickable regions for deep dive */}
             {/* Using dynamic phase boundaries with 0.5 offset for seamless coverage (prevents white gaps) */}
             {/* Keep phase backgrounds behind lines/dots (ReferenceArea is rendered behind by default) */}
@@ -435,27 +501,50 @@ export function CycleChart({ phaseData, cycleLength, onPhaseHover, onPhaseClick,
               domain={[0.5, cycleLength + 0.5]}
               tick={{ fontSize: 12, fill: '#6b7280' }}
               tickCount={Math.min(cycleLength, 7)}
-              label={{ value: 'Day', position: 'insideBottom', offset: -5, style: { fill: '#6b7280' } }}
+              label={{
+                value: 'Day',
+                position: 'insideBottom',
+                offset: -5,
+                style: { fill: '#6b7280' },
+              }}
             />
-            
+
             {/* Left Y-Axis: Energy Level (0-10) - Always show if energy is visible */}
             {visibleSeries.includes('energy') && (
               <YAxis
                 yAxisId="left"
                 domain={[0, 10]}
                 tick={{ fontSize: 12, fill: '#6366f1' }}
-                label={{ value: 'Energy Level', angle: -90, position: 'insideLeft', style: { fill: '#6366f1' } }}
+                label={{
+                  value: 'Energy Level',
+                  angle: -90,
+                  position: 'insideLeft',
+                  style: { fill: '#6366f1' },
+                }}
               />
             )}
-            
+
             {/* Right Y-Axis: Hormone Levels (0-100) - Show if any hormone is visible */}
-            {visibleSeries.some((s) => ['estrogen', 'progesterone', 'lh', 'fsh', 'testosterone'].includes(s)) && (
+            {visibleSeries.some((s) =>
+              [
+                'estrogen',
+                'progesterone',
+                'lh',
+                'fsh',
+                'testosterone',
+              ].includes(s)
+            ) && (
               <YAxis
                 yAxisId="right"
                 orientation="right"
                 domain={[0, 100]}
                 tick={{ fontSize: 12, fill: '#6b7280' }}
-                label={{ value: 'Hormone Level (%)', angle: 90, position: 'insideRight', style: { fill: '#6b7280' } }}
+                label={{
+                  value: 'Hormone Level (%)',
+                  angle: 90,
+                  position: 'insideRight',
+                  style: { fill: '#6b7280' },
+                }}
               />
             )}
             <Tooltip
@@ -469,7 +558,7 @@ export function CycleChart({ phaseData, cycleLength, onPhaseHover, onPhaseClick,
                 />
               )}
             />
-            
+
             {/* Today Marker - Vertical Reference Line with Enhanced Visibility */}
             <ReferenceLine
               x={daysIntoCycle}
@@ -510,7 +599,7 @@ export function CycleChart({ phaseData, cycleLength, onPhaseHover, onPhaseClick,
                 );
               }}
             />
-            
+
             {/* Energy Level Line - Left Y-Axis (0-10) */}
             {visibleSeries.includes('energy') && (
               <Line
@@ -519,98 +608,100 @@ export function CycleChart({ phaseData, cycleLength, onPhaseHover, onPhaseClick,
                 dataKey="intensity"
                 stroke="#6366f1"
                 strokeWidth={3}
-              dot={(rawProps) => {
-                const props = rawProps as {
-                  key?: string | number;
-                  cx?: number;
-                  cy?: number;
-                  payload?: ChartDataPoint;
-                };
-                const day = props.payload?.day;
-                const isCurrentDay = props.payload?.isCurrentDay;
-                const date = day ? getDateForDay(day) : null;
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                const isPastDay = date && date <= today;
+                dot={(rawProps) => {
+                  const props = rawProps as {
+                    key?: string | number;
+                    cx?: number;
+                    cy?: number;
+                    payload?: ChartDataPoint;
+                  };
+                  const day = props.payload?.day;
+                  const isCurrentDay = props.payload?.isCurrentDay;
+                  const date = day ? getDateForDay(day) : null;
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  const isPastDay = date && date <= today;
 
-                // Custom dot with enhanced pulsing animation for current day
-                if (isCurrentDay) {
-                  return (
-                    <g key={props.key}>
-                      {/* Outer pulsing ring - animated */}
-                      <circle
-                        cx={props.cx}
-                        cy={props.cy}
-                        r={14}
-                        fill="#6366f1"
-                        fillOpacity={0.15}
+                  // Custom dot with enhanced pulsing animation for current day
+                  if (isCurrentDay) {
+                    return (
+                      <g key={props.key}>
+                        {/* Outer pulsing ring - animated */}
+                        <circle
+                          cx={props.cx}
+                          cy={props.cy}
+                          r={14}
+                          fill="#6366f1"
+                          fillOpacity={0.15}
+                        >
+                          <animate
+                            attributeName="r"
+                            values="12;16;12"
+                            dur="2s"
+                            repeatCount="indefinite"
+                          />
+                          <animate
+                            attributeName="fillOpacity"
+                            values="0.2;0.4;0.2"
+                            dur="2s"
+                            repeatCount="indefinite"
+                          />
+                        </circle>
+                        {/* Middle ring */}
+                        <circle
+                          cx={props.cx}
+                          cy={props.cy}
+                          r={10}
+                          fill="#6366f1"
+                          fillOpacity={0.5}
+                        />
+                        {/* Inner solid dot with white border */}
+                        <circle
+                          cx={props.cx}
+                          cy={props.cy}
+                          r={8}
+                          fill="#6366f1"
+                          stroke="#ffffff"
+                          strokeWidth={3}
+                        />
+                        {/* Center highlight */}
+                        <circle
+                          cx={props.cx}
+                          cy={props.cy}
+                          r={4}
+                          fill="#ffffff"
+                          fillOpacity={0.9}
+                        />
+                      </g>
+                    );
+                  }
+
+                  // Clickable dots for past days
+                  if (isPastDay) {
+                    return (
+                      <g
+                        key={props.key}
+                        onClick={() => day !== undefined && handleDayClick(day)}
+                        style={{ cursor: 'pointer' }}
                       >
-                        <animate
-                          attributeName="r"
-                          values="12;16;12"
-                          dur="2s"
-                          repeatCount="indefinite"
+                        <circle
+                          cx={props.cx}
+                          cy={props.cy}
+                          r={5}
+                          fill="#6366f1"
+                          stroke="#fff"
+                          strokeWidth={2}
+                          className="hover:r-6 transition-all"
                         />
-                        <animate
-                          attributeName="fillOpacity"
-                          values="0.2;0.4;0.2"
-                          dur="2s"
-                          repeatCount="indefinite"
-                        />
-                      </circle>
-                      {/* Middle ring */}
-                      <circle
-                        cx={props.cx}
-                        cy={props.cy}
-                        r={10}
-                        fill="#6366f1"
-                        fillOpacity={0.5}
-                      />
-                      {/* Inner solid dot with white border */}
-                      <circle
-                        cx={props.cx}
-                        cy={props.cy}
-                        r={8}
-                        fill="#6366f1"
-                        stroke="#ffffff"
-                        strokeWidth={3}
-                      />
-                      {/* Center highlight */}
-                      <circle
-                        cx={props.cx}
-                        cy={props.cy}
-                        r={4}
-                        fill="#ffffff"
-                        fillOpacity={0.9}
-                      />
-                    </g>
-                  );
-                }
+                      </g>
+                    );
+                  }
 
-                // Clickable dots for past days
-                if (isPastDay) {
+                  // Future days - smaller, non-interactive
                   return (
-                    <g
-                      key={props.key}
-                      onClick={() => day !== undefined && handleDayClick(day)}
-                      style={{ cursor: 'pointer' }}
-                    >
-                      <circle
-                        cx={props.cx}
-                        cy={props.cy}
-                        r={5}
-                        fill="#6366f1"
-                        stroke="#fff"
-                        strokeWidth={2}
-                        className="hover:r-6 transition-all"
-                      />
-                    </g>
+                    <Dot {...props} r={3} fill="#6366f1" fillOpacity={0.5} />
                   );
-                }
-
-                // Future days - smaller, non-interactive
-                return <Dot {...props} r={3} fill="#6366f1" fillOpacity={0.5} />;
-              }}
+                }}
                 activeDot={{ r: 6, fill: '#4f46e5' }}
                 isAnimationActive={true}
                 animationDuration={1500}
@@ -692,6 +783,11 @@ export function CycleChart({ phaseData, cycleLength, onPhaseHover, onPhaseClick,
       </div>
 
       {/* Interactive Series Selector - Only show in clinical mode */}
+      {mode === 'clinical' && (
+        <p className="text-xs text-gray-500">
+          Hormone curves: illustrative typical pattern, not your levels.
+        </p>
+      )}
       {mode === 'clinical' && <SeriesSelector />}
 
       {/* Phase Legend with Tooltips (Clinical Mode Only) */}
@@ -708,7 +804,7 @@ export function CycleChart({ phaseData, cycleLength, onPhaseHover, onPhaseClick,
               </div>
             ))}
           </div>
-          
+
           {/* Hormone Tooltips */}
           <div className="flex flex-wrap gap-4 text-xs text-gray-500">
             <div className="flex items-center gap-1.5">
@@ -721,12 +817,14 @@ export function CycleChart({ phaseData, cycleLength, onPhaseHover, onPhaseClick,
             </div>
             <div className="flex items-center gap-1.5">
               <div className="w-2 h-2 rounded-full bg-orange-500" />
-              <span>Testosterone: Peaks during ovulation, supports strength</span>
+              <span>
+                Testosterone: Peaks during ovulation, supports strength
+              </span>
             </div>
           </div>
         </div>
       )}
-      
+
       {/* Simple Phase Legend (Lifestyle Mode) */}
       {mode === 'lifestyle' && (
         <div className="flex flex-wrap gap-4 pt-4 border-t border-gray-200">
@@ -761,10 +859,14 @@ export function CycleChart({ phaseData, cycleLength, onPhaseHover, onPhaseClick,
             </h4>
             <p className="text-sm text-gray-600">
               You are on day {daysIntoCycle} of your {cycleLength}-day cycle.{' '}
-              {currentPhase === 'menstrual' && 'Low hormone state - high-performance window if discomfort managed. Focus on readiness and recovery.'}
-              {currentPhase === 'follicular' && 'Energy levels are rising. Great time for high-intensity activities. Estrogen supports performance.'}
-              {currentPhase === 'ovulation' && 'Peak hormone state. Individual responses vary. Focus on readiness metrics.'}
-              {currentPhase === 'luteal' && 'Progesterone-dominant phase. Energy may fluctuate. Adjust intensity based on symptoms and readiness.'}
+              {currentPhase === 'menstrual' &&
+                'Low hormone state - high-performance window if discomfort managed. Focus on readiness and recovery.'}
+              {currentPhase === 'follicular' &&
+                'Energy levels are rising. Great time for high-intensity activities. Estrogen supports performance.'}
+              {currentPhase === 'ovulation' &&
+                'Peak hormone state. Individual responses vary. Focus on readiness metrics.'}
+              {currentPhase === 'luteal' &&
+                'Progesterone-dominant phase. Energy may fluctuate. Adjust intensity based on symptoms and readiness.'}
             </p>
           </div>
         </div>

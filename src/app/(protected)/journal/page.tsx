@@ -1,31 +1,40 @@
 import { redirect } from 'next/navigation';
 import { getServerSession } from '@/lib/session';
 import { prisma } from '@/lib/db';
-import { startOfMonth, endOfMonth } from 'date-fns';
+import type { SearchParams } from 'nuqs/server';
+import { parseMonthKey, toDateOnlyString } from '@/lib/date-only';
+import { loadJournalSearchParams } from '@/lib/journal-search-params';
 import { decrypt, decryptArray } from '@/lib/encryption';
 import JournalPageClient from '@/components/journal/journal-page-client';
 import { PageHeader } from '@/components/ui/page-header';
 import { AppErrorBoundary } from '@/components/ui/error-boundary';
 
-export default async function JournalPage() {
+interface JournalPageProps {
+  searchParams: Promise<SearchParams>;
+}
+
+export default async function JournalPage({ searchParams }: JournalPageProps) {
   const session = await getServerSession();
 
   if (!session) {
     redirect('/sign-in');
   }
 
-  // Get current month
-  const now = new Date();
-  const monthStart = startOfMonth(now);
-  const monthEnd = endOfMonth(now);
+  // Month shown in the calendar (`?month=YYYY-MM`), defaulting to the current month.
+  // Entry dates are UTC midnight, so the month range is a UTC range.
+  const { month } = await loadJournalSearchParams(searchParams);
+  const monthKey = month ?? toDateOnlyString(new Date()).slice(0, 7);
+  const monthRange = parseMonthKey(monthKey);
+  if (!monthRange) {
+    redirect('/journal');
+  }
 
-  // Fetch journal entries for current month
   const entries = await prisma.journalEntry.findMany({
     where: {
       userId: session.user.id,
       date: {
-        gte: monthStart,
-        lte: monthEnd,
+        gte: monthRange.start,
+        lt: monthRange.end,
       },
     },
     orderBy: { date: 'asc' },
@@ -53,7 +62,10 @@ export default async function JournalPage() {
         description="Private encrypted entries for reflection and wellness notes."
       />
       <AppErrorBoundary sectionLabel="Journal">
-        <JournalPageClient initialEntries={decryptedEntries} />
+        <JournalPageClient
+          initialEntries={decryptedEntries}
+          monthKey={monthKey}
+        />
       </AppErrorBoundary>
     </div>
   );

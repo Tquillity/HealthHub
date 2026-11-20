@@ -8,16 +8,26 @@ import { format } from 'date-fns';
 import type { JournalEntry } from '@prisma/client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { dateOnlyToLocalDate } from '@/lib/date-only';
 
 interface JournalEntryDetailProps {
   entry: JournalEntry;
+  /** The entry's calendar day as `YYYY-MM-DD` (the key it was selected and stored by). */
+  dateKey: string;
   onClose: () => void;
   onEdit: () => void;
 }
 
-export function JournalEntryDetail({ entry, onClose, onEdit }: JournalEntryDetailProps) {
+export function JournalEntryDetail({
+  entry,
+  dateKey,
+  onClose,
+  onEdit,
+}: JournalEntryDetailProps) {
   const router = useRouter();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  // Stored dates are UTC midnight; format the calendar day as a local date so it doesn't shift.
+  const entryDay = dateOnlyToLocalDate(dateKey);
 
   const getRatingColor = (rating: number | null) => {
     if (!rating) return 'text-gray-600';
@@ -37,8 +47,7 @@ export function JournalEntryDetail({ entry, onClose, onEdit }: JournalEntryDetai
 
   const handleDelete = async () => {
     if (entry) {
-      const dateStr = entry.date.toISOString().split('T')[0];
-      const result = await deleteJournalEntry(dateStr);
+      const result = await deleteJournalEntry(dateKey);
       if (result.success) {
         setShowDeleteModal(false);
         onClose();
@@ -57,7 +66,7 @@ export function JournalEntryDetail({ entry, onClose, onEdit }: JournalEntryDetai
           <div className="flex items-center justify-between p-6 border-b border-gray-200">
             <div>
               <h2 className="text-2xl font-bold text-gray-900">
-                Journal Entry - {format(new Date(entry.date), 'EEEE, MMMM d, yyyy')}
+                Journal Entry - {format(entryDay, 'EEEE, MMMM d, yyyy')}
               </h2>
               <p className="text-sm text-gray-600">
                 Created {format(new Date(entry.createdAt), 'MMM d, yyyy')}
@@ -95,8 +104,11 @@ export function JournalEntryDetail({ entry, onClose, onEdit }: JournalEntryDetai
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600">Rating</span>
-                    <span className={`text-lg font-semibold ${getRatingColor(entry.mood)}`}>
-                      {getRatingEmoji(entry.mood)} {entry.mood !== null ? `${entry.mood}/10` : '—'}
+                    <span
+                      className={`text-lg font-semibold ${getRatingColor(entry.mood)}`}
+                    >
+                      {getRatingEmoji(entry.mood)}{' '}
+                      {entry.mood !== null ? `${entry.mood}/10` : '—'}
                     </span>
                   </div>
                 </div>
@@ -110,7 +122,9 @@ export function JournalEntryDetail({ entry, onClose, onEdit }: JournalEntryDetai
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600">Rating</span>
-                    <span className={`text-lg font-semibold ${getRatingColor(entry.energy)}`}>
+                    <span
+                      className={`text-lg font-semibold ${getRatingColor(entry.energy)}`}
+                    >
                       ⚡ {entry.energy !== null ? `${entry.energy}/10` : '—'}
                     </span>
                   </div>
@@ -139,15 +153,21 @@ export function JournalEntryDetail({ entry, onClose, onEdit }: JournalEntryDetai
             {/* Notes */}
             {entry.notes && (
               <div className="bg-gray-50 rounded-lg p-4">
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">Notes</h3>
-                <p className="text-sm text-gray-800 whitespace-pre-wrap">{entry.notes}</p>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                  Notes
+                </h3>
+                <p className="text-sm text-gray-800 whitespace-pre-wrap">
+                  {entry.notes}
+                </p>
               </div>
             )}
 
             {/* Tags */}
             {entry.tags.length > 0 && (
               <div className="bg-gray-50 rounded-lg p-4">
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">Tags</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                  Tags
+                </h3>
                 <div className="flex flex-wrap gap-2">
                   {entry.tags.map((tag) => (
                     <span
@@ -169,10 +189,9 @@ export function JournalEntryDetail({ entry, onClose, onEdit }: JournalEntryDetai
         onClose={() => setShowDeleteModal(false)}
         onConfirm={handleDelete}
         title="Delete Journal Entry"
-        itemName={format(new Date(entry.date), 'MMMM d, yyyy')}
+        itemName={format(entryDay, 'MMMM d, yyyy')}
         description="This will permanently delete this journal entry."
       />
     </>
   );
 }
-

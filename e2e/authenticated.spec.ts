@@ -96,7 +96,9 @@ test('making a public recipe secret immediately expires the guest cache', async 
     process.env.PLAYWRIGHT_SEEDED_DB !== '1',
     'Requires isolated E2E fixtures'
   );
-    const guest = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+  const guest = await browser.newContext({
+    storageState: { cookies: [], origins: [] },
+  });
   const guestPage = await guest.newPage();
   try {
     await guestPage.goto('/recipes/hh-e2e-visibility');
@@ -119,4 +121,51 @@ test('making a public recipe secret immediately expires the guest cache', async 
   } finally {
     await guest.close();
   }
+});
+
+test('journal form stays locked until the chosen day has loaded', async ({
+  page,
+}) => {
+  test.skip(
+    process.env.PLAYWRIGHT_SEEDED_DB !== '1',
+    'Writes a journal entry to the isolated E2E database'
+  );
+  // A fixed past day that no other test touches.
+  const day = '2001-02-03';
+  const dateInput = page.getByLabel('Date', { exact: true });
+  const mood = page.getByLabel('Mood (1-10)');
+  const submit = page.locator('form button[type="submit"]');
+
+  await page.goto('/journal');
+  await page.getByRole('button', { name: 'Log Today' }).click();
+  await dateInput.fill(day);
+  await expect(mood).toBeEnabled();
+  await mood.fill('7');
+  await submit.click();
+  await expect(
+    page.getByText('Journal entry saved successfully!')
+  ).toBeVisible();
+
+  // Hold server action responses so the day's load is visibly in flight.
+  let holdMs = 0;
+  await page.route('**/journal**', async (route) => {
+    const request = route.request();
+    if (request.method() === 'POST' && request.headers()['next-action']) {
+      await new Promise((resolve) => setTimeout(resolve, holdMs));
+    }
+    await route.continue();
+  });
+
+  await page.getByRole('button', { name: 'Log Today' }).click();
+  await expect(submit).toBeEnabled();
+  holdMs = 1500;
+  await dateInput.fill(day);
+  // Saving now would overwrite the stored entry with a blank form.
+  await expect(submit).toBeDisabled();
+  await expect(submit).toHaveText('Loading...');
+  await expect(mood).toBeDisabled();
+  // Once loaded, the stored values are in the form and saving is allowed.
+  await expect(mood).toHaveValue('7');
+  await expect(submit).toBeEnabled();
+  await expect(submit).toHaveText('Save Entry');
 });
