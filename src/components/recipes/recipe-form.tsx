@@ -3,6 +3,7 @@
 import { RecipeFormBasicSection } from './recipe-form-basic-section';
 import { RecipeFormIngredientsSection } from './recipe-form-ingredients-section';
 import { RecipeFormInstructionsSection } from './recipe-form-instructions-section';
+import { RecipeFormLeanSection } from './recipe-form-lean-section';
 import { RecipeFormNutritionSection } from './recipe-form-nutrition-section';
 import type { RecipeFormProps } from './recipe-form-types';
 import { useRecipeForm } from './use-recipe-form';
@@ -37,6 +38,7 @@ export function RecipeForm({
         handleRemoveAdditionalImage={form.handleRemoveAdditionalImage}
         handleSetAsMainImage={form.handleSetAsMainImage}
       />
+      <RecipeFormLeanSection formData={form.formData} setFormData={form.setFormData} errors={form.errors} />
       <RecipeFormNutritionSection formData={form.formData} setFormData={form.setFormData} />
       <RecipeFormIngredientsSection
         ingredients={form.ingredients}

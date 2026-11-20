@@ -36,7 +36,7 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
-      testMatch: /(smoke|account-deletion)\.spec\.ts/,
+      testMatch: /(smoke|account-deletion|recipes-lean)\.spec\.ts/,
     },
     {
       name: 'authenticated',

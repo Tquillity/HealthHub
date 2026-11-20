@@ -9,6 +9,7 @@ import { deleteRecipe } from '@/actions/recipe-actions';
 import { useRouter } from 'next/navigation';
 import { useQueryState } from 'nuqs';
 import { recipeSearchParams } from '@/lib/recipe-search-params';
+import { filterRecipes } from '@/lib/recipe-filters';
 import { Grid, LayoutList } from 'lucide-react';
 import type { RecipeWithDetails } from '@/actions/recipe-actions';
 
@@ -16,22 +17,17 @@ interface RecipesClientProps {
   recipes: RecipeWithDetails[];
   categories: string[];
   isAdmin: boolean;
-  initialQuery?: string;
-  initialCategory?: string;
 }
 
 export function RecipesClient({
   recipes: initialRecipes,
   categories,
   isAdmin,
-  initialQuery: _initialQuery,
-  initialCategory: _initialCategory,
 }: RecipesClientProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'gallery' | 'list'>('gallery');
 
-  // Get all filter params from URL
-  // Shared with the server page so both parse the URL the same way.
+  // Filter state lives in the URL; same parsers as the filter controls.
   const [category, setCategory] = useQueryState(
     'category',
     recipeSearchParams.category
@@ -50,6 +46,7 @@ export function RecipesClient({
     recipeSearchParams.dietaryTags
   );
   const [leanRole] = useQueryState('leanRole', recipeSearchParams.leanRole);
+  const [quickPrep] = useQueryState('quickPrep', recipeSearchParams.quickPrep);
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [recipeToDelete, setRecipeToDelete] =
@@ -82,83 +79,29 @@ export function RecipesClient({
     router.push(`/recipes/${recipe.id}/edit`);
   };
 
-  // Filter recipes client-side based on all active filters
-  const filteredRecipes = useMemo(() => {
-    return initialRecipes.filter((recipe) => {
-      // Category filter
-      if (category && category !== 'all') {
-        if (recipe.category?.toLowerCase() !== category.toLowerCase()) {
-          return false;
-        }
-      }
-
-      // Search query filter
-      if (query && query.trim()) {
-        const searchLower = query.toLowerCase();
-        const matchesName = recipe.name.toLowerCase().includes(searchLower);
-        const matchesDescription =
-          recipe.description?.toLowerCase().includes(searchLower) || false;
-        const matchesTags =
-          recipe.tags?.some((tag) => tag.toLowerCase().includes(searchLower)) ||
-          false;
-        const matchesIngredients =
-          recipe.ingredients?.some((ing) =>
-            ing.name.toLowerCase().includes(searchLower)
-          ) || false;
-
-        if (
-          !matchesName &&
-          !matchesDescription &&
-          !matchesTags &&
-          !matchesIngredients
-        ) {
-          return false;
-        }
-      }
-
-      // Difficulty filter
-      if (
-        difficulty &&
-        recipe.difficulty?.toLowerCase() !== difficulty.toLowerCase()
-      ) {
-        return false;
-      }
-
-      // Cuisine filter
-      if (cuisine && recipe.cuisine?.toLowerCase() !== cuisine.toLowerCase()) {
-        return false;
-      }
-
-      // Dietary tags filter
-      if (dietaryTags && dietaryTags.length > 0) {
-        const recipeTags = recipe.dietaryTags || [];
-        const hasMatchingTag = dietaryTags.some((tag) =>
-          recipeTags.some((rt) => rt.toLowerCase() === tag.toLowerCase())
-        );
-        if (!hasMatchingTag) {
-          return false;
-        }
-      }
-
-      // LEAN role filter
-      if (
-        leanRole &&
-        recipe.leanRole?.toLowerCase() !== leanRole.toLowerCase()
-      ) {
-        return false;
-      }
-
-      return true;
-    });
-  }, [
-    initialRecipes,
-    category,
-    query,
-    difficulty,
-    cuisine,
-    dietaryTags,
-    leanRole,
-  ]);
+  // Filter client-side with the shared predicate (src/lib/recipe-filters.ts).
+  const filteredRecipes = useMemo(
+    () =>
+      filterRecipes(initialRecipes, {
+        query,
+        category,
+        difficulty,
+        cuisine,
+        dietaryTags,
+        leanRole,
+        quickPrep,
+      }),
+    [
+      initialRecipes,
+      category,
+      query,
+      difficulty,
+      cuisine,
+      dietaryTags,
+      leanRole,
+      quickPrep,
+    ]
+  );
 
   return (
     <>
@@ -212,7 +155,7 @@ export function RecipesClient({
               category === 'all' || !category
                 ? 'bg-primary-600 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            } rounded-full px-4 py-2 text-sm font-medium transition-colors cursor-pointer`}
+            } min-h-[44px] rounded-full px-4 py-2 text-sm font-medium transition-colors cursor-pointer`}
           >
             All
           </button>
@@ -224,7 +167,7 @@ export function RecipesClient({
                 category === cat
                   ? 'bg-primary-600 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              } rounded-full px-4 py-2 text-sm font-medium transition-colors cursor-pointer capitalize`}
+              } min-h-[44px] rounded-full px-4 py-2 text-sm font-medium transition-colors cursor-pointer capitalize`}
             >
               {cat}
             </button>

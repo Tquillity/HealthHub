@@ -2,8 +2,10 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Clock, Users, ChefHat } from 'lucide-react';
+import { Clock, Users, ChefHat, Hand, Hourglass } from 'lucide-react';
 import { type RecipeWithDetails } from '@/actions/recipe-actions';
+import { formatMinutes, getRecipeTimeSummary } from '@/lib/lean-kitchen';
+import { LeanRoleBadge } from './lean-role-badge';
 
 interface RecipeCardProps {
   recipe: RecipeWithDetails;
@@ -11,11 +13,7 @@ interface RecipeCardProps {
 
 export function RecipeCard({ recipe }: RecipeCardProps) {
   const [imageError, setImageError] = useState(false);
-  
-  // Fallback if numbers are missing
-  const prepTime = recipe.prepTime || 0;
-  const cookTime = recipe.cookTime || 0;
-  const totalTime = prepTime + cookTime;
+  const times = getRecipeTimeSummary(recipe);
 
   return (
     <Link
@@ -38,6 +36,7 @@ export function RecipeCard({ recipe }: RecipeCardProps) {
         )}
 
         {/* Badges */}
+        <LeanRoleBadge role={recipe.leanRole} className="absolute left-2 top-2" />
         <div className="absolute right-2 top-2 flex gap-1">
           {recipe.isSystem && (
             <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-700">
@@ -53,7 +52,7 @@ export function RecipeCard({ recipe }: RecipeCardProps) {
       </div>
 
       <div className="flex flex-1 flex-col p-4">
-        <h3 
+        <h3
           className="line-clamp-1 text-lg font-semibold text-gray-900 group-hover:text-blue-600"
           title={recipe.name}
         >
@@ -64,18 +63,45 @@ export function RecipeCard({ recipe }: RecipeCardProps) {
           {recipe.description || 'No description available.'}
         </p>
 
-        <div className="mt-4 flex items-center justify-between border-t pt-4 text-xs text-gray-500">
-          <div className="flex items-center gap-1">
-            <Clock className="h-3.5 w-3.5" />
-            <span>{totalTime > 0 ? `${totalTime}m` : '-'}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <Users className="h-3.5 w-3.5" />
-            <span>{recipe.servings || '-'} ppl</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="font-medium">{recipe.ingredients.length}</span>
-            <span>ingr.</span>
+        <div className="mt-4 flex flex-col gap-2 border-t pt-4 text-xs text-gray-500">
+          {times.hasLeanTimes && (
+            // LEAN times: hands-on vs hands-off. A recorded 0 min wait is not shown.
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              {times.activeMinutes !== null && (
+                <span className="flex items-center gap-1" title="Hands-on time">
+                  <Hand className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span>{formatMinutes(times.activeMinutes)} active</span>
+                </span>
+              )}
+              {times.passiveMinutes !== null && times.passiveMinutes > 0 && (
+                <span
+                  className="flex items-center gap-1"
+                  title="Hands-off time: oven, rising, chilling"
+                >
+                  <Hourglass className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span>{formatMinutes(times.passiveMinutes)} passive</span>
+                </span>
+              )}
+            </div>
+          )}
+          <div className="flex items-center justify-between">
+            {!times.hasLeanTimes && (
+              <div className="flex items-center gap-1">
+                <Clock className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>
+                  <span className="sr-only">Total time: </span>
+                  {times.totalMinutes > 0 ? formatMinutes(times.totalMinutes) : '-'}
+                </span>
+              </div>
+            )}
+            <div className="flex items-center gap-1">
+              <Users className="h-3.5 w-3.5" />
+              <span>{recipe.servings || '-'} ppl</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="font-medium">{recipe.ingredients.length}</span>
+              <span>ingr.</span>
+            </div>
           </div>
         </div>
       </div>

@@ -14,6 +14,21 @@ describe('loadRecipeSearchParams', () => {
     expect(params.category).toBe('all');
     expect(params.dietaryTags).toBeNull();
     expect(params.difficulty).toBeNull();
+    expect(params.leanRole).toBeNull();
+    expect(params.quickPrep).toBe(false);
+  });
+
+  it('reads the LEAN role and quick prep filters', () => {
+    const params = loadRecipeSearchParams({
+      leanRole: 'Infrastructure',
+      quickPrep: 'true',
+    });
+    expect(params.leanRole).toBe('Infrastructure');
+    expect(params.quickPrep).toBe(true);
+  });
+
+  it('ignores unknown LEAN roles', () => {
+    expect(loadRecipeSearchParams({ leanRole: 'Batch' }).leanRole).toBeNull();
   });
 
   it('reads single-value filters', () => {

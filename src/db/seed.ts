@@ -6,6 +6,13 @@ import * as path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import {
+  parseKitchenManifest,
+  planSystemRecipeSync,
+  toIngredientRows,
+  toInstructionRows,
+  toSystemRecipeFields,
+} from './kitchen-manifest';
+import {
   DEFAULT_ADMIN_NAME,
   assertAdminSeedTargetAllowed,
   ensureSeedAdmin,
@@ -20,45 +27,6 @@ import { Pool } from 'pg';
 // Get __dirname equivalent for ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-
-interface KitchenManifestRecipe {
-  name: string;
-  description?: string;
-  prepTime?: number;
-  cookTime?: number;
-  servings?: number;
-  category?: string;
-  tags?: string[];
-  difficulty?: string;
-  cuisine?: string;
-  dietaryTags?: string[];
-  videoUrl?: string;
-  isSecret?: boolean; // Only MAIN admin can see secret recipes
-  ingredients: Array<{
-    name: string;
-    quantity: number;
-    unit: string;
-    notes?: string;
-    melted?: boolean;
-  }>;
-  instructions: Array<{
-    stepNumber: number;
-    text: string;
-  }>;
-}
-
-interface KitchenManifestRoutine {
-  name: string;
-  description?: string;
-  category?: string;
-  frequency: string;
-}
-
-interface KitchenManifest {
-  recipes: KitchenManifestRecipe[];
-  routines?: KitchenManifestRoutine[];
-  deletedRecipes?: string[]; // Recipe names that should never be seeded (user-deleted)
-}
 
 async function seed() {
   console.log('🌱 Starting database seed...');
@@ -168,98 +136,104 @@ async function seed() {
     );
 
     // 3. Load and Seed Recipes
+    // Validated at runtime: a typo in the manifest fails here with a readable error
+    // instead of writing half a catalog.
     const manifestPath = path.join(__dirname, 'kitchen-manifest.json');
-    const manifest = JSON.parse(
-      fs.readFileSync(manifestPath, 'utf-8')
-    ) as KitchenManifest;
+    const manifest = parseKitchenManifest(
+      JSON.parse(fs.readFileSync(manifestPath, 'utf-8'))
+    );
 
-    console.log(`📝 Seeding recipes from manifest...`);
-    const deletedRecipes = new Set(manifest.deletedRecipes || []);
+    console.log(`📝 Syncing system recipes from manifest...`);
 
-    // First, delete all existing system recipes to ensure clean state
-    // This removes any recipes that were deleted by the user
-    const deletedCount = await prisma.recipe.deleteMany({
+    // Update system recipes in place (matched by name) so re-running the seed keeps
+    // their ids: meal plans and templates reference them without ON DELETE CASCADE.
+    const existingSystemRecipes = await prisma.recipe.findMany({
       where: { isSystem: true },
+      select: {
+        id: true,
+        name: true,
+        createdAt: true,
+        _count: { select: { mealPlanItems: true, mealPlanTemplateItems: true } },
+      },
     });
-    console.log(`  🗑️  Deleted ${deletedCount.count} existing system recipes`);
+    const plan = planSystemRecipeSync(
+      manifest,
+      existingSystemRecipes.map((row) => ({
+        id: row.id,
+        name: row.name,
+        createdAt: row.createdAt,
+        usage: row._count.mealPlanItems + row._count.mealPlanTemplateItems,
+      }))
+    );
 
-    // Now seed all recipes from the manifest (except deleted ones)
-    let seededCount = 0;
-    let skippedCount = 0;
+    for (const recipeData of plan.update) {
+      const { recipe } = recipeData;
+      await prisma.$transaction([
+        prisma.recipe.update({
+          where: { id: recipeData.id },
+          data: toSystemRecipeFields(recipe),
+        }),
+        prisma.ingredient.deleteMany({ where: { recipeId: recipeData.id } }),
+        prisma.ingredient.createMany({
+          data: toIngredientRows(recipe).map((row) => ({
+            ...row,
+            recipeId: recipeData.id,
+          })),
+        }),
+        prisma.instruction.deleteMany({ where: { recipeId: recipeData.id } }),
+        prisma.instruction.createMany({
+          data: toInstructionRows(recipe).map((row) => ({
+            ...row,
+            recipeId: recipeData.id,
+          })),
+        }),
+      ]);
+      console.log(`  🔄 Recipe: ${recipe.name}`);
+    }
 
-    for (const recipeData of manifest.recipes) {
-      // Skip recipes that have been deleted by the user
-      if (deletedRecipes.has(recipeData.name)) {
-        console.log(`  🚫 Skipping deleted recipe: ${recipeData.name}`);
-        skippedCount++;
-        continue;
-      }
-
-      await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-        // Prepare recipe data with explicit typing to avoid TypeScript cache issues
-        const recipeDataInput = {
-          name: recipeData.name,
-          description: recipeData.description || null,
+    for (const recipe of plan.create) {
+      await prisma.recipe.create({
+        data: {
+          ...toSystemRecipeFields(recipe),
           imageUrl: null,
-          videoUrl: recipeData.videoUrl || null, // Video tutorial URL
-          prepTime: recipeData.prepTime || null,
-          cookTime: recipeData.cookTime || null,
-          servings: recipeData.servings || null,
-          category: recipeData.category || null,
-          tags: recipeData.tags || [],
-          difficulty: recipeData.difficulty || null,
-          cuisine: recipeData.cuisine || null,
-          dietaryTags: recipeData.dietaryTags || [],
-          leanRole:
-            ('leanInfo' in recipeData &&
-            recipeData.leanInfo &&
-            typeof recipeData.leanInfo === 'object' &&
-            'leanRole' in recipeData.leanInfo &&
-            typeof recipeData.leanInfo.leanRole === 'string'
-              ? recipeData.leanInfo.leanRole
-              : null) ||
-            ('lean_metrics' in recipeData &&
-            recipeData.lean_metrics &&
-            typeof recipeData.lean_metrics === 'object' &&
-            'lean_role' in recipeData.lean_metrics &&
-            typeof recipeData.lean_metrics.lean_role === 'string'
-              ? recipeData.lean_metrics.lean_role
-              : null),
-          isSystem: true,
-          isSecret: recipeData.isSecret || false, // Secret recipes only visible to MAIN admin
-          isPrivate: false, // System recipes are never private
-          organizationId: null,
-        } as const;
-
-        const recipe = await tx.recipe.create({
-          data: recipeDataInput,
-        });
-
-        await tx.ingredient.createMany({
-          data: recipeData.ingredients.map((ing) => ({
-            recipeId: recipe.id,
-            name: ing.name,
-            quantity: ing.quantity,
-            unit: ing.unit,
-            notes: ing.notes || null,
-          })),
-        });
-
-        await tx.instruction.createMany({
-          data: recipeData.instructions.map((inst) => ({
-            recipeId: recipe.id,
-            stepNumber: inst.stepNumber,
-            text: inst.text,
-          })),
-        });
+          imageUrls: [],
+          ingredients: { createMany: { data: toIngredientRows(recipe) } },
+          instructions: { createMany: { data: toInstructionRows(recipe) } },
+        },
       });
-      console.log(`  ✅ Recipe: ${recipeData.name}`);
-      seededCount++;
+      console.log(`  ✅ Recipe: ${recipe.name}`);
+    }
+
+    for (const name of plan.skipped) {
+      console.log(`  🚫 Skipping deleted recipe: ${name}`);
+    }
+
+    // Stale system recipes (renamed, deleted or no longer in the manifest) are removed
+    // unless a meal plan or template still uses them. The relation filters re-check
+    // usage at delete time.
+    const removed =
+      plan.remove.length > 0
+        ? await prisma.recipe.deleteMany({
+            where: {
+              id: { in: plan.remove },
+              isSystem: true,
+              mealPlanItems: { none: {} },
+              mealPlanTemplateItems: { none: {} },
+            },
+          })
+        : { count: 0 };
+    for (const stale of plan.keep) {
+      console.warn(
+        `  ⚠️  Kept stale system recipe still used ${stale.usage} time(s) in meal plans: ${stale.name}`
+      );
     }
 
     console.log(`\n📊 Recipe seeding summary:`);
-    console.log(`   ✅ Seeded: ${seededCount} recipes`);
-    console.log(`   🚫 Skipped (deleted): ${skippedCount} recipes`);
+    console.log(`   ✅ Created: ${plan.create.length} recipes`);
+    console.log(`   🔄 Updated: ${plan.update.length} recipes`);
+    console.log(`   🗑️  Removed (stale, unused): ${removed.count} recipes`);
+    console.log(`   ⚠️  Kept (stale, in use): ${plan.keep.length} recipes`);
+    console.log(`   🚫 Skipped (deleted): ${plan.skipped.length} recipes`);
     console.log(`   📝 Total in manifest: ${manifest.recipes.length} recipes`);
 
     // 4. Seed Routines

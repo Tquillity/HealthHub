@@ -103,7 +103,14 @@
         }
       ],
       "leanInfo": {
-        "leanRole": "Infrastructure"
+        "leanRole": "Infrastructure",
+        "activeTime": 35,
+        "passiveTime": 240,
+        "batchEfficiency": "High"
+      },
+      "yield": {
+        "amount": 36,
+        "unit": "frallor"
       }
     },
     {
@@ -218,7 +225,14 @@
         }
       ],
       "leanInfo": {
-        "leanRole": "Infrastructure"
+        "leanRole": "Infrastructure",
+        "activeTime": 15,
+        "passiveTime": 90,
+        "batchEfficiency": "Medium"
+      },
+      "yield": {
+        "amount": 1,
+        "unit": "plåt"
       }
     },
     {
@@ -302,7 +316,14 @@
         }
       ],
       "leanInfo": {
-        "leanRole": "Process"
+        "leanRole": "Process",
+        "activeTime": 10,
+        "passiveTime": 30,
+        "batchEfficiency": "Medium"
+      },
+      "yield": {
+        "amount": 2.5,
+        "unit": "dl"
       }
     },
     {
@@ -430,7 +451,14 @@
         }
       ],
       "leanInfo": {
-        "leanRole": "Process"
+        "leanRole": "Process",
+        "activeTime": 20,
+        "passiveTime": 0,
+        "batchEfficiency": "Medium"
+      },
+      "yield": {
+        "amount": 2.5,
+        "unit": "dl"
       }
     },
     {
@@ -525,7 +553,14 @@
         }
       ],
       "leanInfo": {
-        "leanRole": "Daily"
+        "leanRole": "Daily",
+        "activeTime": 25,
+        "passiveTime": 0,
+        "batchEfficiency": "Low"
+      },
+      "yield": {
+        "amount": 1,
+        "unit": "portion"
       }
     },
     {
@@ -656,7 +691,14 @@
         }
       ],
       "leanInfo": {
-        "leanRole": "Daily"
+        "leanRole": "Daily",
+        "activeTime": 40,
+        "passiveTime": 10,
+        "batchEfficiency": "Low"
+      },
+      "yield": {
+        "amount": 4,
+        "unit": "portioner"
       }
     },
     {
@@ -846,7 +888,14 @@
         }
       ],
       "leanInfo": {
-        "leanRole": "Daily"
+        "leanRole": "Daily",
+        "activeTime": 35,
+        "passiveTime": 30,
+        "batchEfficiency": "Medium"
+      },
+      "yield": {
+        "amount": 8,
+        "unit": "portioner"
       }
     },
     {
@@ -934,7 +983,14 @@
         }
       ],
       "leanInfo": {
-        "leanRole": "Daily"
+        "leanRole": "Daily",
+        "activeTime": 15,
+        "passiveTime": 0,
+        "batchEfficiency": "Low"
+      },
+      "yield": {
+        "amount": 2,
+        "unit": "pannkakor"
       }
     },
     {
@@ -1029,7 +1085,14 @@
         }
       ],
       "leanInfo": {
-        "leanRole": "Treat"
+        "leanRole": "Treat",
+        "activeTime": 20,
+        "passiveTime": 30,
+        "batchEfficiency": "Medium"
+      },
+      "yield": {
+        "amount": 12,
+        "unit": "kakor"
       }
     },
     {
@@ -1137,7 +1200,14 @@
         }
       ],
       "leanInfo": {
-        "leanRole": "Treat"
+        "leanRole": "Treat",
+        "activeTime": 25,
+        "passiveTime": 90,
+        "batchEfficiency": "Medium"
+      },
+      "yield": {
+        "amount": 1,
+        "unit": "cheesecake (16 cm)"
       }
     },
     {
@@ -1263,7 +1333,14 @@
         }
       ],
       "leanInfo": {
-        "leanRole": "Treat"
+        "leanRole": "Treat",
+        "activeTime": 45,
+        "passiveTime": 55,
+        "batchEfficiency": "Low"
+      },
+      "yield": {
+        "amount": 1,
+        "unit": "paj (25 cm)"
       }
     },
     {
@@ -1379,7 +1456,14 @@
         }
       ],
       "leanInfo": {
-        "leanRole": "Daily"
+        "leanRole": "Daily",
+        "activeTime": 25,
+        "passiveTime": 40,
+        "batchEfficiency": "Medium"
+      },
+      "yield": {
+        "amount": 4,
+        "unit": "portioner"
       }
     },
     {
@@ -1465,7 +1549,14 @@
         }
       ],
       "leanInfo": {
-        "leanRole": "Process"
+        "leanRole": "Process",
+        "activeTime": 35,
+        "passiveTime": 50,
+        "batchEfficiency": "Medium"
+      },
+      "yield": {
+        "amount": 1.4,
+        "unit": "kg"
       }
     },
     {
@@ -1582,7 +1673,14 @@
         }
       ],
       "leanInfo": {
-        "leanRole": "Process"
+        "leanRole": "Process",
+        "activeTime": 20,
+        "passiveTime": 20,
+        "batchEfficiency": "Medium"
+      },
+      "yield": {
+        "amount": 4,
+        "unit": "portioner"
       }
     },
     {
@@ -1660,7 +1758,14 @@
         }
       ],
       "leanInfo": {
-        "leanRole": "Process"
+        "leanRole": "Process",
+        "activeTime": 5,
+        "passiveTime": 0,
+        "batchEfficiency": "Medium"
+      },
+      "yield": {
+        "amount": 2,
+        "unit": "dl"
       }
     },
     {
@@ -1754,7 +1859,14 @@
         }
       ],
       "leanInfo": {
-        "leanRole": "Infrastructure"
+        "leanRole": "Infrastructure",
+        "activeTime": 15,
+        "passiveTime": 265,
+        "batchEfficiency": "Medium"
+      },
+      "yield": {
+        "amount": 1,
+        "unit": "limpa"
       }
     },
     {
@@ -1840,7 +1952,14 @@
         }
       ],
       "leanInfo": {
-        "leanRole": "Treat"
+        "leanRole": "Treat",
+        "activeTime": 15,
+        "passiveTime": 60,
+        "batchEfficiency": "High"
+      },
+      "yield": {
+        "amount": 20,
+        "unit": "praliner"
       }
     },
     {
@@ -2011,7 +2130,14 @@
         }
       ],
       "leanInfo": {
-        "leanRole": "Treat"
+        "leanRole": "Treat",
+        "activeTime": 35,
+        "passiveTime": 240,
+        "batchEfficiency": "Medium"
+      },
+      "yield": {
+        "amount": 1,
+        "unit": "tårta (20–24 cm)"
       }
     },
     {
@@ -2079,7 +2205,14 @@
         }
       ],
       "leanInfo": {
-        "leanRole": "Process"
+        "leanRole": "Process",
+        "activeTime": 2,
+        "passiveTime": 0,
+        "batchEfficiency": "High"
+      },
+      "yield": {
+        "amount": 5,
+        "unit": "msk"
       }
     },
     {
@@ -2193,7 +2326,14 @@
         }
       ],
       "leanInfo": {
-        "leanRole": "Treat"
+        "leanRole": "Treat",
+        "activeTime": 30,
+        "passiveTime": 60,
+        "batchEfficiency": "High"
+      },
+      "yield": {
+        "amount": 18,
+        "unit": "rutor"
       }
     },
     {
@@ -2351,7 +2491,14 @@
         }
       ],
       "leanInfo": {
-        "leanRole": "Daily"
+        "leanRole": "Daily",
+        "activeTime": 45,
+        "passiveTime": 600,
+        "batchEfficiency": "High"
+      },
+      "yield": {
+        "amount": 8,
+        "unit": "portioner"
       }
     },
     {
@@ -2453,7 +2600,14 @@
         }
       ],
       "leanInfo": {
-        "leanRole": "Infrastructure"
+        "leanRole": "Infrastructure",
+        "activeTime": 30,
+        "passiveTime": 720,
+        "batchEfficiency": "Medium"
+      },
+      "yield": {
+        "amount": 8,
+        "unit": "bröd"
       }
     }
   ],

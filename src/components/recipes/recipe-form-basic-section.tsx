@@ -265,25 +265,6 @@ export function RecipeFormBasicSection({
           </select>
         </div>
 
-        <div>
-          <label htmlFor="recipe-lean-role" className="block text-sm font-medium text-gray-700 mb-2">
-            Lean Role
-          </label>
-          <select
-            id="recipe-lean-role"
-            name="recipe-lean-role"
-            value={formData.leanRole}
-            onChange={(e) => setFormData({ ...formData, leanRole: e.target.value })}
-            className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
-          >
-            <option value="">Select lean role</option>
-            <option value="Infrastructure">Infrastructure</option>
-            <option value="Process">Process</option>
-            <option value="Daily">Daily</option>
-            <option value="Treat">Treat</option>
-          </select>
-        </div>
-
         <div className="flex items-center gap-2">
           <input
             type="checkbox"
