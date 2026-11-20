@@ -7,12 +7,14 @@ import { DashboardFocusGoal } from '@/components/dashboard/dashboard-focus-goal'
 import { DashboardStats } from '@/components/dashboard/dashboard-stats';
 import { DashboardRecentRoutines } from '@/components/dashboard/dashboard-recent-routines';
 import {
+  DailyBriefingSkeleton,
   DashboardStatsSkeleton,
   FocusGoalSkeleton,
   RecentRoutinesSkeleton,
   VitalsCardSkeleton,
 } from '@/components/dashboard/dashboard-skeletons';
 import { VitalsCard } from '@/components/dashboard/vitals-card';
+import { DailyBriefingCard } from '@/components/dashboard/daily-briefing-card';
 
 /**
  * The shell (greeting, quick actions, today's tip) needs only the session, so it renders at once.
@@ -39,6 +41,10 @@ export default async function DashboardPage() {
             Ready to take care of your health and wellness today?
           </p>
         </div>
+
+        <Suspense fallback={<DailyBriefingSkeleton />}>
+          <DailyBriefingCard userId={userId} />
+        </Suspense>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-1 flex flex-col gap-6">

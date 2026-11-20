@@ -45,6 +45,7 @@ import {
   getOvulationDay,
 } from '@/lib/cycle-calculator';
 import { generateHormoneCurves } from '@/lib/hormone-math';
+import { typicalEnergyForCycleDay } from '@/lib/cycle-energy';
 import { useQueryState } from 'nuqs';
 import { parseAsString } from 'nuqs';
 import { useRouter } from 'next/navigation';
@@ -103,49 +104,14 @@ const PHASE_NAMES: Record<CyclePhase, string> = {
 
 /**
  * Generate intensity/energy data for the cycle
- * This represents typical energy levels throughout the cycle
+ * This represents typical energy levels throughout the cycle (lib/cycle-energy):
+ * Menstrual: lower (3-4), Follicular: rising (4-7), Ovulation: peak (8-10),
+ * Luteal: declining (8.5-3.5).
  */
 function generateEnergyData(cycleLength: number, currentDay: number) {
   return Array.from({ length: cycleLength }, (_, i) => {
     const day = i + 1;
-
-    // Calculate intensity based on phase
-    // Menstrual: Lower energy (2-4)
-    // Follicular: Rising energy (4-7)
-    // Ovulation: Peak energy (8-10)
-    // Luteal: Declining energy (6-3)
-    let intensity = 5;
-
-    if (day <= PHASE_LENGTHS.MENSTRUAL) {
-      // Menstrual phase: low energy
-      intensity = 3 + (day / PHASE_LENGTHS.MENSTRUAL) * 1;
-    } else if (day <= PHASE_LENGTHS.MENSTRUAL + PHASE_LENGTHS.FOLLICULAR) {
-      // Follicular phase: rising energy
-      const follicularDay = day - PHASE_LENGTHS.MENSTRUAL;
-      intensity = 4 + (follicularDay / PHASE_LENGTHS.FOLLICULAR) * 3;
-    } else if (
-      day <=
-      PHASE_LENGTHS.MENSTRUAL +
-        PHASE_LENGTHS.FOLLICULAR +
-        PHASE_LENGTHS.OVULATION
-    ) {
-      // Ovulation phase: peak energy
-      intensity =
-        8 + (day - PHASE_LENGTHS.MENSTRUAL - PHASE_LENGTHS.FOLLICULAR) * 0.5;
-    } else {
-      // Luteal phase: declining energy
-      const lutealDay =
-        day -
-        PHASE_LENGTHS.MENSTRUAL -
-        PHASE_LENGTHS.FOLLICULAR -
-        PHASE_LENGTHS.OVULATION;
-      const lutealLength =
-        cycleLength -
-        PHASE_LENGTHS.MENSTRUAL -
-        PHASE_LENGTHS.FOLLICULAR -
-        PHASE_LENGTHS.OVULATION;
-      intensity = 8.5 - (lutealDay / lutealLength) * 5;
-    }
+    const intensity = typicalEnergyForCycleDay(day, cycleLength);
 
     return {
       day,

@@ -36,6 +36,16 @@ try {
     },
     update: { userId: user.id },
   });
+  // The daily briefing starts from the defaults: shown every day, no feedback yet.
+  await prisma.briefingFeedback.deleteMany({ where: { userId: user.id } });
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      briefingFrequency: 'daily',
+      briefingSources: ['journal', 'cycle', 'meals', 'vitals'],
+      briefingDetail: 'brief',
+    },
+  });
   for (const recipe of [
     {
       id: 'hh-e2e-visibility',
