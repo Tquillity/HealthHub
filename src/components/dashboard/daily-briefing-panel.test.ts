@@ -202,6 +202,13 @@ describe('DailyBriefingPanel: focus and announcements', () => {
     expect(findTagById(html, 'p-dismiss-routine.ease-intensity')).toMatch(/^<button /);
   });
 
+  it('titles the card h2 and its suggestions h3, below the dashboard h1', () => {
+    const html = render(briefing);
+    expect(html).not.toMatch(/<h1[\s>]/);
+    expect(html).toMatch(/<h2 [^>]*>Your daily briefing<\/h2>/);
+    expect(html.match(/<h3 /g)).toHaveLength(briefing.suggestions.length);
+  });
+
   it('has one status region outside the card, kept for every state', () => {
     const html = render(briefing);
     expect(html.match(/role="status"/g)).toHaveLength(1);
