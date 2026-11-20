@@ -17,6 +17,7 @@ describe.skipIf(!isolated)(
     const userId = `stripe-test-${randomUUID()}`;
     const eventId = `evt-${randomUUID()}`;
     const failedEventId = `evt-${randomUUID()}`;
+    const deletedUserEventId = `evt-${randomUUID()}`;
     let pool: Pool;
     let client: PrismaClient;
     let processStripeEvent: (typeof import('./stripe-webhook'))['processStripeEvent'];
@@ -36,7 +37,9 @@ describe.skipIf(!isolated)(
 
     afterAll(async () => {
       await client.stripeWebhookEvent.deleteMany({
-        where: { eventId: { in: [eventId, failedEventId] } },
+        where: {
+          eventId: { in: [eventId, failedEventId, deletedUserEventId] },
+        },
       });
       await client.user.delete({ where: { id: userId } });
       await client.$disconnect();
@@ -66,8 +69,8 @@ describe.skipIf(!isolated)(
     it('rolls back the event claim when premium persistence fails', async () => {
       await expect(
         processStripeEvent(
-          { id: failedEventId, type: 'customer.subscription.deleted' },
-          { userId: 'missing-fixture-user', isPremium: false }
+          { id: failedEventId, type: 'checkout.session.completed' },
+          { userId: 'missing-fixture-user', isPremium: true }
         )
       ).rejects.toThrow();
       expect(
@@ -75,6 +78,20 @@ describe.skipIf(!isolated)(
           where: { eventId: failedEventId },
         })
       ).toBe(0);
+    });
+
+    it('accepts a cancellation for a user who has deleted their account', async () => {
+      await expect(
+        processStripeEvent(
+          { id: deletedUserEventId, type: 'customer.subscription.deleted' },
+          { userId: 'missing-fixture-user', isPremium: false }
+        )
+      ).resolves.toEqual({ duplicate: false });
+      expect(
+        await client.stripeWebhookEvent.count({
+          where: { eventId: deletedUserEventId },
+        })
+      ).toBe(1);
     });
   }
 );
