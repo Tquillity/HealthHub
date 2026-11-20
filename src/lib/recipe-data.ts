@@ -41,7 +41,10 @@ export async function queryRecipes(
   }
 
   if (category) {
-    filterConditions.push({ category });
+    // Case-insensitive, like the client-side filter in recipes-client.tsx.
+    filterConditions.push({
+      category: { equals: category, mode: 'insensitive' },
+    });
   }
 
   if (difficulty) {

@@ -1,6 +1,7 @@
 // src/lib/auth.ts
 import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
+import { beforeAccountDeletion } from '@/lib/account-deletion';
 import { organization } from 'better-auth/plugins';
 import { prisma } from '@/lib/db';
 import { ensurePersonalHousehold } from '@/lib/household';
@@ -36,6 +37,14 @@ export const auth = betterAuth({
       // The proxy calls this read-only endpoint on navigation. Those requests
       // share the server IP and must not turn valid sessions into sign-in redirects.
       '/get-session': false,
+    },
+  },
+  user: {
+    // Profile > Delete account. Needs the password, or a sign-in from the last 24 hours
+    // for accounts without one. See src/lib/account-deletion.ts for what is removed.
+    deleteUser: {
+      enabled: true,
+      beforeDelete: beforeAccountDeletion,
     },
   },
   databaseHooks: {

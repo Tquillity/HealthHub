@@ -36,11 +36,11 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
-      testMatch: /smoke\.spec\.ts/,
+      testMatch: /(smoke|account-deletion)\.spec\.ts/,
     },
     {
       name: 'authenticated',
-      testMatch: /authenticated\.spec\.ts/,
+      testMatch: /(authenticated|account-export)\.spec\.ts/,
       dependencies: ['setup'],
       use: {
         ...devices['Desktop Chrome'],
