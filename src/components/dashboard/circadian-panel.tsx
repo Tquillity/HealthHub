@@ -109,7 +109,10 @@ export function EnergyRatingButtons({
       role="group"
       aria-labelledby={labelledBy}
       aria-describedby={describedBy}
-      className="grid grid-cols-5 gap-2 sm:grid-cols-10"
+      // Ten 44px buttons in a row need 512px. The card is narrower than that up to xl
+      // (beside the sidebar and the dashboard's left column), so two rows of five until
+      // then; gap-1 keeps five in a row on a 320px phone.
+      className="grid grid-cols-5 gap-1 sm:gap-2 xl:grid-cols-10"
     >
       {RATINGS.map((rating) => (
         <button

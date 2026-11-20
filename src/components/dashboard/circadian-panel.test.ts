@@ -51,6 +51,27 @@ describe('CircadianPanel energy check-in', () => {
     expect(buttons[6].text).toBe('…');
   });
 
+  it('puts all ten ratings in one row only where 44px buttons fit', () => {
+    const html = renderToStaticMarkup(
+      createElement(EnergyRatingButtons, {
+        selected: null,
+        saving: null,
+        onRate: () => {},
+        labelledBy: 'legend',
+        describedBy: 'hint',
+      })
+    );
+    const classes =
+      html.match(/<div role="group"[^>]*class="([^"]+)"/)?.[1].split(' ') ?? [];
+    // Five per row on phones and beside the sidebar: the card is under 512px wide
+    // there (10 × 44px + 9 gaps). Ten in a row from xl, where the card is wider.
+    expect(classes).toContain('grid-cols-5');
+    expect(classes).toContain('gap-1');
+    expect(classes.filter((c) => c.endsWith('grid-cols-10'))).toEqual([
+      'xl:grid-cols-10',
+    ]);
+  });
+
   it('is not marked busy when nothing is saving', () => {
     const html = renderToStaticMarkup(
       createElement(EnergyRatingButtons, {
