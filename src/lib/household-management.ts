@@ -23,6 +23,8 @@ import {
   invitationExpiry,
   normalizeEmail,
 } from '@/lib/invitations';
+import { createPersonalHousehold } from '@/lib/household';
+import { lockOrganizationMembers, lockUserMemberships } from '@/lib/membership-locks';
 import { generateInvitationId, generateRecordId } from '@/lib/record-ids';
 
 /**
@@ -37,6 +39,16 @@ export type Result<T> = { ok: true; data: T } | { ok: false; error: string };
 
 const fail = <T>(error: string): Result<T> => ({ ok: false, error });
 
+/**
+ * A role or membership changed between our checks and the write (another tab, another owner
+ * or admin acting at the same moment). Writes are conditional on what was checked, so nothing
+ * was changed; reloading shows the current state.
+ */
+export const MEMBERSHIP_CHANGED_ERROR =
+  'Something changed in this space just now. Reload the page and try again.';
+
+class MembershipChangedError extends Error {}
+
 /** Journal entries a person shared with an organization stop being shared when they leave it. */
 async function unshareJournalEntries(
   tx: Pick<typeof prisma, 'journalEntry'>,
@@ -49,8 +61,11 @@ async function unshareJournalEntries(
   });
 }
 
-async function countOwners(organizationId: string): Promise<number> {
-  const members = await prisma.member.findMany({
+async function countOwners(
+  tx: Pick<typeof prisma, 'member'>,
+  organizationId: string
+): Promise<number> {
+  const members = await tx.member.findMany({
     where: { organizationId },
     select: { role: true },
   });
@@ -406,19 +421,22 @@ export async function acceptInvitation(
       data: { status: 'accepted' },
     });
     if (updated.count === 0) return false;
-    const existing = await tx.member.findFirst({
-      where: { userId, organizationId: invitation.organizationId },
-      select: { id: true },
+    // Someone who is already a member keeps their membership and role. The unique
+    // (organizationId, userId) index makes a second accept running at the same time wait and
+    // then skip, instead of adding a second row.
+    const joined = await tx.member.createMany({
+      data: {
+        id: generateRecordId('mem'),
+        organizationId: invitation.organizationId,
+        userId,
+        role,
+      },
+      skipDuplicates: true,
     });
-    if (!existing) {
-      await tx.member.create({
-        data: {
-          id: generateRecordId('mem'),
-          organizationId: invitation.organizationId,
-          userId,
-          role,
-        },
-      });
+    if (joined.count > 0) {
+      // A new membership starts with nothing shared. A share that raced an earlier removal or
+      // leave would otherwise reappear in the group's feed without being shared again.
+      await unshareJournalEntries(tx, userId, invitation.organizationId);
     }
     return true;
   });
@@ -474,7 +492,13 @@ export async function updateMemberRole(
     newRole,
   });
   if (!check.ok) return fail(check.error);
-  await prisma.member.update({ where: { id: target.id }, data: { role: newRole } });
+  // Only while the target still has the role checked above. Postgres re-checks the condition
+  // after waiting for a concurrent transfer, so a member who just became owner keeps it.
+  const updated = await prisma.member.updateMany({
+    where: { id: target.id, role: target.role },
+    data: { role: newRole },
+  });
+  if (updated.count === 0) return fail(MEMBERSHIP_CHANGED_ERROR);
   return { ok: true, data: { organizationId: target.organizationId } };
 }
 
@@ -485,21 +509,42 @@ export async function transferOwnership(
 ): Promise<Result<{ organizationId: string }>> {
   const target = await loadTargetMember(memberId);
   if (!target) return fail('Member not found');
-  const actor = await getMembershipIn(userId, target.organizationId);
+  const actor = await prisma.member.findFirst({
+    where: { userId, organizationId: target.organizationId },
+    select: { id: true, role: true },
+  });
   if (!actor) return fail('Member not found');
   const check = checkOwnershipTransfer({
-    actorRole: actor.role,
+    actorRole: parseOrgRole(actor.role),
     actorIsTarget: target.userId === userId,
   });
   if (!check.ok) return fail(check.error);
-  await prisma.$transaction([
-    prisma.member.update({ where: { id: target.id }, data: { role: 'owner' } }),
-    prisma.member.update({ where: { id: actor.memberId }, data: { role: 'admin' } }),
-  ]);
+  try {
+    await prisma.$transaction(async (tx) => {
+      // Both writes apply only to the roles checked above. If either changed in the meantime
+      // (a second transfer, a role change, a removal), the transaction rolls back.
+      const demoted = await tx.member.updateMany({
+        where: { id: actor.id, role: actor.role },
+        data: { role: 'admin' },
+      });
+      if (demoted.count === 0) throw new MembershipChangedError();
+      const promoted = await tx.member.updateMany({
+        where: { id: target.id, role: target.role },
+        data: { role: 'owner' },
+      });
+      if (promoted.count === 0) throw new MembershipChangedError();
+    });
+  } catch (error) {
+    if (error instanceof MembershipChangedError) return fail(MEMBERSHIP_CHANGED_ERROR);
+    throw error;
+  }
   return { ok: true, data: { organizationId: target.organizationId } };
 }
 
-/** Remove someone from an organization. Owners only; owners themselves cannot be removed. */
+/**
+ * Remove someone from an organization. Owners only; owners themselves cannot be removed.
+ * Someone removed from their only space gets a new household of their own.
+ */
 export async function removeMember(
   userId: string,
   memberId: string
@@ -514,10 +559,27 @@ export async function removeMember(
     targetRole: parseOrgRole(target.role),
   });
   if (!check.ok) return fail(check.error);
-  await prisma.$transaction(async (tx) => {
-    await tx.member.delete({ where: { id: target.id } });
+  const removed = await prisma.$transaction(async (tx) => {
+    // Waits for the target leaving another space at the same time, so the count below holds.
+    await lockUserMemberships(tx, target.userId);
+    // Only while the target still has the role checked above: someone who just became owner
+    // through a concurrent transfer is not removed.
+    const deleted = await tx.member.deleteMany({ where: { id: target.id, role: target.role } });
+    if (deleted.count === 0) return false;
     await unshareJournalEntries(tx, target.userId, target.organizationId);
+    // Nobody is left without a space: someone removed from their last one gets a new, empty
+    // household of their own, never their old personal household (it may be someone else's now).
+    const remaining = await tx.member.count({ where: { userId: target.userId } });
+    if (remaining === 0) {
+      const removedUser = await tx.user.findUnique({
+        where: { id: target.userId },
+        select: { id: true, name: true },
+      });
+      if (removedUser) await createPersonalHousehold(tx, removedUser);
+    }
+    return true;
   });
+  if (!removed) return fail(MEMBERSHIP_CHANGED_ERROR);
   return {
     ok: true,
     data: { organizationId: target.organizationId, removedUserId: target.userId },
@@ -531,17 +593,31 @@ export async function leaveOrganization(
 ): Promise<Result<{ organizationId: string }>> {
   const membership = await getMembershipIn(userId, organizationId);
   if (!membership) return fail('You are not a member of this space.');
-  const [ownerCount, membershipCount] = await Promise.all([
-    countOwners(organizationId),
-    prisma.member.count({ where: { userId } }),
-  ]);
-  const check = checkLeave({ role: membership.role, ownerCount, membershipCount });
-  if (!check.ok) return fail(check.error);
-  await prisma.$transaction(async (tx) => {
-    await tx.member.deleteMany({ where: { userId, organizationId } });
+  return prisma.$transaction(async (tx): Promise<Result<{ organizationId: string }>> => {
+    // The checks run under the user's and the organization's lock, in the transaction that
+    // deletes. Two leaves at once (two tabs, or two owners) then see each other's result, so
+    // nobody is left without a space and no organization is left without an owner.
+    await lockUserMemberships(tx, userId);
+    await lockOrganizationMembers(tx, organizationId);
+    const own = await tx.member.findUnique({
+      where: { organizationId_userId: { organizationId, userId } },
+      select: { id: true, role: true },
+    });
+    if (!own) return fail('You are not a member of this space.');
+    const ownerCount = await countOwners(tx, organizationId);
+    const membershipCount = await tx.member.count({ where: { userId } });
+    const check = checkLeave({
+      role: parseOrgRole(own.role) ?? 'viewer',
+      ownerCount,
+      membershipCount,
+    });
+    if (!check.ok) return fail(check.error);
+    // Only while the role is the one checked: someone just made owner must transfer first.
+    const deleted = await tx.member.deleteMany({ where: { id: own.id, role: own.role } });
+    if (deleted.count === 0) return fail(MEMBERSHIP_CHANGED_ERROR);
     await unshareJournalEntries(tx, userId, organizationId);
+    return { ok: true, data: { organizationId } };
   });
-  return { ok: true, data: { organizationId } };
 }
 
 function slugify(name: string): string {

@@ -67,13 +67,26 @@ export async function setJournalEntrySharing(
     }
   }
 
-  const updated = await prisma.journalEntry.update({
-    where: { id: entry.id },
-    data: organizationId
-      ? { visibility: 'ORGANIZATION', sharedOrganizationId: organizationId }
-      : { visibility: 'PRIVATE', sharedOrganizationId: null },
-    select: { visibility: true, sharedOrganizationId: true },
+  const updated = await prisma.$transaction(async (tx) => {
+    if (organizationId) {
+      // Hold the membership until the share is written. A removal or leave running now either
+      // waits for this commit and then unshares the entry, or has already deleted the row and
+      // the share fails here, so no share outlives the membership.
+      const locked = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT "id" FROM "member"
+        WHERE "userId" = ${userId} AND "organizationId" = ${organizationId}
+        FOR SHARE`;
+      if (locked.length === 0) return null;
+    }
+    return tx.journalEntry.update({
+      where: { id: entry.id },
+      data: organizationId
+        ? { visibility: 'ORGANIZATION', sharedOrganizationId: organizationId }
+        : { visibility: 'PRIVATE', sharedOrganizationId: null },
+      select: { visibility: true, sharedOrganizationId: true },
+    });
   });
+  if (!updated) return { ok: false, error: 'You are not a member of that space.' };
   return { ok: true, data: updated };
 }
 
