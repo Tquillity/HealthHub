@@ -251,7 +251,17 @@ export function DailyBriefingPanel({
   );
   const [hidden, setHidden] = useState(false);
   const [gone, setGone] = useState(false);
-  const [busyKey, setBusyKey] = useState<string | null>(null);
+  // Requests in flight: a suggestion key, 'card' (hide or undo) or 'refresh'. Each is
+  // tracked on its own, so one request finishing does not unlock another still running.
+  const [busyKeys, setBusyKeys] = useState<ReadonlySet<string>>(() => new Set());
+  const startBusy = (key: string) =>
+    setBusyKeys((current) => new Set(current).add(key));
+  const endBusy = (key: string) =>
+    setBusyKeys((current) => {
+      const next = new Set(current);
+      next.delete(key);
+      return next;
+    });
   const [status, setStatus] = useState('');
 
   // Hiding, undoing and dismissing replace the control that had focus. The element to
@@ -297,19 +307,19 @@ export function DailyBriefingPanel({
     suggestion: BriefingSuggestion,
     rating: SuggestionRating
   ) => {
-    if (busyKey === suggestion.key) return;
+    if (busyKeys.has(suggestion.key)) return;
     const previous =
       local.date === briefing.date ? local.ratings[suggestion.key] : undefined;
     // Pressing the selected rating again clears it.
     const next = suggestion.rating === rating ? null : rating;
     setLocalRating(suggestion.key, next);
-    setBusyKey(suggestion.key);
+    startBusy(suggestion.key);
     const result = await rateBriefingSuggestion({
       date: briefing.date,
       key: suggestion.key,
       rating: next,
     });
-    setBusyKey(null);
+    endBusy(suggestion.key);
     if (result.success) {
       setStatus(
         next === null
@@ -326,7 +336,7 @@ export function DailyBriefingPanel({
   };
 
   const dismissOne = async (suggestion: BriefingSuggestion) => {
-    if (busyKey === suggestion.key) return;
+    if (busyKeys.has(suggestion.key)) return;
     // Focus the suggestion that takes its place (or the one before, or the empty note).
     const next = focusAfterDismiss(
       suggestions.map((s) => s.key),
@@ -334,12 +344,12 @@ export function DailyBriefingPanel({
     );
     moveFocusTo(next ? suggestionTitleId(id, next) : emptyId);
     setLocalDismissed(suggestion.key, true);
-    setBusyKey(suggestion.key);
+    startBusy(suggestion.key);
     const result = await dismissBriefingSuggestion({
       date: briefing.date,
       key: suggestion.key,
     });
-    setBusyKey(null);
+    endBusy(suggestion.key);
     if (result.success) {
       setStatus(`"${suggestion.title}" hidden for today.`);
     } else {
@@ -351,12 +361,12 @@ export function DailyBriefingPanel({
   };
 
   const hideCard = async () => {
-    if (busyKey !== null) return;
+    if (busyKeys.size > 0) return;
     setHidden(true);
     moveFocusTo(undoId);
-    setBusyKey('card');
+    startBusy('card');
     const result = await dismissDailyBriefing(briefing.date);
-    setBusyKey(null);
+    endBusy('card');
     if (result.success) {
       setStatus("Today's briefing is hidden.");
     } else {
@@ -368,10 +378,10 @@ export function DailyBriefingPanel({
   };
 
   const undoHide = async () => {
-    if (busyKey !== null) return;
-    setBusyKey('card');
+    if (busyKeys.size > 0) return;
+    startBusy('card');
     const result = await restoreDailyBriefing(briefing.date);
-    setBusyKey(null);
+    endBusy('card');
     if (result.success) {
       setHidden(false);
       moveFocusTo(hideId);
@@ -383,11 +393,11 @@ export function DailyBriefingPanel({
   };
 
   const refresh = async () => {
-    if (busyKey !== null) return;
-    setBusyKey('refresh');
+    if (busyKeys.size > 0) return;
+    startBusy('refresh');
     // The server picks the day (profile timezone), as it did for the page itself.
     const result = await generateDailyBriefing();
-    setBusyKey(null);
+    endBusy('refresh');
     if (!result.success) {
       setStatus(result.error);
       showToast(result.error, 'error');
@@ -408,7 +418,7 @@ export function DailyBriefingPanel({
     }
   };
 
-  const busy = busyKey !== null;
+  const busy = busyKeys.size > 0;
   // One live region for every state of the card, so a change of state (hidden, back,
   // updated) is announced: a region mounted together with its text usually is not.
   const withStatus = (content: ReactNode) => (
@@ -534,7 +544,7 @@ export function DailyBriefingPanel({
                 <RefreshCw
                   className={cn(
                     'h-4 w-4',
-                    busyKey === 'refresh' && 'animate-spin'
+                    busyKeys.has('refresh') && 'animate-spin'
                   )}
                   aria-hidden="true"
                 />
@@ -581,7 +591,7 @@ export function DailyBriefingPanel({
                   suggestion={suggestion}
                   idPrefix={id}
                   expanded={expanded}
-                  busy={busyKey === suggestion.key}
+                  busy={busyKeys.has(suggestion.key)}
                   onRate={(rating) => void rate(suggestion, rating)}
                   onDismiss={() => void dismissOne(suggestion)}
                 />
