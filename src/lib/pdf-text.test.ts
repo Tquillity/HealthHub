@@ -62,6 +62,12 @@ describe('toPdfText', () => {
   });
 
   it('composes decomposed letters first', () => {
-    expect(toPdfText('ä')).toBe('ä');
+    // Escaped so an editor cannot compose the input: "a" + combining diaeresis.
+    expect(toPdfText('a\u0308')).toBe('\u00e4');
+    expect(toPdfText('a\u030Angest, e\u0301t\u00e9')).toBe(
+      '\u00e5ngest, \u00e9t\u00e9'
+    );
+    // No precomposed WinAnsi letter: falls back to the base letter.
+    expect(toPdfText('o\u030B')).toBe('o');
   });
 });

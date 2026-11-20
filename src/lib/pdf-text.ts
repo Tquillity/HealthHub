@@ -17,10 +17,11 @@ export const UNPRINTABLE_TEXT = '[…]';
 
 /**
  * Emoji and their parts: pictographs, flags (regional indicator pairs and tag
- * sequences), skin tones, joiners, variation selectors and keycaps.
+ * sequences), skin tones, the zero-width joiner, keycaps and variation selectors.
+ * Invisible characters are written as escapes so they stay reviewable.
  */
 export const EMOJI_PART =
-  /[\p{Extended_Pictographic}\p{Regional_Indicator}\u{1F3FB}-\u{1F3FF}\u{E0020}-\u{E007F}]|‍|⃣|︎|️/u;
+  /[\p{Extended_Pictographic}\p{Regional_Indicator}\u{1F3FB}-\u{1F3FF}\u{E0020}-\u{E007F}]|\u200D|\u20E3|\uFE0E|\uFE0F/u;
 
 /** The WinAnsi characters outside Latin-1 (code points 0x80-0x9F in Windows-1252). */
 const WIN_ANSI_EXTRAS = new Set(
