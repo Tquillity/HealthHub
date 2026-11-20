@@ -47,6 +47,7 @@ export default async function JournalPage({ searchParams }: JournalPageProps) {
     gratitudeNotes: decrypt(entry.gratitudeNotes),
     goalsNotes: decrypt(entry.goalsNotes),
     symptomsNotes: decrypt(entry.symptomsNotes),
+    cervicalMucus: decrypt(entry.cervicalMucus),
     gratitudeEntries: decryptArray(entry.gratitudeEntries),
     goalsAchieved: decryptArray(entry.goalsAchieved),
     goalsProgress: decryptArray(entry.goalsProgress),

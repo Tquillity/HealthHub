@@ -24,6 +24,11 @@ interface ProfileClientProps {
   };
 }
 
+/** Stored date-only ISO string → `YYYY-MM-DD` for a date input ('' when unset). */
+function dateInputValue(value: string | null | undefined): string {
+  return value ? new Date(value).toISOString().split('T')[0] : '';
+}
+
 export function ProfileClient({ profile: initialProfile }: ProfileClientProps) {
   const showToast = useUIStore((state) => state.showToast);
   const [profile, setProfile] = useState(initialProfile);
@@ -38,9 +43,7 @@ export function ProfileClient({ profile: initialProfile }: ProfileClientProps) {
     timezone: profile.timezone || 'UTC',
     enableCycleTracking: profile.enableCycleTracking ?? false,
     cycleLength: profile.cycleLength ?? 28,
-    lastPeriodDate: profile.lastPeriodDate
-      ? new Date(profile.lastPeriodDate).toISOString().split('T')[0]
-      : '',
+    lastPeriodDate: dateInputValue(profile.lastPeriodDate),
     focusPreference: profile.focusPreference || 'both',
   });
 
@@ -68,7 +71,12 @@ export function ProfileClient({ profile: initialProfile }: ProfileClientProps) {
       enableCycleTracking: formData.enableCycleTracking,
       cycleLength: formData.cycleLength,
       // Date input value is already YYYY-MM-DD; the action stores it as UTC midnight.
-      lastPeriodDate: formData.lastPeriodDate || null,
+      // Sent only when changed, so saving other fields from an older page never
+      // rewrites period starts logged on the cycle page in the meantime.
+      lastPeriodDate:
+        formData.lastPeriodDate === dateInputValue(profile.lastPeriodDate)
+          ? undefined
+          : formData.lastPeriodDate || null,
       focusPreference: formData.focusPreference as
         | 'hormonal'
         | 'workout'
@@ -77,6 +85,12 @@ export function ProfileClient({ profile: initialProfile }: ProfileClientProps) {
 
     if (result.success && result.data) {
       setProfile(result.data);
+      // The latest logged period start can differ from what was typed (see help text).
+      const savedLastPeriodDate = dateInputValue(result.data.lastPeriodDate);
+      setFormData((current) => ({
+        ...current,
+        lastPeriodDate: savedLastPeriodDate,
+      }));
       setSuccess(true);
       showToast('Profile updated successfully!', 'success');
       setTimeout(() => setSuccess(false), 3000);
@@ -287,7 +301,9 @@ export function ProfileClient({ profile: initialProfile }: ProfileClientProps) {
                 }
               />
               <p className="mt-1 text-xs text-gray-500">
-                The first day of your last menstrual period
+                The first day of your last menstrual period. Choosing an
+                earlier date corrects your latest logged start. You can also
+                log periods and remove mistakes on the Cycle page.
               </p>
             </div>
 
