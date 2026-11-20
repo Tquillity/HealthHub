@@ -36,6 +36,7 @@ describe.skipIf(!isolated)('account export against isolated PostgreSQL', () => {
         briefingFrequency: 'weekly',
         briefingSources: ['journal', 'meals'],
         briefingDetail: 'detailed',
+        enableCircadianInsights: true,
         periodStarts: {
           create: [
             { date: new Date('2026-02-01T00:00:00Z') },
@@ -104,6 +105,9 @@ describe.skipIf(!isolated)('account export against isolated PostgreSQL', () => {
         restingHeartRate: 58,
         heartRateVariability: 61.5,
         sleepQuality: 8,
+        energyMorning: 9,
+        energyAfternoon: 5,
+        energyEvening: 3,
       },
     });
     await client.briefingFeedback.createMany({
@@ -151,6 +155,7 @@ describe.skipIf(!isolated)('account export against isolated PostgreSQL', () => {
       briefingFrequency: 'weekly',
       briefingSources: ['journal', 'meals'],
       briefingDetail: 'detailed',
+      enableCircadianInsights: true,
     });
     // Suggestion keys are stored encrypted and exported in clear; only this user's rows.
     expect(data.briefingFeedback).toEqual([
@@ -188,6 +193,9 @@ describe.skipIf(!isolated)('account export against isolated PostgreSQL', () => {
         restingHeartRate: 58,
         heartRateVariability: 61.5,
         sleepQuality: 8,
+        energyMorning: 9,
+        energyAfternoon: 5,
+        energyEvening: 3,
       }),
     ]);
 

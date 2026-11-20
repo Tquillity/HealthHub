@@ -46,6 +46,7 @@ export async function buildAccountExport(userId: string) {
       briefingFrequency: true,
       briefingSources: true,
       briefingDetail: true,
+      enableCircadianInsights: true,
     },
   });
 
@@ -247,6 +248,10 @@ export async function buildAccountExport(userId: string) {
       restingHeartRate: entry.restingHeartRate,
       heartRateVariability: entry.heartRateVariability,
       sleepQuality: entry.sleepQuality,
+      // Energy check-ins by time of day (circadian insights), 1-10.
+      energyMorning: entry.energyMorning,
+      energyAfternoon: entry.energyAfternoon,
+      energyEvening: entry.energyEvening,
       createdAt: entry.createdAt,
       updatedAt: entry.updatedAt,
     })),
