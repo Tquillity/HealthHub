@@ -18,9 +18,11 @@ export interface ParsedIngredient {
  * - "A (eller B)" (parenthetical)
  * - "A (or B)" (parenthetical)
  */
-export function parseIngredientAlternatives(ingredientName: string): ParsedIngredient {
+export function parseIngredientAlternatives(
+  ingredientName: string
+): ParsedIngredient {
   const originalText = ingredientName.trim();
-  
+
   // Pattern 1: "A eller B" or "A or B" (main pattern)
   const ellerPattern = /^(.+?)\s+(?:eller|or)\s+(.+)$/i;
   const ellerMatch = originalText.match(ellerPattern);
@@ -77,13 +79,37 @@ export function parseIngredientAlternatives(ingredientName: string): ParsedIngre
  * Generate a normalized pattern key for matching user preferences
  * This creates a consistent key regardless of order: "smör eller kokosolja" = "kokosolja eller smör"
  */
-export function normalizePatternKey(ingredientName: string, alternatives: string[]): string {
+export function normalizePatternKey(
+  ingredientName: string,
+  alternatives: string[]
+): string {
   const allOptions = [ingredientName, ...alternatives]
-    .map(opt => opt.toLowerCase().trim())
+    .map((opt) => opt.toLowerCase().trim())
     .sort()
     .join(' eller ');
-  
+
   return allOptions;
+}
+
+/**
+ * Pick the ingredient to use from its alternatives, given the user's saved
+ * preferences (pattern key → preferred option). Pure; the caller loads the
+ * preferences once per request. Falls back to `ingredientName`.
+ */
+export function resolveIngredientChoiceFromPreferences(
+  preferences: ReadonlyMap<string, string>,
+  ingredientName: string,
+  alternatives: string[]
+): string {
+  if (alternatives.length === 0) return ingredientName;
+
+  const preferred = preferences.get(
+    normalizePatternKey(ingredientName, alternatives)
+  );
+  if (preferred && [ingredientName, ...alternatives].includes(preferred)) {
+    return preferred;
+  }
+  return ingredientName;
 }
 
 /**
@@ -97,14 +123,19 @@ export function hasAlternatives(ingredientName: string): boolean {
 /**
  * Get the default choice (first option) from alternatives
  */
-export function getDefaultChoice(ingredientName: string, _alternatives: string[]): string {
+export function getDefaultChoice(
+  ingredientName: string,
+  _alternatives: string[]
+): string {
   return ingredientName; // First option is always the default
 }
 
 /**
  * Get all options (main + alternatives) in order
  */
-export function getAllOptions(ingredientName: string, alternatives: string[]): string[] {
+export function getAllOptions(
+  ingredientName: string,
+  alternatives: string[]
+): string[] {
   return [ingredientName, ...alternatives];
 }
-

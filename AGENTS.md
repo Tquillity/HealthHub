@@ -7,7 +7,7 @@ Scoped rules: **`.cursor/rules/*.mdc`**. Roadmap: **`Docs/SprintList.md`**.
 
 1. Read this file + any matching `.cursor/rules/*.mdc` for the files you touch.
 2. After large merges or new rules: run **`/index`** (jcodemunch full reindex).
-3. Schema changes: verify with **`@postgres`** MCP before `db push`.
+3. Schema changes: create a migration with `pnpm db:migrate --name <change>` and commit it (see `Docs/DatabaseMigrations.md`). Never `db push` a shared database.
 4. Commits: **`/commit`** (staged changes only).
 
 ## Route groups
@@ -93,7 +93,7 @@ src/
 ## Database & Prisma
 
 - Use Prisma `include`/`select` — no JS-loop joins
-- After schema change: `pnpm db:push` → `pnpm db:generate` → restart `next dev`
+- After schema change: `pnpm db:migrate --name <change>` (writes the migration and regenerates the client) → restart `next dev`
 - Add `@@map("table_name")` when DB tables are lowercase (Better-Auth models)
 - Verify with `@postgres` MCP before schema-related code changes
 - Details: `.cursor/rules/prisma-auth.mdc`
@@ -147,7 +147,8 @@ src/
 ```bash
 pnpm install
 pnpm dev              # webpack mode (PWA)
-pnpm db:push
+pnpm db:migrate:deploy   # apply migrations to your database
+pnpm db:migrate --name x # create a migration after editing schema.prisma
 pnpm db:generate
 pnpm db:seed
 pnpm lint

@@ -25,15 +25,17 @@ A comprehensive household wellness application built with the **Next.js 16 + Pos
     pnpm install
     ```
 
-3.  **Database Sync**:
+3.  **Database** (applies every migration in `prisma/migrations/`):
     ```bash
-    pnpm db:push
+    pnpm db:migrate:deploy
     ```
 
 4.  **Seed Data**:
     ```bash
     pnpm db:seed
     ```
+    Seeding (and `pnpm db:repair-admin`) only runs against a local database (`localhost`/`127.0.0.1`) by default.
+    For a remote database such as Neon, set `ALLOW_PROD_SEED=1` and a strong `ADMIN_PASSWORD` (the default password is refused). See `.env.example`.
 
 5.  **Run Dev Server**:
     ```bash
@@ -51,16 +53,13 @@ A comprehensive household wellness application built with the **Next.js 16 + Pos
 
 **Automated Verification:** The Postgres MCP is configured for automated schema verification. All database schema changes should be verified using the `@postgres` MCP tools before deployment.
 
-**Manual Sync (if needed):**
-```bash
-npx prisma db push
-npx prisma generate
-```
+**Schema changes** ship as migration files. See `Docs/DatabaseMigrations.md`,
+including the one-time switch for an existing production database.
 
 ## Development Workflow
 
 *   **Logic**: Write Server Actions in `src/actions/`.
-*   **Database**: Modify `prisma/schema.prisma`, then run `pnpm db:push`.
+*   **Database**: Modify `prisma/schema.prisma`, then run `pnpm db:migrate --name <change>` and commit the new migration folder.
 *   **Components**: Use `shadcn` compatible components in `src/components/ui`.
 
 ## Maintenance scripts (`scripts/`)

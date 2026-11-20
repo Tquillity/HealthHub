@@ -22,7 +22,8 @@ export PLAYWRIGHT_TEST_EMAIL='admin@healthhub.com'
 export PLAYWRIGHT_TEST_PASSWORD='Admin123!'
 export PLAYWRIGHT_SEEDED_DB=1
 pnpm install --frozen-lockfile
-pnpm db:push
+pnpm db:migrate:deploy
+pnpm db:migrate:check
 pnpm db:repair-admin -- --use-default
 pnpm exec tsx scripts/seed-e2e.ts
 pnpm exec vitest run src/lib/stripe-webhook.test.ts
