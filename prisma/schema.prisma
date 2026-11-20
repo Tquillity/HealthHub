@@ -28,6 +28,10 @@ model User {
   focusPreference       String?
   mealPlanDuration      String?
   mealPlanStartDate     DateTime?
+  /// Meal Plan Generator favors recipes that suit each day's estimated cycle phase.
+  /// Opt-in: the picks land in the space's shared plan. Only takes effect while cycle
+  /// tracking is on, a last period date is set, and the space is a household.
+  alignMealsWithCycle   Boolean                    @default(false)
   isPremium             Boolean                    @default(false) @map("is_premium")
   /// Preferred unit for basal body temperature ("C" or "F"). Readings are always stored in Celsius.
   temperatureUnit       String                     @default("C")
@@ -45,8 +49,22 @@ model User {
   briefingFeedback      BriefingFeedback[]
   ingredientPreferences UserIngredientPreference[]
   pomoState             PomoState?
+  /// Partner sync (#3): master switch for sharing cycle status with household members. Off by default.
+  shareCycleStatus      Boolean                    @default(false)
+  /// How much is shared while the master switch is on. See src/lib/cycle-status-sharing.ts.
+  shareCycleLevel       CycleShareLevel            @default(NONE)
+  /// Optional note for household members, encrypted at rest. Shown only at the FULL level.
+  supportMessage        String?
 
   @@map("user")
+}
+
+/// What household members see of someone's current cycle status (#3), from least to most.
+enum CycleShareLevel {
+  NONE
+  PHASE
+  ENERGY
+  FULL
 }
 
 model Session {
@@ -184,6 +202,13 @@ model Recipe {
   yieldUnit             String?
   /// High | Medium | Low (validated in src/lib/lean-kitchen.ts)
   batchEfficiency       String?
+  /// Cycle phases the recipe suits: menstrual | follicular | ovulation | luteal.
+  /// Empty means "infer from nutrients/ingredients" (src/lib/phase-nutrition.ts), except
+  /// for Treat and Process recipes, which match only the phases tagged here.
+  phaseTags             String[]               @default([])
+  /// Key nutrients from the controlled vocabulary in src/lib/phase-nutrition.ts.
+  /// Empty means "infer from ingredient names".
+  nutrientHighlights    String[]               @default([])
   isSystem              Boolean                @default(false)
   isSecret              Boolean                @default(false)
   isPrivate             Boolean                @default(false)

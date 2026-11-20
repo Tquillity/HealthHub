@@ -43,6 +43,10 @@ describe.skipIf(!isolated)('account export against isolated PostgreSQL', () => {
             { date: new Date('2026-03-01T00:00:00Z') },
           ],
         },
+        alignMealsWithCycle: false,
+        shareCycleStatus: true,
+        shareCycleLevel: 'FULL',
+        supportMessage: encrypt('Tea and a quiet evening, please'),
       },
     });
     await client.user.create({ data: { ...housemate, name: 'Housemate' } });
@@ -105,6 +109,8 @@ describe.skipIf(!isolated)('account export against isolated PostgreSQL', () => {
         yieldAmount: 2,
         yieldUnit: 'bowls',
         batchEfficiency: 'Low',
+        phaseTags: ['follicular'],
+        nutrientHighlights: ['complex-carbs', 'fiber'],
         ingredients: { create: [{ name: 'Oats', quantity: 1, unit: 'cup' }] },
         instructions: { create: [{ stepNumber: 1, text: 'Cook' }] },
       },
@@ -177,6 +183,10 @@ describe.skipIf(!isolated)('account export against isolated PostgreSQL', () => {
       briefingFrequency: 'weekly',
       briefingSources: ['journal', 'meals'],
       briefingDetail: 'detailed',
+      alignMealsWithCycle: false,
+      shareCycleStatus: true,
+      shareCycleLevel: 'FULL',
+      supportMessage: 'Tea and a quiet evening, please',
     });
     // Suggestion keys are stored encrypted and exported in clear; only this user's rows.
     expect(data.briefingFeedback).toEqual([
@@ -249,6 +259,8 @@ describe.skipIf(!isolated)('account export against isolated PostgreSQL', () => {
         yieldAmount: 2,
         yieldUnit: 'bowls',
         batchEfficiency: 'Low',
+        phaseTags: ['follicular'],
+        nutrientHighlights: ['complex-carbs', 'fiber'],
         ingredients: [expect.objectContaining({ name: 'Oats' })],
         instructions: [expect.objectContaining({ text: 'Cook' })],
       }),

@@ -9,6 +9,10 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { RotateCcw } from 'lucide-react';
+import { BiologicalMatchBadge } from '@/components/meals/biological-match-badge';
+import type { CyclePhase } from '@/lib/cycle-calculator';
+import type { MealBoardBiology } from '@/lib/meal-cycle-alignment';
+import { getBiologicalMatch } from '@/lib/phase-nutrition';
 
 type RecipeLite = {
   id: string;
@@ -58,12 +62,17 @@ function DaySlot({
   mealType,
   items,
   isPastDay,
+  phase = null,
+  profiles,
 }: {
   organizationId: string;
   date: Date;
   mealType: string;
   items: PlanItem[];
   isPastDay: boolean;
+  /** The viewer's estimated phase on this day (null without cycle tracking). */
+  phase?: CyclePhase | null;
+  profiles?: MealBoardBiology['profiles'];
 }) {
   const dateStr = date.toISOString();
   const { setNodeRef, isOver } = useDroppable({
@@ -87,23 +96,27 @@ function DaySlot({
           : 'border-dashed border-gray-200 bg-gray-50/50'
       }`}
     >
-      {items.map((item) => (
-        <div
-          key={item.id}
-          className="group relative mb-2 rounded border border-blue-100 bg-white p-2 text-xs shadow-sm"
-        >
-          <span className="block truncate font-medium">{item.recipe.name}</span>
-          {!isPastDay && (
-            <button
-              onClick={() => removeMealFromPlan(organizationId, item.id)}
-              className="absolute right-1 top-1 cursor-pointer opacity-0 transition-opacity group-hover:opacity-100"
-              aria-label="Remove meal"
-            >
-              <Trash2 className="h-3 w-3 text-red-400 hover:text-red-600" />
-            </button>
-          )}
-        </div>
-      ))}
+      {items.map((item) => {
+        const match = getBiologicalMatch(profiles?.[item.recipe.id], phase);
+        return (
+          <div
+            key={item.id}
+            className="group relative mb-2 rounded border border-blue-100 bg-white p-2 text-xs shadow-sm"
+          >
+            <span className="block truncate font-medium">{item.recipe.name}</span>
+            {match && <BiologicalMatchBadge match={match} id={`bio-match-${item.id}`} />}
+            {!isPastDay && (
+              <button
+                onClick={() => removeMealFromPlan(organizationId, item.id)}
+                className="absolute right-1 top-1 cursor-pointer opacity-0 transition-opacity group-hover:opacity-100"
+                aria-label="Remove meal"
+              >
+                <Trash2 className="h-3 w-3 text-red-400 hover:text-red-600" />
+              </button>
+            )}
+          </div>
+        );
+      })}
 
       {items.length === 0 && (
         <span
@@ -126,6 +139,7 @@ export default function MealBoard({
   startDate: startDateProp,
   endDate: endDateProp,
   useDefaultStart = true,
+  biology = null,
 }: {
   /** The space this plan belongs to; changes go there even if another tab switches spaces. */
   organizationId: string;
@@ -135,6 +149,8 @@ export default function MealBoard({
   startDate?: Date | string;
   endDate?: Date | string;
   useDefaultStart?: boolean;
+  /** Biological Match data for the viewer; null hides all cycle UI. */
+  biology?: MealBoardBiology | null;
 }) {
   const router = useRouter();
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -268,6 +284,7 @@ export default function MealBoard({
             {visibleDays.map((day) => {
               const dayIsToday = isToday(day);
               const dayIsPast = isPast(startOfDay(day)) && !dayIsToday;
+              const dayPhase = biology?.phaseByDate[format(day, 'yyyy-MM-dd')] ?? null;
               
               return (
                 <div key={day.toISOString()} className="flex flex-col gap-2">
@@ -304,6 +321,8 @@ export default function MealBoard({
                         mealType={type}
                         items={items}
                         isPastDay={dayIsPast}
+                        phase={dayPhase}
+                        profiles={biology?.profiles}
                       />
                     );
                   })}

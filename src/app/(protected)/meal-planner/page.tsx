@@ -13,9 +13,11 @@ import { groceriesUrlForWeek } from '@/lib/meal-planner-links';
 import { PageHeader } from '@/components/ui/page-header';
 import { AppErrorBoundary } from '@/components/ui/error-boundary';
 import { redirect } from 'next/navigation';
+import { differenceInCalendarDays } from 'date-fns';
+import { getMealPlannerCycleData } from '@/lib/meal-cycle-alignment';
 
 export default async function MealPlannerPage() {
-  const { plan, recipes, duration, startDate, endDate, useDefaultStart } =
+  const { plan, organizationType, recipes, duration, startDate, endDate, useDefaultStart } =
     await getWeeklyPlan();
   const profileResult = await getProfile();
 
@@ -26,6 +28,18 @@ export default async function MealPlannerPage() {
   const user = profileResult.data;
   // Changes go to the space this plan belongs to, even if another tab switches spaces.
   const { organizationId } = plan;
+
+  // The viewer's own cycle data only (Biological Fueling, issue #2). The generator offers
+  // cycle alignment in households only: the plan it fills is shared.
+  const cycle = await getMealPlannerCycleData(
+    user.id,
+    {
+      startDate,
+      days: differenceInCalendarDays(endDate, startDate) + 1,
+      recipeIds: plan.items.map((item) => item.recipeId),
+    },
+    organizationType
+  );
 
   return (
     <div className="flex h-full flex-col p-6">
@@ -43,7 +57,10 @@ export default async function MealPlannerPage() {
           <ClearAllMealsButton organizationId={organizationId} planId={plan.id} />
           <SaveTemplateButton organizationId={organizationId} planId={plan.id} />
           <PrintManager plan={plan} startDate={startDate} />
-          <MealPlanGenerator organizationId={organizationId} />
+          <MealPlanGenerator
+            organizationId={organizationId}
+            cycleOptions={cycle.generator}
+          />
           <Link href="/meal-planner/templates">
             <Button variant="outline" className="gap-2 min-h-[44px]">
               <BookOpen className="h-4 w-4" />
@@ -69,6 +86,7 @@ export default async function MealPlannerPage() {
           startDate={startDate}
           endDate={endDate}
           useDefaultStart={useDefaultStart}
+          biology={cycle.board}
         />
       </AppErrorBoundary>
     </div>

@@ -4,6 +4,7 @@ import { RecipeFormBasicSection } from './recipe-form-basic-section';
 import { RecipeFormIngredientsSection } from './recipe-form-ingredients-section';
 import { RecipeFormInstructionsSection } from './recipe-form-instructions-section';
 import { RecipeFormLeanSection } from './recipe-form-lean-section';
+import { RecipeFormCycleSection } from './recipe-form-cycle-section';
 import { RecipeFormNutritionSection } from './recipe-form-nutrition-section';
 import type { RecipeFormProps } from './recipe-form-types';
 import { useRecipeForm } from './use-recipe-form';
@@ -51,6 +52,11 @@ export function RecipeForm({
         removeIngredient={form.removeIngredient}
         updateIngredient={form.updateIngredient}
         convertToSuggestedUnit={form.convertToSuggestedUnit}
+      />
+      <RecipeFormCycleSection
+        formData={form.formData}
+        setFormData={form.setFormData}
+        ingredients={form.ingredients}
       />
       <RecipeFormInstructionsSection
         instructions={form.instructions}

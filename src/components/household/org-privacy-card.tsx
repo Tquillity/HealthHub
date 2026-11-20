@@ -32,9 +32,11 @@ export function OrgPrivacyCard({
       icon: BookLock,
       title: 'Journal and cycle',
       text:
-        policy.individualSharing === 'opt-in'
-          ? 'Private. You can share a single journal day here if you want to, and stop sharing any time.'
-          : "Always private. Nobody here can see anyone's journal or cycle.",
+        policy.individualSharing !== 'opt-in'
+          ? "Always private. Nobody here can see anyone's journal or cycle."
+          : policy.cycleStatusSharing === 'opt-in'
+            ? 'Private. You can share a single journal day, or your cycle status from Profile, and stop sharing any time.'
+            : 'Private. You can share a single journal day here if you want to, and stop sharing any time. Cycle status is only ever shown to households.',
     },
     {
       icon: Users,

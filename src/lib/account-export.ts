@@ -37,6 +37,7 @@ export async function buildAccountExport(userId: string) {
       enableCycleTracking: true,
       cycleLength: true,
       lastPeriodDate: true,
+      alignMealsWithCycle: true,
       focusPreference: true,
       mealPlanDuration: true,
       mealPlanStartDate: true,
@@ -46,6 +47,9 @@ export async function buildAccountExport(userId: string) {
       briefingFrequency: true,
       briefingSources: true,
       briefingDetail: true,
+      shareCycleStatus: true,
+      shareCycleLevel: true,
+      supportMessage: true,
     },
   });
 
@@ -223,6 +227,8 @@ export async function buildAccountExport(userId: string) {
       ...user,
       lastPeriodDate: dateOnly(user.lastPeriodDate),
       mealPlanStartDate: dateOnly(user.mealPlanStartDate),
+      // Cycle status sharing with households (#3): the switch, the level and your message.
+      supportMessage: decrypt(user.supportMessage),
     },
     signInMethods: accounts.map((account) => ({
       provider: account.providerId,

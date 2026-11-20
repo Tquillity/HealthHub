@@ -233,7 +233,19 @@
       "yield": {
         "amount": 1,
         "unit": "plåt"
-      }
+      },
+      "phaseTags": [
+        "ovulation",
+        "luteal"
+      ],
+      "nutrientHighlights": [
+        "magnesium",
+        "zinc",
+        "omega-3",
+        "fiber",
+        "iron",
+        "calcium"
+      ]
     },
     {
       "name": "Nuoc Cham (Vietnamesisk Dipsås)",
@@ -699,7 +711,16 @@
       "yield": {
         "amount": 4,
         "unit": "portioner"
-      }
+      },
+      "phaseTags": [
+        "menstrual",
+        "follicular"
+      ],
+      "nutrientHighlights": [
+        "protein",
+        "omega-3",
+        "vitamin-b6"
+      ]
     },
     {
       "name": "Krämig Fisksoppa med Saffran (Mejerifri)",
@@ -1093,7 +1114,16 @@
       "yield": {
         "amount": 12,
         "unit": "kakor"
-      }
+      },
+      "phaseTags": [
+        "luteal"
+      ],
+      "nutrientHighlights": [
+        "magnesium",
+        "zinc",
+        "iron",
+        "antioxidants"
+      ]
     },
     {
       "name": "Osannolikt God Raw Vegan Cheesecake",
@@ -1681,7 +1711,16 @@
       "yield": {
         "amount": 4,
         "unit": "portioner"
-      }
+      },
+      "phaseTags": [
+        "menstrual",
+        "follicular"
+      ],
+      "nutrientHighlights": [
+        "protein",
+        "iron",
+        "calcium"
+      ]
     },
     {
       "name": "Frisk ärtskottsdressing",
@@ -1960,7 +1999,16 @@
       "yield": {
         "amount": 20,
         "unit": "praliner"
-      }
+      },
+      "phaseTags": [
+        "luteal"
+      ],
+      "nutrientHighlights": [
+        "magnesium",
+        "iron",
+        "calcium",
+        "antioxidants"
+      ]
     },
     {
       "name": "Hälsosam Chokladtårta med Mocca- & Karamellfrosting",
@@ -2138,7 +2186,16 @@
       "yield": {
         "amount": 1,
         "unit": "tårta (20–24 cm)"
-      }
+      },
+      "phaseTags": [
+        "luteal"
+      ],
+      "nutrientHighlights": [
+        "magnesium",
+        "iron",
+        "fiber",
+        "antioxidants"
+      ]
     },
     {
       "name": "Klassisk Pepparkakskrydda",
@@ -2334,7 +2391,15 @@
       "yield": {
         "amount": 18,
         "unit": "rutor"
-      }
+      },
+      "phaseTags": [
+        "luteal"
+      ],
+      "nutrientHighlights": [
+        "magnesium",
+        "fiber",
+        "antioxidants"
+      ]
     },
     {
       "name": "Långkokt Nöthjärta med rödvin och rotfrukter",
@@ -2608,7 +2673,16 @@
       "yield": {
         "amount": 8,
         "unit": "bröd"
-      }
+      },
+      "phaseTags": [
+        "follicular",
+        "luteal"
+      ],
+      "nutrientHighlights": [
+        "complex-carbs",
+        "fiber",
+        "magnesium"
+      ]
     }
   ],
   "routines": [
