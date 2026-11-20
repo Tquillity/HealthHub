@@ -4,7 +4,7 @@ import { getProfile } from '@/actions/profile-actions';
 import { ProfileClient } from '@/components/profile/profile-client';
 import { DeleteAccountSection } from '@/components/profile/delete-account-section';
 import { getAccountDeletionContext } from '@/lib/account-deletion';
-import { Users, ChevronRight } from 'lucide-react';
+import { Users, ChevronRight, Download } from 'lucide-react';
 import Link from 'next/link';
 import { PageHeader } from '@/components/ui/page-header';
 
@@ -70,6 +70,27 @@ export default async function ProfilePage() {
               Manage
               <ChevronRight className="h-4 w-4" />
             </Link>
+          </div>
+        </div>
+
+        {/* Data export: GDPR data portability */}
+        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">Your data</h2>
+              <p className="text-sm text-gray-500">
+                Download your profile, journal, households, recipes and plans as
+                a JSON file.
+              </p>
+            </div>
+            <a
+              href="/api/account/export"
+              download
+              className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-primary-600 transition-colors hover:bg-primary-50"
+            >
+              <Download className="h-4 w-4" />
+              Download my data
+            </a>
           </div>
         </div>
 
