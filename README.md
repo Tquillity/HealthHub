@@ -13,11 +13,13 @@ A comprehensive household wellness application built with the **Next.js 16 + Pos
 ## Getting Started
 
 1.  **Environment Setup**:
-    Copy `.env.example` to `.env` and fill in your keys (see comments in that file):
+    Copy `.env.example` to `.env` and fill in your keys (see comments in that file and
+    [Environment variables](#environment-variables) below). The minimum for local development:
     ```bash
     DATABASE_URL="postgres://..."
-    BETTER_AUTH_SECRET="..."
+    BETTER_AUTH_SECRET="..."   # openssl rand -base64 32
     BETTER_AUTH_URL="http://localhost:3000"
+    NEXT_PUBLIC_BETTER_AUTH_URL="http://localhost:3000"
     ```
 
 2.  **Install Dependencies**:
@@ -42,6 +44,42 @@ A comprehensive household wellness application built with the **Next.js 16 + Pos
     pnpm dev
     ```
     Dev uses `--webpack` because the PWA plugin requires webpack (see `next.config.ts`).
+
+## Environment variables
+
+`.env.example` documents every variable the code reads, with how to generate each secret.
+Variables starting with `NEXT_PUBLIC_` are inlined into the browser bundle at build time, so set
+them before `pnpm build`.
+
+| Variable | Needed | Used for |
+|----------|--------|----------|
+| `DATABASE_URL` | Always | PostgreSQL connection (app, Prisma CLI, scripts) |
+| `BETTER_AUTH_SECRET` | Always | Session signing; journal encryption fallback while `ENCRYPTION_KEY` is empty |
+| `BETTER_AUTH_URL` | Always | Auth base URL, proxy session lookup, Stripe return URLs. `https://` in production |
+| `NEXT_PUBLIC_BETTER_AUTH_URL` | Always | Canonical, Open Graph and sitemap URLs. Same origin as `BETTER_AUTH_URL` |
+| `ENCRYPTION_KEY` | Production | Journal field encryption (see the warning below) |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Optional | Google sign-in (both required to enable it) |
+| `X_CLIENT_ID`, `X_CLIENT_SECRET` | Optional | X sign-in (both required to enable it) |
+| `BLOB_READ_WRITE_TOKEN` | For uploads | Recipe and routine images on Vercel Blob; uploads fail in production without it |
+| `USE_LOCAL_STORAGE` | Dev only | `"true"` stores uploads in `public/uploads` when there is no Blob token |
+| `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID_PRO` | Optional | HealthHub Pro billing (`Docs/Stripe.md`) |
+| `NEXT_PUBLIC_ADSENSE_CLIENT`, `NEXT_PUBLIC_ADSENSE_ENABLED`, `NEXT_PUBLIC_ADSENSE_SLOT_RECIPES`, `NEXT_PUBLIC_ADSENSE_SLOT_LEARN` | Optional | Ads, blocked until legal review (`Docs/AdSense.md`) |
+| `LEGAL_REVIEW_APPROVED` | Optional | `"true"` hides the draft notice on Privacy and Terms |
+| `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME`, `ALLOW_PROD_SEED` | Scripts | `pnpm db:seed` and `pnpm db:repair-admin` |
+| `PLAYWRIGHT_TEST_EMAIL`, `PLAYWRIGHT_TEST_PASSWORD`, `PLAYWRIGHT_BASE_URL`, `PLAYWRIGHT_SEEDED_DB` | E2E | Playwright (`Docs/E2E.md`) |
+
+`NODE_ENV`, `NEXT_RUNTIME` and `CI` are set by Next.js and CI providers.
+
+> **`ENCRYPTION_KEY` on an existing deployment:** set it to the **current** `BETTER_AUTH_SECRET`
+> value, copied exactly. That keeps every saved journal entry readable and lets you rotate
+> `BETTER_AUTH_SECRET` on its own afterwards. Do **not** set a newly generated key: entries
+> encrypted with the old key would become unreadable (they show as scrambled text, and saving one
+> overwrites the original). Only a fresh deployment with no journal entries may use a new random key
+> (`openssl rand -base64 32`). Never change it once entries exist.
+
+A production server logs a `[HealthHub config]` warning once at startup (`src/instrumentation.ts`)
+when `ENCRYPTION_KEY` is empty or an auth URL uses `http://` for a non-localhost host. The warnings
+never include the values.
 
 ## Agent & sprint docs
 

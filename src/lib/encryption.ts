@@ -9,6 +9,7 @@
  */
 
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'crypto';
+import { resolveEncryptionSecret } from '@/lib/env-checks';
 
 const ALGORITHM = 'aes-256-gcm';
 const KEY_LENGTH = 32; // 256 bits
@@ -17,12 +18,13 @@ const SALT_LENGTH = 16;
 
 /**
  * Get encryption key from environment variable
- * Falls back to a derived key from BETTER_AUTH_SECRET if ENCRYPTION_KEY is not set
+ * Falls back to a derived key from BETTER_AUTH_SECRET if ENCRYPTION_KEY is not set.
+ * Never point an existing deployment at a different secret: see resolveEncryptionSecret.
  */
 let cachedKey: { secret: string; key: Buffer } | null = null;
 
 function getEncryptionKey(): Buffer {
-  const encryptionKey = process.env.ENCRYPTION_KEY || process.env.BETTER_AUTH_SECRET;
+  const encryptionKey = resolveEncryptionSecret(process.env)?.secret;
   
   if (!encryptionKey) {
     throw new Error('❌ ENCRYPTION_KEY or BETTER_AUTH_SECRET must be set for encryption');
