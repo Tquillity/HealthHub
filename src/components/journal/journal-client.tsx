@@ -11,23 +11,16 @@ import {
 import { useUIStore } from '@/lib/store';
 import { Plus, X } from 'lucide-react';
 import { format } from 'date-fns';
+import {
+  changedTimeOfDayEnergy,
+  TIME_OF_DAY_ENERGY_FIELDS,
+} from './time-of-day-energy-fields';
 
 interface JournalClientProps {
   initialDate?: string;
   onEntrySaved?: () => void;
   /** Morning, afternoon and evening energy (circadian insights opt-in). */
   showTimeOfDayEnergy?: boolean;
-}
-
-const TIME_OF_DAY_ENERGY_FIELDS = [
-  { key: 'energyMorning', label: 'Morning', hours: '06-12' },
-  { key: 'energyAfternoon', label: 'Afternoon', hours: '12-18' },
-  { key: 'energyEvening', label: 'Evening', hours: '18-22' },
-] as const;
-
-/** Rating text to the value to send: empty clears it (`null`). */
-function ratingOrNull(value: string): number | null {
-  return value ? parseInt(value, 10) : null;
 }
 
 /**
@@ -104,6 +97,8 @@ export function JournalClient({
     emptyForm(initialDate || format(new Date(), 'yyyy-MM-dd'))
   );
   const [loadState, setLoadState] = useState<LoadState>('idle');
+  // The form as the day's entry loaded, to send only the time-of-day ratings edited here.
+  const [loadedForm, setLoadedForm] = useState<FormData>(formData);
   // Only the newest load may fill the form: picking another date while a load is in
   // flight must not let the older response overwrite the form (or its date).
   const latestLoadId = useRef(0);
@@ -126,7 +121,9 @@ export function JournalClient({
       setLoadState('error');
       return;
     }
-    setFormData(result.data ? entryToForm(date, result.data) : emptyForm(date));
+    const loaded = result.data ? entryToForm(date, result.data) : emptyForm(date);
+    setFormData(loaded);
+    setLoadedForm(loaded);
     setLoadState('ready');
   }, []);
 
@@ -188,12 +185,9 @@ export function JournalClient({
       date: formData.date,
       mood: formData.mood ? parseInt(formData.mood, 10) : null,
       energy: formData.energy ? parseInt(formData.energy, 10) : null,
+      // Only the ones edited in this form: the dashboard check-in writes them too.
       // Left out (unchanged) unless the fields are shown.
-      ...(showTimeOfDayEnergy && {
-        energyMorning: ratingOrNull(formData.energyMorning),
-        energyAfternoon: ratingOrNull(formData.energyAfternoon),
-        energyEvening: ratingOrNull(formData.energyEvening),
-      }),
+      ...(showTimeOfDayEnergy && changedTimeOfDayEnergy(loadedForm, formData)),
       sleepHours: formData.sleepHours ? parseFloat(formData.sleepHours) : null,
       notes: formData.notes.trim() ? formData.notes : null,
       tags,
