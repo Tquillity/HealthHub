@@ -10,11 +10,13 @@ async function setCircadianInsights(page: Page, on: boolean) {
   });
   if ((await toggle.isChecked()) !== on) {
     await toggle.setChecked(on);
+    // The toast repeats this text; check the status region screen readers hear.
+    const result = on
+      ? 'Circadian insights are on'
+      : 'Circadian insights are off';
     await expect(
-      page.getByText(
-        on ? 'Circadian insights are on' : 'Circadian insights are off'
-      )
-    ).toBeVisible();
+      page.getByRole('status').filter({ hasText: result })
+    ).toHaveText(result);
   }
   await expect(toggle).toBeChecked({ checked: on });
 }
@@ -50,9 +52,11 @@ test('circadian insights are opt-in and log energy for the time of day', async (
   });
   if (await checkIn.isVisible()) {
     await checkIn.getByRole('button', { name: '7 out of 10' }).click();
+    // The toast repeats this text; check the card's status region.
+    const saved = /Energy saved for this \w+: 7\/10/;
     await expect(
-      page.getByText(/Energy saved for this \w+: 7\/10/)
-    ).toBeVisible();
+      card.getByRole('status').filter({ hasText: saved })
+    ).toHaveText(saved);
     await page.reload();
     await expect(
       circadianCard(page).getByRole('button', { name: '7 out of 10' })
