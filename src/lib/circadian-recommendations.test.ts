@@ -496,6 +496,44 @@ describe('buildCircadianInsights', () => {
     expect(bestNow?.body).not.toContain(bestWindowAdvice('afternoon', 'now'));
   });
 
+  it('does not say both "now is a good time" and "later this afternoon" in the dip', () => {
+    // 14:00 in Stockholm, in the dip, with 9/10 rated for this afternoon.
+    const now = new Date('2026-11-20T13:00:00Z');
+    const today = row('2026-11-20', null, 9, null);
+    const later = /later this afternoon/i;
+    for (const rows of [
+      // An afternoon best window, and no pattern yet.
+      [...history('2026-11-19', 6, [5, 8, 4]), today],
+      [today],
+    ]) {
+      const dip = buildCircadianInsights({ now, timeZone: zone, rows });
+      expect(dip.moment).toBe('early-afternoon');
+      expect(dip.suggestions[0].key).toBe('personal.high-now');
+      expect(dip.suggestions[0].body).toContain('now is a good time');
+      for (const suggestion of dip.suggestions) {
+        expect(`${suggestion.title} ${suggestion.body}`).not.toMatch(later);
+      }
+    }
+    const best = buildCircadianInsights({
+      now,
+      timeZone: zone,
+      rows: [...history('2026-11-19', 6, [5, 8, 4]), today],
+    }).suggestions.find((s) => s.key === 'personal.best-now');
+    expect(best?.body).toBe(
+      'Over the last 30 days your afternoon energy has averaged 8.1/10, your highest of the day.'
+    );
+
+    // Without a high rating, the dip still points to later this afternoon.
+    const usual = buildCircadianInsights({
+      now,
+      timeZone: zone,
+      rows: [today].map((r) => ({ ...r, energyAfternoon: 6 })),
+    });
+    expect(usual.suggestions.map((s) => s.key)).toContain(
+      'afternoon.training-later'
+    );
+  });
+
   it('shows the best window without a training push right after a low rating', () => {
     // Mornings usually 8 and afternoons 5, but today's morning check-in is 2/10.
     const rows = [

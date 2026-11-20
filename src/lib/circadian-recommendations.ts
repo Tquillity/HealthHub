@@ -386,6 +386,8 @@ export type CircadianSuggestion = {
 type BaseSuggestion = CircadianSuggestion & {
   /** Left out while the card holds back on harder work (see `buildCircadianInsights`). */
   demanding?: boolean;
+  /** Points to later today; left out next to "now is a good time" (personal.high-now). */
+  later?: boolean;
 };
 
 const SUGGESTIONS = {
@@ -433,6 +435,7 @@ const SUGGESTIONS = {
     title: 'Later this afternoon suits harder training',
     body: 'Strength, power and body temperature tend to peak in the late afternoon. If you plan a harder session today, that is a good slot.',
     demanding: true,
+    later: true,
   },
   afternoonTraining: {
     key: 'afternoon.training',
@@ -562,10 +565,13 @@ function personalSuggestions(input: {
   easyDay: TakeItEasy | null;
   /** No push for harder work (see `buildCircadianInsights`). */
   holdBack: boolean;
+  /** A high check-in for now: "now is a good time" (see `buildCircadianInsights`). */
+  highNow: boolean;
   slots: SlotEnergySummary;
   bestWindow: EnergySlot | null;
 }): CircadianSuggestion[] {
-  const { moment, slot, currentEnergy, lowNow, easyDay, holdBack } = input;
+  const { moment, slot, currentEnergy, lowNow, easyDay, holdBack, highNow } =
+    input;
   const { slots, bestWindow } = input;
   if (moment === 'night' || slot === null) return [];
   const result: CircadianSuggestion[] = [];
@@ -589,11 +595,7 @@ function personalSuggestions(input: {
         body: 'Your recent logs point to an easier day, so harder training is left out for now.',
       });
     }
-  } else if (
-    currentEnergy !== null &&
-    currentEnergy >= HIGH_ENERGY_RATING &&
-    slot !== 'evening'
-  ) {
+  } else if (highNow) {
     result.push({
       key: 'personal.high-now',
       kind: 'personal',
@@ -605,15 +607,19 @@ function personalSuggestions(input: {
   if (bestWindow !== null) {
     const best = slots[bestWindow];
     // While holding back, the pattern only: no push for harder work.
-    const advice = (text: string) => (holdBack ? '' : ` ${text}`);
+    const advice = (text: string | null) =>
+      holdBack || text === null ? '' : ` ${text}`;
     if (bestWindow === slot) {
+      // In the dip the best part is still ahead, unless "now is a good time" is shown
+      // (personal.high-now): then the pattern only, so the card does not say both.
+      const dipAdvice = highNow ? null : AFTER_THE_DIP_ADVICE;
       result.push({
         key: 'personal.best-now',
         kind: 'personal',
         title: 'Usually your best time of day',
         body: `Over the last ${ENERGY_HISTORY_DAYS} days your ${SLOT_NAMES[slot]} energy has averaged ${best.average}/10, your highest of the day.${advice(
           moment === 'early-afternoon'
-            ? AFTER_THE_DIP_ADVICE
+            ? dipAdvice
             : bestWindowAdvice(bestWindow, 'now')
         )}`,
       });
@@ -790,6 +796,13 @@ export function buildCircadianInsights(input: {
   // No push for harder work after a low check-in today (the daily briefing takes it easy
   // after the same one) or on a day the briefing calls a take-it-easy day.
   const holdBack = lowCheckIn !== null || easyDay !== null;
+  // "Plenty of energy right now": a high check-in for this slot, except while holding
+  // back and in the evening, when the suggestions are about recovery.
+  const highNow =
+    !holdBack &&
+    currentEnergy !== null &&
+    currentEnergy >= HIGH_ENERGY_RATING &&
+    slot !== 'evening';
 
   // How the user feels now: today's check-in, else their usual for this slot.
   const slotUsual =
@@ -804,6 +817,7 @@ export function buildCircadianInsights(input: {
 
   const base: CircadianSuggestion[] = MOMENT_SUGGESTIONS[moment]
     .filter((suggestion) => !(holdBack && suggestion.demanding))
+    .filter((suggestion) => !(highNow && suggestion.later))
     .map(({ key, kind, title, body }) => ({ key, kind, title, body }));
   const suggestions = [
     ...personalSuggestions({
@@ -813,6 +827,7 @@ export function buildCircadianInsights(input: {
       lowNow,
       easyDay,
       holdBack,
+      highNow,
       slots,
       bestWindow,
     }),
