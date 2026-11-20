@@ -10,6 +10,11 @@ concurrency:
   group: healthhub-ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# CI only needs to read the code. Without this, GITHUB_TOKEN gets the repository default
+# (write on older repos) while third-party install/build/test code runs.
+permissions:
+  contents: read
+
 jobs:
   quality:
     runs-on: ubuntu-latest
@@ -23,6 +28,8 @@ jobs:
       NEXT_PUBLIC_BETTER_AUTH_URL: "http://localhost:3000"
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -63,6 +70,8 @@ jobs:
       ADMIN_EMAIL: "admin@healthhub.com"
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
