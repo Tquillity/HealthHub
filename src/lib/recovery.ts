@@ -82,6 +82,13 @@ export const RECOVERY_ZONE_THRESHOLDS = { green: 67, yellow: 34 } as const;
 export const ALERT_MIN_DROP_POINTS = 15;
 
 export type RecoveryZone = 'green' | 'yellow' | 'red';
+
+/** Friendly zone names for the UI (guidance, not a diagnosis). */
+export const RECOVERY_ZONE_LABELS: Record<RecoveryZone, string> = {
+  green: 'Well recovered',
+  yellow: 'Take it steady',
+  red: 'Prioritise rest',
+};
 export type RecoveryComponentKey = keyof typeof RECOVERY_WEIGHTS;
 export type BaselineSource = 'phase' | 'overall';
 

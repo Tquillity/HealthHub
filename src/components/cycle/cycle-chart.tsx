@@ -33,6 +33,7 @@ import {
   YAxis,
   Tooltip,
   ReferenceArea,
+  ReferenceDot,
   ReferenceLine,
   CartesianGrid,
   Dot,
@@ -52,6 +53,26 @@ import {
   getVisibleSeries,
   SeriesType,
 } from './series-selector';
+import type {
+  ChartBbtOverlay,
+  ChartBbtPoint,
+  ChartRecoveryOverlay,
+  ChartRecoveryPoint,
+} from '@/lib/cycle-insights';
+import { RECOVERY_ZONE_THRESHOLDS } from '@/lib/recovery';
+import {
+  BBT_COLOR,
+  RECOVERY_COLOR,
+  bbtAxisDomain,
+} from '@/lib/cycle-chart-overlays';
+import {
+  BbtTooltipSection,
+  BioVerifiedMarker,
+  OverlayLegend,
+  OverlayTextSummary,
+  RecoveryDot,
+  RecoveryTooltipSection,
+} from './chart-overlays';
 
 interface CycleChartProps {
   phaseData: CyclePhaseResult;
@@ -60,6 +81,10 @@ interface CycleChartProps {
   onPhaseClick?: (phase: CyclePhase) => void;
   onDayClick?: (date: Date, day: number) => void; // New: handle individual day clicks
   mode?: 'lifestyle' | 'clinical'; // Mode toggle for UI complexity
+  /** The user's own BBT readings for the chart window (clinical mode only). */
+  bbt?: ChartBbtOverlay | null;
+  /** The user's recovery scores; null when vitals tracking is off (clinical mode only). */
+  recovery?: ChartRecoveryOverlay | null;
 }
 
 const PHASE_COLORS: Record<CyclePhase, string> = {
@@ -166,6 +191,11 @@ interface ChartDataPoint {
   fsh?: number;
   testosterone?: number;
   isCurrentDay?: boolean;
+  /** BBT in the user's unit, when logged for this day. */
+  bbt?: number;
+  bbtPoint?: ChartBbtPoint;
+  recovery?: number;
+  recoveryPoint?: ChartRecoveryPoint;
 }
 
 interface ChartTooltipPayloadItem {
@@ -178,6 +208,9 @@ interface CustomTooltipProps {
   label?: string | number;
   onPhaseHover?: (phase: CyclePhase | null) => void;
   visibleSeries: SeriesType[];
+  /** Set when the BBT line is drawn. */
+  bbtOverlay?: ChartBbtOverlay | null;
+  showRecovery?: boolean;
 }
 
 /**
@@ -193,6 +226,8 @@ const CustomTooltip = ({
   label,
   onPhaseHover,
   visibleSeries,
+  bbtOverlay,
+  showRecovery,
 }: CustomTooltipProps) => {
   useEffect(() => {
     if (active && payload && payload.length) {
@@ -312,6 +347,17 @@ const CustomTooltip = ({
           </div>
         )}
 
+        {bbtOverlay && data.bbtPoint && (
+          <BbtTooltipSection
+            point={data.bbtPoint}
+            unit={bbtOverlay.unit}
+            shift={bbtOverlay.shift}
+          />
+        )}
+        {showRecovery && data.recoveryPoint && (
+          <RecoveryTooltipSection point={data.recoveryPoint} />
+        )}
+
         {data.isCurrentDay && (
           <p className="text-xs text-primary-600 font-medium mt-2 pt-2 border-t border-gray-100">
             Today
@@ -330,15 +376,14 @@ export function CycleChart({
   onPhaseClick,
   onDayClick,
   mode = 'lifestyle',
+  bbt = null,
+  recovery = null,
 }: CycleChartProps) {
   const { currentPhase, daysIntoCycle, ovulationDay } = phaseData;
   const router = useRouter();
 
-  // Get visible series from URL state
-  const [visibleSeriesStr] = useQueryState(
-    'show',
-    parseAsString.withDefault('energy')
-  );
+  // Get visible series from URL state (no param: the default set)
+  const [visibleSeriesStr] = useQueryState('show', parseAsString);
   const visibleSeries = useMemo(
     () => getVisibleSeries(visibleSeriesStr),
     [visibleSeriesStr]
@@ -355,9 +400,53 @@ export function CycleChart({
     [cycleLength]
   );
 
-  const chartData = useMemo(
-    () => mergeChartData(energyData, hormoneCurves),
-    [energyData, hormoneCurves]
+  // The user's own readings are drawn in clinical mode only (lifestyle mode is unchanged).
+  const isClinical = mode === 'clinical';
+  const hasBbt = Boolean(bbt && bbt.points.length > 0);
+  const hasRecovery = Boolean(recovery && recovery.points.length > 0);
+  const bbtShown =
+    isClinical && hasBbt && visibleSeries.includes('bbt') ? bbt : null;
+  const recoveryShown =
+    isClinical && hasRecovery && visibleSeries.includes('recovery')
+      ? recovery
+      : null;
+  const hiddenSeries = useMemo(() => {
+    const hidden: SeriesType[] = [];
+    if (!hasBbt) hidden.push('bbt');
+    if (!hasRecovery) hidden.push('recovery');
+    return hidden;
+  }, [hasBbt, hasRecovery]);
+
+  const chartData = useMemo(() => {
+    const merged: ChartDataPoint[] = mergeChartData(energyData, hormoneCurves);
+    if (!bbtShown && !recoveryShown) return merged;
+    const bbtByDay = new Map(bbtShown?.points.map((p) => [p.day, p]) ?? []);
+    const recoveryByDay = new Map(
+      recoveryShown?.points.map((p) => [p.day, p]) ?? []
+    );
+    return merged.map((point) => {
+      const bbtPoint = bbtByDay.get(point.day);
+      const recoveryPoint = recoveryByDay.get(point.day);
+      return {
+        ...point,
+        bbt: bbtPoint?.value,
+        bbtPoint,
+        recovery: recoveryPoint?.score,
+        recoveryPoint,
+      };
+    });
+  }, [energyData, hormoneCurves, bbtShown, recoveryShown]);
+
+  const bbtDomain = useMemo(
+    () => (bbtShown ? bbtAxisDomain(bbtShown) : null),
+    [bbtShown]
+  );
+  const ovulationReading =
+    bbtShown && bbtShown.ovulationDay !== null
+      ? bbtShown.points.find((p) => p.day === bbtShown.ovulationDay)
+      : undefined;
+  const hormonesVisible = visibleSeries.some((s) =>
+    ['estrogen', 'progesterone', 'lh', 'fsh', 'testosterone'].includes(s)
   );
 
   // Calculate dynamic phase boundaries (matching cycle-calculator.ts logic)
@@ -441,7 +530,13 @@ export function CycleChart({
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
             data={chartData}
-            margin={{ top: 40, right: 60, left: 50, bottom: 10 }}
+            margin={{
+              top: 40,
+              // A second right-hand axis (BBT next to hormones) needs more room.
+              right: hormonesVisible && bbtShown ? 110 : 60,
+              left: 50,
+              bottom: 10,
+            }}
             onMouseLeave={() => onPhaseHover?.(null)}
           >
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -547,6 +642,27 @@ export function CycleChart({
                 }}
               />
             )}
+            {/* Your BBT (°C/°F) - Right Y-Axis, clinical mode only */}
+            {bbtShown && bbtDomain && (
+              <YAxis
+                yAxisId="bbt"
+                orientation="right"
+                domain={bbtDomain}
+                tick={{ fontSize: 12, fill: BBT_COLOR }}
+                tickFormatter={(value: number) => value.toFixed(1)}
+                label={{
+                  value: `BBT (°${bbtShown.unit})`,
+                  angle: 90,
+                  position: 'insideRight',
+                  style: { fill: BBT_COLOR },
+                }}
+              />
+            )}
+
+            {/* Your recovery score (0-100): the zone lines are explained in the legend */}
+            {recoveryShown && (
+              <YAxis yAxisId="recovery" domain={[0, 100]} hide />
+            )}
             <Tooltip
               content={(props) => (
                 <CustomTooltip
@@ -555,6 +671,8 @@ export function CycleChart({
                   label={props.label}
                   onPhaseHover={onPhaseHover}
                   visibleSeries={visibleSeries}
+                  bbtOverlay={bbtShown}
+                  showRecovery={Boolean(recoveryShown)}
                 />
               )}
             />
@@ -778,6 +896,107 @@ export function CycleChart({
                 animationDuration={1500}
               />
             )}
+
+            {/* Recovery: zone lines, usual score per phase, then the score line */}
+            {recoveryShown && (
+              <ReferenceLine
+                yAxisId="recovery"
+                y={RECOVERY_ZONE_THRESHOLDS.green}
+                stroke={RECOVERY_COLOR}
+                strokeOpacity={0.5}
+                strokeDasharray="2 4"
+              />
+            )}
+            {recoveryShown && (
+              <ReferenceLine
+                yAxisId="recovery"
+                y={RECOVERY_ZONE_THRESHOLDS.yellow}
+                stroke={RECOVERY_COLOR}
+                strokeOpacity={0.5}
+                strokeDasharray="2 4"
+              />
+            )}
+            {recoveryShown?.phaseBaselines.map((baseline) => (
+              <ReferenceLine
+                key={`recovery-baseline-${baseline.phase}-${baseline.startDay}`}
+                yAxisId="recovery"
+                segment={[
+                  { x: baseline.startDay - 0.5, y: baseline.score },
+                  { x: baseline.endDay + 0.5, y: baseline.score },
+                ]}
+                stroke={PHASE_COLORS[baseline.phase]}
+                strokeWidth={2}
+                strokeDasharray="6 3"
+                strokeOpacity={0.8}
+              />
+            ))}
+            {recoveryShown && (
+              <Line
+                yAxisId="recovery"
+                type="monotone"
+                dataKey="recovery"
+                stroke={RECOVERY_COLOR}
+                strokeWidth={2}
+                connectNulls
+                dot={(props) => (
+                  <RecoveryDot
+                    key={`recovery-dot-${props.index}`}
+                    cx={props.cx}
+                    cy={props.cy}
+                    point={(props.payload as ChartDataPoint).recoveryPoint}
+                  />
+                )}
+                activeDot={{ r: 5, fill: RECOVERY_COLOR }}
+                isAnimationActive={true}
+                animationDuration={1500}
+              />
+            )}
+
+            {/* Your BBT: coverline, readings, and the Bio-Verified marker on top */}
+            {bbtShown && bbtShown.coverline !== null && (
+              <ReferenceLine
+                yAxisId="bbt"
+                y={bbtShown.coverline}
+                stroke={BBT_COLOR}
+                strokeDasharray="4 4"
+                strokeOpacity={0.7}
+                label={{
+                  value: 'Coverline',
+                  position: 'insideBottomLeft',
+                  fill: BBT_COLOR,
+                  fontSize: 10,
+                }}
+              />
+            )}
+            {bbtShown && (
+              <Line
+                yAxisId="bbt"
+                type="linear"
+                dataKey="bbt"
+                stroke={BBT_COLOR}
+                strokeWidth={2}
+                connectNulls
+                dot={{
+                  r: 3,
+                  fill: BBT_COLOR,
+                  stroke: '#ffffff',
+                  strokeWidth: 1,
+                }}
+                activeDot={{ r: 5, fill: BBT_COLOR }}
+                isAnimationActive={true}
+                animationDuration={1500}
+              />
+            )}
+            {bbtShown && ovulationReading && (
+              <ReferenceDot
+                yAxisId="bbt"
+                x={ovulationReading.day}
+                y={ovulationReading.value}
+                shape={(props) => (
+                  <BioVerifiedMarker cx={props.cx} cy={props.cy} />
+                )}
+              />
+            )}
           </LineChart>
         </ResponsiveContainer>
       </div>
@@ -788,7 +1007,14 @@ export function CycleChart({
           Hormone curves: illustrative typical pattern, not your levels.
         </p>
       )}
-      {mode === 'clinical' && <SeriesSelector />}
+      {mode === 'clinical' && <SeriesSelector hiddenSeries={hiddenSeries} />}
+      {isClinical && bbt && !hasBbt && (
+        <p className="text-xs text-gray-500">
+          Log your waking temperature in the quick log to see your BBT line
+          here.
+        </p>
+      )}
+      <OverlayTextSummary bbt={bbtShown} recovery={recoveryShown} />
 
       {/* Phase Legend with Tooltips (Clinical Mode Only) */}
       {mode === 'clinical' && (
@@ -804,6 +1030,8 @@ export function CycleChart({
               </div>
             ))}
           </div>
+
+          <OverlayLegend bbt={bbtShown} recovery={recoveryShown} />
 
           {/* Hormone Tooltips */}
           <div className="flex flex-wrap gap-4 text-xs text-gray-500">

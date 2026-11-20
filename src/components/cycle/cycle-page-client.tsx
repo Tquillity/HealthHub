@@ -54,6 +54,8 @@ import { Calendar, Sparkles } from 'lucide-react';
 import { differenceInDays, format } from 'date-fns';
 import { getPhaseTheme } from '@/lib/phase-theme';
 import { getJournalSnippet } from '@/actions/journal-actions';
+import type { CycleDashboardInsights } from '@/lib/daily-metrics';
+import { BbtQuickLog } from './bbt-quick-log';
 import {
   dateOnlyToLocalDate,
   isDateOnlyString,
@@ -76,6 +78,8 @@ interface CyclePageClientProps {
     cycleLength: number;
     lastPeriodDate: Date;
   };
+  /** Quick-log data and the user's own chart overlays (BBT, recovery). */
+  insights: CycleDashboardInsights;
 }
 
 const PHASE_NAMES: Record<CyclePhase, string> = {
@@ -96,6 +100,7 @@ export function CyclePageClient({
   phaseData,
   recommendations,
   userPreference,
+  insights,
 }: CyclePageClientProps) {
   // URL state management with nuqs
   // Literal parser: an unknown ?phase= value (old or hand-edited link) falls back to the default
@@ -354,6 +359,8 @@ export function CyclePageClient({
                   onPhaseClick={handlePhaseClick}
                   onDayClick={handleDayClick}
                   mode={mode}
+                  bbt={insights.overlays.bbt}
+                  recovery={insights.overlays.recovery}
                 />
               </Card>
 
@@ -408,6 +415,8 @@ export function CyclePageClient({
                     </p>
                   </Card>
                 )}
+
+                <BbtQuickLog data={insights.quickLog} />
               </div>
             </div>
           )}
