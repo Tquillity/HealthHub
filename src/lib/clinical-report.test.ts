@@ -213,20 +213,21 @@ describe('summarizePhaseDistribution', () => {
   it('splits the range into phases and averages estimated phase lengths', () => {
     const cycles = buildCycleHistory(['2026-08-21', '2026-09-18', '2026-10-16']);
     const result = summarizePhaseDistribution(cycles, RANGE_3, 28);
-    expect(result.trackedDays).toBe(92);
-    expect(result.untrackedDays).toBe(0);
-    const byPhase = Object.fromEntries(result.phases.map((p) => [p.phase, p]));
     // 28-day model: menstrual 1-5, follicular 6-10, ovulation 11-14, luteal 15-28.
-    // Two complete cycles (56 days) + 36 days of the open cycle at the typical 28
-    // (days 29-36 continue as luteal).
+    // Two complete cycles (56 days) + 36 days of the open cycle at the typical 28:
+    // days 29-36 are past the typical length and get no phase.
+    expect(result.trackedDays).toBe(84);
+    expect(result.untrackedDays).toBe(0);
+    expect(result.beyondTypicalDays).toBe(8);
+    const byPhase = Object.fromEntries(result.phases.map((p) => [p.phase, p]));
     expect(byPhase.menstrual.days).toBe(15);
     expect(byPhase.follicular.days).toBe(15);
     expect(byPhase.ovulation.days).toBe(12);
-    expect(byPhase.luteal.days).toBe(50);
+    expect(byPhase.luteal.days).toBe(42);
     expect(
       result.phases.reduce((sum, phase) => sum + phase.days, 0)
-    ).toBe(92);
-    expect(byPhase.menstrual.percent).toBe(16.3);
+    ).toBe(84);
+    expect(byPhase.menstrual.percent).toBe(17.9);
     expect(byPhase.luteal.averageLength).toBe(14);
     expect(byPhase.follicular.averageLength).toBe(5);
     expect(result.cyclesForLengths).toBe(2);
@@ -240,6 +241,56 @@ describe('summarizePhaseDistribution', () => {
     expect(result.trackedDays).toBe(20);
     expect(result.regularity).toBeNull();
     expect(result.phases.every((p) => p.averageLength === null)).toBe(true);
+  });
+
+  it('gives no phase to days of a late open cycle after the typical length', () => {
+    // Open cycle from 09-10 is on day 72 on 11-20 with a typical length of 28.
+    const report = buildClinicalReport(
+      baseInput({
+        months: 3,
+        periodStarts: ['2026-07-11', '2026-08-10', '2026-09-10'],
+        bbtReadings: [
+          // Day 21 of the open cycle: luteal at the typical 28.
+          { date: '2026-09-30', celsius: 36.3 },
+          { date: '2026-11-15', celsius: 36.4 },
+        ],
+        symptomDays: [
+          { date: '2026-11-15', mood: 4, energy: 3, physical: ['Cramps'], mental: [] },
+        ],
+        noteDays: [
+          { date: '2026-11-15', note: 'Still no period', symptomNote: null, tags: [] },
+        ],
+      })
+    );
+    expect(report.cycles.current).toEqual({ start: '2026-09-10', day: 72 });
+
+    const { phases } = report;
+    // 08-21..09-09: days 12-31 of the 31-day cycle; 09-10..10-07: days 1-28 of the
+    // open cycle; 10-08..11-20: days 29-72, past the typical length.
+    expect(phases.beyondTypicalDays).toBe(44);
+    expect(phases.untrackedDays).toBe(0);
+    expect(phases.trackedDays).toBe(48);
+    expect(
+      Object.fromEntries(phases.phases.map((p) => [p.phase, p.days]))
+    ).toEqual({ menstrual: 5, follicular: 7, ovulation: 8, luteal: 28 });
+    expect(phases.trackedDays + phases.untrackedDays + phases.beyondTypicalDays).toBe(
+      report.meta.rangeDays
+    );
+
+    // Nothing logged on 11-15 is attributed to a phase.
+    const cramps = report.symptoms?.physical[0];
+    expect(cramps?.days).toBe(1);
+    expect(cramps?.byPhase).toEqual({
+      menstrual: 0,
+      follicular: 0,
+      ovulation: 0,
+      luteal: 0,
+    });
+    expect(report.symptoms?.checkInDaysWithoutPhase).toBe(1);
+    expect(report.symptoms?.moodEnergyByPhase.every((p) => p.days === 0)).toBe(true);
+    const luteal = report.bbt?.phaseAverages.find((p) => p.phase === 'luteal');
+    expect(luteal).toEqual({ phase: 'luteal', averageCelsius: 36.3, readings: 1 });
+    expect(report.notes?.entries[0].phase).toBeNull();
   });
 
   it('handles no period history at all', () => {
@@ -545,14 +596,8 @@ describe('buildClinicalReport', () => {
     ];
     const withoutSymptoms = buildClinicalReport(baseInput({ noteDays }));
     expect(withoutSymptoms.meta.sections.symptomNotes).toBe(false);
-    expect(withoutSymptoms.notes?.entries).toEqual([
-      {
-        date: '2026-11-16',
-        phase: expect.any(String),
-        note: 'Travel week',
-        symptomNote: null,
-        tags: [],
-      },
+    expect(withoutSymptoms.notes?.entries).toMatchObject([
+      { date: '2026-11-16', note: 'Travel week', symptomNote: null, tags: [] },
     ]);
     const json = JSON.stringify(withoutSymptoms);
     expect(json).not.toContain('Heavy bleeding');

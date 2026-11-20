@@ -38,7 +38,10 @@
  * Phase lengths are therefore estimates (luteal ~14 days), not measurements. Where BBT
  * confirms ovulation, the BBT section reports the measured luteal length instead
  * (luteal phase ~12-14 days and fairly constant: NIH/Endotext "The Normal Menstrual
- * Cycle and the Control of Ovulation").
+ * Cycle and the Control of Ovulation"). Days of the open cycle after the typical length
+ * (a late period, or one not logged yet) get no phase: the model would call every one
+ * of them luteal, although ovulation was later than modelled or did not happen. They
+ * are counted separately (`beyondTypicalDays`) and left out of every by-phase figure.
  *
  * **BBT.** lib/bbt's 3-over-6 rule per cycle (Marshall 1968), run on every reading of
  * each cycle that overlaps the range, including readings before the range start. The
@@ -63,6 +66,7 @@ import {
   buildCycleHistory,
   getCycleDayInfo,
   normalizePeriodStarts,
+  type CycleDayInfo,
   type CycleSpan,
 } from '@/lib/cycle-history';
 import {
@@ -224,10 +228,15 @@ export type PhaseShare = {
 };
 
 export type PhaseDistribution = {
-  /** Days in the range on or after the first logged period start. */
+  /** Days in the range with an estimated phase (the base of `percent`). */
   trackedDays: number;
   /** Days in the range before the first logged period start (no phase). */
   untrackedDays: number;
+  /**
+   * Days of the open cycle after the typical cycle length (period late or not logged
+   * yet). No phase is estimated for them. tracked + untracked + beyond = range days.
+   */
+  beyondTypicalDays: number;
   phases: PhaseShare[];
   /** Completed cycles the average phase lengths come from. */
   cyclesForLengths: number;
@@ -284,7 +293,10 @@ export type SymptomPair = { a: string; b: string; days: number };
 export type SymptomClusters = {
   checkInDays: number;
   checkInDaysByPhase: PhaseCounts;
-  /** Check-in days before the first logged period start. */
+  /**
+   * Check-in days with no estimated phase: before the first logged period start, or
+   * after the typical length in the open cycle.
+   */
   checkInDaysWithoutPhase: number;
   daysWithSymptoms: number;
   physical: SymptomStat[];
@@ -442,12 +454,22 @@ export function truncateText(text: string, max: number): string {
   return `${chars.slice(0, Math.max(0, max - 1)).join('').trimEnd()}…`;
 }
 
+/** A day of the open cycle after the typical length: the next period is late or unlogged. */
+function isBeyondTypicalLength(info: CycleDayInfo): boolean {
+  return info.cycle.isOpen && info.cycleDay > info.phaseCycleLength;
+}
+
+/**
+ * Estimated phase of a day, or null before the first logged period start and in the
+ * open cycle after the typical length (see the module notes on phases).
+ */
 function phaseOf(
   cycles: readonly CycleSpan[],
   date: string,
   typicalCycleLength: number
 ): CyclePhase | null {
-  return getCycleDayInfo(cycles, date, typicalCycleLength)?.phase ?? null;
+  const info = getCycleDayInfo(cycles, date, typicalCycleLength);
+  return info && !isBeyondTypicalLength(info) ? info.phase : null;
 }
 
 function completedCyclesInRange(
@@ -512,16 +534,18 @@ export function summarizePhaseDistribution(
 ): PhaseDistribution {
   const counts = emptyPhaseCounts();
   let untrackedDays = 0;
+  let beyondTypicalDays = 0;
   for (let i = 0; i < range.days; i++) {
-    const phase = phaseOf(
+    const info = getCycleDayInfo(
       cycles,
       addDaysToDateOnly(range.start, i),
       typicalCycleLength
     );
-    if (phase) counts[phase]++;
-    else untrackedDays++;
+    if (!info) untrackedDays++;
+    else if (isBeyondTypicalLength(info)) beyondTypicalDays++;
+    else counts[info.phase]++;
   }
-  const trackedDays = range.days - untrackedDays;
+  const trackedDays = range.days - untrackedDays - beyondTypicalDays;
 
   const completed = completedCyclesInRange(cycles, range);
   const lengthsByPhase: Record<CyclePhase, number[]> = {
@@ -546,6 +570,7 @@ export function summarizePhaseDistribution(
   return {
     trackedDays,
     untrackedDays,
+    beyondTypicalDays,
     phases: REPORT_PHASES.map((phase) => ({
       phase,
       days: counts[phase],

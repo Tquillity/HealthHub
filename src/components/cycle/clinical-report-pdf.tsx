@@ -533,14 +533,16 @@ function CycleSection({ report }: { report: ClinicalReport }) {
 function PhaseSection({ report }: { report: ClinicalReport }) {
   const { phases, cycles } = report;
   const regularity = phases.regularity;
+  const typical = report.meta.typicalCycleLength;
   return (
     <Section
       title="Phase distribution"
       lead={
         phases.trackedDays === 0 ? (
           <Empty>
-            No period start is logged on or before the end of this period, so phases
-            cannot be estimated.
+            {phases.beyondTypicalDays > 0
+              ? `The current cycle was already longer than the typical ${typical} days for the whole period, so phases cannot be estimated.`
+              : 'No period start is logged on or before the end of this period, so phases cannot be estimated.'}
           </Empty>
         ) : (
           <View style={{ marginBottom: 6 }}>
@@ -581,6 +583,11 @@ function PhaseSection({ report }: { report: ClinicalReport }) {
           {`${pluralize(phases.untrackedDays, 'day')} before the first logged period start have no phase and are not counted.`}
         </Note>
       )}
+      {phases.beyondTypicalDays > 0 && (
+        <Note>
+          {`${pluralize(phases.beyondTypicalDays, 'day')} of the current cycle after the typical ${typical}-day length have no estimated phase and are not counted here or in any by-phase figure: the next period is late or not logged yet, so ovulation and the luteal phase cannot be placed.`}
+        </Note>
+      )}
       <Block title="Regularity indicator">
         <Paragraph>
           {regularity
@@ -594,8 +601,9 @@ function PhaseSection({ report }: { report: ClinicalReport }) {
       <Note>
         Phases are estimated from logged period dates with a 4-phase wellness model
         (menstrual days 1-5, ovulation window ending about 14 days before the next period,
-        luteal about 14 days). They are not hormone measurements; where temperature data
-        confirms ovulation, the measured luteal length is in the temperature section.
+        luteal about 14 days). The current cycle uses the typical length; days after it
+        get no phase. They are not hormone measurements; where temperature data confirms
+        ovulation, the measured luteal length is in the temperature section.
       </Note>
     </Section>
   );
