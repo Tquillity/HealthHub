@@ -52,7 +52,9 @@ const nextConfig: NextConfig = {
   // Recipe images uploaded via Vercel Blob (src/actions/image-upload.ts) render through next/image,
   // which rejects hosts that are not listed here.
   images: {
-    remotePatterns: [{ protocol: 'https', hostname: '*.public.blob.vercel-storage.com' }],
+    remotePatterns: [
+      { protocol: 'https', hostname: '*.public.blob.vercel-storage.com' },
+    ],
   },
   // Baseline hardening for every route. A Content-Security-Policy is intentionally not set yet:
   // AdSense and Stripe need a reviewed allowlist first (see Docs/reviews).
@@ -64,7 +66,10 @@ const nextConfig: NextConfig = {
           { key: 'X-Frame-Options', value: 'DENY' },
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=(), microphone=(), geolocation=()',
+          },
         ],
       },
     ];

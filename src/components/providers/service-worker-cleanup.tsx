@@ -16,7 +16,10 @@ export function ServiceWorkerCleanup() {
       });
     }
 
-    if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+    if (
+      process.env.NODE_ENV === 'development' &&
+      typeof window !== 'undefined'
+    ) {
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then((registrations) => {
           registrations.forEach((registration) => {
@@ -31,4 +34,3 @@ export function ServiceWorkerCleanup() {
 
   return null;
 }
-

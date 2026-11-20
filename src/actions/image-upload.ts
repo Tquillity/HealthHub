@@ -6,10 +6,9 @@ import { z } from 'zod';
 import { MAX_IMAGE_UPLOAD_BYTES } from '@/lib/upload-limits';
 import { requireSessionUserId } from '@/lib/session';
 
-const FileSchema = z.custom<File>(
-  (val) => val instanceof File,
-  { message: 'Must be a File' }
-);
+const FileSchema = z.custom<File>((val) => val instanceof File, {
+  message: 'Must be a File',
+});
 
 const AllowedMimeSchema = z.enum([
   'image/jpeg',
@@ -31,7 +30,10 @@ const EXTENSION_BY_MIME: Record<z.infer<typeof AllowedMimeSchema>, string> = {
 };
 
 /** Checks the file's magic bytes so a renamed HTML/SVG payload cannot pass as an image. */
-function hasImageSignature(bytes: Uint8Array, mime: z.infer<typeof AllowedMimeSchema>): boolean {
+function hasImageSignature(
+  bytes: Uint8Array,
+  mime: z.infer<typeof AllowedMimeSchema>
+): boolean {
   const startsWith = (signature: number[], offset = 0) =>
     signature.every((byte, index) => bytes[offset + index] === byte);
   switch (mime) {
@@ -43,7 +45,10 @@ function hasImageSignature(bytes: Uint8Array, mime: z.infer<typeof AllowedMimeSc
     case 'image/gif':
       return startsWith([0x47, 0x49, 0x46, 0x38]);
     case 'image/webp':
-      return startsWith([0x52, 0x49, 0x46, 0x46]) && startsWith([0x57, 0x45, 0x42, 0x50], 8);
+      return (
+        startsWith([0x52, 0x49, 0x46, 0x46]) &&
+        startsWith([0x57, 0x45, 0x42, 0x50], 8)
+      );
   }
 }
 
@@ -68,7 +73,10 @@ export async function uploadImage(
 
     const mimeResult = AllowedMimeSchema.safeParse(file.type);
     if (!mimeResult.success) {
-      return { success: false, error: 'Invalid file type. Only images are allowed.' };
+      return {
+        success: false,
+        error: 'Invalid file type. Only images are allowed.',
+      };
     }
 
     const sizeResult = MaxFileSizeSchema.safeParse(file.size);
@@ -78,7 +86,10 @@ export async function uploadImage(
 
     const buffer = Buffer.from(await file.arrayBuffer());
     if (!hasImageSignature(buffer, mimeResult.data)) {
-      return { success: false, error: 'Invalid file type. Only images are allowed.' };
+      return {
+        success: false,
+        error: 'Invalid file type. Only images are allowed.',
+      };
     }
     const filename = `${Date.now()}-${randomUUID()}.${EXTENSION_BY_MIME[mimeResult.data]}`;
 
@@ -94,13 +105,17 @@ export async function uploadImage(
         return { success: true, url: blob.url };
       } catch (blobError) {
         console.error('Vercel Blob upload failed:', blobError);
-        return { success: false, error: 'Image upload failed. Please try again.' };
+        return {
+          success: false,
+          error: 'Image upload failed. Please try again.',
+        };
       }
     }
 
     // Local filesystem uploads are a development convenience only
     const useLocalStorage =
-      process.env.USE_LOCAL_STORAGE === 'true' && process.env.NODE_ENV !== 'production';
+      process.env.USE_LOCAL_STORAGE === 'true' &&
+      process.env.NODE_ENV !== 'production';
     if (useLocalStorage && typeof window === 'undefined') {
       try {
         const { writeFile } = await import('fs/promises');
