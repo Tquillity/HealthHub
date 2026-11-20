@@ -1,9 +1,10 @@
 'use client';
 
-import { useId, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { format } from 'date-fns';
 import { useUIStore } from '@/lib/store';
 import { dateOnlyToLocalDate } from '@/lib/date-only';
+import { cn } from '@/lib/utils';
 import { updateBriefingPreferences } from '@/actions/briefing-actions';
 import type { BriefingSettings } from '@/lib/briefing/data';
 import {
@@ -13,6 +14,7 @@ import {
   type BriefingPreferences,
   type BriefingSource,
 } from '@/lib/briefing/types';
+import { createPreferenceSaver } from './briefing-preference-saver';
 
 const FREQUENCY_OPTIONS: {
   value: BriefingFrequency;
@@ -53,6 +55,12 @@ const SOURCE_TEXT: Record<BriefingSource, { label: string; hint: string }> = {
   },
 };
 
+// The whole 44px row is the label, so a tap anywhere on it changes the choice.
+const optionRowClass =
+  'flex min-h-[44px] cursor-pointer items-center gap-2 text-sm text-gray-700';
+const inputClass =
+  'h-4 w-4 shrink-0 border-gray-300 text-primary-600 focus:ring-2 focus:ring-primary-600 aria-disabled:opacity-50';
+
 export function BriefingSettingsControls({
   settings,
 }: {
@@ -65,21 +73,36 @@ export function BriefingSettingsControls({
   );
   const [nextBriefing, setNextBriefing] = useState(settings.nextBriefing);
   const [saving, setSaving] = useState(false);
+  // Toasts are not announced, so results are also read out from this status region.
+  const [status, setStatus] = useState('');
+  // The preferences the server last confirmed, to fall back to when a save fails.
+  const confirmed = useRef(settings.preferences);
+  // Controls are never disabled while saving: arrow keys in a radio group move focus
+  // and select together, so a disabled radio would drop focus. Changes made while a
+  // save runs are merged into the next request instead.
+  const [saver] = useState(() =>
+    createPreferenceSaver({
+      send: updateBriefingPreferences,
+      onSaving: setSaving,
+      onSaved: (saved, more) => {
+        confirmed.current = saved.preferences;
+        setNextBriefing(saved.nextBriefing);
+        if (more) return;
+        setPreferences(saved.preferences);
+        setStatus('Briefing settings saved.');
+        showToast('Briefing settings saved', 'success');
+      },
+      onFailed: (error) => {
+        setPreferences(confirmed.current);
+        setStatus(error);
+        showToast(error, 'error');
+      },
+    })
+  );
 
-  const save = async (patch: Partial<BriefingPreferences>) => {
-    const previous = preferences;
-    setPreferences({ ...previous, ...patch });
-    setSaving(true);
-    const result = await updateBriefingPreferences(patch);
-    setSaving(false);
-    if (result.success) {
-      setPreferences(result.data.preferences);
-      setNextBriefing(result.data.nextBriefing);
-      showToast('Briefing settings saved', 'success');
-    } else {
-      setPreferences(previous);
-      showToast(result.error, 'error');
-    }
+  const save = (patch: Partial<BriefingPreferences>) => {
+    setPreferences((current) => ({ ...current, ...patch }));
+    saver.save(patch);
   };
 
   const toggleSource = (source: BriefingSource, checked: boolean) => {
@@ -88,7 +111,10 @@ export function BriefingSettingsControls({
           (s) => s === source || preferences.sources.includes(s)
         )
       : preferences.sources.filter((s) => s !== source);
-    void save({ sources });
+    // At least one source stays on (the last one is aria-disabled, not disabled, so it
+    // keeps focus and its hint can be read).
+    if (sources.length === 0) return;
+    save({ sources });
   };
 
   const unavailable: Partial<Record<BriefingSource, string>> = {
@@ -103,34 +129,30 @@ export function BriefingSettingsControls({
 
   return (
     <div className="flex flex-col gap-6">
-      <fieldset className="flex flex-col gap-2">
+      <fieldset
+        className="flex flex-col gap-2"
+        aria-busy={saving || undefined}
+      >
         <legend className="mb-1 text-sm font-medium text-gray-700">
           How often
         </legend>
-        <div className="flex flex-wrap gap-x-6 gap-y-2">
+        <div className="flex flex-wrap gap-x-6">
           {FREQUENCY_OPTIONS.map((option) => (
-            <div
-              key={option.value}
-              className="flex min-h-[44px] items-center gap-2"
-            >
+            <label key={option.value} className={optionRowClass}>
               <input
                 type="radio"
                 id={`${id}-frequency-${option.value}`}
                 name="briefing-frequency"
                 value={option.value}
                 checked={preferences.frequency === option.value}
-                disabled={saving}
-                onChange={() => void save({ frequency: option.value })}
-                className="h-4 w-4 border-gray-300 text-primary-600 focus:ring-2 focus:ring-primary-600"
+                onChange={() => save({ frequency: option.value })}
+                className={inputClass}
               />
-              <label
-                htmlFor={`${id}-frequency-${option.value}`}
-                className="text-sm text-gray-700"
-              >
+              <span>
                 {option.label}{' '}
                 <span className="text-gray-500">({option.hint})</span>
-              </label>
-            </div>
+              </span>
+            </label>
           ))}
         </div>
         {nextBriefing && preferences.frequency === 'weekly' && (
@@ -142,35 +164,34 @@ export function BriefingSettingsControls({
         )}
       </fieldset>
 
-      <fieldset className="flex flex-col gap-2" disabled={off}>
+      <fieldset
+        className="flex flex-col gap-2"
+        disabled={off}
+        aria-busy={saving || undefined}
+      >
         <legend className="mb-1 text-sm font-medium text-gray-700">
           What the briefing looks at
         </legend>
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-1">
           {BRIEFING_SOURCES.map((source, index) => {
             const checked = preferences.sources.includes(source);
             const isLast = checked && preferences.sources.length === 1;
             const hintId = `${id}-source-hint-${index}`;
             return (
-              <div key={source} className="flex flex-col gap-0.5">
-                <div className="flex min-h-[44px] items-center gap-3">
+              <div key={source} className="flex flex-col">
+                <label className={cn(optionRowClass, 'gap-3 font-medium')}>
                   <input
                     type="checkbox"
                     id={`${id}-source-${index}`}
                     name={`briefing-source-${source}`}
                     checked={checked}
-                    disabled={saving || isLast}
+                    aria-disabled={isLast || undefined}
                     aria-describedby={hintId}
                     onChange={(e) => toggleSource(source, e.target.checked)}
-                    className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-2 focus:ring-primary-600"
+                    className={cn(inputClass, 'rounded')}
                   />
-                  <label
-                    htmlFor={`${id}-source-${index}`}
-                    className="text-sm font-medium text-gray-700"
-                  >
-                    {SOURCE_TEXT[source].label}
-                  </label>
-                </div>
+                  <span>{SOURCE_TEXT[source].label}</span>
+                </label>
                 <p id={hintId} className="pl-7 text-xs text-gray-500">
                   {SOURCE_TEXT[source].hint}
                   {unavailable[source] ? ` ${unavailable[source]}` : ''}
@@ -188,37 +209,37 @@ export function BriefingSettingsControls({
         </p>
       </fieldset>
 
-      <fieldset className="flex flex-col gap-2" disabled={off}>
+      <fieldset
+        className="flex flex-col gap-2"
+        disabled={off}
+        aria-busy={saving || undefined}
+      >
         <legend className="mb-1 text-sm font-medium text-gray-700">
           Detail
         </legend>
-        <div className="flex flex-wrap gap-x-6 gap-y-2">
+        <div className="flex flex-wrap gap-x-6">
           {DETAIL_OPTIONS.map((option) => (
-            <div
-              key={option.value}
-              className="flex min-h-[44px] items-center gap-2"
-            >
+            <label key={option.value} className={optionRowClass}>
               <input
                 type="radio"
                 id={`${id}-detail-${option.value}`}
                 name="briefing-detail"
                 value={option.value}
                 checked={preferences.detail === option.value}
-                disabled={saving}
-                onChange={() => void save({ detail: option.value })}
-                className="h-4 w-4 border-gray-300 text-primary-600 focus:ring-2 focus:ring-primary-600"
+                onChange={() => save({ detail: option.value })}
+                className={inputClass}
               />
-              <label
-                htmlFor={`${id}-detail-${option.value}`}
-                className="text-sm text-gray-700"
-              >
+              <span>
                 {option.label}{' '}
                 <span className="text-gray-500">({option.hint})</span>
-              </label>
-            </div>
+              </span>
+            </label>
           ))}
         </div>
       </fieldset>
+      <p role="status" className="sr-only">
+        {status}
+      </p>
     </div>
   );
 }
