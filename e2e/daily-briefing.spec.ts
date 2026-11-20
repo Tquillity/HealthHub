@@ -69,9 +69,16 @@ test('the daily briefing follows the profile settings and can be hidden for the 
     .click();
   // Undo is enabled again once the server has stored the dismissal.
   await expect(undo).toBeEnabled();
-  await page.reload();
+  // Check the stored dismissal from a fresh load in a second tab, then undo it on this
+  // page (a reload leaves no Undo), so the spec can run again without a reseed.
+  const other = await page.context().newPage();
+  await other.goto('/dashboard');
   await expect(
-    page.getByRole('heading', { name: /Welcome back/ })
+    other.getByRole('heading', { name: /Welcome back/ })
   ).toBeVisible();
-  await expect(briefingCard(page)).toHaveCount(0);
+  await expect(briefingCard(other)).toHaveCount(0);
+  await other.close();
+  await undo.click();
+  // Shown again only once the server has removed the dismissal.
+  await expect(briefingCard(page)).toBeVisible();
 });
