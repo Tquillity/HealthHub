@@ -101,6 +101,15 @@ test('making a public recipe secret immediately expires the guest cache', async 
   });
   const guestPage = await guest.newPage();
   try {
+    // Public through the app first: seed-e2e writes the DB and cannot expire the guest cache.
+    await page.goto('/recipes/hh-e2e-visibility/edit');
+    await page
+      .getByLabel('Secret Recipe (Only visible to main admin)')
+      .setChecked(false);
+    await page
+      .getByRole('button', { name: 'Update Recipe', exact: true })
+      .click();
+    await expect(page).toHaveURL(/\/recipes\/hh-e2e-visibility$/);
     await guestPage.goto('/recipes/hh-e2e-visibility');
     await expect(
       guestPage.getByRole('heading', { name: 'E2E visibility recipe' })

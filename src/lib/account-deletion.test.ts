@@ -210,6 +210,16 @@ describe.skipIf(!isolated)(
       await client.periodStart.create({
         data: { userId: leaving.id, date: new Date('2026-01-01') },
       });
+      // Cycle status shared with both households goes with the account too.
+      await client.cycleStatusShare.createMany({
+        data: [personal, shared].map((organizationId) => ({
+          id: `css-${organizationId}`,
+          userId: leaving.id,
+          organizationId,
+          level: 'FULL' as const,
+          coversMembersJoinedBy: new Date('2026-01-10T00:00:00Z'),
+        })),
+      });
       // A day shared with the household goes with the account, not with the household.
       await client.journalEntry.create({
         data: {
@@ -336,6 +346,9 @@ describe.skipIf(!isolated)(
       ).toBe(3);
       expect(
         await client.journalEntry.count({ where: { sharedOrganizationId: shared } })
+      ).toBe(0);
+      expect(
+        await client.cycleStatusShare.count({ where: { userId: leaving.id } })
       ).toBe(0);
     });
   }

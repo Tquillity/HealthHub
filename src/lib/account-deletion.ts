@@ -10,8 +10,8 @@ import { compareSuccessionCandidates, parseOrgRole } from '@/lib/org-roles';
  * Better-Auth's `deleteUser` endpoint checks the password (or a fresh session), calls
  * `beforeAccountDeletion`, then deletes the user row. Deleting the row cascades to the
  * rows that hang off the user: sessions, sign-in accounts, household memberships,
- * journal entries (including BBT, vitals and any shared with a household), period
- * history, daily briefing feedback, ingredient preferences and timer state.
+ * journal entries (including BBT, vitals and any shared with a household), cycle status
+ * shares, period history, daily briefing feedback, ingredient preferences and timer state.
  *
  * Everything else the user owns lives in households (Better-Auth organizations), which
  * do not cascade from the user, so this module removes it first:

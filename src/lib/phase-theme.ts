@@ -183,6 +183,32 @@ export const PHASE_THEMES: Record<CyclePhase, PhaseTheme> = {
 };
 
 /**
+ * Small phase pills (the meal board's Biological Match badge): 10px text needs 4.5:1
+ * (WCAG AA). The accent text colors (*-600) on *-100 fall short for menstrual, follicular
+ * and ovulation with the Tailwind v4 palette, so these use darker text. Checked against
+ * tailwindcss/theme.css in biological-match-badge.test.ts.
+ */
+export const PHASE_BADGE_CLASSES: Record<CyclePhase, string> = {
+  menstrual: 'border-rose-400 bg-rose-100 text-rose-700',
+  follicular: 'border-fuchsia-400 bg-fuchsia-100 text-fuchsia-700',
+  ovulation: 'border-amber-400 bg-amber-100 text-amber-800',
+  luteal: 'border-indigo-400 bg-indigo-100 text-indigo-700',
+};
+
+/**
+ * A phase name in small text on the phase's light backgrounds (white up to *-50, such as
+ * `bg.muted` on a white card): it needs 4.5:1 (WCAG AA), and the accent colors (*-600) fall
+ * short for menstrual, follicular and ovulation. Same text shades as PHASE_BADGE_CLASSES.
+ * Checked against tailwindcss/theme.css in support-status-item.test.ts.
+ */
+export const PHASE_NAME_TEXT_CLASSES: Record<CyclePhase, string> = {
+  menstrual: 'text-rose-700',
+  follicular: 'text-fuchsia-700',
+  ovulation: 'text-amber-800',
+  luteal: 'text-indigo-700',
+};
+
+/**
  * Get theme for a specific phase
  * 
  * @param phase - The cycle phase

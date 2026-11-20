@@ -7,6 +7,7 @@ import { OrgTypeBadge, RoleBadge } from '@/components/household/org-badges';
 import { getSessionUserId } from '@/lib/session';
 import { getInvitationForUser } from '@/lib/household-management';
 import { InvitationIdSchema, invitePath } from '@/lib/invitations';
+import { joinPrivacyNote } from '@/lib/org-policy';
 import { ROLE_DESCRIPTIONS } from '@/lib/org-roles';
 import { withNextPath } from '@/lib/safe-redirect';
 import { createPageMetadata } from '@/lib/site-metadata';
@@ -99,10 +100,7 @@ export default async function InvitePage({ params }: { params: Promise<{ id: str
               <RoleBadge role={invitation.role} />
               <span>{ROLE_DESCRIPTIONS[invitation.role]}</span>
             </div>
-            <p className="text-sm text-gray-600">
-              Your journal and cycle stay private. You decide later, day by day, whether to share
-              a journal entry.
-            </p>
+            <p className="text-sm text-gray-600">{joinPrivacyNote(invitation.organizationType)}</p>
             {invitation.alreadyMember ? (
               <Link href="/profile/household" className={`${primaryLink} self-start`}>
                 You&apos;re already a member: open it

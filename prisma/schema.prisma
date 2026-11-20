@@ -28,6 +28,10 @@ model User {
   focusPreference       String?
   mealPlanDuration      String?
   mealPlanStartDate     DateTime?
+  /// Meal Plan Generator favors recipes that suit each day's estimated cycle phase.
+  /// Opt-in: the picks land in the space's shared plan. Only takes effect while cycle
+  /// tracking is on, a last period date is set, and the space is a household.
+  alignMealsWithCycle   Boolean                    @default(false)
   isPremium             Boolean                    @default(false) @map("is_premium")
   /// Preferred unit for basal body temperature ("C" or "F"). Readings are always stored in Celsius.
   temperatureUnit       String                     @default("C")
@@ -45,8 +49,43 @@ model User {
   briefingFeedback      BriefingFeedback[]
   ingredientPreferences UserIngredientPreference[]
   pomoState             PomoState?
+  /// Partner sync (#3): optional note, encrypted at rest. Shown only in the households the
+  /// user shares Full status with (CycleStatusShare).
+  supportMessage        String?
+  cycleStatusShares     CycleStatusShare[]
 
   @@map("user")
+}
+
+/// What household members see of someone's current cycle status (#3), from least to most.
+enum CycleShareLevel {
+  NONE
+  PHASE
+  ENERGY
+  FULL
+}
+
+/// Partner sync (#3): one person's consent to show their current cycle status in one household.
+/// No row means nothing is shown there, which is the default. Leaving or being removed deletes
+/// the row in the same transaction as the membership, and a new membership starts without one.
+/// See src/lib/support-status.ts.
+model CycleStatusShare {
+  id                    String          @id
+  userId                String
+  organizationId        String
+  /// PHASE, ENERGY or FULL. Never NONE: stopping deletes the row.
+  level                 CycleShareLevel
+  /// Members who had joined by this time see the status. People who join later see nothing
+  /// until the sharer includes them from Profile.
+  coversMembersJoinedBy DateTime
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  user                  User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization          Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+  @@index([organizationId])
+  @@map("cycle_status_share")
 }
 
 model Session {
@@ -115,6 +154,8 @@ model Organization {
   shoppingListItems ShoppingListItem[]
   /// Journal entries members explicitly shared with this organization.
   sharedJournalEntries JournalEntry[]
+  /// Members who chose to show their cycle status here (households only).
+  cycleStatusShares    CycleStatusShare[]
 
   @@map("organization")
 }
@@ -184,6 +225,13 @@ model Recipe {
   yieldUnit             String?
   /// High | Medium | Low (validated in src/lib/lean-kitchen.ts)
   batchEfficiency       String?
+  /// Cycle phases the recipe suits: menstrual | follicular | ovulation | luteal.
+  /// Empty means "infer from nutrients/ingredients" (src/lib/phase-nutrition.ts), except
+  /// for Treat and Process recipes, which match only the phases tagged here.
+  phaseTags             String[]               @default([])
+  /// Key nutrients from the controlled vocabulary in src/lib/phase-nutrition.ts.
+  /// Empty means "infer from ingredient names".
+  nutrientHighlights    String[]               @default([])
   isSystem              Boolean                @default(false)
   isSecret              Boolean                @default(false)
   isPrivate             Boolean                @default(false)

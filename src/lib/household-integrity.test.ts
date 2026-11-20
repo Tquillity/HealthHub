@@ -33,6 +33,7 @@ describe.skipIf(!isolated)('household integrity against isolated PostgreSQL', ()
   let household: typeof import('./household');
   let lib: typeof import('./household-management');
   let sharing: typeof import('./journal-sharing');
+  let cycleSharing: typeof import('./support-status');
 
   let seq = 0;
   const createUser = async (key: string) => {
@@ -125,6 +126,7 @@ describe.skipIf(!isolated)('household integrity against isolated PostgreSQL', ()
     household = await import('./household');
     lib = await import('./household-management');
     sharing = await import('./journal-sharing');
+    cycleSharing = await import('./support-status');
   });
 
   afterAll(async () => {
@@ -426,6 +428,181 @@ describe.skipIf(!isolated)('household integrity against isolated PostgreSQL', ()
       expect(await lib.acceptInvitation(author, invitationId)).toMatchObject({ ok: true });
       expect(await sharingOf(entry.id)).toEqual({ visibility: 'PRIVATE', sharedOrganizationId: null });
       expect(await sharing.getSharedJournalEntries(owner, space.id)).toEqual([]);
+    });
+  });
+
+  describe('cycle status shares and membership', () => {
+    const listedAt = () => new Date().toISOString();
+    const sharesOf = (userId: string, organizationId: string) =>
+      client.cycleStatusShare.count({ where: { userId, organizationId } });
+    const shareWith = (userId: string, organizationId: string) =>
+      cycleSharing.setCycleStatusShare(userId, {
+        organizationId,
+        level: 'FULL',
+        listedMembersJoinedBy: listedAt(),
+      });
+
+    it('leaving deletes the share with the membership', async () => {
+      const owner = await createUser('cs-leave-owner');
+      const sharer = await createUser('cs-leave-sharer');
+      const space = await createOrg('cs-leave-space', [
+        [owner, 'owner'],
+        [sharer, 'member'],
+      ]);
+      const other = await createOrg('cs-leave-other', [[sharer, 'owner']]);
+      expect(await shareWith(sharer, space.id)).toMatchObject({ ok: true });
+      expect(await shareWith(sharer, other.id)).toMatchObject({ ok: true });
+
+      expect(await lib.leaveOrganization(sharer, space.id)).toMatchObject({ ok: true });
+      expect(await sharesOf(sharer, space.id)).toBe(0);
+      // A share with another space stays.
+      expect(await sharesOf(sharer, other.id)).toBe(1);
+    });
+
+    it('a removal deletes the share with the membership', async () => {
+      const owner = await createUser('cs-remove-owner');
+      const sharer = await createUser('cs-remove-sharer');
+      const space = await createOrg('cs-remove-space', [
+        [owner, 'owner'],
+        [sharer, 'member'],
+      ]);
+      await createOrg('cs-remove-other', [[sharer, 'owner']]);
+      expect(await shareWith(sharer, space.id)).toMatchObject({ ok: true });
+
+      expect(await lib.removeMember(owner, space.memberIds[1])).toMatchObject({ ok: true });
+      expect(await sharesOf(sharer, space.id)).toBe(0);
+    });
+
+    it('a share racing a removal fails instead of outliving the membership', async () => {
+      const owner = await createUser('cs-race-owner');
+      const sharer = await createUser('cs-race-sharer');
+      const space = await createOrg('cs-race-space', [
+        [owner, 'owner'],
+        [sharer, 'member'],
+      ]);
+      await createOrg('cs-race-other', [[sharer, 'owner']]);
+
+      // The owner's removal has deleted the membership and the shares, but not committed yet.
+      const removal = await holdTransaction([
+        ['DELETE FROM "member" WHERE id = $1', [space.memberIds[1]]],
+        [
+          'DELETE FROM "cycle_status_share" WHERE "userId" = $1 AND "organizationId" = $2',
+          [sharer, space.id],
+        ],
+      ]);
+      const result = await runWhileHeld(removal, () => shareWith(sharer, space.id));
+
+      expect(result).toEqual({ ok: false, error: cycleSharing.NOT_A_HOUSEHOLD_MEMBER_ERROR });
+      expect(await sharesOf(sharer, space.id)).toBe(0);
+    });
+
+    it('does not cover someone whose join was still being saved while the page was read', async () => {
+      const sharer = await createUser('cs-join-sharer');
+      const partner = await createUser('cs-join-partner');
+      const joiner = await createUser('cs-join-joiner');
+      await client.user.update({
+        where: { id: sharer },
+        data: { enableCycleTracking: true, lastPeriodDate: new Date('2026-11-01T00:00:00Z') },
+      });
+      const space = await createOrg('cs-join-space', [
+        [sharer, 'owner'],
+        [partner, 'member'],
+      ]);
+      const name = async (userId: string) =>
+        (await client.user.findUniqueOrThrow({ where: { id: userId } })).name;
+
+      // The joiner's acceptance has written the membership (its join time is now), but has not
+      // committed when the sharer's Profile reads the household.
+      const join = await holdTransaction([
+        [
+          `INSERT INTO "member" ("id", "organizationId", "userId", "role", "createdAt")
+           VALUES ($1, $2, $3, 'member', $4)`,
+          [`hi-m-join-${run}`, space.id, joiner, new Date()],
+        ],
+      ]);
+      const panel = await cycleSharing.getCycleSharingPanelData(sharer);
+      await join.commit();
+      const listed = panel?.households.find((h) => h.id === space.id);
+      if (!listed) throw new Error('household missing from the panel');
+      expect(listed.members.map((m) => m.name)).toEqual([await name(partner)]);
+
+      // Sharing from that page covers the partner it listed, not the joiner it did not.
+      const result = await cycleSharing.setCycleStatusShare(sharer, {
+        organizationId: space.id,
+        level: 'PHASE',
+        listedMembersJoinedBy: listed.listedMembersJoinedBy,
+      });
+      expect(result.ok && result.data.household.members).toEqual([
+        { name: await name(partner), seesStatus: true },
+        { name: await name(joiner), seesStatus: false },
+      ]);
+      const seenBy = async (viewerId: string) =>
+        (await cycleSharing.getSupportStatusBoard(viewerId, space.id))?.statuses.map((s) => s.id);
+      expect(await seenBy(partner)).toEqual([sharer]);
+      expect(await seenBy(joiner)).toEqual([]);
+    });
+
+    it('a removal waiting on a share deletes it', async () => {
+      const owner = await createUser('cs-wait-owner');
+      const sharer = await createUser('cs-wait-sharer');
+      const space = await createOrg('cs-wait-space', [
+        [owner, 'owner'],
+        [sharer, 'member'],
+      ]);
+      await createOrg('cs-wait-other', [[sharer, 'owner']]);
+
+      // The sharer's request holds the membership row and has written the share, uncommitted.
+      const share = await holdTransaction([
+        ['SELECT id FROM "member" WHERE id = $1 FOR SHARE', [space.memberIds[1]]],
+        [
+          `INSERT INTO "cycle_status_share"
+             ("id", "userId", "organizationId", "level", "coversMembersJoinedBy", "updatedAt")
+           VALUES ($1, $2, $3, 'FULL', now(), now())`,
+          [`hi-css-wait-${run}`, sharer, space.id],
+        ],
+      ]);
+      const result = await runWhileHeld(share, () => lib.removeMember(owner, space.memberIds[1]));
+
+      expect(result).toMatchObject({ ok: true });
+      expect(await sharesOf(sharer, space.id)).toBe(0);
+    });
+
+    it('rejoining starts with nothing shared, and the household sees nothing', async () => {
+      const owner = await createUser('cs-rejoin-owner');
+      const sharer = await createUser('cs-rejoin-sharer');
+      const space = await createOrg('cs-rejoin-space', [[owner, 'owner']]);
+      await createOrg('cs-rejoin-other', [[sharer, 'owner']]);
+      await client.user.update({
+        where: { id: sharer },
+        data: { enableCycleTracking: true, lastPeriodDate: new Date('2026-03-01T00:00:00Z') },
+      });
+      // A share that won a race against the sharer's earlier removal, covering everyone.
+      await client.cycleStatusShare.create({
+        data: {
+          id: `hi-css-rejoin-${run}`,
+          userId: sharer,
+          organizationId: space.id,
+          level: 'FULL',
+          coversMembersJoinedBy: new Date('2999-01-01T00:00:00Z'),
+        },
+      });
+      const invitationId = `hi-inv-cs-rejoin-${run}`;
+      await client.invitation.create({
+        data: {
+          id: invitationId,
+          organizationId: space.id,
+          email: `${sharer}@example.com`,
+          role: 'member',
+          status: 'pending',
+          expiresAt: new Date('2099-01-01'),
+          inviterId: owner,
+        },
+      });
+
+      expect(await lib.acceptInvitation(sharer, invitationId)).toMatchObject({ ok: true });
+      expect(await sharesOf(sharer, space.id)).toBe(0);
+      const board = await cycleSharing.getSupportStatusBoard(owner, space.id);
+      expect(board).toMatchObject({ otherMemberCount: 1, statuses: [] });
     });
   });
 

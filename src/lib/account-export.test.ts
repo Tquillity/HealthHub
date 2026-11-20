@@ -43,6 +43,8 @@ describe.skipIf(!isolated)('account export against isolated PostgreSQL', () => {
             { date: new Date('2026-03-01T00:00:00Z') },
           ],
         },
+        alignMealsWithCycle: false,
+        supportMessage: encrypt('Tea and a quiet evening, please'),
       },
     });
     await client.user.create({ data: { ...housemate, name: 'Housemate' } });
@@ -94,6 +96,16 @@ describe.skipIf(!isolated)('account export against isolated PostgreSQL', () => {
         },
       ],
     });
+    // Cycle status shared with the household only, at Full.
+    await client.cycleStatusShare.create({
+      data: {
+        id: `css-${run}`,
+        userId: me.id,
+        organizationId: household,
+        level: 'FULL',
+        coversMembersJoinedBy: new Date('2026-03-05T00:00:00Z'),
+      },
+    });
     await client.recipe.create({
       data: {
         id: `r-${run}`,
@@ -105,6 +117,8 @@ describe.skipIf(!isolated)('account export against isolated PostgreSQL', () => {
         yieldAmount: 2,
         yieldUnit: 'bowls',
         batchEfficiency: 'Low',
+        phaseTags: ['follicular'],
+        nutrientHighlights: ['complex-carbs', 'fiber'],
         ingredients: { create: [{ name: 'Oats', quantity: 1, unit: 'cup' }] },
         instructions: { create: [{ stepNumber: 1, text: 'Cook' }] },
       },
@@ -177,6 +191,8 @@ describe.skipIf(!isolated)('account export against isolated PostgreSQL', () => {
       briefingFrequency: 'weekly',
       briefingSources: ['journal', 'meals'],
       briefingDetail: 'detailed',
+      alignMealsWithCycle: false,
+      supportMessage: 'Tea and a quiet evening, please',
     });
     // Suggestion keys are stored encrypted and exported in clear; only this user's rows.
     expect(data.briefingFeedback).toEqual([
@@ -191,6 +207,15 @@ describe.skipIf(!isolated)('account export against isolated PostgreSQL', () => {
         suggestion: 'briefing',
         action: 'dismissed',
         createdAt: expect.any(Date),
+      },
+    ]);
+    expect(data.cycleStatusSharing).toEqual([
+      {
+        household: { id: household, name: 'Our home' },
+        level: 'FULL',
+        coversMembersJoinedBy: new Date('2026-03-05T00:00:00Z'),
+        sharedSince: expect.any(Date),
+        updatedAt: expect.any(Date),
       },
     ]);
     expect(data.periodStarts).toEqual([
@@ -249,6 +274,8 @@ describe.skipIf(!isolated)('account export against isolated PostgreSQL', () => {
         yieldAmount: 2,
         yieldUnit: 'bowls',
         batchEfficiency: 'Low',
+        phaseTags: ['follicular'],
+        nutrientHighlights: ['complex-carbs', 'fiber'],
         ingredients: [expect.objectContaining({ name: 'Oats' })],
         instructions: [expect.objectContaining({ text: 'Cook' })],
       }),

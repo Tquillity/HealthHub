@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { createSeedPrisma } from '@/lib/admin-credentials';
+import { encrypt } from '@/lib/encryption';
 
 const url = new URL(process.env.DATABASE_URL ?? '');
 if (
@@ -45,6 +46,67 @@ try {
       briefingSources: ['journal', 'cycle', 'meals', 'vitals'],
       briefingDetail: 'brief',
     },
+  });
+
+  // Partner sync (#3): the signed-in user tracks their cycle and shares with no household;
+  // a second household member shares their full status with everyone in it.
+  const daysAgo = (days: number) => {
+    const date = new Date();
+    date.setUTCHours(0, 0, 0, 0);
+    date.setUTCDate(date.getUTCDate() - days);
+    return date;
+  };
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      enableCycleTracking: true,
+      cycleLength: 28,
+      lastPeriodDate: daysAgo(9),
+      supportMessage: null,
+    },
+  });
+  await prisma.cycleStatusShare.deleteMany({ where: { userId: user.id } });
+  const partner = {
+    name: 'Robin Partner',
+    enableCycleTracking: true,
+    cycleLength: 28,
+    lastPeriodDate: daysAgo(20),
+    supportMessage: encrypt('Tea and a short walk would be lovely.'),
+  };
+  await prisma.user.upsert({
+    where: { id: 'hh-e2e-partner' },
+    create: { id: 'hh-e2e-partner', email: 'e2e-partner@example.com', ...partner },
+    update: partner,
+  });
+  await prisma.member.upsert({
+    where: { id: 'hh-e2e-partner-membership' },
+    create: {
+      id: 'hh-e2e-partner-membership',
+      userId: 'hh-e2e-partner',
+      organizationId: 'hh-e2e-household',
+      role: 'member',
+    },
+    update: { organizationId: 'hh-e2e-household' },
+  });
+  // Covers everyone who is in the household now, the signed-in user included.
+  const partnerShare = {
+    level: 'FULL' as const,
+    coversMembersJoinedBy: new Date(),
+  };
+  await prisma.cycleStatusShare.upsert({
+    where: {
+      userId_organizationId: {
+        userId: 'hh-e2e-partner',
+        organizationId: 'hh-e2e-household',
+      },
+    },
+    create: {
+      id: 'hh-e2e-partner-cycle-share',
+      userId: 'hh-e2e-partner',
+      organizationId: 'hh-e2e-household',
+      ...partnerShare,
+    },
+    update: partnerShare,
   });
   for (const recipe of [
     {

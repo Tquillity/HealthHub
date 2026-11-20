@@ -6,11 +6,14 @@ import type { GroceryItem } from '@/lib/grocery-aggregate';
  * not on how many people are in it.
  *
  * - HOUSEHOLD (partners, family): meal plans and groceries are fully shared. Each person
- *   can choose to share individual entries (journal days, later cycle status) with it.
+ *   can choose to share individual entries (journal days) and their current cycle status
+ *   (partner sync, #3) with it.
  * - COLLECTIVE (shared house, co-op): the pantry and grocery list are shared. Meal plans
  *   are shared only with the people who choose to plan in this space (the shared plan is
  *   the space's plan; nobody's personal plan is copied in). Journals stay private unless
- *   someone explicitly shares an entry.
+ *   someone explicitly shares an entry. Cycle status is never shown here: it is a standing,
+ *   always-updating disclosure that people turn on for "my household", and housemates in
+ *   a co-op are a wider circle than they agreed to.
  * - COMMUNITY / CORPORATE (clubs, workplaces): no individual journal or cycle data is ever
  *   visible, not even by choice. Only anonymized group numbers, and only for groups of at
  *   least MIN_AGGREGATE_GROUP_SIZE people. Grocery lists do not show where items came from.
@@ -42,8 +45,10 @@ export type OrgPolicy = {
   mealPlans: 'shared' | 'opt-in';
   /** Grocery list items show which recipe, meal and day they came from. */
   grocerySources: boolean;
-  /** People may share individual entries (journal days, cycle status) with the organization. */
+  /** People may share individual entries (journal days) with the organization. */
   individualSharing: 'opt-in' | 'never';
+  /** People may show their current cycle status to the other members (partner sync, #3). */
+  cycleStatusSharing: 'opt-in' | 'never';
   /** Only anonymized group numbers, never individuals. */
   aggregatesOnly: boolean;
 };
@@ -52,10 +57,11 @@ export const ORG_POLICIES: Record<OrganizationType, OrgPolicy> = {
   HOUSEHOLD: {
     label: 'Household',
     description:
-      'For partners and family. Meal plans and groceries are shared. Journal days are private unless you choose to share one.',
+      'For partners and family. Meal plans and groceries are shared. Journal days and your cycle status are private unless you choose to share them.',
     mealPlans: 'shared',
     grocerySources: true,
     individualSharing: 'opt-in',
+    cycleStatusSharing: 'opt-in',
     aggregatesOnly: false,
   },
   COLLECTIVE: {
@@ -65,6 +71,7 @@ export const ORG_POLICIES: Record<OrganizationType, OrgPolicy> = {
     mealPlans: 'opt-in',
     grocerySources: true,
     individualSharing: 'opt-in',
+    cycleStatusSharing: 'never',
     aggregatesOnly: false,
   },
   COMMUNITY: {
@@ -74,6 +81,7 @@ export const ORG_POLICIES: Record<OrganizationType, OrgPolicy> = {
     mealPlans: 'opt-in',
     grocerySources: false,
     individualSharing: 'never',
+    cycleStatusSharing: 'never',
     aggregatesOnly: true,
   },
   CORPORATE: {
@@ -83,6 +91,7 @@ export const ORG_POLICIES: Record<OrganizationType, OrgPolicy> = {
     mealPlans: 'opt-in',
     grocerySources: false,
     individualSharing: 'never',
+    cycleStatusSharing: 'never',
     aggregatesOnly: true,
   },
 };
@@ -103,15 +112,49 @@ export function canViewSharedJournals(type: OrganizationType): boolean {
 
 /**
  * For partner sync (#3): may one person's current cycle status be shown to the other members
- * of this organization? Only when the organization allows individual sharing AND that person
- * has opted in. Callers must also check that both people are current members.
+ * of this organization? Only in households, and only when that person has opted in.
+ * Callers must also check that both people are current members.
  */
 export function canShowIndividualCycleStatus(
   type: OrganizationType,
   options: { sharerOptedIn: boolean }
 ): boolean {
-  return ORG_POLICIES[type].individualSharing === 'opt-in' && options.sharerOptedIn;
+  return ORG_POLICIES[type].cycleStatusSharing === 'opt-in' && options.sharerOptedIn;
 }
+
+/**
+ * For cycle-aware meal planning (#2): may the Meal Plan Generator favor recipes for the
+ * generating person's estimated cycle phase when it fills this organization's plan? The plan
+ * is shared, and its day-by-day picks can hint at that person's phase, so this is a cycle
+ * disclosure like partner sync: households only. The person must also turn it on
+ * (User.alignMealsWithCycle, off by default); callers check that.
+ */
+export function canAlignMealPlanWithCycle(type: OrganizationType): boolean {
+  return ORG_POLICIES[type].cycleStatusSharing === 'opt-in';
+}
+
+/**
+ * What joining a space of this type shares, for the invitation screens. Joining shares nothing
+ * from the journal or cycle: journal days and cycle status are each shared later, by choice,
+ * with one space at a time (cycle status per household, starting at nothing). Accepting an
+ * invitation also clears anything left shared with that space from an earlier membership.
+ */
+export function joinPrivacyNote(type: OrganizationType): string {
+  const policy = ORG_POLICIES[type];
+  const start = 'Joining shares nothing from your journal or cycle.';
+  if (policy.individualSharing === 'never') {
+    return `${start} Nobody here can see anyone's journal or cycle.`;
+  }
+  if (policy.cycleStatusSharing === 'opt-in') {
+    return `${start} Both stay private unless you choose to share a journal day, or your cycle status, with this household.`;
+  }
+  return `${start} Your journal stays private unless you choose to share a day here, and your cycle status is never shown here.`;
+}
+
+/** Organization types where people may show their cycle status (households only). */
+export const CYCLE_STATUS_ORG_TYPES: OrganizationType[] = ORGANIZATION_TYPES.filter(
+  (type) => ORG_POLICIES[type].cycleStatusSharing === 'opt-in'
+);
 
 /** May an anonymized number about `contributorCount` people be shown? */
 export function canShowAggregate(contributorCount: number): boolean {
