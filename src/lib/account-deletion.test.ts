@@ -186,6 +186,14 @@ describe.skipIf(!isolated)(
       await client.periodStart.create({
         data: { userId: leaving.id, date: new Date('2026-01-01') },
       });
+      await client.briefingFeedback.create({
+        data: {
+          userId: leaving.id,
+          date: new Date('2026-01-05'),
+          suggestionKey: 'encrypted-key',
+          action: 'helpful',
+        },
+      });
     });
 
     afterAll(async () => {
@@ -273,6 +281,9 @@ describe.skipIf(!isolated)(
       ).toBe(0);
       expect(
         await client.periodStart.count({ where: { userId: leaving.id } })
+      ).toBe(0);
+      expect(
+        await client.briefingFeedback.count({ where: { userId: leaving.id } })
       ).toBe(0);
       expect(await client.member.count({ where: { userId: leaving.id } })).toBe(
         0

@@ -33,6 +33,9 @@ describe.skipIf(!isolated)('account export against isolated PostgreSQL', () => {
         lastPeriodDate: new Date('2026-03-01T00:00:00Z'),
         temperatureUnit: 'F',
         trackVitals: true,
+        briefingFrequency: 'weekly',
+        briefingSources: ['journal', 'meals'],
+        briefingDetail: 'detailed',
         periodStarts: {
           create: [
             { date: new Date('2026-02-01T00:00:00Z') },
@@ -103,6 +106,28 @@ describe.skipIf(!isolated)('account export against isolated PostgreSQL', () => {
         sleepQuality: 8,
       },
     });
+    await client.briefingFeedback.createMany({
+      data: [
+        {
+          userId: me.id,
+          date: new Date('2026-03-02T00:00:00Z'),
+          suggestionKey: encrypt('meal.magnesium') ?? '',
+          action: 'helpful',
+        },
+        {
+          userId: me.id,
+          date: new Date('2026-03-03T00:00:00Z'),
+          suggestionKey: encrypt('briefing') ?? '',
+          action: 'dismissed',
+        },
+        {
+          userId: housemate.id,
+          date: new Date('2026-03-03T00:00:00Z'),
+          suggestionKey: encrypt('recovery.sleep') ?? '',
+          action: 'not_helpful',
+        },
+      ],
+    });
   });
 
   afterAll(async () => {
@@ -123,7 +148,25 @@ describe.skipIf(!isolated)('account export against isolated PostgreSQL', () => {
       lastPeriodDate: '2026-03-01',
       temperatureUnit: 'F',
       trackVitals: true,
+      briefingFrequency: 'weekly',
+      briefingSources: ['journal', 'meals'],
+      briefingDetail: 'detailed',
     });
+    // Suggestion keys are stored encrypted and exported in clear; only this user's rows.
+    expect(data.briefingFeedback).toEqual([
+      {
+        date: '2026-03-02',
+        suggestion: 'meal.magnesium',
+        action: 'helpful',
+        createdAt: expect.any(Date),
+      },
+      {
+        date: '2026-03-03',
+        suggestion: 'briefing',
+        action: 'dismissed',
+        createdAt: expect.any(Date),
+      },
+    ]);
     expect(data.periodStarts).toEqual([
       { date: '2026-02-01', loggedAt: expect.any(Date) },
       { date: '2026-03-01', loggedAt: expect.any(Date) },
