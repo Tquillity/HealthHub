@@ -21,6 +21,13 @@ async function setCircadianInsights(page: Page, on: boolean) {
   await expect(toggle).toBeChecked({ checked: on });
 }
 
+// Leave the shared user as seeded, even when the test fails part-way: with the opt-in
+// on, the routine lottery and the dashboard look different for every other spec.
+test.afterEach(async ({ page }) => {
+  if (process.env.PLAYWRIGHT_SEEDED_DB !== '1') return;
+  await setCircadianInsights(page, false);
+});
+
 test('circadian insights are opt-in and log energy for the time of day', async ({
   page,
 }) => {

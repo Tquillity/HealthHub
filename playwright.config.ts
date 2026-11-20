@@ -41,11 +41,26 @@ export default defineConfig({
     {
       name: 'authenticated',
       testMatch:
-        /(authenticated|account-export|routine-lottery|household|daily-briefing|partner-sync|circadian-insights)\.spec\.ts/,
+        /(authenticated|account-export|routine-lottery|household|daily-briefing|partner-sync)\.spec\.ts/,
       dependencies: ['setup'],
       use: {
         ...devices['Desktop Chrome'],
         storageState: 'e2e/.auth/user.json',
+      },
+    },
+    {
+      // Turns circadian insights on for the shared signed-in user, which changes what
+      // other specs see (the routine lottery starts on "Match my rhythm"), so it runs
+      // only after the authenticated project has finished.
+      name: 'authenticated-settings',
+      testMatch: /circadian-insights\.spec\.ts/,
+      dependencies: ['authenticated'],
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: 'e2e/.auth/user.json',
+        // Turning the opt-in on saves the device's time zone while the profile has the
+        // UTC default; a UTC browser leaves the shared user's zone as seeded.
+        timezoneId: 'UTC',
       },
     },
   ],
