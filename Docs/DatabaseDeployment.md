@@ -11,9 +11,9 @@ A read-only schema check on 2026-09-11 found these additions absent from the
 connected database. No production schema or data was changed during validation.
 All schema initialization and fixture writes used disposable local PostgreSQL 16.
 
-This repository uses `prisma db push`; the SQL files in `prisma/migrations/` are
-ad hoc scripts, not a complete Prisma Migrate history. Do not use
-`prisma migrate deploy` as if it provisions the application schema.
+> **Update:** the repository now uses Prisma Migrate with a baseline migration.
+> Follow `Docs/DatabaseMigrations.md`; its one-time switch also closes the gap
+> described here. The rest of this page is kept for history.
 
 Before deployment, inspect the target with the PostgreSQL MCP, review the schema
 diff against `prisma/schema.prisma`, and apply the additive changes through the
