@@ -88,6 +88,19 @@ describe('cancelProSubscriptions', () => {
     expect(cancel).toHaveBeenCalledTimes(1);
   });
 
+  it("never cancels another user's subscription that shares the email", async () => {
+    const { client, cancel } = fakeStripe({
+      customers: ['cus_1'],
+      byCustomer: {
+        cus_1: [sub('sub_someone_else', { userId: 'user_999' })],
+      },
+    });
+    await expect(
+      cancelProSubscriptions(user, client, PRO_PRICE)
+    ).resolves.toEqual([]);
+    expect(cancel).not.toHaveBeenCalled();
+  });
+
   it('skips subscriptions that have already ended and de-duplicates', async () => {
     const tagged = sub('sub_both', { userId: user.id });
     const { client, cancel } = fakeStripe({

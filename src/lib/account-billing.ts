@@ -13,7 +13,8 @@ const ENDED_STATUSES = new Set(['canceled', 'incomplete_expired']);
  *
  * Finds them by the `userId` metadata that checkout sets, and by customers with the
  * user's email for older checkouts. The Stripe account may bill other products, so a
- * subscription found by email is only cancelled if it is for the Pro price.
+ * subscription found by email is only cancelled if it is for the Pro price and is not
+ * tagged with another user's id.
  * Returns the ids of the cancelled subscriptions.
  */
 export async function cancelProSubscriptions(
@@ -47,7 +48,14 @@ export async function cancelProSubscriptions(
         const isPro = subscription.items.data.some(
           (item) => item.price?.id === proPriceId
         );
-        if (isPro) toCancel.set(subscription.id, subscription);
+        // The email typed at checkout is free text, so it can match a customer who
+        // pays for someone else's account. Never cancel a subscription tagged with
+        // another user's id.
+        const owner = subscription.metadata?.userId;
+        const belongsToSomeoneElse = Boolean(owner) && owner !== user.id;
+        if (isPro && !belongsToSomeoneElse) {
+          toCancel.set(subscription.id, subscription);
+        }
       }
     }
   }
