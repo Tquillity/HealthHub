@@ -20,6 +20,30 @@ async function setFrequency(page: Page, label: RegExp) {
   await expect(radio).toBeChecked();
 }
 
+/**
+ * Hides today's briefing, runs `whileHidden`, then undoes the hide on the same page, also
+ * when `whileHidden` fails. Once the dismissal is stored, a reload shows no Undo (the card
+ * is gone for the day), so a dismissal left behind would fail a retry or a rerun that does
+ * not reseed.
+ */
+async function hideThenUndo(page: Page, whileHidden: () => Promise<void>) {
+  const undo = page
+    .getByRole('region', { name: 'Daily briefing', exact: true })
+    .getByRole('button', { name: 'Undo' });
+  await briefingCard(page)
+    .getByRole('button', { name: "Hide today's briefing" })
+    .click();
+  try {
+    await whileHidden();
+  } finally {
+    // Undo waits until the server has stored the dismissal (it is aria-disabled until
+    // then). Without Undo the hide failed and the card is back already.
+    if (await undo.isVisible()) await undo.click();
+  }
+  // Shown again only once the server has removed the dismissal.
+  await expect(briefingCard(page)).toBeVisible();
+}
+
 test('the daily briefing follows the profile settings and can be hidden for the day', async ({
   page,
 }) => {
@@ -53,32 +77,29 @@ test('the daily briefing follows the profile settings and can be hidden for the 
     name: 'Daily briefing',
     exact: true,
   });
-  const undo = hidden.getByRole('button', { name: 'Undo' });
-  await card.getByRole('button', { name: "Hide today's briefing" }).click();
-  await expect(
-    hidden.getByText(/It will be back on your next briefing day/)
-  ).toBeVisible();
-  await undo.click();
-  await expect(briefingCard(page)).toBeVisible();
+  await hideThenUndo(page, async () => {
+    await expect(
+      hidden.getByText(/It will be back on your next briefing day/)
+    ).toBeVisible();
+  });
   await page.reload();
   await expect(briefingCard(page)).toBeVisible();
 
   // Hidden for the rest of the day, on the server.
-  await briefingCard(page)
-    .getByRole('button', { name: "Hide today's briefing" })
-    .click();
-  // Undo is enabled again once the server has stored the dismissal.
-  await expect(undo).toBeEnabled();
-  // Check the stored dismissal from a fresh load in a second tab, then undo it on this
-  // page (a reload leaves no Undo), so the spec can run again without a reseed.
-  const other = await page.context().newPage();
-  await other.goto('/dashboard');
-  await expect(
-    other.getByRole('heading', { name: /Welcome back/ })
-  ).toBeVisible();
-  await expect(briefingCard(other)).toHaveCount(0);
-  await other.close();
-  await undo.click();
-  // Shown again only once the server has removed the dismissal.
-  await expect(briefingCard(page)).toBeVisible();
+  await hideThenUndo(page, async () => {
+    // Undo is enabled again once the server has stored the dismissal.
+    await expect(hidden.getByRole('button', { name: 'Undo' })).toBeEnabled();
+    // Check the stored dismissal from a fresh load in a second tab; the hide is undone
+    // on this page afterwards (a reload leaves no Undo).
+    const other = await page.context().newPage();
+    try {
+      await other.goto('/dashboard');
+      await expect(
+        other.getByRole('heading', { name: /Welcome back/ })
+      ).toBeVisible();
+      await expect(briefingCard(other)).toHaveCount(0);
+    } finally {
+      await other.close();
+    }
+  });
 });

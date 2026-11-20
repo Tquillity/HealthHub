@@ -116,13 +116,18 @@ export type BriefingJournalDay = {
   date: string;
   /** Self-rated 1-10. */
   mood: number | null;
-  /** Self-rated 1-10. */
+  /** Self-rated 1-10 for the day; never taken from the time-of-day check-ins. */
   energy: number | null;
   sleepHours: number | null;
   /** Physical and mental symptoms, decrypted. */
   symptoms: string[];
   /** Anything entered in the journal form (not just a quick-log temperature or vitals). */
   checkIn: boolean;
+  /**
+   * A time-of-day energy check-in (circadian insights) on this day. Only read while
+   * circadian insights are on; such a day alone is not a journal `checkIn`.
+   */
+  energyCheckIn?: boolean;
 };
 
 export type BriefingCycleData = {
@@ -162,6 +167,32 @@ export type BriefingMealData = {
   cookedTracking: boolean;
 };
 
+/**
+ * Today's low time-of-day energy check-in (circadian insights): 'now' for the current
+ * slot, 'earlier' for an earlier slot while the current one is not rated yet (see
+ * lib/circadian-recommendations `lowCheckInToday`).
+ */
+export type LowEnergyCheckIn = 'now' | 'earlier';
+
+/**
+ * Why the briefing calls today a take-it-easy day (engine.ts `takeItEasyOf`), for the
+ * circadian card on the same dashboard (lib/easy-day).
+ */
+export type TakeItEasy = {
+  /**
+   * The recent logs say so (rules.ts `recentLogsSayTakeItEasy`), not only a low energy
+   * check-in today.
+   */
+  fromLogs: boolean;
+  /**
+   * The most energetic routines the briefing points to: 'low' when it suggests a rest day
+   * or going gently for low recovery or more symptoms than usual (rules.ts
+   * `suggestsGentleRoutines`; both link to gentle routines), otherwise 'medium', as its
+   * "swap high intensity for moderate".
+   */
+  maxRoutineEnergy: 'low' | 'medium';
+};
+
 export type BriefingFeedbackEntry = {
   /** `YYYY-MM-DD` */
   date: string;
@@ -183,6 +214,12 @@ export type BriefingEngineInput = {
   meals: BriefingMealData | null;
   /** Recovery score inputs; null when the source or the vitals opt-in is off. */
   vitals: BriefingVitalsData | null;
+  /**
+   * Today's low time-of-day energy check-in, by the rule the circadian card holds back on
+   * (lib/easy-day). Null unless circadian insights are on, whatever the journal source
+   * (see the module notes in data.ts).
+   */
+  lowEnergyToday?: LowEnergyCheckIn | null;
   /** Feedback from the last weeks, including today. */
   feedback: BriefingFeedbackEntry[];
 };

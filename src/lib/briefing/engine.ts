@@ -1,5 +1,11 @@
 import { analyzeBriefing } from './signals';
-import { buildCandidates, urgencyOfScore } from './rules';
+import {
+  buildCandidates,
+  isTakeItEasyDay,
+  recentLogsSayTakeItEasy,
+  suggestsGentleRoutines,
+  urgencyOfScore,
+} from './rules';
 import {
   rankCandidates,
   selectVisible,
@@ -12,7 +18,7 @@ import {
   buildPhaseNote,
   phraseSuggestion,
 } from './copy';
-import type { BriefingEngineInput, DailyBriefing } from './types';
+import type { BriefingEngineInput, DailyBriefing, TakeItEasy } from './types';
 
 /**
  * Daily briefing engine: deterministic and rule-based, with no external AI calls.
@@ -50,5 +56,31 @@ export function buildDailyBriefing(input: BriefingEngineInput): DailyBriefing {
       rating: today.ratings.get(candidate.key) ?? null,
     })),
     notes: buildNotes(signals),
+  };
+}
+
+/**
+ * Whether the briefing for this input calls the day a take-it-easy day (its headline is a
+ * gentle one), and why, without building the briefing; null when it does not. lib/easy-day
+ * uses it so the circadian card holds back on the same days. Focus, detail, meals and
+ * feedback only rank and word the briefing, so they are not needed.
+ */
+export function takeItEasyOf(
+  input: Pick<
+    BriefingEngineInput,
+    'today' | 'journal' | 'cycle' | 'vitals' | 'lowEnergyToday'
+  >
+): TakeItEasy | null {
+  const signals = analyzeBriefing({
+    focus: 'both',
+    detail: 'brief',
+    meals: null,
+    feedback: [],
+    ...input,
+  });
+  if (!isTakeItEasyDay(signals)) return null;
+  return {
+    fromLogs: recentLogsSayTakeItEasy(signals),
+    maxRoutineEnergy: suggestsGentleRoutines(signals) ? 'low' : 'medium',
   };
 }

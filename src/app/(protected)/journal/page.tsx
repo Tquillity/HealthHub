@@ -9,6 +9,7 @@ import { getJournalShareTargets } from '@/lib/journal-sharing';
 import JournalPageClient from '@/components/journal/journal-page-client';
 import { PageHeader } from '@/components/ui/page-header';
 import { AppErrorBoundary } from '@/components/ui/error-boundary';
+import { loadTimeOfDayEnergySummary } from '@/lib/circadian-data';
 
 interface JournalPageProps {
   searchParams: Promise<SearchParams>;
@@ -30,17 +31,21 @@ export default async function JournalPage({ searchParams }: JournalPageProps) {
     redirect('/journal');
   }
 
-  const shareTargets = await getJournalShareTargets(session.user.id);
-  const entries = await prisma.journalEntry.findMany({
-    where: {
-      userId: session.user.id,
-      date: {
-        gte: monthRange.start,
-        lt: monthRange.end,
+  const [entries, timeOfDayEnergy, shareTargets] = await Promise.all([
+    prisma.journalEntry.findMany({
+      where: {
+        userId: session.user.id,
+        date: {
+          gte: monthRange.start,
+          lt: monthRange.end,
+        },
       },
-    },
-    orderBy: { date: 'asc' },
-  });
+      orderBy: { date: 'asc' },
+    }),
+    // Null unless circadian insights are on (last 30 days, not the shown month).
+    loadTimeOfDayEnergySummary(session.user.id),
+    getJournalShareTargets(session.user.id),
+  ]);
 
   // Decrypt sensitive fields before passing to client
   const decryptedEntries = entries.map((entry) => ({
@@ -69,6 +74,7 @@ export default async function JournalPage({ searchParams }: JournalPageProps) {
           initialEntries={decryptedEntries}
           monthKey={monthKey}
           shareTargets={shareTargets}
+          timeOfDayEnergy={timeOfDayEnergy}
         />
       </AppErrorBoundary>
     </div>

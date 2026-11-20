@@ -388,6 +388,28 @@ describe('buildDailyBriefing: missing data', () => {
     );
   });
 
+  it('does not claim no check-ins when energy is checked in by time of day only', () => {
+    // As loaded with circadian insights on: no journal entry and no daily energy rating,
+    // only time-of-day check-ins.
+    const energyOnly = (date: string) =>
+      journalDay(date, { checkIn: false, energyCheckIn: true });
+    const briefing = buildDailyBriefing(
+      input({
+        journal: [
+          ...days('2026-11-01', '2026-11-14').map(energyOnly),
+          ...days('2026-11-18', TODAY).map(energyOnly),
+        ],
+      })
+    );
+    expect(briefing.notes).toEqual([
+      'Your last 3 days have only energy check-ins by time of day, so mood, sleep, symptoms and your daily energy are not part of this briefing. Log them in your journal to make it more personal.',
+    ]);
+    expect(briefing.headline).toBe(
+      'Check in with your journal to make your briefing more personal.'
+    );
+    expect(keys(briefing)).toEqual([]);
+  });
+
   it('ignores a single check-in and works without a logged period', () => {
     const briefing = buildDailyBriefing(
       input({

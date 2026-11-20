@@ -10,19 +10,24 @@ import { getJournalEntryByDate } from '@/actions/journal-actions';
 import type { JournalEntry } from '@prisma/client';
 import { toDateOnlyString } from '@/lib/date-only';
 import type { JournalShareTarget } from '@/lib/journal-sharing';
+import type { TimeOfDayEnergySummary } from '@/lib/circadian-data';
 
 interface JournalPageClientProps {
   initialEntries: JournalEntry[];
   /** Month the entries were loaded for (`YYYY-MM`). */
   monthKey: string;
   shareTargets?: JournalShareTarget[];
+  /** Energy by time of day; null unless circadian insights are on. */
+  timeOfDayEnergy?: TimeOfDayEnergySummary | null;
 }
 
 export default function JournalPageClient({
   initialEntries,
   monthKey,
   shareTargets,
+  timeOfDayEnergy = null,
 }: JournalPageClientProps) {
+  const showTimeOfDayEnergy = timeOfDayEnergy !== null;
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'calendar' | 'form' | 'analytics'>(
     'calendar'
@@ -75,7 +80,10 @@ export default function JournalPageClient({
             Track your mood, energy, and sleep patterns.
           </p>
         </div>
-        <JournalClient onEntrySaved={handleEntrySaved} />
+        <JournalClient
+          onEntrySaved={handleEntrySaved}
+          showTimeOfDayEnergy={showTimeOfDayEnergy}
+        />
       </div>
 
       {/* Tab Navigation */}
@@ -129,6 +137,7 @@ export default function JournalPageClient({
         <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
           <JournalClient
             initialDate={selectedDate || undefined}
+            showTimeOfDayEnergy={showTimeOfDayEnergy}
             onEntrySaved={() => {
               handleEntrySaved();
               setActiveTab('calendar');
@@ -137,7 +146,9 @@ export default function JournalPageClient({
         </div>
       )}
 
-      {activeTab === 'analytics' && <JournalAnalytics entries={entries} />}
+      {activeTab === 'analytics' && (
+        <JournalAnalytics entries={entries} timeOfDayEnergy={timeOfDayEnergy} />
+      )}
 
       {/* Entry Detail Modal */}
       {showEntryDetail && selectedEntry && (
@@ -149,6 +160,7 @@ export default function JournalPageClient({
           onClose={handleCloseEntryDetail}
           onEdit={handleEditEntry}
           shareTargets={shareTargets}
+          showTimeOfDayEnergy={showTimeOfDayEnergy}
         />
       )}
     </div>

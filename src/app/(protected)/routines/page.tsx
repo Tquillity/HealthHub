@@ -6,6 +6,7 @@ import { RoutinesClient } from '@/components/routines/routines-client';
 import { RoutineFilters } from '@/components/routines/routine-filters';
 import { PageHeader } from '@/components/ui/page-header';
 import { AppErrorBoundary } from '@/components/ui/error-boundary';
+import { loadCircadianLotteryHint } from '@/lib/circadian-data';
 
 export default async function RoutinesPage() {
   const session = await getServerSession();
@@ -26,14 +27,17 @@ export default async function RoutinesPage() {
   }
 
   // Fetch routines for this organization
-  const routines = await prisma.routine.findMany({
-    where: {
-      OR: [{ organizationId: membership.organizationId }, { isSystem: true }],
-    },
-    orderBy: {
-      createdAt: 'desc',
-    },
-  });
+  const [routines, circadianLottery] = await Promise.all([
+    prisma.routine.findMany({
+      where: {
+        OR: [{ organizationId: membership.organizationId }, { isSystem: true }],
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    }),
+    loadCircadianLotteryHint(session.user.id),
+  ]);
 
   return (
     <div className="p-6">
@@ -52,6 +56,7 @@ export default async function RoutinesPage() {
           key={membership.organizationId}
           organizationId={membership.organizationId}
           routines={routines}
+          circadianLottery={circadianLottery}
         />
       </AppErrorBoundary>
     </div>

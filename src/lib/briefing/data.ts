@@ -2,20 +2,13 @@ import { z } from 'zod';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { resolveActiveMembership } from '@/lib/active-organization';
-import { decrypt, decryptArray, encrypt } from '@/lib/encryption';
+import { decrypt, encrypt } from '@/lib/encryption';
 import {
   addDaysToDateOnly,
   dateOnlyToUtcDate,
   toDateOnlyString,
 } from '@/lib/date-only';
-import {
-  buildCycleHistory,
-  findCycleForDate,
-  normalizePeriodStarts,
-} from '@/lib/cycle-history';
-import { isJournalCheckIn } from '@/lib/clinical-report';
-import { RECOVERY_HISTORY_DAYS } from '@/lib/cycle-insights';
-import { listPeriodStartDates } from '@/lib/period-starts';
+import { loadEasyDayInputs } from '@/lib/easy-day';
 import type { FocusPreference } from '@/types/cycle';
 import type {
   BriefingPreferencesInput,
@@ -23,6 +16,7 @@ import type {
   RateSuggestionInput,
 } from '@/lib/validation/briefing-schemas';
 import { buildDailyBriefing } from './engine';
+import { briefingUserSelect, dateRange } from './inputs';
 import { FEEDBACK_LOOKBACK_DAYS } from './rank';
 import {
   acceptBriefingDate,
@@ -32,20 +26,17 @@ import {
   isValidTimeZone,
   nextBriefingDate,
 } from './schedule';
-import { BASELINE_WINDOW_DAYS, BRIEFING_WINDOW_DAYS } from './signals';
+import { BRIEFING_WINDOW_DAYS } from './signals';
 import {
   BRIEFING_CARD_KEY,
   BRIEFING_FEEDBACK_ACTIONS,
   BRIEFING_SOURCES,
   isSuggestionKey,
   parseBriefingPreferences,
-  type BriefingCycleData,
   type BriefingFeedbackAction,
   type BriefingFeedbackEntry,
-  type BriefingJournalDay,
   type BriefingMealData,
   type BriefingPreferences,
-  type BriefingVitalsData,
   type DailyBriefing,
 } from './types';
 
@@ -56,13 +47,21 @@ import {
  * - Only the session user's own rows are read. Meal plans come from the space the user has
  *   open (checked against their memberships), never from a household they are not in.
  * - A source the user switched off is never queried; vitals also need the vitals opt-in
- *   and the cycle source needs cycle tracking. One exception, by design: the recovery
- *   score (vitals source) is the dashboard Vitals card's score, so it is computed from the
- *   card's inputs, which include the journal's sleep hours and, with cycle tracking on,
- *   the logged period starts for its phase baselines, even when the journal or cycle
- *   source is off. Otherwise the briefing would show a second, different "recovery today"
- *   on the same page. Only the score is used from them, and the wording names no phase
- *   unless the cycle source is on.
+ *   and the cycle source needs cycle tracking. Two exceptions, by design:
+ *   - The recovery score (vitals source) is the dashboard Vitals card's score, so it is
+ *     computed from the card's inputs, which include the journal's sleep hours and, with
+ *     cycle tracking on, the logged period starts for its phase baselines, even when the
+ *     journal or cycle source is off. Otherwise the briefing would show a second,
+ *     different "recovery today" on the same page. Only the score is used from them, and
+ *     the wording names no phase unless the cycle source is on.
+ *   - With circadian insights on, whether today's time-of-day energy check-in is low
+ *     (lib/easy-day) is read even when the journal source is off: the circadian opt-in
+ *     covers it. Otherwise the briefing could push harder training next to the circadian
+ *     card's "Running low right now". Only that one answer is used, from the user's own
+ *     row; nothing is stored or logged.
+ * - With circadian insights on, the journal source also reads which days have a
+ *   time-of-day energy check-in, for the note on missing data. Check-ins never stand in
+ *   for a day's energy rating.
  * - Symptoms are decrypted in memory only to count them; nothing is stored or logged.
  * - Feedback suggestion keys are validated against the known keys, then encrypted: a key
  *   with a date says things like "more symptoms than usual that day".
@@ -83,26 +82,6 @@ function parseFocus(value: string | null): FocusPreference {
   const parsed = FocusSchema.safeParse(value);
   return parsed.success ? parsed.data : 'both';
 }
-
-function dateRange(from: string, to: string) {
-  return { gte: dateOnlyToUtcDate(from), lte: dateOnlyToUtcDate(to) };
-}
-
-const briefingUserSelect = {
-  timezone: true,
-  focusPreference: true,
-  enableCycleTracking: true,
-  cycleLength: true,
-  lastPeriodDate: true,
-  trackVitals: true,
-  briefingFrequency: true,
-  briefingSources: true,
-  briefingDetail: true,
-} as const;
-
-type BriefingUser = Prisma.UserGetPayload<{
-  select: typeof briefingUserSelect;
-}>;
 
 export type BriefingState =
   | { status: 'off' | 'not_due' | 'dismissed'; date: string }
@@ -356,125 +335,6 @@ export async function saveBriefingPreferences(
 // Loading the briefing
 // ---------------------------------------------------------------------------
 
-async function loadJournalDays(
-  userId: string,
-  from: string,
-  to: string
-): Promise<BriefingJournalDay[]> {
-  const rows = await prisma.journalEntry.findMany({
-    where: { userId, date: dateRange(from, to) },
-    select: {
-      date: true,
-      mood: true,
-      energy: true,
-      sleepHours: true,
-      symptomsPhysical: true,
-      symptomsMental: true,
-      // Read only to tell a journal check-in from a quick-log-only day; never decrypted.
-      notes: true,
-      gratitudeNotes: true,
-      goalsNotes: true,
-      symptomsNotes: true,
-      tags: true,
-      gratitudeEntries: true,
-      goalsAchieved: true,
-      goalsProgress: true,
-    },
-    orderBy: { date: 'asc' },
-  });
-  return rows.map((row) => {
-    const checkIn = isJournalCheckIn(row);
-    return {
-      date: toDateOnlyString(row.date),
-      mood: row.mood,
-      energy: row.energy,
-      sleepHours: row.sleepHours,
-      symptoms: checkIn
-        ? [
-            ...decryptArray(row.symptomsPhysical),
-            ...decryptArray(row.symptomsMental),
-          ]
-        : [],
-      checkIn,
-    };
-  });
-}
-
-/** Logged period starts with User.lastPeriodDate merged in, as the Vitals card reads them. */
-async function loadPeriodStarts(
-  userId: string,
-  user: BriefingUser
-): Promise<string[]> {
-  return normalizePeriodStarts(
-    await listPeriodStartDates(userId),
-    // Safety net for a start saved by code that predates the history table.
-    user.lastPeriodDate ? toDateOnlyString(user.lastPeriodDate) : null
-  );
-}
-
-async function loadCycleData(
-  userId: string,
-  user: BriefingUser,
-  periodStarts: string[],
-  from: string,
-  to: string
-): Promise<BriefingCycleData> {
-  // The thermal shift of the cycle that contains `from` needs its earlier readings.
-  const first = findCycleForDate(buildCycleHistory(periodStarts), from);
-  const bbtFrom = first && first.start < from ? first.start : from;
-  const readings = await prisma.journalEntry.findMany({
-    where: { userId, date: dateRange(bbtFrom, to), temperature: { not: null } },
-    select: { date: true, temperature: true },
-    orderBy: { date: 'asc' },
-  });
-  return {
-    typicalCycleLength: user.cycleLength,
-    periodStarts,
-    bbtReadings: readings.flatMap((row) =>
-      row.temperature === null
-        ? []
-        : [{ date: toDateOnlyString(row.date), celsius: row.temperature }]
-    ),
-  };
-}
-
-/**
- * Recovery score inputs as the dashboard Vitals card loads them (lib/daily-metrics
- * `loadVitalsCardData`): every value the score uses, sleep hours included, from far
- * enough back that every scored day has a full baseline, and the period starts when
- * cycle tracking is on. Temperature is not part of the score, so it is not read.
- */
-async function loadVitalsData(
-  userId: string,
-  user: BriefingUser,
-  today: string,
-  periodStarts: string[] | null
-): Promise<BriefingVitalsData> {
-  const rows = await prisma.journalEntry.findMany({
-    where: {
-      userId,
-      date: dateRange(addDaysToDateOnly(today, -RECOVERY_HISTORY_DAYS), today),
-    },
-    select: {
-      date: true,
-      restingHeartRate: true,
-      heartRateVariability: true,
-      sleepQuality: true,
-      sleepHours: true,
-    },
-    orderBy: { date: 'asc' },
-  });
-  return {
-    rows: rows.map((row) => ({
-      ...row,
-      date: toDateOnlyString(row.date),
-      temperature: null,
-    })),
-    periodStarts,
-    typicalCycleLength: user.cycleLength,
-  };
-}
-
 /** Days of meal plan items the engine looks at: 10 back (adherence) to 2 ahead. */
 const MEAL_DAYS_BACK = BRIEFING_WINDOW_DAYS + 7;
 const MEAL_DAYS_AHEAD = 2;
@@ -585,32 +445,12 @@ export async function loadBriefingState(
   }
 
   const sources = new Set(preferences.sources);
-  // Window plus the baseline history before it.
-  const from = addDaysToDateOnly(
-    date,
-    -(BRIEFING_WINDOW_DAYS - 1 + BASELINE_WINDOW_DAYS)
-  );
-  const cycleTracked =
-    user.enableCycleTracking && user.lastPeriodDate !== null;
-  const useCycle = sources.has('cycle') && cycleTracked;
-  const useVitals = sources.has('vitals') && user.trackVitals;
-  // Period starts feed the cycle source and, as on the Vitals card, the recovery score's
-  // phase baselines (see the module notes).
-  const periodStarts =
-    useCycle || (useVitals && cycleTracked)
-      ? await loadPeriodStarts(userId, user)
-      : null;
-
-  const [journal, cycle, meals, vitals] = await Promise.all([
-    sources.has('journal') ? loadJournalDays(userId, from, date) : null,
-    useCycle && periodStarts
-      ? loadCycleData(userId, user, periodStarts, from, date)
-      : null,
+  // The journal, cycle and vitals inputs come from lib/easy-day, which gives the
+  // circadian card the same take-it-easy answer from the same inputs.
+  const [inputs, meals] = await Promise.all([
+    loadEasyDayInputs(userId, user, sources, date, now),
     sources.has('meals')
       ? loadMealData(userId, user.timezone, date, options.householdId)
-      : null,
-    useVitals
-      ? loadVitalsData(userId, user, date, cycleTracked ? periodStarts : null)
       : null,
   ]);
 
@@ -621,10 +461,8 @@ export async function loadBriefingState(
       today: date,
       focus: parseFocus(user.focusPreference),
       detail: preferences.detail,
-      journal,
-      cycle,
+      ...inputs,
       meals,
-      vitals,
       feedback: feedback.map(({ date: day, key, action }) => ({
         date: day,
         key,

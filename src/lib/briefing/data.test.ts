@@ -473,6 +473,72 @@ describe.skipIf(!isolated)(
       }
     });
 
+    it('reads energy check-ins by time of day only with circadian insights on', async () => {
+      const tod = { id: `brf-tod-${run}`, email: `brf-tod-${run}@example.com` };
+      await client.user.create({
+        data: {
+          ...tod,
+          name: 'Tod',
+          timezone: 'UTC',
+          enableCircadianInsights: true,
+        },
+      });
+      try {
+        // Only dashboard check-ins: 7 on four weeks of mornings, then 5 on two evenings (an
+        // ordinary evening dip) and 5 this morning. None for the afternoon (right now at
+        // 12:00 UTC). Rated at different times of day, so they say nothing about whether
+        // energy is down, and they never stand in for a daily energy rating.
+        await client.journalEntry.createMany({
+          data: [
+            ...days('2026-10-21', '2026-11-17').map((date) => ({
+              userId: tod.id,
+              date: utcDay(date),
+              energyMorning: 7,
+            })),
+            ...days('2026-11-18', '2026-11-19').map((date) => ({
+              userId: tod.id,
+              date: utcDay(date),
+              energyEvening: 5,
+            })),
+            { userId: tod.id, date: utcDay(TODAY), energyMorning: 5 },
+          ],
+        });
+        const briefing = async () => {
+          const state = await data.loadBriefingState(tod.id, { now: NOW });
+          if (state.status !== 'ready') throw new Error(state.status);
+          return state.briefing;
+        };
+
+        const on = await briefing();
+        expect(on.notes).toEqual([
+          'Your last 3 days have only energy check-ins by time of day, so mood, sleep, symptoms and your daily energy are not part of this briefing. Log them in your journal to make it more personal.',
+        ]);
+        expect(on.headline).toBe(
+          'Check in with your journal to make your briefing more personal.'
+        );
+        expect(on.suggestions.map((s) => s.key)).not.toContain(
+          'routine.ease-intensity'
+        );
+        // The circadian card reads the same inputs, so it does not hold back either.
+        const { loadEasyDay } = await import('@/lib/easy-day');
+        expect(await loadEasyDay(tod.id, NOW)).toBeNull();
+
+        await client.user.update({
+          where: { id: tod.id },
+          data: { enableCircadianInsights: false },
+        });
+        const off = await briefing();
+        expect(off.notes[0]).toContain(
+          'No journal check-ins in the last 3 days'
+        );
+        expect(off.headline).toBe(
+          'Check in with your journal to make your briefing more personal.'
+        );
+      } finally {
+        await client.user.delete({ where: { id: tod.id } });
+      }
+    });
+
     it('uses meal adherence only once the household marks meals cooked', async () => {
       await client.mealPlanItem.create({
         data: {
