@@ -18,6 +18,7 @@ import {
   emptyLocalFeedback,
   focusAfterDismiss,
   phaseLabel,
+  ratingStatus,
   shownBriefing,
   visibleSuggestions,
   type LocalFeedback,
@@ -223,6 +224,26 @@ describe('DailyBriefingPanel: focus and announcements', () => {
     // The "all caught up" note can take focus after the last dismissal.
     expect(render({ ...briefing, suggestions: [] })).toMatch(
       /<p id="[^"]+-empty" tabindex="-1"[^>]*>You(&#x27;|')re all caught up for today\.<\/p>/
+    );
+  });
+});
+
+describe('ratingStatus', () => {
+  it('names the suggestion, so rating two suggestions the same way is read out twice', () => {
+    const first = ratingStatus('Plan a few meals', 'helpful');
+    const second = ratingStatus('Take a rest day', 'helpful');
+    expect(first).toBe(
+      `Marked "Plan a few meals" as helpful. You'll see more suggestions like this.`
+    );
+    expect(second).not.toBe(first);
+  });
+
+  it('says what happened for each rating', () => {
+    expect(ratingStatus('Take a rest day', 'not_helpful')).toBe(
+      `Marked "Take a rest day" as not helpful. You'll see fewer suggestions like this.`
+    );
+    expect(ratingStatus('Take a rest day', null)).toBe(
+      'Feedback removed for "Take a rest day".'
     );
   });
 });

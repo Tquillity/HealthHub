@@ -83,7 +83,12 @@ export function BriefingSettingsControls({
   const [saver] = useState(() =>
     createPreferenceSaver({
       send: updateBriefingPreferences,
-      onSaving: setSaving,
+      onSaving: (isSaving) => {
+        setSaving(isSaving);
+        // Cleared when a save starts, so every result is read out, not only the first:
+        // a status region whose text does not change is not announced again.
+        if (isSaving) setStatus('');
+      },
       onSaved: (saved, more) => {
         confirmed.current = saved.preferences;
         setNextBriefing(saved.nextBriefing);

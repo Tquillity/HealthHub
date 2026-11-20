@@ -80,3 +80,18 @@ export function focusAfterDismiss(
   if (index === -1) return keys[0] ?? null;
   return keys[index + 1] ?? keys[index - 1] ?? null;
 }
+
+/**
+ * What the status region reads out once a rating is saved. It names the suggestion, so
+ * rating a second suggestion the same way is announced too: a screen reader does not
+ * read a status region again when its text has not changed.
+ */
+export function ratingStatus(
+  title: string,
+  rating: SuggestionRating | null
+): string {
+  if (rating === null) return `Feedback removed for "${title}".`;
+  return rating === 'helpful'
+    ? `Marked "${title}" as helpful. You'll see more suggestions like this.`
+    : `Marked "${title}" as not helpful. You'll see fewer suggestions like this.`;
+}

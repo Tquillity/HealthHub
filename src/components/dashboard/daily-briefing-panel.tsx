@@ -33,6 +33,7 @@ import {
   emptyLocalFeedback,
   focusAfterDismiss,
   phaseLabel,
+  ratingStatus,
   shownBriefing,
   visibleSuggestions,
   type LocalFeedback,
@@ -263,6 +264,11 @@ export function DailyBriefingPanel({
       return next;
     });
   const [status, setStatus] = useState('');
+  // Each request first clears the status region, so its result is read out even when
+  // the text is the same as last time (for example two Refreshes in a row or a repeated
+  // error): a region whose text does not change is not announced again. The empty text
+  // is rendered while the request runs, before the result replaces it.
+  const clearStatus = () => setStatus('');
 
   // Hiding, undoing and dismissing replace the control that had focus. The element to
   // focus next is set by the handler and focused once the new content is on screen.
@@ -314,6 +320,7 @@ export function DailyBriefingPanel({
     const next = suggestion.rating === rating ? null : rating;
     setLocalRating(suggestion.key, next);
     startBusy(suggestion.key);
+    clearStatus();
     const result = await rateBriefingSuggestion({
       date: briefing.date,
       key: suggestion.key,
@@ -321,13 +328,7 @@ export function DailyBriefingPanel({
     });
     endBusy(suggestion.key);
     if (result.success) {
-      setStatus(
-        next === null
-          ? 'Feedback removed.'
-          : next === 'helpful'
-            ? "Thanks! You'll see more suggestions like this."
-            : "Thanks. You'll see fewer suggestions like this."
-      );
+      setStatus(ratingStatus(suggestion.title, next));
     } else {
       setLocalRating(suggestion.key, previous);
       setStatus(result.error);
@@ -345,6 +346,7 @@ export function DailyBriefingPanel({
     moveFocusTo(next ? suggestionTitleId(id, next) : emptyId);
     setLocalDismissed(suggestion.key, true);
     startBusy(suggestion.key);
+    clearStatus();
     const result = await dismissBriefingSuggestion({
       date: briefing.date,
       key: suggestion.key,
@@ -365,6 +367,7 @@ export function DailyBriefingPanel({
     setHidden(true);
     moveFocusTo(undoId);
     startBusy('card');
+    clearStatus();
     const result = await dismissDailyBriefing(briefing.date);
     endBusy('card');
     if (result.success) {
@@ -380,6 +383,7 @@ export function DailyBriefingPanel({
   const undoHide = async () => {
     if (busyKeys.size > 0) return;
     startBusy('card');
+    clearStatus();
     const result = await restoreDailyBriefing(briefing.date);
     endBusy('card');
     if (result.success) {
@@ -395,6 +399,7 @@ export function DailyBriefingPanel({
   const refresh = async () => {
     if (busyKeys.size > 0) return;
     startBusy('refresh');
+    clearStatus();
     // The server picks the day (profile timezone), as it did for the page itself.
     const result = await generateDailyBriefing();
     endBusy('refresh');
