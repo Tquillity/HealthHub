@@ -33,8 +33,22 @@ model User {
   journalEntries        JournalEntry[]
   ingredientPreferences UserIngredientPreference[]
   pomoState             PomoState?
+  /// Partner sync (#3): master switch for sharing cycle status with household members. Off by default.
+  shareCycleStatus      Boolean                    @default(false)
+  /// How much is shared while the master switch is on. See src/lib/cycle-status-sharing.ts.
+  shareCycleLevel       CycleShareLevel            @default(NONE)
+  /// Optional note for household members, encrypted at rest. Shown only at the FULL level.
+  supportMessage        String?
 
   @@map("user")
+}
+
+/// What household members see of someone's current cycle status (#3), from least to most.
+enum CycleShareLevel {
+  NONE
+  PHASE
+  ENERGY
+  FULL
 }
 
 model Session {
