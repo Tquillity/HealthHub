@@ -8,7 +8,7 @@ alwaysApply: false
 
 - `Session.token` must stay `@unique`.
 - Add `@@map("table_name")` when DB tables are lowercase (User → `user`, Session → `session`, etc.).
-- After schema changes: `pnpm db:push` → `pnpm db:generate` → full `next dev` restart (delete `.next/` if odd).
+- After schema changes: `pnpm db:migrate --name <change>` → commit the migration folder → full `next dev` restart (delete `.next/` if odd). See `Docs/DatabaseMigrations.md`.
 - Verify schema with `@postgres` MCP before suggesting migrations.
 - `src/proxy.ts` must not import Prisma; use REST session fetch via `@better-fetch/fetch`.
 - Auth models need `createdAt` / `updatedAt` when columns exist in DB.
