@@ -7,6 +7,7 @@ import {
   DEFAULT_DESCRIPTION,
   getMetadataBase,
   SITE_NAME,
+  THEME_COLOR,
 } from '@/lib/site-metadata';
 
 export const metadata: Metadata = {
@@ -35,7 +36,7 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
-  themeColor: '#2563eb',
+  themeColor: THEME_COLOR,
 };
 
 export default function RootLayout({

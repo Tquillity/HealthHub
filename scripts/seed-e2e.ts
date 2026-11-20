@@ -70,6 +70,21 @@ try {
       update: recipe,
     });
   }
+  // A system routine that matches the lottery's default filters (medium energy, 30 minutes),
+  // so e2e/routine-lottery.spec.ts always has something to draw.
+  const lotteryRoutine = {
+    id: 'hh-e2e-lottery-routine',
+    name: 'E2E lottery routine',
+    description: 'Three slow breaths before the next task.',
+    isSystem: true,
+    energyLevel: 'medium',
+    estimatedTime: 5,
+  };
+  await prisma.routine.upsert({
+    where: { id: lotteryRoutine.id },
+    create: lotteryRoutine,
+    update: lotteryRoutine,
+  });
   for (const article of [
     {
       id: 'hh-e2e-tldr',

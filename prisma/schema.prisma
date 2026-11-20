@@ -120,6 +120,9 @@ model Invitation {
   inviterId      String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
+  // Better-Auth's organization plugin lists invitations per household and per invitee email.
+  @@index([organizationId])
+  @@index([email])
   @@map("invitation")
 }
 
@@ -159,6 +162,7 @@ model Recipe {
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
 
+  @@index([organizationId])
   @@map("recipe")
 }
 
@@ -172,6 +176,7 @@ model Ingredient {
   recipe       Recipe                  @relation(fields: [recipeId], references: [id], onDelete: Cascade)
   alternatives IngredientAlternative[]
 
+  @@index([recipeId])
   @@map("ingredient")
 }
 
@@ -182,6 +187,7 @@ model Instruction {
   recipeId   String
   recipe     Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
 
+  @@index([recipeId])
   @@map("instruction")
 }
 
@@ -208,6 +214,7 @@ model Routine {
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 
+  @@index([organizationId])
   @@map("routine")
 }
 
@@ -221,6 +228,8 @@ model MealPlan {
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 
+  // The week lookup (organizationId + startDate) and the grocery range overlap query.
+  @@index([organizationId, startDate])
   @@map("meal_plan")
 }
 
@@ -235,6 +244,8 @@ model MealPlanItem {
   mealPlan   MealPlan @relation(fields: [mealPlanId], references: [id], onDelete: Cascade)
   recipe     Recipe   @relation(fields: [recipeId], references: [id])
 
+  // Loading and clearing a plan's items, optionally within a date range.
+  @@index([mealPlanId, date])
   @@map("meal_plan_item")
 }
 
@@ -251,6 +262,7 @@ model MealPlanTemplate {
   createdAt      DateTime               @default(now())
   updatedAt      DateTime               @updatedAt
 
+  @@index([organizationId])
   @@map("meal_plan_template")
 }
 
@@ -264,6 +276,7 @@ model MealPlanTemplateItem {
   template   MealPlanTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
   recipe     Recipe           @relation(fields: [recipeId], references: [id])
 
+  @@index([templateId])
   @@map("meal_plan_template_item")
 }
 
@@ -282,6 +295,7 @@ model ShoppingListItem {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
+  @@index([organizationId])
   @@map("shopping_list_item")
 }
 
@@ -306,6 +320,8 @@ model JournalEntry {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
+  // The unique index leads with userId, so it also serves userId-only and userId + date-range
+  // queries; a separate @@index([userId]) would only add write cost.
   @@unique([userId, date])
   @@map("journal_entry")
 }
@@ -358,6 +374,8 @@ model PhaseRecommendation {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Cycle page: recommendations for the current phase, filtered by category.
+  @@index([phase, category])
   @@map("phase_recommendation")
 }
 

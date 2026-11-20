@@ -5,6 +5,12 @@ export const SITE_TAGLINE = 'Household wellness hub — focus, nutrition, and le
 export const DEFAULT_DESCRIPTION =
   'Free wellness tools for your household: Pomodoro timer, recipes, meal planning, journaling, cycle insights, and evidence-based learning.';
 
+/**
+ * Browser UI / PWA theme colour (also the background of public/logo*.png). Must match
+ * `theme_color` in public/manifest.json; src/lib/pwa-manifest.test.ts checks it.
+ */
+export const THEME_COLOR = '#2563eb';
+
 const DEFAULT_OG_IMAGE = '/logo512.png';
 
 function getSiteUrl(): URL {

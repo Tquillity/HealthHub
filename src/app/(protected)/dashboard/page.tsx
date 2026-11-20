@@ -1,10 +1,23 @@
+import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { getServerSession } from '@/lib/session';
-import { prisma } from '@/lib/db';
-import { DashboardClient } from '@/components/dashboard/dashboard-client';
-import { getPremiumPomoDashboardSnapshot } from '@/actions/pomo-state';
-import { progressFromPomoPayload } from '@/lib/pomo/utils/pomo-server-progress';
+import { DashboardQuickActions } from '@/components/dashboard/dashboard-quick-actions';
+import { DashboardHealthTip } from '@/components/dashboard/dashboard-health-tip';
+import { DashboardFocusGoal } from '@/components/dashboard/dashboard-focus-goal';
+import { DashboardStats } from '@/components/dashboard/dashboard-stats';
+import { DashboardRecentRoutines } from '@/components/dashboard/dashboard-recent-routines';
+import {
+  DashboardStatsSkeleton,
+  FocusGoalSkeleton,
+  RecentRoutinesSkeleton,
+} from '@/components/dashboard/dashboard-skeletons';
 
+/**
+ * The shell (greeting, quick actions, today's tip) needs only the session, so it renders at once.
+ * Each data card is an async Server Component in its own Suspense boundary and streams in when its
+ * query finishes. This is the streaming half of Partial Prerendering without `cacheComponents`,
+ * which conflicts with the `(protected)` layout's `dynamic = 'force-dynamic'`.
+ */
 export default async function DashboardPage() {
   const session = await getServerSession();
 
@@ -12,62 +25,38 @@ export default async function DashboardPage() {
     redirect('/sign-in');
   }
 
-  // Fetch household details from DB (session may not include active org yet)
-  const membership = await prisma.member.findFirst({
-    where: { userId: session.user.id },
-    include: { organization: true },
-  });
-
-  if (!membership) {
-    return <div>No household assigned.</div>;
-  }
-
-  // Fetch statistics and recent routines
-  const [routines, routinesCount, recipesCount, pomoSnapshot] = await Promise.all([
-    prisma.routine.findMany({
-      where: {
-        OR: [
-          { isSystem: true },
-          { organizationId: membership.organizationId },
-        ],
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 6,
-    }),
-    prisma.routine.count({
-      where: {
-        OR: [
-          { isSystem: true },
-          { organizationId: membership.organizationId },
-        ],
-      },
-    }),
-    prisma.recipe.count({
-      where: {
-        OR: [
-          { isSystem: true },
-          { organizationId: membership.organizationId },
-        ],
-      },
-    }),
-    getPremiumPomoDashboardSnapshot(),
-  ]);
-
-  const focusGoalProgress =
-    pomoSnapshot.isPremium && pomoSnapshot.payload
-      ? progressFromPomoPayload(pomoSnapshot.payload)
-      : null;
+  const userId = session.user.id;
+  const firstName = session.user.name.split(' ')[0] || session.user.name;
 
   return (
     <div className="max-w-7xl">
-      <DashboardClient
-        recentRoutines={routines}
-        routinesCount={routinesCount}
-        recipesCount={recipesCount}
-        userName={session.user.name}
-        isPremiumCloud={pomoSnapshot.isPremium}
-        focusGoalProgress={focusGoalProgress}
-      />
+      <div className="flex flex-col gap-8">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-3">Welcome back, {firstName}!</h1>
+          <p className="text-gray-600 text-lg">
+            Ready to take care of your health and wellness today?
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-1 flex flex-col gap-6">
+            <DashboardQuickActions />
+            <DashboardHealthTip />
+          </div>
+
+          <div className="lg:col-span-2 flex flex-col gap-6">
+            <Suspense fallback={<FocusGoalSkeleton />}>
+              <DashboardFocusGoal />
+            </Suspense>
+            <Suspense fallback={<DashboardStatsSkeleton />}>
+              <DashboardStats userId={userId} />
+            </Suspense>
+            <Suspense fallback={<RecentRoutinesSkeleton />}>
+              <DashboardRecentRoutines userId={userId} />
+            </Suspense>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
