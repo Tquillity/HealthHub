@@ -9,6 +9,7 @@ import { authClient } from '@/lib/auth-client';
 interface DeleteAccountSectionProps {
   hasPassword: boolean;
   isMainAdmin: boolean;
+  isPremium: boolean;
 }
 
 const CONFIRM_WORD = 'DELETE';
@@ -30,6 +31,7 @@ function errorMessage(error: { code?: string; message?: string }): string {
 export function DeleteAccountSection({
   hasPassword,
   isMainAdmin,
+  isPremium,
 }: DeleteAccountSectionProps) {
   const [open, setOpen] = useState(false);
   const [password, setPassword] = useState('');
@@ -105,15 +107,26 @@ export function DeleteAccountSection({
                   households where you are the only member, with their recipes,
                   routines, meal plans and grocery lists
                 </li>
-                <li>
-                  your HealthHub Pro subscription, which is cancelled right away
-                </li>
               </ul>
               <p className="mt-2">
                 Households you share with others keep their recipes and plans.
               </p>
             </div>
           </div>
+
+          {isPremium && (
+            <div className="rounded-md border border-red-300 bg-white p-4 text-sm text-red-800">
+              <p className="font-semibold">
+                Your HealthHub Pro subscription ends immediately.
+              </p>
+              <p className="mt-1">
+                You lose Pro as soon as you delete your account, not at the end
+                of the period you paid for. We refund the unused part of your
+                current billing period to your original payment method. Refunds
+                usually arrive within 5 to 10 business days.
+              </p>
+            </div>
+          )}
 
           {hasPassword ? (
             <div>
