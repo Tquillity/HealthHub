@@ -10,109 +10,157 @@ import {
   clearLocalPomoStorageKeys,
   hasLocalPomoData,
 } from '@/lib/pomo/services/storage.service';
+import { planCloudHydration } from '@/lib/pomo/utils/cloud-hydration';
+import { createCloudSaveRunner } from '@/lib/pomo/utils/cloud-save-runner';
 import { buildPayloadFromLocalStorage } from '@/lib/pomo/utils/local-pomo-payload';
 import { setCloudPersistenceActive } from '@/lib/pomo/utils/storageWrapper';
-import { isEmptyPomoPayload } from '@/lib/pomo/utils/pomo-server-progress';
 import { useSettingsStore } from '@/lib/pomo-store/useSettingsStore';
 import { useTaskStore } from '@/lib/pomo-store/useTaskStore';
 import { useTimeStore } from '@/lib/pomo-store/useTimeStore';
 
-export type PomoCloudPersistenceStatus = 'loading' | 'local' | 'cloud' | 'error';
+export type PomoCloudPersistenceStatus =
+  | 'loading'
+  | 'local'
+  | 'cloud'
+  | 'error';
 
 const PERSIST_DEBOUNCE_MS = 2000;
 
+/** Hydration key for signed-out visitors (one local-mode hydrate per page load). */
+const GUEST_KEY = '__guest__';
+
 export function usePomoCloudPersistence() {
   const { data: session, isPending } = useSession();
+  const userId = session?.user?.id ?? null;
   const [status, setStatus] = useState<PomoCloudPersistenceStatus>('loading');
   const [saveError, setSaveError] = useState<string | null>(null);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
+  /** True once server state has been loaded and applied: local state may be pushed. */
+  const [cloudActive, setCloudActive] = useState(false);
   const debounceRef = useRef<number | null>(null);
+  const dirtyRef = useRef(false);
   const cloudActiveRef = useRef(false);
+  /** Legacy local keys are cleared after the first successful cloud save (TIMER-1). */
+  const clearLocalOnSaveRef = useRef(false);
+  const hydratedKeyRef = useRef<string | null>(null);
 
-  const persistNow = useCallback(async () => {
-    if (!cloudActiveRef.current) return;
+  const [saveRunner] = useState(() =>
+    createCloudSaveRunner({
+      isEnabled: () => cloudActiveRef.current,
+      save: async () => {
+        dirtyRef.current = false;
+        const result = await savePomoState(buildExportSnapshot());
+        return result.success
+          ? { success: true, updatedAt: result.data.updatedAt }
+          : { success: false, error: result.error ?? 'Save failed' };
+      },
+      onSuccess: (updatedAt) => {
+        if (clearLocalOnSaveRef.current) {
+          clearLocalOnSaveRef.current = false;
+          clearLocalPomoStorageKeys();
+        }
+        setSaveError(null);
+        setLastSavedAt(updatedAt);
+        setStatus('cloud');
+      },
+      onError: (error, retryScheduled) => {
+        setSaveError(retryScheduled ? `${error} · retrying…` : error);
+        setStatus('error');
+      },
+    })
+  );
 
-    const payload = buildExportSnapshot();
-    const result = await savePomoState(payload);
-    if (!result.success) {
-      setSaveError(result.error ?? 'Save failed');
-      setStatus('error');
-      return;
-    }
-
-    setSaveError(null);
-    setStatus('cloud');
-    setLastSavedAt(result.data.updatedAt);
-  }, []);
-
-  const schedulePersist = useCallback(() => {
-    if (!cloudActiveRef.current) return;
-    if (debounceRef.current !== null) {
-      window.clearTimeout(debounceRef.current);
-    }
-    debounceRef.current = window.setTimeout(() => {
-      void persistNow();
-    }, PERSIST_DEBOUNCE_MS);
-  }, [persistNow]);
+  const deactivateCloud = useCallback(() => {
+    cloudActiveRef.current = false;
+    setCloudActive(false);
+    setCloudPersistenceActive(false);
+    saveRunner.cancel();
+  }, [saveRunner]);
 
   const hydrate = useCallback(async () => {
-    if (!session?.user) {
-      cloudActiveRef.current = false;
-      setCloudPersistenceActive(false);
+    if (!userId) {
+      deactivateCloud();
       setStatus('local');
       return;
     }
 
+    // Stop saving until this user's server state has loaded (covers a direct user switch)
+    deactivateCloud();
     setStatus('loading');
     const result = await getPomoState();
 
     if (!result.success) {
       if (result.error === 'Premium required') {
-        cloudActiveRef.current = false;
-        setCloudPersistenceActive(false);
+        deactivateCloud();
         setStatus('local');
         return;
       }
+      // Server state was never loaded (or the stored row is unreadable), so local state
+      // must not be pushed over it: keep the save runner disabled for this load.
+      deactivateCloud();
       setSaveError(result.error);
       setStatus('error');
       return;
     }
 
     // Read local (pre-upgrade) data before anything clears it, so a first cloud sync can import it
-    const localPayload = hasLocalPomoData() ? buildPayloadFromLocalStorage() : null;
+    const localPayload = hasLocalPomoData()
+      ? buildPayloadFromLocalStorage()
+      : null;
 
     cloudActiveRef.current = true;
     setCloudPersistenceActive(true);
 
-    let payload = result.data;
-    if (isEmptyPomoPayload(payload) && localPayload) {
-      payload = localPayload;
+    const plan = planCloudHydration(result.data, localPayload);
+
+    applyPomoStatePayload(plan.payload);
+    // Keep local keys until the cloud copy is saved, so the import survives a failed save.
+    clearLocalOnSaveRef.current = true;
+    setCloudActive(true);
+
+    // Only write back when the applied state differs from the row (local import or a
+    // migrated row); a payload used as loaded is already what the server holds.
+    if (plan.writeBack) {
+      await saveRunner.retryNow();
+    } else {
+      setSaveError(null);
+      setStatus('cloud');
     }
+  }, [deactivateCloud, saveRunner, userId]);
 
-    applyPomoStatePayload(payload);
-
-    const saveResult = await savePomoState(payload);
-    if (!saveResult.success) {
-      // Keep local keys so the import can be retried on the next load
-      setSaveError(saveResult.error ?? 'Save failed');
-      setStatus('error');
-      return;
-    }
-
-    clearLocalPomoStorageKeys();
-
-    setSaveError(null);
-    setLastSavedAt(saveResult.data.updatedAt);
-    setStatus('cloud');
-  }, [session?.user]);
-
+  // Hydrate once per user id, not on every new session object (TIMER-9).
   useEffect(() => {
     if (isPending) return;
+    const key = userId ?? GUEST_KEY;
+    if (hydratedKeyRef.current === key) return;
+    hydratedKeyRef.current = key;
     void hydrate();
-  }, [hydrate, isPending]);
+  }, [hydrate, isPending, userId]);
 
+  const persistNow = useCallback(() => {
+    if (debounceRef.current !== null) {
+      window.clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
+    return saveRunner.saveNow();
+  }, [saveRunner]);
+
+  const schedulePersist = useCallback(() => {
+    if (!cloudActiveRef.current) return;
+    dirtyRef.current = true;
+    if (debounceRef.current !== null) {
+      window.clearTimeout(debounceRef.current);
+    }
+    debounceRef.current = window.setTimeout(() => {
+      debounceRef.current = null;
+      void saveRunner.saveNow();
+    }, PERSIST_DEBOUNCE_MS);
+  }, [saveRunner]);
+
+  // Save subscriptions stay active in the error state too (TIMER-3): a failed save must not
+  // stop later changes from being saved.
   useEffect(() => {
-    if (status !== 'cloud') return;
+    if (!cloudActive) return;
 
     const unsubTime = useTimeStore.subscribe(schedulePersist);
     const unsubSettings = useSettingsStore.subscribe(schedulePersist);
@@ -121,29 +169,52 @@ export function usePomoCloudPersistence() {
       void persistNow();
     });
 
-    const onBeforeUnload = () => {
-      if (cloudActiveRef.current) {
+    const flushIfDirty = () => {
+      if (cloudActiveRef.current && dirtyRef.current) {
         void persistNow();
       }
     };
-    window.addEventListener('beforeunload', onBeforeUnload);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        flushIfDirty();
+      }
+    };
+    window.addEventListener('beforeunload', flushIfDirty);
+    document.addEventListener('visibilitychange', onVisibilityChange);
 
     return () => {
       unsubTime();
       unsubSettings();
       unsubTasks();
       unsubComplete();
-      window.removeEventListener('beforeunload', onBeforeUnload);
+      window.removeEventListener('beforeunload', flushIfDirty);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
       if (debounceRef.current !== null) {
         window.clearTimeout(debounceRef.current);
+        debounceRef.current = null;
       }
     };
-  }, [persistNow, schedulePersist, status]);
+  }, [cloudActive, persistNow, schedulePersist]);
+
+  useEffect(() => () => saveRunner.cancel(), [saveRunner]);
+
+  /** Retry pushes the current local state; it only re-loads when the server state never loaded. */
+  const retry = useCallback(() => {
+    if (cloudActiveRef.current) {
+      if (debounceRef.current !== null) {
+        window.clearTimeout(debounceRef.current);
+        debounceRef.current = null;
+      }
+      void saveRunner.retryNow();
+      return;
+    }
+    void hydrate();
+  }, [hydrate, saveRunner]);
 
   return {
     status,
     saveError,
     lastSavedAt,
-    retry: hydrate,
+    retry,
   };
 }
