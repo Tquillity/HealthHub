@@ -80,7 +80,7 @@ jobs:
       - run: pnpm db:push
       - run: pnpm db:repair-admin -- --use-default
       - run: pnpm exec tsx scripts/seed-e2e.ts
-      - run: pnpm exec vitest run src/lib/stripe-webhook.test.ts
+      - run: pnpm exec vitest run src/lib/stripe-webhook.test.ts src/lib/account-deletion.test.ts
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm build
       - run: pnpm test:e2e

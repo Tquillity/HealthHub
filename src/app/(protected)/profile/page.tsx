@@ -2,6 +2,8 @@ import { redirect } from 'next/navigation';
 import { getServerSession } from '@/lib/session';
 import { getProfile } from '@/actions/profile-actions';
 import { ProfileClient } from '@/components/profile/profile-client';
+import { DeleteAccountSection } from '@/components/profile/delete-account-section';
+import { getAccountDeletionContext } from '@/lib/account-deletion';
 import { Users, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { PageHeader } from '@/components/ui/page-header';
@@ -13,7 +15,10 @@ export default async function ProfilePage() {
     redirect('/sign-in');
   }
 
-  const profileResult = await getProfile();
+  const [profileResult, deletion] = await Promise.all([
+    getProfile(),
+    getAccountDeletionContext(session.user.id),
+  ]);
 
   if (!profileResult.success || !profileResult.data) {
     return (
@@ -50,7 +55,9 @@ export default async function ProfilePage() {
                 <Users className="h-5 w-5" />
               </div>
               <div>
-                <h2 className="text-xl font-semibold text-gray-900">Household</h2>
+                <h2 className="text-xl font-semibold text-gray-900">
+                  Household
+                </h2>
                 <p className="text-sm text-gray-500">
                   Manage household members and invitations
                 </p>
@@ -65,6 +72,11 @@ export default async function ProfilePage() {
             </Link>
           </div>
         </div>
+
+        <DeleteAccountSection
+          hasPassword={deletion.hasPassword}
+          isMainAdmin={deletion.isMainAdmin}
+        />
       </div>
     </div>
   );
