@@ -3,11 +3,15 @@
 /**
  * Grocery shopping-list mutations (toggle, manual add, recipe scaler).
  * Queries and aggregation live in grocery-actions.ts.
+ *
+ * Each takes the organization id the page was rendered for, so a space switch in another
+ * tab cannot send an item to a list the user is not looking at.
  */
 
 import { z } from 'zod';
 import { prisma } from '@/lib/db';
 import { requireSessionUserId } from '@/lib/session';
+import { getWritableMembershipIn } from '@/lib/active-organization';
 import { revalidatePath } from 'next/cache';
 import {
   AddShoppingItemSchema,
@@ -83,6 +87,7 @@ function categorizeIngredient(name: string): string {
 }
 
 export async function toggleShoppingItem(
+  organizationId: string,
   itemKey: string,
   isChecked: boolean
 ): Promise<{ success: boolean; error?: string }> {
@@ -94,14 +99,13 @@ export async function toggleShoppingItem(
       return { success: false, error: authResult.error };
     }
 
-    const membership = await prisma.member.findFirst({
-      where: { userId: authResult.userId },
-      select: { organizationId: true },
-    });
-
-    if (!membership) {
-      return { success: false, error: 'No household found' };
+    // The space the page showed, not the cookie (it may have changed in another tab).
+    // Viewers can look at the list but not change it.
+    const access = await getWritableMembershipIn(authResult.userId, organizationId);
+    if (!access.ok) {
+      return { success: false, error: access.error };
     }
+    const membership = access.membership;
 
     if (validated.itemKey.startsWith('meal-plan_')) {
       return { success: true };
@@ -132,6 +136,7 @@ export async function toggleShoppingItem(
 }
 
 export async function addShoppingItem(
+  organizationId: string,
   name: string,
   quantity: number = 1,
   unit: string = 'pcs'
@@ -144,14 +149,13 @@ export async function addShoppingItem(
       return { success: false, error: authResult.error };
     }
 
-    const membership = await prisma.member.findFirst({
-      where: { userId: authResult.userId },
-      select: { organizationId: true },
-    });
-
-    if (!membership) {
-      return { success: false, error: 'No household found' };
+    // The space the page showed, not the cookie (it may have changed in another tab).
+    // Viewers can look at the list but not change it.
+    const access = await getWritableMembershipIn(authResult.userId, organizationId);
+    if (!access.ok) {
+      return { success: false, error: access.error };
     }
+    const membership = access.membership;
 
     await prisma.shoppingListItem.create({
       data: {
@@ -178,6 +182,7 @@ export async function addShoppingItem(
 }
 
 export async function addScaledIngredientsToGroceryList(
+  organizationId: string,
   ingredients: Array<{ name: string; quantity: number; unit: string }>,
   sourceRecipeId?: string
 ) {
@@ -192,14 +197,13 @@ export async function addScaledIngredientsToGroceryList(
       return { success: false, error: authResult.error };
     }
 
-    const membership = await prisma.member.findFirst({
-      where: { userId: authResult.userId },
-      select: { organizationId: true },
-    });
-
-    if (!membership) {
-      return { success: false, error: 'No household found' };
+    // The space the page showed, not the cookie (it may have changed in another tab).
+    // Viewers can look at the list but not change it.
+    const access = await getWritableMembershipIn(authResult.userId, organizationId);
+    if (!access.ok) {
+      return { success: false, error: access.error };
     }
+    const membership = access.membership;
 
     const items = await Promise.all(
       validated.ingredients.map((ingredient) =>

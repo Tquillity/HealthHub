@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { getServerSession } from '@/lib/session';
 import { NavLink } from '@/components/layout/nav-link';
@@ -9,6 +10,11 @@ import { SignOutButton } from '@/components/layout/sign-out-button';
 import { PaymentFailedBanner } from '@/components/billing/payment-failed-banner';
 import { getBillingNotice } from '@/lib/billing-notice';
 import { ensurePersonalHousehold } from '@/lib/household';
+import {
+  getActiveMembership,
+  listUserOrganizations,
+} from '@/lib/active-organization';
+import { OrgDeepLink, OrgSwitcher } from '@/components/layout/org-switcher';
 
 /**
  * Auth layout reads session via `headers()` on every request. Without this,
@@ -45,7 +51,17 @@ export default async function DashboardLayout({
   }
 
   // Pro stays on while Stripe retries a failed payment; ask the user to update their card.
-  const billingNotice = await getBillingNotice(session.user.id);
+  const [billingNotice, organizations, activeMembership] = await Promise.all([
+    getBillingNotice(session.user.id),
+    listUserOrganizations(session.user.id),
+    getActiveMembership(session.user.id),
+  ]);
+  const orgSwitcher = activeMembership ? (
+    <OrgSwitcher
+      organizations={organizations}
+      activeOrganizationId={activeMembership.organizationId}
+    />
+  ) : null;
 
   return (
     <div className="flex min-h-screen bg-gray-50 text-gray-900">
@@ -56,6 +72,8 @@ export default async function DashboardLayout({
           </div>
           HealthHub
         </div>
+
+        {orgSwitcher && <div className="mb-6">{orgSwitcher}</div>}
 
         <nav className="flex flex-1 flex-col gap-2">
           {protectedNavItems.map((item) => (
@@ -81,6 +99,7 @@ export default async function DashboardLayout({
             <ProtectedMobileNav
               items={protectedNavItems}
               userName={session.user.name ?? 'Account'}
+              orgSwitcher={orgSwitcher}
             />
             <div className="font-bold text-blue-600 md:hidden">HealthHub</div>
           </div>
@@ -93,6 +112,10 @@ export default async function DashboardLayout({
         </header>
 
         {billingNotice.paymentFailed && <PaymentFailedBanner />}
+
+        <Suspense fallback={null}>
+          <OrgDeepLink />
+        </Suspense>
 
         <div className="flex-1 p-4 sm:p-6 md:p-8">{children}</div>
 

@@ -4,6 +4,13 @@ import { z } from 'zod';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { requireSessionUserId } from '@/lib/session';
+import {
+  getActiveMembership,
+  getMembershipIn,
+  getWritableMembershipIn,
+  SPACE_NOT_FOUND_ERROR,
+} from '@/lib/active-organization';
+import { OrganizationIdSchema } from '@/lib/validation/organization-schemas';
 import { revalidatePath } from 'next/cache';
 import { buildLotteryWhere, drawRandom } from '@/lib/routine-lottery';
 import {
@@ -13,22 +20,26 @@ import {
   UpdateRoutineSchema,
 } from '@/lib/validation/routine-schemas';
 
-export async function createRoutine(data: z.input<typeof CreateRoutineSchema>) {
+/**
+ * Routine writes and the lottery take the organization id the routines page was rendered
+ * for, not the active-space cookie, which another tab may have switched since.
+ */
+export async function createRoutine(
+  organizationId: string,
+  data: z.input<typeof CreateRoutineSchema>
+) {
   try {
     const authResult = await requireSessionUserId();
     if (!authResult.ok) {
       return { success: false, error: authResult.error };
     }
 
-    // Get user's organization
-    const membership = await prisma.member.findFirst({
-      where: { userId: authResult.userId },
-      select: { organizationId: true },
-    });
-
-    if (!membership) {
-      return { success: false, error: 'No household found' };
+    // Viewers can look but not change shared plans and lists.
+    const access = await getWritableMembershipIn(authResult.userId, organizationId);
+    if (!access.ok) {
+      return { success: false, error: access.error };
     }
+    const membership = access.membership;
 
     // Validate input
     const validated = CreateRoutineSchema.parse(data);
@@ -72,22 +83,22 @@ export async function createRoutine(data: z.input<typeof CreateRoutineSchema>) {
   }
 }
 
-export async function updateRoutine(data: z.input<typeof UpdateRoutineSchema>) {
+export async function updateRoutine(
+  organizationId: string,
+  data: z.input<typeof UpdateRoutineSchema>
+) {
   try {
     const authResult = await requireSessionUserId();
     if (!authResult.ok) {
       return { success: false, error: authResult.error };
     }
 
-    // Get user's organization
-    const membership = await prisma.member.findFirst({
-      where: { userId: authResult.userId },
-      select: { organizationId: true },
-    });
-
-    if (!membership) {
-      return { success: false, error: 'No household found' };
+    // Viewers can look but not change shared plans and lists.
+    const access = await getWritableMembershipIn(authResult.userId, organizationId);
+    if (!access.ok) {
+      return { success: false, error: access.error };
     }
+    const membership = access.membership;
 
     // Validate input
     const validated = UpdateRoutineSchema.parse(data);
@@ -171,10 +182,7 @@ export async function getRoutine(id: string) {
       return { success: false, error: 'Routine not found', data: null };
     }
 
-    const membership = await prisma.member.findFirst({
-      where: { userId: authResult.userId },
-      select: { organizationId: true },
-    });
+    const membership = await getActiveMembership(authResult.userId);
 
     // Only system routines and routines owned by the caller's household are readable
     const routine = await prisma.routine.findFirst({
@@ -200,7 +208,7 @@ export async function getRoutine(id: string) {
   }
 }
 
-export async function deleteRoutine(id: string) {
+export async function deleteRoutine(organizationId: string, id: string) {
   try {
     const authResult = await requireSessionUserId();
     if (!authResult.ok) {
@@ -212,15 +220,12 @@ export async function deleteRoutine(id: string) {
       return { success: false, error: 'Routine not found or access denied' };
     }
 
-    // Get user's organization
-    const membership = await prisma.member.findFirst({
-      where: { userId: authResult.userId },
-      select: { organizationId: true },
-    });
-
-    if (!membership) {
-      return { success: false, error: 'No household found' };
+    // Viewers can look but not change shared plans and lists.
+    const access = await getWritableMembershipIn(authResult.userId, organizationId);
+    if (!access.ok) {
+      return { success: false, error: access.error };
     }
+    const membership = access.membership;
 
     // Verify routine belongs to user's organization
     const routine = await prisma.routine.findFirst({
@@ -249,14 +254,17 @@ export async function deleteRoutine(id: string) {
 
 // Loose input type on purpose: the client sends select values as strings and
 // LotteryFiltersSchema is the single gate that whitelists them.
-export async function drawLottery(filters: {
-  energy?: string;
-  maxTime?: number;
-  count?: number;
-  context?: string;
-  duration?: string;
-  difficulty?: string;
-}) {
+export async function drawLottery(
+  organizationId: string,
+  filters: {
+    energy?: string;
+    maxTime?: number;
+    count?: number;
+    context?: string;
+    duration?: string;
+    difficulty?: string;
+  }
+) {
   try {
     const authResult = await requireSessionUserId();
     if (!authResult.ok) {
@@ -272,14 +280,13 @@ export async function drawLottery(filters: {
       };
     }
 
-    // Get user's organization
-    const membership = await prisma.member.findFirst({
-      where: { userId: authResult.userId },
-      select: { organizationId: true },
-    });
-
+    // Drawing is read-only, so viewers may use it too.
+    const space = OrganizationIdSchema.safeParse(organizationId);
+    const membership = space.success
+      ? await getMembershipIn(authResult.userId, space.data)
+      : null;
     if (!membership) {
-      return { success: false, error: 'No household found', data: null };
+      return { success: false, error: SPACE_NOT_FOUND_ERROR, data: null };
     }
 
     // Fetch candidates matching the validated, whitelisted criteria

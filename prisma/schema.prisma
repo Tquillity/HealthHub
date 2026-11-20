@@ -83,6 +83,14 @@ model Verification {
   @@map("verification")
 }
 
+/// How much a group shares, from most to least intimate. See src/lib/org-policy.ts.
+enum OrganizationType {
+  HOUSEHOLD
+  COLLECTIVE
+  COMMUNITY
+  CORPORATE
+}
+
 model Organization {
   id                String             @id
   name              String
@@ -90,6 +98,7 @@ model Organization {
   logo              String?
   createdAt         DateTime           @default(now())
   metadata          String?
+  type              OrganizationType   @default(HOUSEHOLD)
   members           Member[]
   invitations       Invitation[]
   recipes           Recipe[]
@@ -97,6 +106,8 @@ model Organization {
   mealPlans         MealPlan[]
   mealPlanTemplates MealPlanTemplate[]
   shoppingListItems ShoppingListItem[]
+  /// Journal entries members explicitly shared with this organization.
+  sharedJournalEntries JournalEntry[]
 
   @@map("organization")
 }
@@ -110,6 +121,8 @@ model Member {
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  /// One membership per person and organization, so counts and removals are exact.
+  @@unique([organizationId, userId])
   @@index([organizationId])
   @@index([userId])
   @@map("member")
@@ -314,6 +327,12 @@ model ShoppingListItem {
   @@map("shopping_list_item")
 }
 
+/// PRIVATE: only the author. ORGANIZATION: also members of `sharedOrganizationId`.
+enum JournalVisibility {
+  PRIVATE
+  ORGANIZATION
+}
+
 model JournalEntry {
   id                   String   @id @default(cuid())
   userId               String
@@ -341,6 +360,10 @@ model JournalEntry {
   heartRateVariability Float?
   /// Self-rated sleep quality, 1-10.
   sleepQuality         Int?
+  /// Explicit, revocable sharing with one household or collective the author belongs to.
+  visibility           JournalVisibility @default(PRIVATE)
+  sharedOrganizationId String?
+  sharedOrganization   Organization?     @relation(fields: [sharedOrganizationId], references: [id], onDelete: SetNull)
   user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
@@ -348,6 +371,7 @@ model JournalEntry {
   // The unique index leads with userId, so it also serves userId-only and userId + date-range
   // queries; a separate @@index([userId]) would only add write cost.
   @@unique([userId, date])
+  @@index([sharedOrganizationId])
   @@map("journal_entry")
 }
 

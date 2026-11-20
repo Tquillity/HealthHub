@@ -1,237 +1,293 @@
 'use server';
 
 import { headers } from 'next/headers';
-import { prisma } from '@/lib/db';
-import { requireSessionUserId } from '@/lib/session';
-import { auth } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-
-const InviteMemberSchema = z.object({
-  email: z.string().email('Invalid email address'),
-  role: z.enum(['member', 'admin']).default('member'),
-});
+import { auth } from '@/lib/auth';
+import { requireSessionUserId } from '@/lib/session';
+import {
+  clearActiveOrganizationCookie,
+  getActiveMembership,
+  setActiveOrganizationCookie,
+  SPACE_NOT_FOUND_ERROR,
+} from '@/lib/active-organization';
+import {
+  acceptInvitation as acceptInvitationForUser,
+  cancelInvitation,
+  createOrganization as createOrganizationForUser,
+  declineInvitation as declineInvitationForUser,
+  getHouseholdData as getHouseholdDataForUser,
+  inviteMember as inviteMemberForUser,
+  leaveOrganization as leaveOrganizationForUser,
+  removeMember as removeMemberForUser,
+  transferOwnership as transferOwnershipForUser,
+  updateMemberRole as updateMemberRoleForUser,
+  type AuthInvitationCreator,
+} from '@/lib/household-management';
+import { InvitationIdSchema, invitePath } from '@/lib/invitations';
+import { ASSIGNABLE_ROLES } from '@/lib/org-roles';
+import { ORGANIZATION_TYPES } from '@/lib/org-policy';
+import { OrganizationIdSchema } from '@/lib/validation/organization-schemas';
 
 /**
- * Get all members of the current user's household
+ * Household (organization) management. Thin wrappers: validate input with Zod, take the user
+ * from the session, and let src/lib/household-management.ts check membership and roles.
  */
-export async function getHouseholdMembers() {
+
+type ActionResult<T = undefined> = { success: boolean; error?: string; data?: T };
+
+const IdSchema = z.string().trim().min(1).max(128);
+
+const InviteMemberSchema = z.object({
+  /** The space the household page was rendered for (not the cookie, which may have changed). */
+  organizationId: OrganizationIdSchema,
+  email: z.string().trim().max(254).pipe(z.email('Please enter a valid email address')),
+  role: z.enum(ASSIGNABLE_ROLES).default('member'),
+});
+
+const UpdateRoleSchema = z.object({
+  memberId: IdSchema,
+  role: z.enum(ASSIGNABLE_ROLES),
+});
+
+const CreateOrganizationSchema = z.object({
+  name: z.string().trim().min(1, 'Please enter a name').max(80, 'Keep the name under 80 characters'),
+  type: z.enum(ORGANIZATION_TYPES),
+});
+
+function validationError(error: z.ZodError): string {
+  return error.issues[0]?.message || 'Validation failed';
+}
+
+/** Household pages and the org switcher in the layout read membership data. */
+function revalidateHousehold() {
+  revalidatePath('/profile/household');
+  revalidatePath('/', 'layout');
+}
+
+export async function getHouseholdData() {
   try {
     const authResult = await requireSessionUserId();
-    if (!authResult.ok) {
-      return { success: false, error: authResult.error };
+    if (!authResult.ok) return { success: false, error: authResult.error };
+    const result = await getHouseholdDataForUser(authResult.userId);
+    if (!result.ok) return { success: false, error: result.error };
+    return { success: true, data: result.data };
+  } catch (error) {
+    console.error('[HealthHub action] household getHouseholdData failed:', error);
+    return { success: false, error: 'Failed to load household' };
+  }
+}
+
+/** Better-Auth's organization plugin first; it refuses while its schema columns are missing. */
+async function createInvitationWithAuth(
+  requestHeaders: Headers
+): Promise<AuthInvitationCreator> {
+  return async ({ email, organizationId, role }) => {
+    const api = auth.api as unknown as {
+      createInvitation?: (args: {
+        headers: Headers;
+        body: { email: string; organizationId: string; role: string };
+      }) => Promise<{ id?: unknown } | null>;
+    };
+    if (!api.createInvitation) return null;
+    const invitation = await api.createInvitation({
+      headers: requestHeaders,
+      body: { email, organizationId, role },
+    });
+    return invitation && typeof invitation.id === 'string' ? invitation.id : null;
+  };
+}
+
+export async function inviteMember(
+  input: z.input<typeof InviteMemberSchema>
+): Promise<ActionResult<{ id: string; email: string; invitePath: string }>> {
+  try {
+    const authResult = await requireSessionUserId();
+    if (!authResult.ok) return { success: false, error: authResult.error };
+    const parsed = InviteMemberSchema.safeParse(input);
+    if (!parsed.success) {
+      const badSpace = parsed.error.issues.some((issue) => issue.path[0] === 'organizationId');
+      return {
+        success: false,
+        error: badSpace ? SPACE_NOT_FOUND_ERROR : validationError(parsed.error),
+      };
     }
 
-    // Get user's organization
-    const membership = await prisma.member.findFirst({
-      where: { userId: authResult.userId },
-      select: { organizationId: true, role: true },
-    });
+    const result = await inviteMemberForUser(
+      authResult.userId,
+      parsed.data,
+      await createInvitationWithAuth(await headers())
+    );
+    if (!result.ok) return { success: false, error: result.error };
 
-    if (!membership) {
-      return { success: false, error: 'No household found' };
-    }
-
-    // Get all members with their user details
-    const members = await prisma.member.findMany({
-      where: { organizationId: membership.organizationId },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            image: true,
-          },
-        },
-      },
-      orderBy: { createdAt: 'asc' },
-    });
-
+    revalidatePath('/profile/household');
     return {
       success: true,
       data: {
-        members: members.map((m) => ({
-          id: m.id,
-          userId: m.userId,
-          name: m.user.name,
-          email: m.user.email,
-          image: m.user.image,
-          role: m.role,
-          joinedAt: m.createdAt,
-        })),
-        currentUserRole: membership.role,
-        organizationId: membership.organizationId,
+        id: result.data.id,
+        email: result.data.email,
+        invitePath: invitePath(result.data.id),
       },
     };
   } catch (error) {
-    console.error('Error fetching household members:', error);
-    return { success: false, error: 'Failed to fetch household members' };
+    console.error('[HealthHub action] household inviteMember failed:', error);
+    return { success: false, error: 'Failed to create the invitation' };
   }
 }
 
-/**
- * Invite a new member to the household
- */
-export async function inviteMember(data: z.infer<typeof InviteMemberSchema>) {
+/** Cancel a pending invitation (owners and admins). */
+export async function deleteInvitation(invitationId: string): Promise<ActionResult> {
   try {
     const authResult = await requireSessionUserId();
-    if (!authResult.ok) {
-      return { success: false, error: authResult.error };
-    }
+    if (!authResult.ok) return { success: false, error: authResult.error };
+    const parsed = InvitationIdSchema.safeParse(invitationId);
+    if (!parsed.success) return { success: false, error: 'Invitation not found' };
 
-    // Validate input
-    const validated = InviteMemberSchema.parse(data);
-
-    // Get user's organization
-    const membership = await prisma.member.findFirst({
-      where: { userId: authResult.userId },
-      select: { organizationId: true, role: true },
-    });
-
-    if (!membership) {
-      return { success: false, error: 'No household found' };
-    }
-
-    // Check if user has permission to invite (owner or admin)
-    if (membership.role !== 'owner' && membership.role !== 'admin') {
-      return { success: false, error: 'Only owners and admins can invite members' };
-    }
-
-    // Check if email is already a member
-    const existingUser = await prisma.user.findUnique({
-      where: { email: validated.email },
-      include: {
-        members: {
-          where: { organizationId: membership.organizationId },
-        },
-      },
-    });
-
-    if (existingUser && existingUser.members.length > 0) {
-      return { success: false, error: 'User is already a member of this household' };
-    }
-
-    // Create invitation using Better-Auth's organization API (when available) or direct database creation.
-    //
-    // Note: Better-Auth's `auth.api` is plugin-shaped and can vary by version/config.
-    // We feature-detect `createInvitation` to keep this action compatible even when the method
-    // is not present (or not typed) and fall back to a Prisma insert.
-    try {
-      const api = auth.api as unknown as {
-        createInvitation?: (args: {
-          headers: Headers;
-          body: {
-            email: string;
-            organizationId: string;
-            role?: string;
-          };
-        }) => Promise<unknown>;
-      };
-
-      if (api.createInvitation) {
-        const invitation = await api.createInvitation({
-          headers: await headers(),
-          body: {
-            email: validated.email,
-            organizationId: membership.organizationId,
-            role: validated.role,
-          },
-        });
-
-        if (invitation) {
-          revalidatePath('/profile/household');
-          return { success: true, data: invitation };
-        }
-      }
-    } catch {
-      // Fall through to DB-backed invitation creation
-      console.log('Better-Auth invitation API not available, creating invitation directly');
-    }
-
-    // Fallback: Create invitation directly in database
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7); // Invitation expires in 7 days
-
-    const invitation = await prisma.invitation.create({
-      data: {
-        id: `inv_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-        organizationId: membership.organizationId,
-        email: validated.email,
-        role: validated.role || 'member',
-        status: 'pending',
-        expiresAt,
-        inviterId: authResult.userId,
-      },
-    });
-
-    revalidatePath('/profile/household');
-    return { success: true, data: invitation };
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      // Zod v4 uses `issues` (Zod v3 used `errors`)
-      return { success: false, error: error.issues?.[0]?.message || 'Validation failed' };
-    }
-    console.error('Error inviting member:', error);
-    return { success: false, error: 'Failed to invite member' };
-  }
-}
-
-/**
- * Remove a member from the household
- */
-export async function removeMember(memberId: string) {
-  try {
-    const authResult = await requireSessionUserId();
-    if (!authResult.ok) {
-      return { success: false, error: authResult.error };
-    }
-
-    // Get user's organization and role
-    const membership = await prisma.member.findFirst({
-      where: { userId: authResult.userId },
-      select: { organizationId: true, role: true },
-    });
-
-    if (!membership) {
-      return { success: false, error: 'No household found' };
-    }
-
-    // Only owners can remove members
-    if (membership.role !== 'owner') {
-      return { success: false, error: 'Only owners can remove members' };
-    }
-
-    // Get the member to remove
-    const memberToRemove = await prisma.member.findUnique({
-      where: { id: memberId },
-      include: { user: true },
-    });
-
-    if (!memberToRemove) {
-      return { success: false, error: 'Member not found' };
-    }
-
-    // Prevent removing yourself
-    if (memberToRemove.userId === authResult.userId) {
-      return { success: false, error: 'You cannot remove yourself from the household' };
-    }
-
-    // Ensure member belongs to the same organization
-    if (memberToRemove.organizationId !== membership.organizationId) {
-      return { success: false, error: 'Member does not belong to your household' };
-    }
-
-    // Remove the member
-    await prisma.member.delete({
-      where: { id: memberId },
-    });
-
+    const result = await cancelInvitation(authResult.userId, parsed.data);
+    if (!result.ok) return { success: false, error: result.error };
     revalidatePath('/profile/household');
     return { success: true };
   } catch (error) {
-    console.error('Error removing member:', error);
+    console.error('[HealthHub action] household deleteInvitation failed:', error);
+    return { success: false, error: 'Failed to cancel the invitation' };
+  }
+}
+
+/** Accept an invitation addressed to the signed-in user; that organization becomes active. */
+export async function acceptInvitation(
+  invitationId: string
+): Promise<ActionResult<{ organizationId: string }>> {
+  try {
+    const authResult = await requireSessionUserId();
+    if (!authResult.ok) return { success: false, error: authResult.error };
+    const parsed = InvitationIdSchema.safeParse(invitationId);
+    if (!parsed.success) return { success: false, error: 'Invitation not found' };
+
+    const result = await acceptInvitationForUser(authResult.userId, parsed.data);
+    if (!result.ok) return { success: false, error: result.error };
+    await setActiveOrganizationCookie(result.data.organizationId);
+    revalidateHousehold();
+    return { success: true, data: result.data };
+  } catch (error) {
+    console.error('[HealthHub action] household acceptInvitation failed:', error);
+    return { success: false, error: 'Failed to accept the invitation' };
+  }
+}
+
+export async function declineInvitation(invitationId: string): Promise<ActionResult> {
+  try {
+    const authResult = await requireSessionUserId();
+    if (!authResult.ok) return { success: false, error: authResult.error };
+    const parsed = InvitationIdSchema.safeParse(invitationId);
+    if (!parsed.success) return { success: false, error: 'Invitation not found' };
+
+    const result = await declineInvitationForUser(authResult.userId, parsed.data);
+    if (!result.ok) return { success: false, error: result.error };
+    revalidatePath('/profile/household');
+    return { success: true };
+  } catch (error) {
+    console.error('[HealthHub action] household declineInvitation failed:', error);
+    return { success: false, error: 'Failed to decline the invitation' };
+  }
+}
+
+export async function updateMemberRole(
+  input: z.input<typeof UpdateRoleSchema>
+): Promise<ActionResult> {
+  try {
+    const authResult = await requireSessionUserId();
+    if (!authResult.ok) return { success: false, error: authResult.error };
+    const parsed = UpdateRoleSchema.safeParse(input);
+    if (!parsed.success) return { success: false, error: validationError(parsed.error) };
+
+    const result = await updateMemberRoleForUser(
+      authResult.userId,
+      parsed.data.memberId,
+      parsed.data.role
+    );
+    if (!result.ok) return { success: false, error: result.error };
+    revalidateHousehold();
+    return { success: true };
+  } catch (error) {
+    console.error('[HealthHub action] household updateMemberRole failed:', error);
+    return { success: false, error: 'Failed to change the role' };
+  }
+}
+
+export async function transferOwnership(memberId: string): Promise<ActionResult> {
+  try {
+    const authResult = await requireSessionUserId();
+    if (!authResult.ok) return { success: false, error: authResult.error };
+    const parsed = IdSchema.safeParse(memberId);
+    if (!parsed.success) return { success: false, error: 'Member not found' };
+
+    const result = await transferOwnershipForUser(authResult.userId, parsed.data);
+    if (!result.ok) return { success: false, error: result.error };
+    revalidateHousehold();
+    return { success: true };
+  } catch (error) {
+    console.error('[HealthHub action] household transferOwnership failed:', error);
+    return { success: false, error: 'Failed to transfer ownership' };
+  }
+}
+
+/** Remove a member from their organization (owners only). */
+export async function removeMember(memberId: string): Promise<ActionResult> {
+  try {
+    const authResult = await requireSessionUserId();
+    if (!authResult.ok) return { success: false, error: authResult.error };
+    const parsed = IdSchema.safeParse(memberId);
+    if (!parsed.success) return { success: false, error: 'Member not found' };
+
+    const result = await removeMemberForUser(authResult.userId, parsed.data);
+    if (!result.ok) return { success: false, error: result.error };
+    revalidateHousehold();
+    return { success: true };
+  } catch (error) {
+    console.error('[HealthHub action] household removeMember failed:', error);
     return { success: false, error: 'Failed to remove member' };
   }
 }
 
+/** Leave an organization; the app switches to the user's oldest remaining one. */
+export async function leaveOrganization(organizationId: string): Promise<ActionResult> {
+  try {
+    const authResult = await requireSessionUserId();
+    if (!authResult.ok) return { success: false, error: authResult.error };
+    const parsed = IdSchema.safeParse(organizationId);
+    if (!parsed.success) return { success: false, error: 'You are not a member of this space.' };
+
+    const active = await getActiveMembership(authResult.userId);
+    const result = await leaveOrganizationForUser(authResult.userId, parsed.data);
+    if (!result.ok) return { success: false, error: result.error };
+    if (!active || active.organizationId === parsed.data) {
+      await clearActiveOrganizationCookie();
+    }
+    revalidateHousehold();
+    return { success: true };
+  } catch (error) {
+    console.error('[HealthHub action] household leaveOrganization failed:', error);
+    return { success: false, error: 'Failed to leave' };
+  }
+}
+
+/** Create a household, collective, community or workplace; it becomes the active one. */
+export async function createOrganization(
+  input: z.input<typeof CreateOrganizationSchema>
+): Promise<ActionResult<{ organizationId: string }>> {
+  try {
+    const authResult = await requireSessionUserId();
+    if (!authResult.ok) return { success: false, error: authResult.error };
+    const parsed = CreateOrganizationSchema.safeParse(input);
+    if (!parsed.success) return { success: false, error: validationError(parsed.error) };
+
+    const result = await createOrganizationForUser(authResult.userId, parsed.data);
+    if (!result.ok) return { success: false, error: result.error };
+    await setActiveOrganizationCookie(result.data.organizationId);
+    revalidateHousehold();
+    return { success: true, data: result.data };
+  } catch (error) {
+    console.error('[HealthHub action] household createOrganization failed:', error);
+    return { success: false, error: 'Failed to create the space' };
+  }
+}

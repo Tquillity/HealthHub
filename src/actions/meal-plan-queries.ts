@@ -2,10 +2,23 @@
 
 import { prisma } from '@/lib/db';
 import { requireSessionUserId } from '@/lib/session';
+import {
+  getActiveMembership,
+  getMembershipIn,
+  NO_HOUSEHOLD_ERROR,
+  SPACE_NOT_FOUND_ERROR,
+  type ActiveMembership,
+} from '@/lib/active-organization';
+import { OrganizationIdSchema } from '@/lib/validation/organization-schemas';
 import { addDays } from 'date-fns';
 import { buildRecipeVisibilityFilter } from '@/actions/recipe-shared';
 
-export async function getWeeklyPlan(date?: Date) {
+/**
+ * The plan the meal planner shows, created when missing. `organizationId` names the space a
+ * page was rendered for (the templates page applies a template to that space's plan);
+ * without it the plan follows the active space.
+ */
+export async function getWeeklyPlan(date?: Date, organizationId?: string) {
   const authResult = await requireSessionUserId();
   if (!authResult.ok) throw new Error('Unauthorized');
 
@@ -21,12 +34,18 @@ export async function getWeeklyPlan(date?: Date) {
   const mealPlanDuration = user?.mealPlanDuration ?? null;
   const mealPlanStartDate = user?.mealPlanStartDate ?? null;
 
-  const membership = await prisma.member.findFirst({
-    where: { userId: authResult.userId },
-    select: { organizationId: true },
-  });
-
-  if (!membership) throw new Error('No household found');
+  // The space the page was rendered for, else the one picked in the sidebar switcher
+  let membership: ActiveMembership | null;
+  if (organizationId === undefined) {
+    membership = await getActiveMembership(authResult.userId);
+    if (!membership) throw new Error(NO_HOUSEHOLD_ERROR);
+  } else {
+    const parsed = OrganizationIdSchema.safeParse(organizationId);
+    membership = parsed.success
+      ? await getMembershipIn(authResult.userId, parsed.data)
+      : null;
+    if (!membership) throw new Error(SPACE_NOT_FOUND_ERROR);
+  }
 
   // Determine start date: use provided date, or user preference, or today
   let startDate: Date;
@@ -118,13 +137,10 @@ export async function getMealPlanTemplates() {
       return { success: false, error: authResult.error };
     }
 
-    const membership = await prisma.member.findFirst({
-      where: { userId: authResult.userId },
-      select: { organizationId: true },
-    });
+    const membership = await getActiveMembership(authResult.userId);
 
     if (!membership) {
-      return { success: false, error: 'No household found' };
+      return { success: false, error: NO_HOUSEHOLD_ERROR };
     }
 
     const templates = await prisma.mealPlanTemplate.findMany({

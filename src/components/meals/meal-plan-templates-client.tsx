@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,7 +17,6 @@ import {
   duplicateMealPlanTemplate,
   updateMealPlanTemplate,
   applyMealPlanTemplate,
-  getMealPlanTemplates,
   getWeeklyPlan,
 } from '@/actions/meal-actions';
 import { SafeDeleteModal } from '@/components/ui/safe-delete-modal';
@@ -45,15 +44,17 @@ type MealPlanTemplate = {
 };
 
 interface MealPlanTemplatesClientProps {
-  initialTemplates: MealPlanTemplate[];
+  /** The space the page was rendered for; every change goes there. */
+  organizationId: string;
+  /** That space's templates. Changes refresh the page, which passes the new list. */
+  templates: MealPlanTemplate[];
 }
 
 export function MealPlanTemplatesClient({
-  initialTemplates,
+  organizationId,
+  templates,
 }: MealPlanTemplatesClientProps) {
   const router = useRouter();
-  const [templates, setTemplates] =
-    useState<MealPlanTemplate[]>(initialTemplates);
   const [editingTemplate, setEditingTemplate] =
     useState<MealPlanTemplate | null>(null);
   const [editFormData, setEditFormData] = useState({
@@ -69,17 +70,6 @@ export function MealPlanTemplatesClient({
     useState<MealPlanTemplate | null>(null);
   const [applyingTemplate, setApplyingTemplate] = useState<string | null>(null);
 
-  useEffect(() => {
-    // Refresh templates when needed
-    const refreshTemplates = async () => {
-      const result = await getMealPlanTemplates();
-      if (result.success && result.data) {
-        setTemplates(result.data);
-      }
-    };
-    refreshTemplates();
-  }, []);
-
   const handleEdit = (template: MealPlanTemplate) => {
     setEditingTemplate(template);
     setEditFormData({
@@ -93,7 +83,7 @@ export function MealPlanTemplatesClient({
     if (!editingTemplate) return;
 
     setIsSaving(true);
-    const result = await updateMealPlanTemplate({
+    const result = await updateMealPlanTemplate(organizationId, {
       id: editingTemplate.id,
       name: editFormData.name,
       description: editFormData.description || undefined,
@@ -104,11 +94,7 @@ export function MealPlanTemplatesClient({
     if (result.success) {
       setEditingTemplate(null);
       setEditFormData({ name: '', description: '' });
-      // Refresh templates
-      const refreshResult = await getMealPlanTemplates();
-      if (refreshResult.success && refreshResult.data) {
-        setTemplates(refreshResult.data);
-      }
+      router.refresh();
     } else {
       alert(result.error || 'Failed to update template');
     }
@@ -117,27 +103,19 @@ export function MealPlanTemplatesClient({
   const handleDelete = async () => {
     if (!deleteTemplate) return;
 
-    const result = await deleteMealPlanTemplate(deleteTemplate.id);
+    const result = await deleteMealPlanTemplate(organizationId, deleteTemplate.id);
     if (result.success) {
       setDeleteTemplate(null);
-      // Refresh templates
-      const refreshResult = await getMealPlanTemplates();
-      if (refreshResult.success && refreshResult.data) {
-        setTemplates(refreshResult.data);
-      }
+      router.refresh();
     } else {
       alert(result.error || 'Failed to delete template');
     }
   };
 
   const handleDuplicate = async (template: MealPlanTemplate) => {
-    const result = await duplicateMealPlanTemplate(template.id);
+    const result = await duplicateMealPlanTemplate(organizationId, template.id);
     if (result.success) {
-      // Refresh templates
-      const refreshResult = await getMealPlanTemplates();
-      if (refreshResult.success && refreshResult.data) {
-        setTemplates(refreshResult.data);
-      }
+      router.refresh();
     } else {
       alert(result.error || 'Failed to duplicate template');
     }
@@ -147,8 +125,8 @@ export function MealPlanTemplatesClient({
     setApplyingTemplate(template.id);
 
     try {
-      // Get current meal plan
-      const planResult = await getWeeklyPlan();
+      // Current meal plan of the same space, not of whichever space another tab switched to
+      const planResult = await getWeeklyPlan(undefined, organizationId);
       if (!planResult || !planResult.plan) {
         alert('Failed to load current meal plan');
         setApplyingTemplate(null);
@@ -167,6 +145,7 @@ export function MealPlanTemplatesClient({
       const dateString = `${year}-${month}-${day}`;
 
       const result = await applyMealPlanTemplate(
+        organizationId,
         template.id,
         planResult.plan.id,
         dateString

@@ -72,6 +72,7 @@ export async function buildAccountExport(userId: string) {
     }),
     prisma.journalEntry.findMany({
       where: { userId },
+      include: { sharedOrganization: { select: { id: true, name: true } } },
       orderBy: { date: 'asc' },
     }),
     prisma.userIngredientPreference.findMany({
@@ -114,7 +115,7 @@ export async function buildAccountExport(userId: string) {
       ] = await Promise.all([
         prisma.organization.findUnique({
           where: { id: organizationId },
-          select: { id: true, name: true, createdAt: true },
+          select: { id: true, name: true, type: true, createdAt: true },
         }),
         prisma.member.count({ where: { organizationId } }),
         prisma.recipe.findMany({
@@ -164,6 +165,8 @@ export async function buildAccountExport(userId: string) {
       return {
         id: organizationId,
         name: household?.name ?? null,
+        /** HOUSEHOLD, COLLECTIVE, COMMUNITY or CORPORATE: decides what the group may see. */
+        type: household?.type ?? null,
         createdAt: household?.createdAt ?? null,
         yourRole: membership.role,
         joinedAt: membership.createdAt,
@@ -238,6 +241,9 @@ export async function buildAccountExport(userId: string) {
       restingHeartRate: entry.restingHeartRate,
       heartRateVariability: entry.heartRateVariability,
       sleepQuality: entry.sleepQuality,
+      // PRIVATE, or ORGANIZATION when you shared this day with a household or collective.
+      visibility: entry.sharedOrganization ? entry.visibility : 'PRIVATE',
+      sharedWith: entry.sharedOrganization,
       createdAt: entry.createdAt,
       updatedAt: entry.updatedAt,
     })),

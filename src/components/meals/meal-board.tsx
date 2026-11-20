@@ -53,11 +53,13 @@ function DraggableRecipe({ recipe }: { recipe: RecipeLite }) {
 }
 
 function DaySlot({
+  organizationId,
   date,
   mealType,
   items,
   isPastDay,
 }: {
+  organizationId: string;
   date: Date;
   mealType: string;
   items: PlanItem[];
@@ -93,7 +95,7 @@ function DaySlot({
           <span className="block truncate font-medium">{item.recipe.name}</span>
           {!isPastDay && (
             <button
-              onClick={() => removeMealFromPlan(item.id)}
+              onClick={() => removeMealFromPlan(organizationId, item.id)}
               className="absolute right-1 top-1 cursor-pointer opacity-0 transition-opacity group-hover:opacity-100"
               aria-label="Remove meal"
             >
@@ -117,6 +119,7 @@ function DaySlot({
 }
 
 export default function MealBoard({
+  organizationId,
   plan,
   recipes,
   duration = '1week',
@@ -124,6 +127,8 @@ export default function MealBoard({
   endDate: endDateProp,
   useDefaultStart = true,
 }: {
+  /** The space this plan belongs to; changes go there even if another tab switches spaces. */
+  organizationId: string;
   plan: Plan;
   recipes: RecipeLite[];
   duration?: string;
@@ -178,7 +183,7 @@ export default function MealBoard({
 
       if (!date || !mealType) return;
 
-      await addMealToPlan(plan.id, recipeId, date, mealType);
+      await addMealToPlan(organizationId, plan.id, recipeId, date, mealType);
     }
   };
 
@@ -294,6 +299,7 @@ export default function MealBoard({
                     return (
                       <DaySlot
                         key={`${day.toISOString()}-${type}`}
+                        organizationId={organizationId}
                         date={day}
                         mealType={type}
                         items={items}

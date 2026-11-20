@@ -1,0 +1,582 @@
+import { randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { Pool } from 'pg';
+import { ORGANIZATION_LOCK_SPACE, USER_LOCK_SPACE } from './membership-locks';
+
+const url = process.env.DATABASE_URL ? new URL(process.env.DATABASE_URL) : null;
+const isolated = Boolean(
+  url &&
+  ['localhost', '127.0.0.1'].includes(url.hostname) &&
+  url.pathname === '/healthhub_e2e'
+);
+
+// Membership integrity never depends on the active organization, but the module graph reads cookies.
+vi.mock('next/headers', () => ({
+  cookies: async () => ({ get: () => undefined, set: () => undefined, delete: () => undefined }),
+}));
+
+/**
+ * Membership and ownership integrity under concurrency: nobody is put back into a household
+ * they left, every organization keeps an owner, and shares never outlive a membership.
+ */
+describe.skipIf(!isolated)('household integrity against isolated PostgreSQL', () => {
+  const run = randomUUID().slice(0, 8);
+  const userIds: string[] = [];
+  const orgIds: string[] = [];
+
+  let pool: Pool;
+  let client: PrismaClient;
+  let household: typeof import('./household');
+  let lib: typeof import('./household-management');
+  let sharing: typeof import('./journal-sharing');
+
+  let seq = 0;
+  const createUser = async (key: string) => {
+    const id = `hi-${key}-${run}`;
+    await client.user.create({
+      data: { id, email: `${id}@example.com`, name: `${key[0].toUpperCase()}${key.slice(1)} ${run}` },
+    });
+    userIds.push(id);
+    return id;
+  };
+  const createOrg = async (key: string, members: Array<[userId: string, role: string]>) => {
+    const id = `hi-${key}-${run}`;
+    await client.organization.create({ data: { id, name: key, slug: id } });
+    orgIds.push(id);
+    const memberIds: string[] = [];
+    for (const [userId, role] of members) memberIds.push(await addMember(id, userId, role));
+    return { id, memberIds };
+  };
+  const addMember = async (organizationId: string, userId: string, role: string) => {
+    seq += 1;
+    const id = `hi-m${seq}-${run}`;
+    await client.member.create({
+      data: { id, organizationId, userId, role, createdAt: new Date(Date.UTC(2026, 0, 1, 0, seq)) },
+    });
+    return id;
+  };
+  const membershipsOf = (userId: string) =>
+    client.member.findMany({
+      where: { userId },
+      select: { organizationId: true, role: true },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    });
+  const ownersOf = async (organizationId: string) => {
+    const owners = await client.member.findMany({
+      where: { organizationId, role: 'owner' },
+      select: { userId: true },
+      orderBy: { userId: 'asc' },
+    });
+    return owners.map((m) => m.userId);
+  };
+
+  /**
+   * Another request's transaction, held open: it has run `statements` (and holds their row
+   * locks) but has not committed. runWhileHeld starts `action`, commits the holder once the
+   * action is waiting on one of its locks (or has finished without waiting), and returns
+   * the action's result. This replays a race deterministically.
+   */
+  const holdTransaction = async (statements: Array<[sql: string, params: unknown[]]>) => {
+    const conn = await pool.connect();
+    await conn.query('BEGIN');
+    for (const [sql, params] of statements) await conn.query(sql, params);
+    const { rows } = await conn.query<{ pid: number }>('SELECT pg_backend_pid() AS pid');
+    return {
+      pid: rows[0].pid,
+      commit: async () => {
+        await conn.query('COMMIT');
+        conn.release();
+      },
+    };
+  };
+  const runWhileHeld = async <T>(
+    holder: Awaited<ReturnType<typeof holdTransaction>>,
+    action: () => Promise<T>
+  ): Promise<T> => {
+    const settled = action().then(
+      (value) => ({ value }),
+      (error: unknown) => ({ error })
+    );
+    let done = false;
+    void settled.then(() => {
+      done = true;
+    });
+    for (let attempt = 0; attempt < 500 && !done; attempt += 1) {
+      const { rows } = await pool.query<{ waiting: number }>(
+        'SELECT count(*)::int AS waiting FROM pg_stat_activity WHERE $1 = ANY(pg_blocking_pids(pid))',
+        [holder.pid]
+      );
+      if (rows[0].waiting > 0) break;
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    await holder.commit();
+    const outcome = await settled;
+    if ('error' in outcome) throw outcome.error;
+    return outcome.value;
+  };
+
+  beforeAll(async () => {
+    pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    client = new PrismaClient({ adapter: new PrismaPg(pool) });
+    household = await import('./household');
+    lib = await import('./household-management');
+    sharing = await import('./journal-sharing');
+  });
+
+  afterAll(async () => {
+    // Personal households created along the way belong to the test users.
+    await client.organization.deleteMany({
+      where: { OR: [{ id: { in: orgIds } }, { members: { some: { userId: { in: userIds } } } }] },
+    });
+    await client.organization.deleteMany({
+      where: { id: { in: userIds.map((id) => `household-${id}`) } },
+    });
+    await client.user.deleteMany({ where: { id: { in: userIds } } });
+    await client.$disconnect();
+    await pool.end();
+  });
+
+  describe('personal household', () => {
+    it('creates one household with the fixed id for a first sign-up, even when called at once', async () => {
+      const newcomer = await createUser('newcomer');
+      await Promise.all(
+        Array.from({ length: 5 }, () => household.ensurePersonalHousehold({ id: newcomer, name: 'New' }))
+      );
+      expect(await membershipsOf(newcomer)).toEqual([
+        { organizationId: `household-${newcomer}`, role: 'owner' },
+      ]);
+    });
+
+    it('never puts a former owner back into the household they handed over', async () => {
+      const former = await createUser('former');
+      const partner = await createUser('partner');
+      await household.ensurePersonalHousehold({ id: former, name: 'Former' });
+      const handedOver = `household-${former}`;
+      await addMember(handedOver, partner, 'member');
+      const partnerMember = await client.member.findFirstOrThrow({
+        where: { userId: partner, organizationId: handedOver },
+      });
+      expect(await lib.transferOwnership(former, partnerMember.id)).toMatchObject({ ok: true });
+      // However the last membership went (removal, two leaves at once), none is left now.
+      await client.member.deleteMany({ where: { userId: former } });
+
+      await Promise.all(
+        Array.from({ length: 3 }, () => household.ensurePersonalHousehold({ id: former, name: 'Former' }))
+      );
+
+      const memberships = await membershipsOf(former);
+      expect(memberships).toHaveLength(1);
+      expect(memberships[0]).toMatchObject({ role: 'owner' });
+      expect(memberships[0].organizationId).not.toBe(handedOver);
+      expect(memberships[0].organizationId).toMatch(/^org_[A-Za-z0-9_-]{22}$/);
+      const fresh = await client.organization.findUniqueOrThrow({
+        where: { id: memberships[0].organizationId },
+        include: { members: true },
+      });
+      expect(fresh.members.map((m) => m.userId)).toEqual([former]);
+      expect(fresh.name).toBe("Former's Household");
+      expect(await ownersOf(handedOver)).toEqual([partner]);
+    });
+
+    it('does not reuse an old household that has nobody in it either', async () => {
+      const returning = await createUser('returning');
+      await client.organization.create({
+        data: { id: `household-${returning}`, name: 'Old data', slug: `household-${returning}` },
+      });
+      await household.ensurePersonalHousehold({ id: returning, name: null });
+      const memberships = await membershipsOf(returning);
+      expect(memberships).toHaveLength(1);
+      expect(memberships[0].organizationId).not.toBe(`household-${returning}`);
+      expect(
+        (await client.organization.findUniqueOrThrow({ where: { id: memberships[0].organizationId } })).name
+      ).toBe('My Household');
+    });
+  });
+
+  describe('removing a member', () => {
+    it('gives someone removed from their only space a household of their own at once', async () => {
+      const owner = await createUser('remover');
+      const removed = await createUser('removed');
+      const space = await createOrg('remove-space', [
+        [owner, 'owner'],
+        [removed, 'member'],
+      ]);
+      expect(await lib.removeMember(owner, space.memberIds[1])).toMatchObject({ ok: true });
+      expect(await membershipsOf(removed)).toEqual([
+        { organizationId: `household-${removed}`, role: 'owner' },
+      ]);
+    });
+
+    it('gives a removed former owner a new household, not the one they handed over', async () => {
+      const former = await createUser('handover');
+      const newOwner = await createUser('new-owner');
+      await household.ensurePersonalHousehold({ id: former, name: 'Handover' });
+      const handedOver = `household-${former}`;
+      const newOwnerMember = await addMember(handedOver, newOwner, 'member');
+      expect(await lib.transferOwnership(former, newOwnerMember)).toMatchObject({ ok: true });
+      const formerMember = await client.member.findFirstOrThrow({
+        where: { userId: former, organizationId: handedOver },
+      });
+      expect(await lib.removeMember(newOwner, formerMember.id)).toMatchObject({ ok: true });
+
+      const memberships = await membershipsOf(former);
+      expect(memberships).toHaveLength(1);
+      expect(memberships[0]).toMatchObject({ role: 'owner' });
+      expect(memberships[0].organizationId).not.toBe(handedOver);
+      // The next page load finds that household and changes nothing.
+      await household.ensurePersonalHousehold({ id: former, name: 'Handover' });
+      expect(await membershipsOf(former)).toEqual(memberships);
+      expect(await ownersOf(handedOver)).toEqual([newOwner]);
+      expect(
+        (await client.member.findMany({ where: { organizationId: handedOver } })).map((m) => m.userId)
+      ).toEqual([newOwner]);
+    });
+
+    it('leaves people who keep another space alone', async () => {
+      const owner = await createUser('keeper-owner');
+      const keeper = await createUser('keeper');
+      const space = await createOrg('keep-space', [
+        [owner, 'owner'],
+        [keeper, 'member'],
+      ]);
+      const other = await createOrg('keep-other', [[keeper, 'owner']]);
+      expect(await lib.removeMember(owner, space.memberIds[1])).toMatchObject({ ok: true });
+      expect(await membershipsOf(keeper)).toEqual([{ organizationId: other.id, role: 'owner' }]);
+    });
+  });
+
+  describe('one membership per space', () => {
+    const invite = async (organizationId: string, inviter: string, invitee: string, key: string) => {
+      const id = `hi-inv-${key}-${run}`;
+      await client.invitation.create({
+        data: {
+          id,
+          organizationId,
+          email: `${invitee}@example.com`,
+          role: 'member',
+          status: 'pending',
+          expiresAt: new Date('2099-01-01'),
+          inviterId: inviter,
+        },
+      });
+      return id;
+    };
+
+    it('accepting two invitations to the same space at once adds one membership', async () => {
+      const inviter = await createUser('inviter');
+      const invitee = await createUser('invitee');
+      const space = await createOrg('invite-space', [[inviter, 'owner']]);
+      const first = await invite(space.id, inviter, invitee, 'first');
+      const second = await invite(space.id, inviter, invitee, 'second');
+
+      const results = await Promise.all([
+        lib.acceptInvitation(invitee, first),
+        lib.acceptInvitation(invitee, second),
+      ]);
+      expect(results).toEqual([
+        { ok: true, data: { organizationId: space.id } },
+        { ok: true, data: { organizationId: space.id } },
+      ]);
+      expect(await client.member.count({ where: { userId: invitee, organizationId: space.id } })).toBe(1);
+      // A second row cannot be written any other way either.
+      await expect(
+        client.member.create({
+          data: { id: `hi-dupe-${run}`, organizationId: space.id, userId: invitee, role: 'viewer' },
+        })
+      ).rejects.toMatchObject({ code: 'P2002' });
+    });
+
+    it('the migration keeps the oldest row of each pair, with the strongest role', async () => {
+      const migration = readFileSync(
+        path.join(process.cwd(), 'prisma/migrations/20261120170000_member_unique_per_org/migration.sql'),
+        'utf8'
+      );
+      const a = await createUser('dupe-a');
+      const b = await createUser('dupe-b');
+      const space = await createOrg('dupe-space', []);
+      const at = (minute: number) => new Date(Date.UTC(2025, 0, 1, 0, minute));
+      const rows: Array<[id: string, userId: string, role: string, createdAt: Date]> = [
+        [`hi-dupe-a1-${run}`, a, 'member', at(1)],
+        [`hi-dupe-a2-${run}`, a, 'owner', at(2)],
+        [`hi-dupe-a3-${run}`, a, 'viewer', at(3)],
+        [`hi-dupe-b1-${run}`, b, 'viewer', at(4)],
+        [`hi-dupe-b2-${run}`, b, 'Admin, member', at(5)],
+      ];
+      const conn = await pool.connect();
+      try {
+        await conn.query('BEGIN');
+        // Recreate the state before the migration inside a transaction that is rolled back.
+        await conn.query('DROP INDEX "member_organizationId_userId_key"');
+        for (const [id, userId, role, createdAt] of rows) {
+          await conn.query(
+            `INSERT INTO "member" (id, "organizationId", "userId", role, "createdAt")
+             VALUES ($1, $2, $3, $4, $5)`,
+            [id, space.id, userId, role, createdAt]
+          );
+        }
+        await conn.query(migration);
+        const { rows: kept } = await conn.query(
+          'SELECT id, "userId", role FROM "member" WHERE "organizationId" = $1 ORDER BY "createdAt"',
+          [space.id]
+        );
+        expect(kept).toEqual([
+          { id: `hi-dupe-a1-${run}`, userId: a, role: 'owner' },
+          { id: `hi-dupe-b1-${run}`, userId: b, role: 'Admin, member' },
+        ]);
+      } finally {
+        await conn.query('ROLLBACK');
+        conn.release();
+      }
+    });
+  });
+
+  describe('journal shares and membership', () => {
+    const day = '2026-03-01';
+    const createEntry = (userId: string) =>
+      client.journalEntry.create({
+        data: { userId, date: new Date(`${day}T00:00:00Z`), mood: 6 },
+        select: { id: true },
+      });
+    const sharingOf = (id: string) =>
+      client.journalEntry.findUniqueOrThrow({
+        where: { id },
+        select: { visibility: true, sharedOrganizationId: true },
+      });
+
+    it('a share racing a removal fails instead of outliving the membership', async () => {
+      const owner = await createUser('share-owner');
+      const author = await createUser('share-author');
+      const space = await createOrg('share-space', [
+        [owner, 'owner'],
+        [author, 'member'],
+      ]);
+      await createOrg('share-other', [[author, 'owner']]);
+      const entry = await createEntry(author);
+
+      // The owner's removal has deleted the membership and unshared, but not committed yet.
+      const removal = await holdTransaction([
+        ['DELETE FROM "member" WHERE id = $1', [space.memberIds[1]]],
+        [
+          `UPDATE "journal_entry" SET visibility = 'PRIVATE', "sharedOrganizationId" = NULL
+           WHERE "userId" = $1 AND "sharedOrganizationId" = $2`,
+          [author, space.id],
+        ],
+      ]);
+      const result = await runWhileHeld(removal, () =>
+        sharing.setJournalEntrySharing(author, day, space.id)
+      );
+
+      expect(result).toEqual({ ok: false, error: 'You are not a member of that space.' });
+      expect(await sharingOf(entry.id)).toEqual({ visibility: 'PRIVATE', sharedOrganizationId: null });
+    });
+
+    it('a removal waiting on a share unshares it', async () => {
+      const owner = await createUser('wait-owner');
+      const author = await createUser('wait-author');
+      const space = await createOrg('wait-space', [
+        [owner, 'owner'],
+        [author, 'member'],
+      ]);
+      await createOrg('wait-other', [[author, 'owner']]);
+      const entry = await createEntry(author);
+
+      // The author's share holds the membership row and has written the share, uncommitted.
+      const share = await holdTransaction([
+        ['SELECT id FROM "member" WHERE id = $1 FOR SHARE', [space.memberIds[1]]],
+        [
+          `UPDATE "journal_entry" SET visibility = 'ORGANIZATION', "sharedOrganizationId" = $2
+           WHERE id = $1`,
+          [entry.id, space.id],
+        ],
+      ]);
+      const result = await runWhileHeld(share, () => lib.removeMember(owner, space.memberIds[1]));
+
+      expect(result).toMatchObject({ ok: true });
+      expect(await sharingOf(entry.id)).toEqual({ visibility: 'PRIVATE', sharedOrganizationId: null });
+    });
+
+    it('rejoining starts with nothing shared, whatever an old race left behind', async () => {
+      const owner = await createUser('rejoin-owner');
+      const author = await createUser('rejoin-author');
+      const space = await createOrg('rejoin-space', [[owner, 'owner']]);
+      await createOrg('rejoin-other', [[author, 'owner']]);
+      const entry = await createEntry(author);
+      // A share that won a race against the author's earlier removal.
+      await client.journalEntry.update({
+        where: { id: entry.id },
+        data: { visibility: 'ORGANIZATION', sharedOrganizationId: space.id },
+      });
+      const invitationId = `hi-inv-rejoin-${run}`;
+      await client.invitation.create({
+        data: {
+          id: invitationId,
+          organizationId: space.id,
+          email: `${author}@example.com`,
+          role: 'member',
+          status: 'pending',
+          expiresAt: new Date('2099-01-01'),
+          inviterId: owner,
+        },
+      });
+
+      expect(await lib.acceptInvitation(author, invitationId)).toMatchObject({ ok: true });
+      expect(await sharingOf(entry.id)).toEqual({ visibility: 'PRIVATE', sharedOrganizationId: null });
+      expect(await sharing.getSharedJournalEntries(owner, space.id)).toEqual([]);
+    });
+  });
+
+  describe('ownership never lapses', () => {
+    const changed = {
+      ok: false,
+      error: 'Something changed in this space just now. Reload the page and try again.',
+    };
+    /** O owns the space; A is an admin; M and N are members. */
+    const setUp = async (key: string) => {
+      const owner = await createUser(`${key}-o`);
+      const admin = await createUser(`${key}-a`);
+      const m = await createUser(`${key}-m`);
+      const n = await createUser(`${key}-n`);
+      const space = await createOrg(`${key}-space`, [
+        [owner, 'owner'],
+        [admin, 'admin'],
+        [m, 'member'],
+        [n, 'member'],
+      ]);
+      for (const userId of [owner, admin, m, n]) await createOrg(`${key}-own-${userId}`, [[userId, 'owner']]);
+      const [ownerMember, , mMember, nMember] = space.memberIds;
+      return { owner, admin, m, n, space: space.id, ownerMember, mMember, nMember };
+    };
+    /** O's "Make owner" on `memberId`, written but not committed yet. */
+    const transferInFlight = (ownerMember: string, memberId: string) =>
+      holdTransaction([
+        [`UPDATE "member" SET role = 'admin' WHERE id = $1`, [ownerMember]],
+        [`UPDATE "member" SET role = 'owner' WHERE id = $1`, [memberId]],
+      ]);
+
+    it('a role change that read the old role does not overwrite a new owner', async () => {
+      const t = await setUp('role');
+      const transfer = await transferInFlight(t.ownerMember, t.mMember);
+      const result = await runWhileHeld(transfer, () => lib.updateMemberRole(t.admin, t.mMember, 'viewer'));
+
+      expect(result).toEqual(changed);
+      expect(await ownersOf(t.space)).toEqual([t.m]);
+    });
+
+    it('two transfers at once leave exactly one owner', async () => {
+      const t = await setUp('twice');
+      const transfer = await transferInFlight(t.ownerMember, t.mMember);
+      const result = await runWhileHeld(transfer, () => lib.transferOwnership(t.owner, t.nMember));
+
+      expect(result).toEqual(changed);
+      expect(await ownersOf(t.space)).toEqual([t.m]);
+      expect(await client.member.findUniqueOrThrow({ where: { id: t.nMember } })).toMatchObject({
+        role: 'member',
+      });
+    });
+
+    it('a transfer to someone just removed changes nothing', async () => {
+      const t = await setUp('gone');
+      const removal = await holdTransaction([['DELETE FROM "member" WHERE id = $1', [t.mMember]]]);
+      const result = await runWhileHeld(removal, () => lib.transferOwnership(t.owner, t.mMember));
+
+      expect(result).toEqual(changed);
+      expect(await ownersOf(t.space)).toEqual([t.owner]);
+    });
+
+    it('a removal that read the old role does not remove a new owner', async () => {
+      const t = await setUp('evict');
+      const transfer = await transferInFlight(t.ownerMember, t.mMember);
+      const result = await runWhileHeld(transfer, () => lib.removeMember(t.owner, t.mMember));
+
+      expect(result).toEqual(changed);
+      expect(await ownersOf(t.space)).toEqual([t.m]);
+    });
+
+    it('two owners leaving at once leave one of them owner', async () => {
+      const first = await createUser('two-first');
+      const second = await createUser('two-second');
+      const member = await createUser('two-member');
+      const space = await createOrg('two-space', [
+        [first, 'owner'],
+        [second, 'owner'],
+        [member, 'member'],
+      ]);
+      for (const userId of [first, second]) await createOrg(`two-own-${userId}`, [[userId, 'owner']]);
+
+      const results = await Promise.all([
+        lib.leaveOrganization(first, space.id),
+        lib.leaveOrganization(second, space.id),
+      ]);
+      expect(results.filter((r) => r.ok)).toHaveLength(1);
+      expect(results.filter((r) => !r.ok)).toEqual([
+        { ok: false, error: 'Transfer ownership to someone else before you leave.' },
+      ]);
+      expect(await ownersOf(space.id)).toHaveLength(1);
+    });
+
+    it('someone made owner while leaving stays', async () => {
+      const t = await setUp('leave');
+      const transfer = await transferInFlight(t.ownerMember, t.mMember);
+      const result = await runWhileHeld(transfer, () => lib.leaveOrganization(t.m, t.space));
+
+      expect(result).toEqual(changed);
+      expect(await ownersOf(t.space)).toEqual([t.m]);
+    });
+  });
+
+  describe('leaving', () => {
+    it('leaving several spaces at once (several tabs) keeps one', async () => {
+      const owner = await createUser('tabs-owner');
+      const leaver = await createUser('tabs-leaver');
+      const spaces = [];
+      for (const key of ['tabs-a', 'tabs-b', 'tabs-c']) {
+        spaces.push(
+          await createOrg(key, [
+            [owner, 'owner'],
+            [leaver, 'member'],
+          ])
+        );
+      }
+
+      const results = await Promise.all(
+        spaces.map((space) => lib.leaveOrganization(leaver, space.id))
+      );
+      expect(results.filter((r) => r.ok)).toHaveLength(2);
+      expect(results.filter((r) => !r.ok)).toEqual([
+        { ok: false, error: "You can't leave your only space. Create or join another one first." },
+      ]);
+      expect(await membershipsOf(leaver)).toHaveLength(1);
+    });
+
+    it('a leave that read the old count waits for the other leave and is refused', async () => {
+      const owner = await createUser('race-owner');
+      const leaver = await createUser('race-leaver');
+      const first = await createOrg('race-a', [
+        [owner, 'owner'],
+        [leaver, 'member'],
+      ]);
+      const second = await createOrg('race-b', [
+        [owner, 'owner'],
+        [leaver, 'member'],
+      ]);
+
+      // Leaving the second space in another tab: under its locks, deleted, not committed yet.
+      const otherTab = await holdTransaction([
+        ['SELECT pg_advisory_xact_lock($1::int4, hashtext($2))', [USER_LOCK_SPACE, leaver]],
+        ['SELECT pg_advisory_xact_lock($1::int4, hashtext($2))', [ORGANIZATION_LOCK_SPACE, second.id]],
+        ['DELETE FROM "member" WHERE id = $1', [second.memberIds[1]]],
+      ]);
+      const result = await runWhileHeld(otherTab, () => lib.leaveOrganization(leaver, first.id));
+
+      expect(result).toEqual({
+        ok: false,
+        error: "You can't leave your only space. Create or join another one first.",
+      });
+      expect(await membershipsOf(leaver)).toEqual([{ organizationId: first.id, role: 'member' }]);
+    });
+  });
+});

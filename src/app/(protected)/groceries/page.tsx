@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getServerSession } from '@/lib/session';
-import { prisma } from '@/lib/db';
+import { getActiveMembership } from '@/lib/active-organization';
 import { getGroceryList } from '@/actions/grocery-actions';
 import { startOfWeek, endOfWeek } from 'date-fns';
 import { Calendar, Users } from 'lucide-react';
@@ -22,11 +22,8 @@ export default async function GroceriesPage({
     typeof params.week === 'string' ? params.week : new Date().toISOString();
   const date = new Date(dateParam);
 
-  // Get User's Organization
-  const membership = await prisma.member.findFirst({
-    where: { userId: session.user.id },
-    select: { organizationId: true },
-  });
+  // The household (or other space) picked in the sidebar switcher
+  const membership = await getActiveMembership(session.user.id);
 
   if (!membership) {
     return (
@@ -64,7 +61,13 @@ export default async function GroceriesPage({
         />
       ) : (
         <AppErrorBoundary sectionLabel="Grocery list">
-          <GroceryListClient items={items} weekStart={start} weekEnd={end} />
+          <GroceryListClient
+            key={membership.organizationId}
+            organizationId={membership.organizationId}
+            items={items}
+            weekStart={start}
+            weekEnd={end}
+          />
         </AppErrorBoundary>
       )}
     </div>

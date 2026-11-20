@@ -13,8 +13,17 @@ const mocks = vi.hoisted(() => {
     userFindUnique: vi.fn(),
     memberFindFirst: vi.fn(),
     recipeFindUnique: vi.fn(),
+    writableMembershipIn: vi.fn(),
+    membershipIn: vi.fn(),
   };
 });
+
+// The space the form was rendered for decides where a new recipe goes; the recipe's own
+// space decides who may edit it. The active-space cookie is not consulted for writes.
+vi.mock('@/lib/active-organization', () => ({
+  getWritableMembershipIn: mocks.writableMembershipIn,
+  getMembershipIn: mocks.membershipIn,
+}));
 
 vi.mock('@/lib/session', () => ({ requireSessionUserId: mocks.session }));
 vi.mock('next/cache', () => ({
@@ -51,6 +60,14 @@ beforeEach(() => {
   mocks.session.mockResolvedValue({ ok: true, userId: 'admin-user' });
   mocks.userFindUnique.mockResolvedValue({ role: 'admin' });
   mocks.memberFindFirst.mockResolvedValue({ organizationId: 'household' });
+  const membership = {
+    memberId: 'member-1',
+    organizationId: 'household',
+    role: 'owner',
+    organization: { id: 'household', name: 'Home', type: 'HOUSEHOLD' },
+  };
+  mocks.writableMembershipIn.mockResolvedValue({ ok: true, membership });
+  mocks.membershipIn.mockResolvedValue(membership);
   mocks.recipeFindUnique.mockResolvedValue({
     id: 'recipe-1',
     isSecret: false,
@@ -64,7 +81,7 @@ beforeEach(() => {
 
 describe('createRecipe LEAN fields', () => {
   it('stores validated LEAN fields in canonical casing', async () => {
-    const result = await createRecipe({
+    const result = await createRecipe('household', {
       ...baseRecipe,
       leanRole: 'infrastructure' as 'Infrastructure',
       activeTime: 35,
@@ -88,7 +105,7 @@ describe('createRecipe LEAN fields', () => {
   });
 
   it('stores null when LEAN fields are left out', async () => {
-    await createRecipe(baseRecipe);
+    await createRecipe('household', baseRecipe);
     expect(mocks.tx.recipe.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         leanRole: null,
@@ -102,7 +119,7 @@ describe('createRecipe LEAN fields', () => {
   });
 
   it('rejects an unknown role before touching the database', async () => {
-    const result = await createRecipe({
+    const result = await createRecipe('household', {
       ...baseRecipe,
       leanRole: 'Batch' as 'Daily',
     });
@@ -114,16 +131,46 @@ describe('createRecipe LEAN fields', () => {
   });
 
   it('rejects a batch yield without a unit', async () => {
-    const result = await createRecipe({ ...baseRecipe, yieldAmount: 36 });
+    const result = await createRecipe('household', { ...baseRecipe, yieldAmount: 36 });
     expect(result.success).toBe(false);
     expect(result.error).toMatch(/both a batch yield amount and a unit/);
     expect(mocks.tx.recipe.create).not.toHaveBeenCalled();
   });
 
   it('rejects fractional minutes', async () => {
-    const result = await createRecipe({ ...baseRecipe, activeTime: 12.5 });
+    const result = await createRecipe('household', { ...baseRecipe, activeTime: 12.5 });
     expect(result.success).toBe(false);
     expect(mocks.tx.recipe.create).not.toHaveBeenCalled();
+  });
+});
+
+describe('createRecipe space', () => {
+  it('files the recipe under the space the form was rendered for', async () => {
+    mocks.writableMembershipIn.mockImplementation(async (_userId: string, organizationId: string) => ({
+      ok: true,
+      membership: {
+        memberId: 'member-2',
+        organizationId,
+        role: 'member',
+        organization: { id: organizationId, name: 'Family', type: 'HOUSEHOLD' },
+      },
+    }));
+    const result = await createRecipe('family', baseRecipe);
+    expect(result.success).toBe(true);
+    expect(mocks.writableMembershipIn).toHaveBeenCalledWith('admin-user', 'family');
+    expect(mocks.tx.recipe.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ organizationId: 'family', isSystem: false }),
+    });
+  });
+
+  it.each([
+    ['a viewer of the space', 'view only'],
+    ['no longer a member of the space', 'space not found'],
+  ])('creates nothing when the user is %s', async (_case, error) => {
+    mocks.writableMembershipIn.mockResolvedValue({ ok: false, error });
+    expect(await createRecipe('family', baseRecipe)).toEqual({ success: false, error });
+    expect(mocks.tx.recipe.create).not.toHaveBeenCalled();
+    expect(mocks.tx.ingredient.create).not.toHaveBeenCalled();
   });
 });
 

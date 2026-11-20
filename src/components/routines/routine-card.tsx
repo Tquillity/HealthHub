@@ -18,6 +18,8 @@ type RoutineWithMetadata = Routine & {
 };
 
 interface RoutineCardProps {
+  /** The space the routines page was rendered for; delete acts there. */
+  organizationId: string;
   routine: RoutineWithMetadata;
   onEdit?: (routine: RoutineWithMetadata) => void;
   onClick?: (routine: RoutineWithMetadata) => void;
@@ -61,6 +63,7 @@ const getEnergyColor = (energy: string) => {
 };
 
 export function RoutineCard({
+  organizationId,
   routine,
   onEdit,
   onClick,
@@ -71,7 +74,7 @@ export function RoutineCard({
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const handleDelete = async () => {
-    const result = await deleteRoutine(routine.id);
+    const result = await deleteRoutine(organizationId, routine.id);
     if (result.success) {
       setShowDeleteModal(false);
       router.refresh();

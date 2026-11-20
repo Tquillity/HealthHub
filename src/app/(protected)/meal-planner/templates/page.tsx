@@ -1,5 +1,6 @@
 import { getMealPlanTemplates } from '@/actions/meal-actions';
 import { getProfile } from '@/actions/profile-actions';
+import { getActiveMembership } from '@/lib/active-organization';
 import { MealPlanTemplatesClient } from '@/components/meals/meal-plan-templates-client';
 import { AppErrorBoundary } from '@/components/ui/error-boundary';
 import { PageHeader } from '@/components/ui/page-header';
@@ -12,6 +13,11 @@ export default async function MealPlanTemplatesPage() {
     redirect('/sign-in');
   }
 
+  // The space picked in the sidebar switcher; getMealPlanTemplates reads the same one.
+  const membership = await getActiveMembership(profileResult.data.id);
+  if (!membership) {
+    redirect('/sign-in');
+  }
   const templatesResult = await getMealPlanTemplates();
 
   return (
@@ -23,8 +29,11 @@ export default async function MealPlanTemplatesPage() {
       />
 
       <AppErrorBoundary sectionLabel="Meal plan templates">
+        {/* Keyed by space: a switch remounts it instead of keeping the old space's state. */}
         <MealPlanTemplatesClient
-          initialTemplates={templatesResult.success ? templatesResult.data || [] : []}
+          key={membership.organizationId}
+          organizationId={membership.organizationId}
+          templates={templatesResult.success ? templatesResult.data || [] : []}
         />
       </AppErrorBoundary>
     </div>

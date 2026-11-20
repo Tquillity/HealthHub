@@ -9,16 +9,19 @@ import { JournalEntryDetail } from '@/components/journal/journal-entry-detail';
 import { getJournalEntryByDate } from '@/actions/journal-actions';
 import type { JournalEntry } from '@prisma/client';
 import { toDateOnlyString } from '@/lib/date-only';
+import type { JournalShareTarget } from '@/lib/journal-sharing';
 
 interface JournalPageClientProps {
   initialEntries: JournalEntry[];
   /** Month the entries were loaded for (`YYYY-MM`). */
   monthKey: string;
+  shareTargets?: JournalShareTarget[];
 }
 
 export default function JournalPageClient({
   initialEntries,
   monthKey,
+  shareTargets,
 }: JournalPageClientProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'calendar' | 'form' | 'analytics'>(
@@ -145,6 +148,7 @@ export default function JournalPageClient({
           }
           onClose={handleCloseEntryDetail}
           onEdit={handleEditEntry}
+          shareTargets={shareTargets}
         />
       )}
     </div>

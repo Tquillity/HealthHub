@@ -8,6 +8,7 @@
  * into `recipe-types.ts` in a follow-up PR.
  */
 import { prisma } from '@/lib/db';
+import { getActiveMembership } from '@/lib/active-organization';
 import type { Prisma } from '@prisma/client';
 
 export type RecipeWithDetails = Prisma.RecipeGetPayload<{
@@ -48,8 +49,14 @@ export async function isMainAdmin(userId: string): Promise<boolean> {
   }
 }
 
+/**
+ * Which recipes `userId` may see: public system recipes plus one household's recipes.
+ * That household is the active one (sidebar switcher), or `organizationId` when a write
+ * targets a specific space; the caller must already have checked the user belongs to it.
+ */
 export async function buildRecipeVisibilityFilter(
-  userId: string | null
+  userId: string | null,
+  organizationId?: string
 ): Promise<Prisma.RecipeWhereInput> {
   if (!userId) {
     return {
@@ -59,15 +66,13 @@ export async function buildRecipeVisibilityFilter(
     };
   }
 
-  const [memberships, user] = await Promise.all([
-    prisma.member.findMany({
-      where: { userId },
-      select: { organizationId: true },
-      orderBy: { organizationId: 'asc' },
-    }),
+  // Household recipes follow the active household unless the caller names the space.
+  const [householdId, user] = await Promise.all([
+    organizationId ??
+      getActiveMembership(userId).then((membership) => membership?.organizationId),
     prisma.user.findUnique({ where: { id: userId }, select: { role: true } }),
   ]);
-  const organizationIds = memberships.map((membership) => membership.organizationId);
+  const organizationIds = householdId ? [householdId] : [];
   const mainAdmin = user?.role === 'superadmin';
 
   return {

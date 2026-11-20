@@ -3,6 +3,8 @@
 import { z } from 'zod';
 import { prisma } from '@/lib/db';
 import { requireSessionUserId } from '@/lib/session';
+import { getMembershipIn, getWritableMembershipIn } from '@/lib/active-organization';
+import { canWrite } from '@/lib/org-roles';
 import { revalidatePath, revalidateTag, updateTag } from 'next/cache';
 import type { Prisma } from '@prisma/client';
 import { isMainAdmin, preprocessRecipeInput } from './recipe-shared';
@@ -109,7 +111,28 @@ const UpdateRecipeSchema = RecipeFieldsSchema.partial().extend({
   }
 });
 
-export async function createRecipe(data: z.infer<typeof CreateRecipeSchema>) {
+/**
+ * A household recipe (filed under an organization, not part of the public catalog) may only be
+ * changed by people who can write in that household. The main admin manages every recipe.
+ */
+async function canChangeHouseholdRecipe(
+  userId: string,
+  recipe: { organizationId: string | null; isSystem: boolean },
+  mainAdmin: boolean
+): Promise<boolean> {
+  if (mainAdmin || recipe.isSystem || !recipe.organizationId) return true;
+  const membership = await getMembershipIn(userId, recipe.organizationId);
+  return canWrite(membership?.role);
+}
+
+/**
+ * Create a household recipe in `organizationId`, the space the form was rendered for (not the
+ * active-space cookie, which another tab may have switched since).
+ */
+export async function createRecipe(
+  organizationId: string,
+  data: z.infer<typeof CreateRecipeSchema>
+) {
   try {
     const authResult = await requireSessionUserId();
     if (!authResult.ok) {
@@ -135,14 +158,12 @@ export async function createRecipe(data: z.infer<typeof CreateRecipeSchema>) {
       return { success: false, error: 'Forbidden: Only superadmin can verify recipes' };
     }
 
-    const membership = await prisma.member.findFirst({
-      where: { userId: userId },
-      select: { organizationId: true },
-    });
-
-    if (!membership) {
-      return { success: false, error: 'No household found' };
+    // New recipes are filed under the space the form showed; viewers can't add to it.
+    const access = await getWritableMembershipIn(userId, organizationId);
+    if (!access.ok) {
+      return { success: false, error: access.error };
     }
+    const membership = access.membership;
 
     const validated = CreateRecipeSchema.parse(preprocessRecipeInput(data));
 
@@ -268,6 +289,9 @@ export async function updateRecipe(data: z.infer<typeof UpdateRecipeSchema>) {
 
     const mainAdmin = await isMainAdmin(userId);
     if (existingRecipe.isSecret && !mainAdmin) {
+      return { success: false, error: 'Recipe not found' };
+    }
+    if (!(await canChangeHouseholdRecipe(userId, existingRecipe, mainAdmin))) {
       return { success: false, error: 'Recipe not found' };
     }
 
@@ -400,6 +424,10 @@ export async function deleteRecipe(id: string) {
     });
 
     if (!recipe) {
+      return { success: false, error: 'Recipe not found' };
+    }
+    const mainAdmin = await isMainAdmin(authResult.userId);
+    if (!(await canChangeHouseholdRecipe(authResult.userId, recipe, mainAdmin))) {
       return { success: false, error: 'Recipe not found' };
     }
 

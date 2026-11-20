@@ -5,6 +5,10 @@ import { beforeAccountDeletion } from '@/lib/account-deletion';
 import { organization } from 'better-auth/plugins';
 import { prisma } from '@/lib/db';
 import { ensurePersonalHousehold } from '@/lib/household';
+import {
+  DISABLED_ORGANIZATION_PATHS,
+  organizationPluginOptions,
+} from '@/lib/org-access-control';
 import { getSocialProviderFlags } from '@/lib/social-providers';
 
 const socialProviderFlags = getSocialProviderFlags();
@@ -32,6 +36,8 @@ export const auth = betterAuth({
   },
   secret: process.env.BETTER_AUTH_SECRET!,
   baseURL: process.env.BETTER_AUTH_URL || 'http://localhost:3000',
+  // Household management runs through our Server Actions; see org-access-control.ts.
+  disabledPaths: DISABLED_ORGANIZATION_PATHS,
   rateLimit: {
     customRules: {
       // The proxy calls this read-only endpoint on navigation. Those requests
@@ -65,5 +71,5 @@ export const auth = betterAuth({
       },
     },
   },
-  plugins: [organization()],
+  plugins: [organization(organizationPluginOptions)],
 });

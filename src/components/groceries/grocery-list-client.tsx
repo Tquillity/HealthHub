@@ -25,12 +25,15 @@ interface GroceryItem {
 }
 
 interface GroceryListClientProps {
+  /** The space this list belongs to; writes go there even if another tab switches spaces. */
+  organizationId: string;
   items: GroceryItem[];
   weekStart: Date;
   weekEnd: Date;
 }
 
 export function GroceryListClient({
+  organizationId,
   items: initialItems,
   weekStart,
   weekEnd,
@@ -157,7 +160,7 @@ export function GroceryListClient({
     // Persist to database (only for ShoppingListItem entries with actual IDs)
     if (item.id) {
       startTransition(async () => {
-        const result = await toggleShoppingItem(item.id!, !isCurrentlyChecked);
+        const result = await toggleShoppingItem(organizationId, item.id!, !isCurrentlyChecked);
         if (!result.success) {
           // Revert on error
           const reverted = new Set(optimisticChecked);
@@ -191,7 +194,7 @@ export function GroceryListClient({
       sorted.forEach((item) => {
         if (item.id) {
           startTransition(async () => {
-            await toggleShoppingItem(item.id!, false);
+            await toggleShoppingItem(organizationId, item.id!, false);
           });
         }
       });
@@ -201,7 +204,7 @@ export function GroceryListClient({
       sorted.forEach((item) => {
         if (item.id) {
           startTransition(async () => {
-            await toggleShoppingItem(item.id!, true);
+            await toggleShoppingItem(organizationId, item.id!, true);
           });
         }
       });
@@ -272,7 +275,7 @@ export function GroceryListClient({
 
     setIsAddingItem(true);
     try {
-      const result = await addShoppingItem(newItemName.trim());
+      const result = await addShoppingItem(organizationId, newItemName.trim());
       if (result.success) {
         setNewItemName('');
         router.refresh();
@@ -350,7 +353,7 @@ export function GroceryListClient({
               >
                 {item.name}
               </p>
-              {!isExpanded ? (
+              {item.recipes.length === 0 ? null : !isExpanded ? (
                 <div className="flex items-center gap-2">
                   <p className="text-xs text-gray-500 truncate">
                     Used in:{' '}
