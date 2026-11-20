@@ -13,7 +13,15 @@ export async function processStripeEvent(
     });
     if (claimed.count === 0) return { duplicate: true };
 
-    if (premiumChange) {
+    if (premiumChange && !premiumChange.isPremium) {
+      // Deleting an account cancels its subscription, so the cancellation event can
+      // arrive after the user is gone. There is nothing left to downgrade, and failing
+      // would make Stripe retry the event for days.
+      await tx.user.updateMany({
+        where: { id: premiumChange.userId },
+        data: { isPremium: false },
+      });
+    } else if (premiumChange) {
       await tx.user.update({
         where: { id: premiumChange.userId },
         data: { isPremium: premiumChange.isPremium },
