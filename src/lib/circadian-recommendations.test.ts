@@ -237,12 +237,39 @@ describe('routine intensity', () => {
     expect(routineIntensityTarget(20, 50)).toBe(1);
   });
 
-  it('labels the 0-2 scale', () => {
+  it('labels the 0-2 scale, halfway values with the lighter label', () => {
+    expect(intensityLabel(-1)).toBe('low');
     expect(intensityLabel(0)).toBe('low');
     expect(intensityLabel(0.4)).toBe('low');
-    expect(intensityLabel(0.5)).toBe('medium');
+    expect(intensityLabel(0.5)).toBe('low');
+    expect(intensityLabel(0.6)).toBe('medium');
+    expect(intensityLabel(1)).toBe('medium');
+    expect(intensityLabel(1.5)).toBe('medium');
+    expect(intensityLabel(1.5000000000000002)).toBe('medium');
     expect(intensityLabel(1.6)).toBe('high');
     expect(intensityLabel(5)).toBe('high');
+  });
+
+  it("matches the label to the moment's suggestions without a check-in", () => {
+    const at = (utc: string) =>
+      buildCircadianInsights({ now: new Date(utc), timeZone: 'UTC', rows: [] });
+
+    // 07:00: harder sessions feel best from late morning, so not high yet.
+    const early = at('2026-11-20T07:00:00Z');
+    expect(early.suggestions.map((s) => s.key)).toContain('morning.warm-up');
+    expect(early.recommendedIntensity).toBe('medium');
+    expect(lotteryHintFromInsights(early).recommendedIntensity).toBe('medium');
+
+    // 13:00: the dip suggestion offers a low-energy routine.
+    const dip = at('2026-11-20T13:00:00Z');
+    const dipText = dip.suggestions.find((s) => s.key === 'afternoon.dip');
+    expect(dipText?.body).toContain('low-energy routine');
+    expect(dip.recommendedIntensity).toBe('low');
+
+    // Late morning and late afternoon stay high; the evening stays low.
+    expect(at('2026-11-20T10:00:00Z').recommendedIntensity).toBe('high');
+    expect(at('2026-11-20T16:00:00Z').recommendedIntensity).toBe('high');
+    expect(at('2026-11-20T19:00:00Z').recommendedIntensity).toBe('low');
   });
 });
 

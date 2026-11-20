@@ -321,8 +321,16 @@ export function routineIntensityTarget(
   return (typical + energyToIntensity(energy)) / 2;
 }
 
+/**
+ * The label for an intensity target. A target halfway between two labels takes the
+ * lighter one: the early morning (1.5) is medium and the early-afternoon dip (0.5) is low,
+ * as that moment's suggestions say (a longer warm-up first, something light in the dip).
+ * The lottery still weights both neighbours of a halfway target equally.
+ */
 export function intensityLabel(target: number): RoutineIntensity {
-  const index = Math.min(2, Math.max(0, Math.round(target)));
+  // In tenths, so floating-point noise cannot tip a halfway value up.
+  const tenths = Math.round(target * 10);
+  const index = Math.min(2, Math.max(0, Math.ceil((tenths - 5) / 10)));
   return ROUTINE_INTENSITIES[index];
 }
 
