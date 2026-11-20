@@ -8,6 +8,7 @@
 import { z } from 'zod';
 import { prisma } from '@/lib/db';
 import { requireSessionUserId } from '@/lib/session';
+import { getWritableMembership } from '@/lib/active-organization';
 import { revalidatePath } from 'next/cache';
 import {
   AddShoppingItemSchema,
@@ -94,14 +95,12 @@ export async function toggleShoppingItem(
       return { success: false, error: authResult.error };
     }
 
-    const membership = await prisma.member.findFirst({
-      where: { userId: authResult.userId },
-      select: { organizationId: true },
-    });
-
-    if (!membership) {
-      return { success: false, error: 'No household found' };
+    // Viewers can look at the list but not change it.
+    const access = await getWritableMembership(authResult.userId);
+    if (!access.ok) {
+      return { success: false, error: access.error };
     }
+    const membership = access.membership;
 
     if (validated.itemKey.startsWith('meal-plan_')) {
       return { success: true };
@@ -144,14 +143,12 @@ export async function addShoppingItem(
       return { success: false, error: authResult.error };
     }
 
-    const membership = await prisma.member.findFirst({
-      where: { userId: authResult.userId },
-      select: { organizationId: true },
-    });
-
-    if (!membership) {
-      return { success: false, error: 'No household found' };
+    // Viewers can look at the list but not change it.
+    const access = await getWritableMembership(authResult.userId);
+    if (!access.ok) {
+      return { success: false, error: access.error };
     }
+    const membership = access.membership;
 
     await prisma.shoppingListItem.create({
       data: {
@@ -192,14 +189,12 @@ export async function addScaledIngredientsToGroceryList(
       return { success: false, error: authResult.error };
     }
 
-    const membership = await prisma.member.findFirst({
-      where: { userId: authResult.userId },
-      select: { organizationId: true },
-    });
-
-    if (!membership) {
-      return { success: false, error: 'No household found' };
+    // Viewers can look at the list but not change it.
+    const access = await getWritableMembership(authResult.userId);
+    if (!access.ok) {
+      return { success: false, error: access.error };
     }
+    const membership = access.membership;
 
     const items = await Promise.all(
       validated.ingredients.map((ingredient) =>

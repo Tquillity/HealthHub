@@ -2,6 +2,7 @@
 
 import { prisma } from '@/lib/db';
 import { requireSessionUserId } from '@/lib/session';
+import { getWritableMembership } from '@/lib/active-organization';
 import { revalidatePath } from 'next/cache';
 import { endOfWeek, startOfWeek, eachDayOfInterval } from 'date-fns';
 import type { Prisma } from '@prisma/client';
@@ -33,14 +34,12 @@ export async function generateMealPlan(data: {
       return { success: false, error: authResult.error };
     }
 
-    const membership = await prisma.member.findFirst({
-      where: { userId: authResult.userId },
-      select: { organizationId: true },
-    });
-
-    if (!membership) {
-      return { success: false, error: 'No household found' };
+    // Viewers can look but not change shared plans and lists.
+    const access = await getWritableMembership(authResult.userId);
+    if (!access.ok) {
+      return { success: false, error: access.error };
     }
+    const membership = access.membership;
 
     const user = await prisma.user.findUnique({
       where: { id: authResult.userId },

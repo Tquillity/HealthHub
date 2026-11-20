@@ -1,8 +1,17 @@
 import { randomUUID } from 'node:crypto';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
+
+// The active-space cookie from the sidebar switcher, as the browser would send it.
+const cookieJar = vi.hoisted(() => ({ value: undefined as string | undefined }));
+vi.mock('next/headers', () => ({
+  cookies: async () => ({
+    get: (name: string) =>
+      name === 'hh_active_org' && cookieJar.value ? { name, value: cookieJar.value } : undefined,
+  }),
+}));
 
 const url = process.env.DATABASE_URL ? new URL(process.env.DATABASE_URL) : null;
 const isolated = Boolean(
@@ -95,6 +104,36 @@ describe.skipIf(!isolated)('dashboard data against isolated PostgreSQL', () => {
     expect(routines.map((routine) => routine.id)).toEqual(
       [...routineIds].reverse().slice(0, data.RECENT_ROUTINES_LIMIT)
     );
+  });
+
+  it('follows the space picked in the switcher, and ignores a space the user left', async () => {
+    const secondMembership = `dash-m2-${run}`;
+    await client.member.create({
+      data: {
+        id: secondMembership,
+        organizationId: otherHousehold,
+        userId: member.id,
+        role: 'viewer',
+        createdAt: new Date(Date.now() + 60_000),
+      },
+    });
+    try {
+      cookieJar.value = otherHousehold;
+      const picked = await data.getRecentDashboardRoutines(member.id);
+      expect(picked.map((routine) => routine.id)).toContain(otherRoutineId);
+      expect(picked.map((routine) => routine.id)).not.toContain(routineIds.at(-1));
+    } finally {
+      await client.member.delete({ where: { id: secondMembership } });
+    }
+
+    try {
+      // Still pointing at the other household, but no longer a member there.
+      const fallback = await data.getRecentDashboardRoutines(member.id);
+      expect(fallback.map((routine) => routine.id)).not.toContain(otherRoutineId);
+      expect(fallback.map((routine) => routine.id)).toContain(routineIds.at(-1));
+    } finally {
+      cookieJar.value = undefined;
+    }
   });
 
   it('returns nothing for a user without a household yet', async () => {

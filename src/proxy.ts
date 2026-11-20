@@ -1,6 +1,7 @@
 import { betterFetch } from '@better-fetch/fetch';
 import { NextResponse, type NextRequest } from 'next/server';
 import type { Session } from 'better-auth/types';
+import { getSafeRedirectPath } from '@/lib/safe-redirect';
 
 /**
  * Next.js Proxy (formerly Middleware) for Authentication
@@ -58,14 +59,18 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith('/profile') ||
     isProtectedRecipeRoute;
 
-  // Redirect unauthenticated users away from protected routes
+  // Redirect unauthenticated users away from protected routes, and back after sign-in
+  // (keeps `?org=<id>` links working).
   if (!session && isProtectedRoute) {
-    return NextResponse.redirect(new URL('/sign-in', request.url));
+    const signIn = new URL('/sign-in', request.url);
+    signIn.searchParams.set('next', `${pathname}${request.nextUrl.search}`);
+    return NextResponse.redirect(signIn);
   }
 
-  // Redirect authenticated users away from auth pages
+  // Redirect authenticated users away from auth pages (to `?next=` when it is same-site)
   if (session && isAuthRoute) {
-    return NextResponse.redirect(new URL('/dashboard', request.url));
+    const next = getSafeRedirectPath(request.nextUrl.searchParams.get('next'));
+    return NextResponse.redirect(new URL(next, request.url));
   }
 
   return NextResponse.next();

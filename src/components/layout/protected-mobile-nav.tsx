@@ -12,6 +12,8 @@ import { SignOutButton } from './sign-out-button';
 type ProtectedMobileNavProps = {
   items: ProtectedNavItem[];
   userName: string;
+  /** Household switcher, rendered by the layout. */
+  orgSwitcher?: React.ReactNode;
 };
 
 const FOCUSABLE_SELECTOR =
@@ -23,7 +25,7 @@ function getFocusableElements(container: HTMLElement): HTMLElement[] {
   );
 }
 
-export function ProtectedMobileNav({ items, userName }: ProtectedMobileNavProps) {
+export function ProtectedMobileNav({ items, userName, orgSwitcher }: ProtectedMobileNavProps) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const menuButtonRef = useRef<HTMLButtonElement>(null);
@@ -140,6 +142,8 @@ export function ProtectedMobileNav({ items, userName }: ProtectedMobileNavProps)
                 <X className="h-5 w-5" aria-hidden />
               </button>
             </div>
+
+            {orgSwitcher ? <div className="mb-4">{orgSwitcher}</div> : null}
 
             <nav className="flex flex-1 flex-col gap-1 overflow-y-auto">
               {items.map((item) => {

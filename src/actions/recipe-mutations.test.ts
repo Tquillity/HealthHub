@@ -13,8 +13,16 @@ const mocks = vi.hoisted(() => {
     userFindUnique: vi.fn(),
     memberFindFirst: vi.fn(),
     recipeFindUnique: vi.fn(),
+    writableMembership: vi.fn(),
+    membershipIn: vi.fn(),
   };
 });
+
+// The active space (sidebar switcher) decides where a new recipe goes and who may edit.
+vi.mock('@/lib/active-organization', () => ({
+  getWritableMembership: mocks.writableMembership,
+  getMembershipIn: mocks.membershipIn,
+}));
 
 vi.mock('@/lib/session', () => ({ requireSessionUserId: mocks.session }));
 vi.mock('next/cache', () => ({
@@ -51,6 +59,14 @@ beforeEach(() => {
   mocks.session.mockResolvedValue({ ok: true, userId: 'admin-user' });
   mocks.userFindUnique.mockResolvedValue({ role: 'admin' });
   mocks.memberFindFirst.mockResolvedValue({ organizationId: 'household' });
+  const membership = {
+    memberId: 'member-1',
+    organizationId: 'household',
+    role: 'owner',
+    organization: { id: 'household', name: 'Home', type: 'HOUSEHOLD' },
+  };
+  mocks.writableMembership.mockResolvedValue({ ok: true, membership });
+  mocks.membershipIn.mockResolvedValue(membership);
   mocks.recipeFindUnique.mockResolvedValue({
     id: 'recipe-1',
     isSecret: false,
