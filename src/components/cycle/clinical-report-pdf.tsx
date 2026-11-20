@@ -609,9 +609,9 @@ function PhaseSection({ report }: { report: ClinicalReport }) {
       <Note>
         Phases are estimated from logged period dates with a 4-phase wellness model
         (menstrual days 1-5, ovulation window ending about 14 days before the next period,
-        luteal about 14 days). The current cycle uses the typical length; days after it
-        get no phase. They are not hormone measurements; where temperature data confirms
-        ovulation, the measured luteal length is in the temperature section.
+        luteal about 14 days); the current cycle uses the typical length, and days after
+        it get no phase. Phases are not hormone measurements; where temperature data
+        confirms ovulation, the measured luteal length is in the temperature section.
       </Note>
     </Section>
   );
