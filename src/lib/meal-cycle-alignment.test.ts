@@ -41,16 +41,17 @@ describe('hasCycleEstimate / toGeneratorCycleOptions', () => {
   it('hides cycle options from people who do not track their cycle', () => {
     const off = { ...tracking, enableCycleTracking: false };
     expect(hasCycleEstimate(off)).toBe(false);
-    expect(toGeneratorCycleOptions(off, 'HOUSEHOLD')).toBeNull();
-    expect(toGeneratorCycleOptions(null, 'HOUSEHOLD')).toBeNull();
+    expect(toGeneratorCycleOptions(off, 'HOUSEHOLD', today)).toBeNull();
+    expect(toGeneratorCycleOptions(null, 'HOUSEHOLD', today)).toBeNull();
   });
 
   it('needs a last period date before the toggle can be used', () => {
     const noDate = { ...tracking, lastPeriodDate: null };
     expect(hasCycleEstimate(noDate)).toBe(false);
-    expect(toGeneratorCycleOptions(noDate, 'HOUSEHOLD')).toEqual({
+    expect(toGeneratorCycleOptions(noDate, 'HOUSEHOLD', today)).toEqual({
       canAlign: false,
       alignByDefault: true,
+      cycleLongerThanUsual: false,
     });
   });
 
@@ -58,9 +59,10 @@ describe('hasCycleEstimate / toGeneratorCycleOptions', () => {
     // Saved before the profile action validated dates (a year typed as "25")
     const legacy = { ...tracking, lastPeriodDate: new Date('0025-11-03') };
     expect(hasCycleEstimate(legacy)).toBe(false);
-    expect(toGeneratorCycleOptions(legacy, 'HOUSEHOLD')).toEqual({
+    expect(toGeneratorCycleOptions(legacy, 'HOUSEHOLD', today)).toEqual({
       canAlign: false,
       alignByDefault: true,
+      cycleLongerThanUsual: false,
     });
     expect(buildPhaseCalendar(legacy, ['2026-11-20'], today)).toEqual({});
     expect(hasCycleEstimate({ ...tracking, lastPeriodDate: new Date('invalid') })).toBe(false);
@@ -68,20 +70,52 @@ describe('hasCycleEstimate / toGeneratorCycleOptions', () => {
 
   it('reflects the saved choice', () => {
     expect(
-      toGeneratorCycleOptions({ ...tracking, alignMealsWithCycle: false }, 'HOUSEHOLD')
+      toGeneratorCycleOptions({ ...tracking, alignMealsWithCycle: false }, 'HOUSEHOLD', today)
     ).toEqual({
       canAlign: true,
       alignByDefault: false,
+      cycleLongerThanUsual: false,
     });
   });
 
-  it('offers the toggle in households only, where the shared plan may follow a cycle', () => {
-    expect(toGeneratorCycleOptions(tracking, 'HOUSEHOLD')).toEqual({
+  it('turns the toggle off and says why once the cycle is longer than usual', () => {
+    // 2026-11-01 + 28 days: day 29 on 2026-11-29 is past the usual length (period late)
+    expect(toGeneratorCycleOptions(tracking, 'HOUSEHOLD', '2026-11-28')).toEqual({
       canAlign: true,
       alignByDefault: true,
+      cycleLongerThanUsual: false,
+    });
+    expect(toGeneratorCycleOptions(tracking, 'HOUSEHOLD', '2026-11-29')).toEqual({
+      canAlign: false,
+      alignByDefault: true,
+      cycleLongerThanUsual: true,
+    });
+    // A long-stale date as well
+    expect(
+      toGeneratorCycleOptions(
+        { ...tracking, lastPeriodDate: new Date(Date.UTC(2026, 5, 1)) },
+        'HOUSEHOLD',
+        today
+      )
+    ).toMatchObject({ canAlign: false, cycleLongerThanUsual: true });
+    // A start date after the user's today (saved from an earlier time zone) is not late
+    expect(
+      toGeneratorCycleOptions(
+        { ...tracking, lastPeriodDate: new Date(Date.UTC(2026, 10, 21)) },
+        'HOUSEHOLD',
+        today
+      )
+    ).toMatchObject({ canAlign: true, cycleLongerThanUsual: false });
+  });
+
+  it('offers the toggle in households only, where the shared plan may follow a cycle', () => {
+    expect(toGeneratorCycleOptions(tracking, 'HOUSEHOLD', today)).toEqual({
+      canAlign: true,
+      alignByDefault: true,
+      cycleLongerThanUsual: false,
     });
     for (const type of ['COLLECTIVE', 'COMMUNITY', 'CORPORATE'] as const) {
-      expect(toGeneratorCycleOptions(tracking, type), type).toBeNull();
+      expect(toGeneratorCycleOptions(tracking, type, today), type).toBeNull();
     }
   });
 });
@@ -195,7 +229,7 @@ describe('getMealPlannerCycleData', () => {
       expect.objectContaining({ where: { id: { in: ['bowl', 'toast'] } } })
     );
     expect(data).toEqual({
-      generator: { canAlign: true, alignByDefault: true },
+      generator: { canAlign: true, alignByDefault: true, cycleLongerThanUsual: false },
       board: {
         phaseByDate: {
           '2026-11-16': 'luteal',
@@ -261,7 +295,7 @@ describe('getMealPlannerCycleData', () => {
 
     mocks.userFindUnique.mockResolvedValue({ ...tracking, lastPeriodDate: null });
     expect(await getMealPlannerCycleData('viewer', window, 'HOUSEHOLD', now)).toEqual({
-      generator: { canAlign: false, alignByDefault: true },
+      generator: { canAlign: false, alignByDefault: true, cycleLongerThanUsual: false },
       board: null,
     });
     expect(mocks.recipeFindMany).not.toHaveBeenCalled();
@@ -273,7 +307,7 @@ describe('getMealPlannerCycleData', () => {
       lastPeriodDate: new Date('0025-11-03'),
     });
     expect(await getMealPlannerCycleData('viewer', window, 'HOUSEHOLD', now)).toEqual({
-      generator: { canAlign: false, alignByDefault: true },
+      generator: { canAlign: false, alignByDefault: true, cycleLongerThanUsual: false },
       board: null,
     });
   });

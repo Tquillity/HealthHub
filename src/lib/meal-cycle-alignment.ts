@@ -2,7 +2,7 @@ import { addDays, format } from 'date-fns';
 import type { OrganizationType, Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { getPhaseForDateKey, type CyclePhase } from '@/lib/cycle-calculator';
-import { isDateOnlyString, toDateOnlyString } from '@/lib/date-only';
+import { dateOnlyToUtcDate, isDateOnlyString, toDateOnlyString } from '@/lib/date-only';
 import { canAlignMealPlanWithCycle } from '@/lib/org-policy';
 import { resolveRecipeBioProfile, type RecipeBioProfile } from '@/lib/phase-nutrition';
 import { getLocalDateKey, resolveTimeZone } from '@/lib/time-zone';
@@ -93,12 +93,34 @@ export function buildPhaseCalendar(
   return calendar;
 }
 
+/**
+ * True once `todayKey` (the user's own day, cycleTodayKey) is at or past their typical cycle
+ * length since the last period start: the period is late or not logged, so no phase is
+ * estimated for the days after that length (buildPhaseCalendar, the daily briefing).
+ */
+export function isCycleLongerThanUsual(
+  settings: MealCycleSettings & { lastPeriodDate: Date },
+  todayKey: string
+): boolean {
+  if (!isDateOnlyString(todayKey)) return false;
+  const start = dateOnlyToUtcDate(toDateOnlyString(settings.lastPeriodDate));
+  const daysSinceStart = Math.round(
+    (dateOnlyToUtcDate(todayKey).getTime() - start.getTime()) / 86_400_000
+  );
+  return daysSinceStart >= settings.cycleLength;
+}
+
 /** What the Meal Plan Generator needs to show its "Align with cycle phase" toggle. */
 export interface GeneratorCycleOptions {
-  /** Toggle can be used (tracking on and a last period date). */
+  /** Toggle can be used (tracking on, a last period date, and the cycle not past its usual length). */
   canAlign: boolean;
   /** The user's saved choice (User.alignMealsWithCycle). */
   alignByDefault: boolean;
+  /**
+   * The cycle is past its usual length (period late or not logged), so there are no phases
+   * to align with: the toggle is off and says why, instead of planning without phases.
+   */
+  cycleLongerThanUsual: boolean;
 }
 
 /**
@@ -107,13 +129,17 @@ export interface GeneratorCycleOptions {
  */
 export function toGeneratorCycleOptions(
   settings: MealCycleSettings | null | undefined,
-  organizationType: OrganizationType
+  organizationType: OrganizationType,
+  todayKey: string
 ): GeneratorCycleOptions | null {
   if (!settings?.enableCycleTracking) return null;
   if (!canAlignMealPlanWithCycle(organizationType)) return null;
+  const longerThanUsual =
+    hasCycleEstimate(settings) && isCycleLongerThanUsual(settings, todayKey);
   return {
-    canAlign: hasCycleEstimate(settings),
+    canAlign: hasCycleEstimate(settings) && !longerThanUsual,
     alignByDefault: settings.alignMealsWithCycle,
+    cycleLongerThanUsual: longerThanUsual,
   };
 }
 
@@ -158,7 +184,9 @@ export async function getMealPlannerCycleData(
   now: Date = new Date()
 ): Promise<MealPlannerCycleData> {
   const settings = await getMealCycleSettings(userId);
-  const generator = toGeneratorCycleOptions(settings, organizationType);
+  const generator = settings
+    ? toGeneratorCycleOptions(settings, organizationType, cycleTodayKey(settings, now))
+    : null;
   if (!hasCycleEstimate(settings)) return { generator, board: null };
 
   const recipeIds = [...new Set(window.recipeIds)];
