@@ -124,6 +124,42 @@ describe.skipIf(!isolated)('household management against isolated PostgreSQL', (
       expect(writable.ok && writable.membership.organizationId).toBe(home);
     });
 
+    it('checks writes against the space the page shows, not the cookie', async () => {
+      // The page showed "Our home"; another tab has since switched the cookie elsewhere.
+      as(ownerSpare);
+      const writable = await active.getWritableMembershipIn(owner.id, home);
+      expect(writable.ok && writable.membership.organizationId).toBe(home);
+      as(otherOrg);
+      const forAdmin = await active.getWritableMembershipIn(admin.id, home);
+      expect(forAdmin.ok && forAdmin.membership.role).toBe('admin');
+
+      // Viewers stay read-only in that space, whatever the cookie says.
+      as(home);
+      expect(await active.getWritableMembershipIn(viewer.id, home)).toEqual({
+        ok: false,
+        error: active.VIEW_ONLY_ERROR,
+      });
+    });
+
+    it('refuses writes to a space the user does not belong to', async () => {
+      as(home);
+      expect(await active.getWritableMembershipIn(outsider.id, home)).toEqual({
+        ok: false,
+        error: active.SPACE_NOT_FOUND_ERROR,
+      });
+      // No fallback to another membership, unlike the cookie.
+      expect(await active.getWritableMembershipIn(owner.id, otherOrg)).toEqual({
+        ok: false,
+        error: active.SPACE_NOT_FOUND_ERROR,
+      });
+      for (const malformed of ['', '   ', 'x'.repeat(129), null, undefined, 42, { not: home }]) {
+        expect(await active.getWritableMembershipIn(owner.id, malformed)).toEqual({
+          ok: false,
+          error: active.SPACE_NOT_FOUND_ERROR,
+        });
+      }
+    });
+
     it('lists every organization with its type and role', async () => {
       expect(await active.listUserOrganizations(owner.id)).toEqual([
         { id: home, name: 'Our home', type: 'HOUSEHOLD', role: 'owner' },

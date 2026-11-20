@@ -4,6 +4,7 @@ import type { OrganizationType } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { ensurePersonalHousehold } from '@/lib/household';
 import { canWrite, parseOrgRole, type OrgRole } from '@/lib/org-roles';
+import { OrganizationIdSchema } from '@/lib/validation/organization-schemas';
 
 /**
  * The active organization: which household (or collective, community, workplace) the app is
@@ -14,6 +15,10 @@ import { canWrite, parseOrgRole, type OrgRole } from '@/lib/org-roles';
  * signed-in user is still a member, and falls back to their oldest membership otherwise.
  * Better-Auth's own `session.activeOrganizationId` is not used (the column is not in this
  * schema yet), and a cookie also survives signing in again on the same device.
+ *
+ * Pages read the cookie when they render. Writes do not: they take the organization id the
+ * page was rendered for and check it with getWritableMembershipIn, so a switch in another tab
+ * never sends a write to a space the user is not looking at.
  */
 
 export const ACTIVE_ORG_COOKIE = 'hh_active_org';
@@ -23,6 +28,8 @@ const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365;
 export const NO_HOUSEHOLD_ERROR = 'No household found';
 export const VIEW_ONLY_ERROR =
   'You have view-only access to this space. Ask an owner or admin if you need to make changes.';
+/** The space a page was showing is gone, or the user is no longer a member of it. */
+export const SPACE_NOT_FOUND_ERROR = 'Space not found. Reload the page and try again.';
 
 export type ActiveMembership = {
   memberId: string;
@@ -115,12 +122,36 @@ export type WritableMembershipResult =
   | { ok: true; membership: ActiveMembership }
   | { ok: false; error: string };
 
-/** Active membership for household-scoped mutations: viewers are read-only. */
+/**
+ * Active membership for household-scoped mutations: viewers are read-only.
+ *
+ * @deprecated The cookie can change in another tab after a page was rendered, so a write
+ * would land in a space the user is not looking at. Use getWritableMembershipIn with the
+ * organization id the page was rendered for.
+ */
 export async function getWritableMembership(
   userId: string
 ): Promise<WritableMembershipResult> {
   const membership = await getActiveMembership(userId);
   if (!membership) return { ok: false, error: NO_HOUSEHOLD_ERROR };
+  if (!canWrite(membership.role)) return { ok: false, error: VIEW_ONLY_ERROR };
+  return { ok: true, membership };
+}
+
+/**
+ * Membership for a write in one specific space: the one the page was rendered for, sent back
+ * by the client. The active-space cookie is not read, because it may have changed in another
+ * tab since the page was rendered. Not a member (or a malformed id): SPACE_NOT_FOUND_ERROR.
+ * Viewers are read-only: VIEW_ONLY_ERROR. Pass the session user id, never one from the client.
+ */
+export async function getWritableMembershipIn(
+  userId: string,
+  organizationId: unknown
+): Promise<WritableMembershipResult> {
+  const parsed = OrganizationIdSchema.safeParse(organizationId);
+  if (!parsed.success) return { ok: false, error: SPACE_NOT_FOUND_ERROR };
+  const membership = await getMembershipIn(userId, parsed.data);
+  if (!membership) return { ok: false, error: SPACE_NOT_FOUND_ERROR };
   if (!canWrite(membership.role)) return { ok: false, error: VIEW_ONLY_ERROR };
   return { ok: true, membership };
 }
