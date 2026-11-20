@@ -466,11 +466,30 @@ describe('buildCircadianInsights', () => {
     expect(best?.body).toContain('compared with 5/10 in the morning');
 
     const afternoon = buildCircadianInsights({
-      now: new Date('2026-11-20T13:30:00Z'),
+      now: new Date('2026-11-20T15:30:00Z'),
       timeZone: zone,
       rows,
     });
     expect(afternoon.suggestions[0].key).toBe('personal.best-now');
+    expect(afternoon.suggestions[0].body).toContain(
+      bestWindowAdvice('afternoon', 'now')
+    );
+  });
+
+  it('points past the early-afternoon dip instead of calling it the best time now', () => {
+    const rows = history('2026-11-19', 6, [5, 8, 4]);
+    // 14:30 in Stockholm: the dip, inside an afternoon best window.
+    const dip = buildCircadianInsights({
+      now: new Date('2026-11-20T13:30:00Z'),
+      timeZone: zone,
+      rows,
+    });
+    expect(dip.moment).toBe('early-afternoon');
+    const bestNow = dip.suggestions.find((s) => s.key === 'personal.best-now');
+    expect(bestNow?.body).toBe(
+      'Over the last 30 days your afternoon energy has averaged 8/10, your highest of the day. Later this afternoon, after the usual early dip, is a good time for your most demanding tasks or training.'
+    );
+    expect(bestNow?.body).not.toContain(bestWindowAdvice('afternoon', 'now'));
   });
 
   it('shows the best window without a training push right after a low rating', () => {

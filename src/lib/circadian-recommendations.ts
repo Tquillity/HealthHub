@@ -545,6 +545,10 @@ export function bestWindowAdvice(
     : 'When you can, plan harder training or demanding tasks for then.';
 }
 
+/** An afternoon best window during the early-afternoon dip: its best part is still ahead. */
+const AFTER_THE_DIP_ADVICE =
+  'Later this afternoon, after the usual early dip, is a good time for your most demanding tasks or training.';
+
 function personalSuggestions(input: {
   moment: DayMoment;
   slot: EnergySlot | null;
@@ -600,7 +604,11 @@ function personalSuggestions(input: {
         key: 'personal.best-now',
         kind: 'personal',
         title: 'Usually your best time of day',
-        body: `Over the last ${ENERGY_HISTORY_DAYS} days your ${SLOT_NAMES[slot]} energy has averaged ${best.average}/10, your highest of the day.${advice(bestWindowAdvice(bestWindow, 'now'))}`,
+        body: `Over the last ${ENERGY_HISTORY_DAYS} days your ${SLOT_NAMES[slot]} energy has averaged ${best.average}/10, your highest of the day.${advice(
+          moment === 'early-afternoon'
+            ? AFTER_THE_DIP_ADVICE
+            : bestWindowAdvice(bestWindow, 'now')
+        )}`,
       });
     } else {
       const current = slots[slot];
