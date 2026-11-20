@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   session: vi.fn(),
@@ -144,6 +144,53 @@ describe('generateMealPlan aligns with the cycle in households only', () => {
     const result = await generateMealPlan('family', request);
     expect(result.success).toBe(true);
     expect(result.data?.cycleAlignment).not.toBeNull();
+  });
+});
+
+describe('generateMealPlan pauses alignment for a late period, like the daily briefing', () => {
+  const cycleUser = (lastPeriodDate: Date) => ({
+    dietaryRestrictions: [],
+    healthGoals: [],
+    enableCycleTracking: true,
+    cycleLength: 28,
+    lastPeriodDate,
+    alignMealsWithCycle: true,
+    timezone: 'UTC',
+  });
+  const days = (first: number, count: number) =>
+    Array.from({ length: count }, (_, offset) =>
+      new Date(Date.UTC(2026, 10, first + offset)).toISOString().slice(0, 10)
+    );
+  const phasesPlanned = async (weekStart: string) => {
+    const result = await generateMealPlan('family', { ...request, weekStart });
+    expect(result.success).toBe(true);
+    return result.data?.cycleAlignment?.map((summary) => [summary.phase, summary.dateKeys]);
+  };
+
+  beforeEach(() => {
+    // Today is Friday 2026-11-20 for the user (profile time zone UTC).
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-20T12:00:00Z'));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('plans into the next cycle while the period is not late yet', async () => {
+    // Started 2026-11-01: today is day 20, so day 29 (2026-11-29) is the projected next period.
+    mocks.userFindUnique.mockResolvedValue(cycleUser(new Date(Date.UTC(2026, 10, 1))));
+    expect(await phasesPlanned('2026-11-23')).toEqual([
+      ['luteal', days(23, 6)],
+      ['menstrual', ['2026-11-29']],
+    ]);
+  });
+
+  it('aligns no day after the usual length once the period is late', async () => {
+    // Started 2026-10-17: today is day 35 and no new start was logged.
+    mocks.userFindUnique.mockResolvedValue(cycleUser(new Date(Date.UTC(2026, 9, 17))));
+    // Days 24-28 keep their phase; from day 29 (2026-11-14) on there is none.
+    expect(await phasesPlanned('2026-11-09')).toEqual([['luteal', days(9, 5)]]);
+    expect(await phasesPlanned('2026-11-16')).toEqual([]);
   });
 });
 

@@ -128,6 +128,24 @@ describe('getPhaseForDateKey', () => {
     expect(getPhaseForDateKey(winterStart, 28, '2027-03-29')).toBe('menstrual');
   });
 
+  it('projects the next cycle only while today is still inside the current one', () => {
+    // Today is day 20: the period is not due yet, so day 29 starts the projected next cycle.
+    expect(getPhaseForDateKey(periodStart, 28, '2026-11-28', '2026-11-20')).toBe('luteal');
+    expect(getPhaseForDateKey(periodStart, 28, '2026-11-29', '2026-11-20')).toBe('menstrual');
+    expect(getPhaseForDateKey(periodStart, 28, '2026-12-27', '2026-11-28')).toBe('menstrual');
+    // Today is day 29 or later and no new start was logged: the next start is unknown, so
+    // every day from day 29 on has no estimate (the daily briefing pauses there too).
+    for (const today of ['2026-11-29', '2026-12-05', '2027-04-01']) {
+      expect(getPhaseForDateKey(periodStart, 28, '2026-11-28', today)).toBe('luteal');
+      expect(getPhaseForDateKey(periodStart, 28, '2026-11-29', today)).toBeNull();
+      expect(getPhaseForDateKey(periodStart, 28, '2026-12-05', today)).toBeNull();
+      expect(getPhaseForDateKey(periodStart, 28, '2027-01-15', today)).toBeNull();
+    }
+    // A today before the start (saved ahead of time) is not late.
+    expect(getPhaseForDateKey(periodStart, 28, '2026-11-29', '2026-10-30')).toBe('menstrual');
+    expect(getPhaseForDateKey(periodStart, 28, '2026-11-29', '2026-02-30')).toBeNull();
+  });
+
   it('has no estimate before the last period start or for invalid input', () => {
     expect(getPhaseForDateKey(periodStart, 28, '2026-10-31')).toBeNull();
     expect(getPhaseForDateKey(periodStart, 28, '2026-02-30')).toBeNull();
