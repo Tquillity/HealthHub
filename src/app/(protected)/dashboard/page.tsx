@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { getServerSession } from '@/lib/session';
 import { prisma } from '@/lib/db';
 import { DashboardClient } from '@/components/dashboard/dashboard-client';
+import { VitalsCard } from '@/components/dashboard/vitals-card';
 import { getPremiumPomoDashboardSnapshot } from '@/actions/pomo-state';
 import { progressFromPomoPayload } from '@/lib/pomo/utils/pomo-server-progress';
 
@@ -59,7 +60,7 @@ export default async function DashboardPage() {
       : null;
 
   return (
-    <div className="max-w-7xl">
+    <div className="max-w-7xl flex flex-col gap-8">
       <DashboardClient
         recentRoutines={routines}
         routinesCount={routinesCount}
@@ -68,6 +69,7 @@ export default async function DashboardPage() {
         isPremiumCloud={pomoSnapshot.isPremium}
         focusGoalProgress={focusGoalProgress}
       />
+      <VitalsCard userId={session.user.id} />
     </div>
   );
 }

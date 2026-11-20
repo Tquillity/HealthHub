@@ -3,6 +3,7 @@ import { getServerSession } from '@/lib/session';
 import { getProfile } from '@/actions/profile-actions';
 import { ProfileClient } from '@/components/profile/profile-client';
 import { DeleteAccountSection } from '@/components/profile/delete-account-section';
+import { VitalsPrivacyCard } from '@/components/profile/vitals-privacy-card';
 import { getAccountDeletionContext } from '@/lib/account-deletion';
 import { Users, ChevronRight, Download } from 'lucide-react';
 import Link from 'next/link';
@@ -93,6 +94,8 @@ export default async function ProfilePage() {
             </a>
           </div>
         </div>
+
+        <VitalsPrivacyCard userId={session.user.id} />
 
         <DeleteAccountSection
           hasPassword={deletion.hasPassword}
