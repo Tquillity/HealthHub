@@ -8,5 +8,8 @@ allowBuilds:
   unrs-resolver: true
   sharp: true
 
-# Active dev: do not block recently published packages (pnpm 11 default is 1440m strict lockfile check).
-minimumReleaseAge: 0
+# Supply-chain guard: only install package versions that have been public for at
+# least 24 hours (pnpm 11 default). Most malicious npm releases are caught and
+# pulled within hours. For an urgent security patch that is newer than this,
+# add it to minimumReleaseAgeExclude instead of setting this to 0.
+minimumReleaseAge: 1440
