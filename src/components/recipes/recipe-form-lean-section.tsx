@@ -9,6 +9,7 @@ import {
   LEAN_ROLE_DESCRIPTIONS,
   MAX_ACTIVE_MINUTES,
   MAX_PASSIVE_MINUTES,
+  MAX_YIELD_AMOUNT,
   MAX_YIELD_UNIT_LENGTH,
   normalizeBatchEfficiency,
   normalizeLeanRole,
@@ -141,7 +142,8 @@ export function RecipeFormLeanSection({
             name="recipe-yield-amount"
             type="number"
             inputMode="decimal"
-            min="0"
+            min="0.01"
+            max={MAX_YIELD_AMOUNT}
             step="any"
             value={formData.yieldAmount}
             onChange={(e) => setFormData({ ...formData, yieldAmount: e.target.value })}

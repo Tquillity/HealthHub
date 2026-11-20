@@ -63,8 +63,8 @@ export function RecipeCard({ recipe }: RecipeCardProps) {
           {recipe.description || 'No description available.'}
         </p>
 
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t pt-4 text-xs text-gray-500">
-          {times.hasLeanTimes ? (
+        <div className="mt-4 flex flex-col gap-2 border-t pt-4 text-xs text-gray-500">
+          {times.hasLeanTimes && (
             // LEAN times: hands-on vs hands-off. A recorded 0 min wait is not shown.
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
               {times.activeMinutes !== null && (
@@ -83,22 +83,25 @@ export function RecipeCard({ recipe }: RecipeCardProps) {
                 </span>
               )}
             </div>
-          ) : (
-            <div className="flex items-center gap-1">
-              <Clock className="h-3.5 w-3.5" aria-hidden="true" />
-              <span>
-                <span className="sr-only">Total time: </span>
-                {times.totalMinutes > 0 ? formatMinutes(times.totalMinutes) : '-'}
-              </span>
-            </div>
           )}
-          <div className="flex items-center gap-1">
-            <Users className="h-3.5 w-3.5" />
-            <span>{recipe.servings || '-'} ppl</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="font-medium">{recipe.ingredients.length}</span>
-            <span>ingr.</span>
+          <div className="flex items-center justify-between">
+            {!times.hasLeanTimes && (
+              <div className="flex items-center gap-1">
+                <Clock className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>
+                  <span className="sr-only">Total time: </span>
+                  {times.totalMinutes > 0 ? formatMinutes(times.totalMinutes) : '-'}
+                </span>
+              </div>
+            )}
+            <div className="flex items-center gap-1">
+              <Users className="h-3.5 w-3.5" />
+              <span>{recipe.servings || '-'} ppl</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="font-medium">{recipe.ingredients.length}</span>
+              <span>ingr.</span>
+            </div>
           </div>
         </div>
       </div>

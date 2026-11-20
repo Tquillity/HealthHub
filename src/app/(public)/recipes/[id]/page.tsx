@@ -19,7 +19,7 @@ import {
 import { ServingsScaler } from '@/components/recipes/servings-scaler';
 import { RecipeDetailClient } from '@/components/recipes/recipe-detail-client';
 import { RecipeLeanInfo } from '@/components/recipes/recipe-lean-info';
-import { getRecipeTimeSummary } from '@/lib/lean-kitchen';
+import { formatMinutes, getRecipeTimeSummary } from '@/lib/lean-kitchen';
 
 // Resolve visibility at request time; builds never enumerate recipes from the DB.
 export const dynamic = 'force-dynamic';
@@ -251,7 +251,7 @@ export default async function RecipeDetailPage({
                   Total Time
                 </p>
                 <p className="font-semibold text-gray-900">
-                  {totalMins || 0} mins
+                  {formatMinutes(totalMins)}
                 </p>
               </div>
             </div>
