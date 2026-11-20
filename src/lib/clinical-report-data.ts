@@ -21,6 +21,7 @@ import {
   resolveReportInclusion,
   resolveReportToday,
   type ClinicalReport,
+  type ClinicalReportInput,
   type NoteDay,
   type SymptomDay,
 } from '@/lib/clinical-report';
@@ -129,11 +130,16 @@ async function loadNoteDays(
   }));
 }
 
-export async function loadClinicalReport(
+/**
+ * The decrypted input of buildClinicalReport: only the sections the user chose (see
+ * resolveReportInclusion). Exported so tests can check what is read before the
+ * builder's own guards apply.
+ */
+export async function loadClinicalReportInput(
   userId: string,
   options: ClinicalReportOptions,
   now: Date = new Date()
-): Promise<ClinicalReport> {
+): Promise<ClinicalReportInput> {
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: userId },
     select: {
@@ -186,7 +192,7 @@ export async function loadClinicalReport(
       : undefined,
   ]);
 
-  return buildClinicalReport({
+  return {
     today,
     months: options.months,
     generatedAt: now.toISOString(),
@@ -198,5 +204,13 @@ export async function loadClinicalReport(
     symptomDays,
     vitalsRows,
     noteDays,
-  });
+  };
+}
+
+export async function loadClinicalReport(
+  userId: string,
+  options: ClinicalReportOptions,
+  now: Date = new Date()
+): Promise<ClinicalReport> {
+  return buildClinicalReport(await loadClinicalReportInput(userId, options, now));
 }
