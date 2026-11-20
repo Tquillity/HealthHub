@@ -1,11 +1,11 @@
 import type { CycleShareLevel, OrganizationType, Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { decrypt, encrypt } from '@/lib/encryption';
-import { calculateCyclePhase } from '@/lib/cycle-calculator';
 import { dateOnlyToUtcDate } from '@/lib/date-only';
 import { canShowIndividualCycleStatus, CYCLE_STATUS_ORG_TYPES } from '@/lib/org-policy';
 import { generateRecordId } from '@/lib/record-ids';
 import {
+  cycleSnapshotOn,
   getEffectiveShareLevel,
   getTimeOfDay,
   isCoveredByShare,
@@ -13,7 +13,6 @@ import {
   parseFocusPreference,
   projectCycleStatus,
   SHARED_LEVELS,
-  toCycleSnapshot,
   type CycleShareHousehold,
   type CycleSnapshot,
   type ProjectedCycleStatus,
@@ -21,7 +20,12 @@ import {
   type SharedLevel,
   type TimeOfDay,
 } from '@/lib/cycle-status-sharing';
-import { getLocalDateKey, getLocalHour, resolveTimeZone } from '@/lib/time-zone';
+import {
+  getLocalDateKey,
+  getLocalHour,
+  resolveTimeZone,
+  timeZoneToAdopt,
+} from '@/lib/time-zone';
 
 /**
  * Partner sync (issue #3), server side. Reads and writes each person's per-household shares and
@@ -54,16 +58,23 @@ function isCycleConfigured(user: CycleFields): boolean {
   return user.enableCycleTracking && user.lastPeriodDate !== null;
 }
 
-function cycleSnapshotFor(user: CycleFields): CycleSnapshot | null {
-  if (!user.enableCycleTracking || !user.lastPeriodDate) return null;
-  const cycleLength = user.cycleLength || 28;
-  return toCycleSnapshot(calculateCyclePhase(user.lastPeriodDate, cycleLength), cycleLength);
+/**
+ * The sharer's own calendar day (`YYYY-MM-DD`): the day in their profile time zone, or in UTC
+ * when that is not a zone the runtime knows. Phase, cycle day and "energy logged today" all
+ * use this one day, never the server's date.
+ */
+function sharerDayKey(user: { timezone: string | null }, now: Date): string {
+  return getLocalDateKey(now, resolveTimeZone(user.timezone));
 }
 
-/** Today's self-logged journal energy per user, each on their own calendar day. */
+function cycleSnapshotFor(user: CycleFields, dayKey: string): CycleSnapshot | null {
+  if (!user.enableCycleTracking || !user.lastPeriodDate) return null;
+  return cycleSnapshotOn(user.lastPeriodDate, user.cycleLength || 28, dayKey);
+}
+
+/** Self-logged journal energy per user, each for their own calendar day. */
 async function getTodayEnergyByUser(
-  people: { userId: string; timeZone: string | null }[],
-  now: Date
+  people: { userId: string; dayKey: string }[]
 ): Promise<Map<string, number | null>> {
   const byUser = new Map<string, number | null>();
   if (people.length === 0) return byUser;
@@ -71,7 +82,7 @@ async function getTodayEnergyByUser(
     where: {
       OR: people.map((person) => ({
         userId: person.userId,
-        date: dateOnlyToUtcDate(getLocalDateKey(now, resolveTimeZone(person.timeZone))),
+        date: dateOnlyToUtcDate(person.dayKey),
       })),
     },
     // Energy only: no notes, symptoms or anything else from the journal.
@@ -159,6 +170,8 @@ export type CycleSharingPanelData = {
   supportMessage: string | null;
   /** Cycle tracking is on and a last period date is set; sharing shows nothing without both. */
   cycleConfigured: boolean;
+  /** The time zone that decides the user's "today" (the profile's, or UTC). */
+  timeZone: string;
   /** The user's own data, for the live preview in their own Profile. */
   preview: {
     id: string;
@@ -179,18 +192,20 @@ export async function getCycleSharingPanelData(
   if (!user) return null;
 
   const timeZone = resolveTimeZone(user.timezone);
+  const dayKey = sharerDayKey(user, now);
   const [energy, households] = await Promise.all([
-    getTodayEnergyByUser([{ userId, timeZone }], now),
+    getTodayEnergyByUser([{ userId, dayKey }]),
     getShareHouseholds(userId),
   ]);
 
   return {
     supportMessage: decrypt(user.supportMessage),
     cycleConfigured: isCycleConfigured(user),
+    timeZone,
     preview: {
       id: userId,
       name: user.name,
-      snapshot: cycleSnapshotFor(user),
+      snapshot: cycleSnapshotFor(user, dayKey),
       todayEnergy: energy.get(userId) ?? null,
       timeOfDay: getTimeOfDay(getLocalHour(now, timeZone)),
     },
@@ -213,6 +228,8 @@ export async function getCycleShareLevel(
 export type CycleShareUpdate = {
   household: CycleShareHousehold;
   cycleConfigured: boolean;
+  /** The time zone that decides the user's "today", after any device zone was adopted. */
+  timeZone: string;
 };
 
 /**
@@ -279,15 +296,46 @@ export async function setCycleStatusShare(
   });
   if (!written) return { ok: false, error: NOT_A_HOUSEHOLD_MEMBER_ERROR };
 
+  if (input.level !== 'NONE') await adoptDeviceTimeZone(userId, input.deviceTimeZone);
+
   const [[household], user] = await Promise.all([
     getShareHouseholds(userId, organizationId),
     prisma.user.findUnique({
       where: { id: userId },
-      select: { enableCycleTracking: true, lastPeriodDate: true, cycleLength: true },
+      select: { enableCycleTracking: true, lastPeriodDate: true, cycleLength: true, timezone: true },
     }),
   ]);
   if (!household || !user) return { ok: false, error: NOT_A_HOUSEHOLD_MEMBER_ERROR };
-  return { ok: true, data: { household, cycleConfigured: isCycleConfigured(user) } };
+  return {
+    ok: true,
+    data: {
+      household,
+      cycleConfigured: isCycleConfigured(user),
+      timeZone: resolveTimeZone(user.timezone),
+    },
+  };
+}
+
+/**
+ * Journal days are filed under the browser's calendar day, and the profile zone defaults to
+ * UTC, which most people never change. While it is still the default, the device's zone is
+ * saved so that the household's "today" is the sharer's own day. A zone the person typed in
+ * Profile is never replaced.
+ */
+async function adoptDeviceTimeZone(userId: string, deviceTimeZone: string | undefined) {
+  if (!deviceTimeZone) return;
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { timezone: true },
+  });
+  if (!user) return;
+  const adopted = timeZoneToAdopt(user.timezone, deviceTimeZone);
+  if (!adopted) return;
+  // Only if the profile still has the zone checked above (not one saved in the meantime).
+  await prisma.user.updateMany({
+    where: { id: userId, timezone: user.timezone },
+    data: { timezone: adopted },
+  });
 }
 
 /** Save or clear the personal message (already validated). Returns it decrypted. */
@@ -359,8 +407,12 @@ export async function getSupportStatusBoard(
     }),
   ]);
 
-  const visible: { userId: string; level: CycleShareLevel; user: (typeof shares)[number]['user'] }[] =
-    [];
+  const visible: {
+    userId: string;
+    level: CycleShareLevel;
+    dayKey: string;
+    user: (typeof shares)[number]['user'];
+  }[] = [];
   for (const { userId, level: storedLevel, user } of shares) {
     const level = getEffectiveShareLevel({
       level: storedLevel,
@@ -370,14 +422,13 @@ export async function getSupportStatusBoard(
     if (!canShowIndividualCycleStatus(organization.type, { sharerOptedIn: level !== 'NONE' })) {
       continue;
     }
-    visible.push({ userId, level, user });
+    visible.push({ userId, level, dayKey: sharerDayKey(user, now), user });
   }
 
   const energyByUser = await getTodayEnergyByUser(
     visible
       .filter((sharer) => levelIncludes(sharer.level, 'ENERGY'))
-      .map((sharer) => ({ userId: sharer.userId, timeZone: sharer.user.timezone })),
-    now
+      .map((sharer) => ({ userId: sharer.userId, dayKey: sharer.dayKey }))
   );
 
   const supportViewer = {
@@ -392,7 +443,7 @@ export async function getSupportStatusBoard(
         id: sharer.userId,
         name: sharer.user.name,
         level: sharer.level,
-        snapshot: cycleSnapshotFor(sharer.user),
+        snapshot: cycleSnapshotFor(sharer.user, sharer.dayKey),
         todayEnergy: energyByUser.get(sharer.userId) ?? null,
         // Decrypted only for people who share it.
         supportMessage: sharer.level === 'FULL' ? decrypt(sharer.user.supportMessage) : null,

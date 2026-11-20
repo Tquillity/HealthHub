@@ -4,8 +4,7 @@ import { PrismaClient, type CycleShareLevel, type Prisma } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 import { decrypt, encrypt, encryptArray } from './encryption';
-import { calculateCyclePhase } from './cycle-calculator';
-import { buildSupportSuggestion, toCycleSnapshot } from './cycle-status-sharing';
+import { buildSupportSuggestion, cycleSnapshotOn } from './cycle-status-sharing';
 
 const url = process.env.DATABASE_URL ? new URL(process.env.DATABASE_URL) : null;
 const isolated = Boolean(
@@ -180,7 +179,12 @@ describe.skipIf(!isolated)('support status against isolated PostgreSQL', () => {
     await pool.end();
   });
 
-  const expectedSnapshot = () => toCycleSnapshot(calculateCyclePhase(lastPeriodDate, 28), 28);
+  // June 15 is the sharers' own day at `now` (UTC and Stockholm alike).
+  const expectedSnapshot = () => {
+    const snapshot = cycleSnapshotOn(lastPeriodDate, 28, '2026-06-15');
+    if (!snapshot) throw new Error('no snapshot');
+    return snapshot;
+  };
   const idsIn = async (viewerId: string, organizationId: string) =>
     (await lib.getSupportStatusBoard(viewerId, organizationId, now))?.statuses.map((s) => s.id);
   const panelHousehold = async (userId: string, organizationId: string) => {
@@ -445,6 +449,7 @@ describe.skipIf(!isolated)('support status against isolated PostgreSQL', () => {
     expect(Number.isNaN(Date.parse(ours.membersListedAt))).toBe(false);
     expect(data?.supportMessage).toBe('A quiet evening would be lovely');
     expect(data?.cycleConfigured).toBe(true);
+    expect(data?.timeZone).toBe('Europe/Stockholm');
     expect(data?.preview).toMatchObject({
       id: full.id,
       name: 'Mikael Andersson',
@@ -456,5 +461,105 @@ describe.skipIf(!isolated)('support status against isolated PostgreSQL', () => {
     expect(await lib.getCycleShareLevel(full.id, home)).toBe('FULL');
     expect(await lib.getCycleShareLevel(full.id, otherHome)).toBe('NONE');
     expect(await lib.getCycleSharingPanelData(`missing-${run}`, now)).toBeNull();
+  });
+
+  it('uses each sharer’s own calendar day for phase, cycle day and today’s energy, east and west of UTC', async () => {
+    // Her period started on her own today, June 16, which has begun in Auckland only.
+    const east = person('east', 'Aroha East', {
+      timezone: 'Pacific/Auckland',
+      lastPeriodDate: new Date('2026-06-16T00:00:00Z'),
+    });
+    // Day 14 on June 15 in Los Angeles, day 15 on the UTC date of June 16.
+    const west = person('west', 'Wes West', {
+      timezone: 'America/Los_Angeles',
+      lastPeriodDate: new Date('2026-06-02T00:00:00Z'),
+    });
+    const watcher = person('watcher', 'Wanda Watcher');
+    const tzHome = `ss-tz-home-${run}`;
+    allUsers.push(east, west, watcher);
+    allOrgs.push(tzHome);
+    for (const user of [east, west, watcher]) await client.user.create({ data: user });
+    await client.organization.create({ data: { id: tzHome, name: 'Time zones', slug: tzHome } });
+    await client.member.createMany({
+      data: [east, west, watcher].map((user) => ({
+        id: randomUUID(),
+        organizationId: tzHome,
+        userId: user.id,
+        role: 'member',
+        createdAt: at(1),
+      })),
+    });
+    await client.cycleStatusShare.createMany({
+      data: [share(east.id, tzHome, 'FULL'), share(west.id, tzHome, 'FULL')],
+    });
+    // Journal days are filed under each person's own calendar day.
+    for (const [userId, date, energy] of [
+      [east.id, '2026-06-15', 9],
+      [east.id, '2026-06-16', 2],
+      [west.id, '2026-06-15', 4],
+      [west.id, '2026-06-16', 10],
+    ] as const) {
+      await client.journalEntry.create({
+        data: { userId, date: new Date(`${date}T00:00:00Z`), energy },
+      });
+    }
+
+    // 20:00 UTC on June 15: 08:00 on June 16 in Auckland, 13:00 on June 15 in Los Angeles.
+    // 03:00 UTC on June 16: 15:00 on June 16 in Auckland, 20:00 on June 15 in Los Angeles.
+    for (const instant of [new Date('2026-06-15T20:00:00Z'), new Date('2026-06-16T03:00:00Z')]) {
+      const board = await lib.getSupportStatusBoard(watcher.id, tzHome, instant);
+      const byId = new Map(board?.statuses.map((status) => [status.id, status]));
+      expect(byId.get(east.id)).toMatchObject({
+        level: 'FULL',
+        phase: { key: 'menstrual' },
+        cycleDay: 1,
+        daysUntilNextPeriod: 28,
+        todayEnergy: 2,
+      });
+      expect(byId.get(west.id)).toMatchObject({
+        level: 'FULL',
+        phase: { key: 'ovulation' },
+        cycleDay: 14,
+        daysUntilNextPeriod: 15,
+        todayEnergy: 4,
+      });
+    }
+
+    // Her own Profile preview uses the same day.
+    const preview = (await lib.getCycleSharingPanelData(east.id, new Date('2026-06-15T20:00:00Z')))
+      ?.preview;
+    expect(preview).toMatchObject({
+      snapshot: { phase: 'menstrual', cycleDay: 1 },
+      todayEnergy: 2,
+      timeOfDay: 'morning',
+    });
+  });
+
+  it('fills in the device time zone while the profile has the default, never over a chosen one', async () => {
+    const filledIn = await lib.setCycleStatusShare(phaseOnly.id, {
+      organizationId: home,
+      level: 'PHASE',
+      membersListedAt: agreedAt.toISOString(),
+      deviceTimeZone: 'Australia/Sydney',
+    });
+    expect(filledIn).toMatchObject({ ok: true, data: { timeZone: 'Australia/Sydney' } });
+
+    const kept = await lib.setCycleStatusShare(full.id, {
+      organizationId: home,
+      level: 'FULL',
+      membersListedAt: agreedAt.toISOString(),
+      deviceTimeZone: 'Australia/Sydney',
+    });
+    expect(kept).toMatchObject({ ok: true, data: { timeZone: 'Europe/Stockholm' } });
+    const stored = await client.user.findMany({
+      where: { id: { in: [phaseOnly.id, full.id] } },
+      select: { id: true, timezone: true },
+      orderBy: { id: 'asc' },
+    });
+    expect(Object.fromEntries(stored.map((user) => [user.id, user.timezone]))).toEqual({
+      [phaseOnly.id]: 'Australia/Sydney',
+      [full.id]: 'Europe/Stockholm',
+    });
+    await client.user.update({ where: { id: phaseOnly.id }, data: { timezone: 'UTC' } });
   });
 });

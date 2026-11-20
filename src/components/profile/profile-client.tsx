@@ -67,7 +67,10 @@ export function ProfileClient({ profile: initialProfile }: ProfileClientProps) {
       energyLevel: formData.energyLevel as 'low' | 'medium' | 'high',
       dietaryRestrictions,
       healthGoals,
-      timezone: formData.timezone,
+      // Sent only when changed: cycle status sharing may have filled in the device's zone
+      // since this page loaded, and an untouched field must not put the default back.
+      timezone:
+        formData.timezone === (profile.timezone || 'UTC') ? undefined : formData.timezone,
       enableCycleTracking: formData.enableCycleTracking,
       cycleLength: formData.cycleLength,
       // Date input value is already YYYY-MM-DD; the action stores it as UTC midnight.
@@ -90,6 +93,7 @@ export function ProfileClient({ profile: initialProfile }: ProfileClientProps) {
       setFormData((current) => ({
         ...current,
         lastPeriodDate: savedLastPeriodDate,
+        timezone: result.data.timezone || 'UTC',
       }));
       setSuccess(true);
       showToast('Profile updated successfully!', 'success');

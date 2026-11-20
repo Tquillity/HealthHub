@@ -167,6 +167,15 @@ export function HouseholdShareFields({
   );
 }
 
+/** The browser's IANA time zone, if it reports one. */
+function deviceTimeZone(): string | undefined {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function HouseholdShareCard({
   initialHousehold,
   index,
@@ -174,6 +183,7 @@ function HouseholdShareCard({
   previewSource,
   draftMessage,
   messageDirty,
+  onTimeZoneChange,
 }: {
   initialHousehold: CycleShareHousehold;
   index: number;
@@ -181,6 +191,7 @@ function HouseholdShareCard({
   previewSource: CycleSharingPanelData['preview'];
   draftMessage: string;
   messageDirty: boolean;
+  onTimeZoneChange: (timeZone: string) => void;
 }) {
   const showToast = useUIStore((state) => state.showToast);
   const [household, setHousehold] = useState(initialHousehold);
@@ -199,11 +210,13 @@ function HouseholdShareCard({
       level: next,
       membersListedAt: household.membersListedAt,
       ...(includeNewMembers && { includeNewMembers: true }),
+      deviceTimeZone: deviceTimeZone(),
     });
     setSaving(false);
     setPendingLevel(null);
     if (result.success && result.data) {
       setHousehold(result.data.household);
+      onTimeZoneChange(result.data.timeZone);
       showToast(successMessage, 'success');
     } else {
       showToast(result.error || 'Could not update sharing', 'error');
@@ -265,6 +278,7 @@ export function CycleSharingSettingsPanel({ data }: { data: CycleSharingPanelDat
   const [savedMessage, setSavedMessage] = useState(data.supportMessage ?? '');
   const [draftMessage, setDraftMessage] = useState(data.supportMessage ?? '');
   const [savingMessage, setSavingMessage] = useState(false);
+  const [timeZone, setTimeZone] = useState(data.timeZone);
 
   // From props: saving the profile form above re-renders this with fresh cycle data.
   const cycleConfigured = data.cycleConfigured;
@@ -326,13 +340,15 @@ export function CycleSharingSettingsPanel({ data }: { data: CycleSharingPanelDat
                   previewSource={data.preview}
                   draftMessage={draftMessage}
                   messageDirty={messageDirty}
+                  onTimeZoneChange={setTimeZone}
                 />
               </li>
             ))}
           </ul>
           <p className="text-xs text-gray-500">
             {NEVER_SHARED_NOTE} Each person sees an idea that fits their own focus and time of
-            day, so the wording can differ a little.
+            day, so the wording can differ a little. Your phase and today&apos;s energy follow
+            your day in {timeZone}, the time zone under Personal Information.
           </p>
         </div>
       )}

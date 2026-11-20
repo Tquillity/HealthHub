@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type { CyclePhase } from './cycle-calculator';
+import { getPhaseForDay, type CyclePhase } from './cycle-calculator';
 import {
   buildSupportSuggestion,
+  cycleSnapshotOn,
   CYCLE_SHARE_LEVELS,
   CYCLE_SHARE_LEVEL_INFO,
   describeAudience,
@@ -16,7 +17,6 @@ import {
   projectCycleStatus,
   SetCycleStatusShareSchema,
   SUPPORT_MESSAGE_MAX_LENGTH,
-  toCycleSnapshot,
   TYPICAL_PHASE_ENERGY,
   UpdateSupportMessageSchema,
   type CycleShareHousehold,
@@ -249,16 +249,43 @@ describe('helpers', () => {
     expect(firstNameOf(null)).toBe('Someone');
   });
 
-  it('counts days until the next expected period', () => {
-    const result = { currentPhase: 'menstrual' as const, daysIntoCycle: 1, nextPeriodDate: new Date() };
-    expect(toCycleSnapshot(result, 28)).toEqual({
+  it('counts the cycle day and days until the next period on the given day', () => {
+    const start = new Date('2026-11-01T00:00:00Z');
+    expect(cycleSnapshotOn(start, 28, '2026-11-01')).toEqual({
       phase: 'menstrual',
       cycleDay: 1,
       daysUntilNextPeriod: 28,
     });
-    expect(
-      toCycleSnapshot({ ...result, currentPhase: 'luteal', daysIntoCycle: 28 }, 28).daysUntilNextPeriod
-    ).toBe(1);
+    expect(cycleSnapshotOn(start, 28, '2026-11-14')).toEqual({
+      phase: 'ovulation',
+      cycleDay: 14,
+      daysUntilNextPeriod: 15,
+    });
+    expect(cycleSnapshotOn(start, 28, '2026-11-15')).toMatchObject({ phase: 'luteal', cycleDay: 15 });
+    expect(cycleSnapshotOn(start, 28, '2026-11-28')?.daysUntilNextPeriod).toBe(1);
+    // A new cycle starts after cycleLength days.
+    expect(cycleSnapshotOn(start, 28, '2026-11-29')).toMatchObject({ phase: 'menstrual', cycleDay: 1 });
+    // Same boundaries as the cycle page for every day.
+    for (let day = 1; day <= 28; day += 1) {
+      const key = `2026-11-${String(day).padStart(2, '0')}`;
+      expect(cycleSnapshotOn(start, 28, key)?.phase).toBe(getPhaseForDay(day, 28));
+    }
+  });
+
+  it('treats a period start after the sharer’s day as day 1 of the period, not follicular', () => {
+    // Saved as "today" in Sydney before that day had started in the zone used for the lookup.
+    expect(cycleSnapshotOn(new Date('2026-11-21T00:00:00Z'), 28, '2026-11-20')).toEqual({
+      phase: 'menstrual',
+      cycleDay: 1,
+      daysUntilNextPeriod: 28,
+    });
+  });
+
+  it('gives nothing for invalid input', () => {
+    const start = new Date('2026-11-01T00:00:00Z');
+    expect(cycleSnapshotOn(start, 28, '2026-11-31')).toBeNull();
+    expect(cycleSnapshotOn(start, 0, '2026-11-02')).toBeNull();
+    expect(cycleSnapshotOn(new Date('nope'), 28, '2026-11-02')).toBeNull();
   });
 
   it('reads focus preferences defensively', () => {

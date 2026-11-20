@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { CycleShareLevel } from '@prisma/client';
-import type { CyclePhase, CyclePhaseResult } from '@/lib/cycle-calculator';
+import { getPhaseForDay, type CyclePhase } from '@/lib/cycle-calculator';
+import { dateOnlyToUtcDate, isDateOnlyString, toDateOnlyString } from '@/lib/date-only';
 import { PHASE_THEMES } from '@/lib/phase-theme';
 import { OrganizationIdSchema } from '@/lib/validation/organization-schemas';
 import type { FocusPreference } from '@/types/cycle';
@@ -90,6 +91,11 @@ export const SetCycleStatusShareSchema = z
     membersListedAt: z.iso.datetime(),
     /** Also show the status to the members who joined after sharing started. */
     includeNewMembers: z.boolean().optional(),
+    /**
+     * The browser's IANA time zone. Saved to the profile while it still has the default, so
+     * "today" for the household is the person's own day (see timeZoneToAdopt).
+     */
+    deviceTimeZone: z.string().trim().max(100).optional(),
   })
   .strict();
 
@@ -215,12 +221,40 @@ export type CycleSnapshot = {
   daysUntilNextPeriod: number;
 };
 
-/** The parts of calculateCyclePhase's result that partner sync uses. */
-export function toCycleSnapshot(result: CyclePhaseResult, cycleLength: number): CycleSnapshot {
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+/**
+ * Where someone is in their cycle on `dayKey` (`YYYY-MM-DD`), their own calendar day. Same
+ * model and phase boundaries as calculateCyclePhase (getPhaseForDay), but for a given day
+ * rather than the server's, so the phase and cycle day match the day their energy is read for.
+ *
+ * Both values are date-only (stored as UTC midnight), so the difference is whole days. A start
+ * date after `dayKey` means the person saved their own "today" before the time zone used here
+ * reached it: the period has started, so it is day 1 of the menstrual phase.
+ * Null for invalid input.
+ */
+export function cycleSnapshotOn(
+  lastPeriodDate: Date,
+  cycleLength: number,
+  dayKey: string
+): CycleSnapshot | null {
+  if (
+    !isDateOnlyString(dayKey) ||
+    !Number.isInteger(cycleLength) ||
+    cycleLength < 1 ||
+    Number.isNaN(lastPeriodDate.getTime())
+  ) {
+    return null;
+  }
+  const periodStart = dateOnlyToUtcDate(toDateOnlyString(lastPeriodDate));
+  const daysSinceStart = Math.round(
+    (dateOnlyToUtcDate(dayKey).getTime() - periodStart.getTime()) / MS_PER_DAY
+  );
+  const cycleDay = daysSinceStart < 0 ? 1 : (daysSinceStart % cycleLength) + 1;
   return {
-    phase: result.currentPhase,
-    cycleDay: result.daysIntoCycle,
-    daysUntilNextPeriod: Math.max(1, cycleLength - result.daysIntoCycle + 1),
+    phase: getPhaseForDay(cycleDay, cycleLength),
+    cycleDay,
+    daysUntilNextPeriod: Math.max(1, cycleLength - cycleDay + 1),
   };
 }
 
