@@ -15,6 +15,19 @@ import { format } from 'date-fns';
 interface JournalClientProps {
   initialDate?: string;
   onEntrySaved?: () => void;
+  /** Morning, afternoon and evening energy (circadian insights opt-in). */
+  showTimeOfDayEnergy?: boolean;
+}
+
+const TIME_OF_DAY_ENERGY_FIELDS = [
+  { key: 'energyMorning', label: 'Morning', hours: '06-12' },
+  { key: 'energyAfternoon', label: 'Afternoon', hours: '12-18' },
+  { key: 'energyEvening', label: 'Evening', hours: '18-22' },
+] as const;
+
+/** Rating text to the value to send: empty clears it (`null`). */
+function ratingOrNull(value: string): number | null {
+  return value ? parseInt(value, 10) : null;
 }
 
 /**
@@ -35,6 +48,9 @@ function emptyForm(date: string) {
     date,
     mood: '',
     energy: '',
+    energyMorning: '',
+    energyAfternoon: '',
+    energyEvening: '',
     sleepHours: '',
     notes: '',
     tags: '',
@@ -58,6 +74,9 @@ function entryToForm(date: string, entry: StoredEntry): FormData {
     date,
     mood: entry.mood?.toString() || '',
     energy: entry.energy?.toString() || '',
+    energyMorning: entry.energyMorning?.toString() || '',
+    energyAfternoon: entry.energyAfternoon?.toString() || '',
+    energyEvening: entry.energyEvening?.toString() || '',
     sleepHours: entry.sleepHours?.toString() || '',
     notes: entry.notes || '',
     tags: entry.tags.join(', ') || '',
@@ -75,6 +94,7 @@ function entryToForm(date: string, entry: StoredEntry): FormData {
 export function JournalClient({
   initialDate,
   onEntrySaved,
+  showTimeOfDayEnergy = false,
 }: JournalClientProps) {
   const router = useRouter();
   const showToast = useUIStore((state) => state.showToast);
@@ -168,6 +188,12 @@ export function JournalClient({
       date: formData.date,
       mood: formData.mood ? parseInt(formData.mood, 10) : null,
       energy: formData.energy ? parseInt(formData.energy, 10) : null,
+      // Left out (unchanged) unless the fields are shown.
+      ...(showTimeOfDayEnergy && {
+        energyMorning: ratingOrNull(formData.energyMorning),
+        energyAfternoon: ratingOrNull(formData.energyAfternoon),
+        energyEvening: ratingOrNull(formData.energyEvening),
+      }),
       sleepHours: formData.sleepHours ? parseFloat(formData.sleepHours) : null,
       notes: formData.notes.trim() ? formData.notes : null,
       tags,
@@ -310,6 +336,48 @@ export function JournalClient({
                     />
                   </div>
                 </div>
+
+                {showTimeOfDayEnergy && (
+                  <fieldset className="m-0 flex min-w-0 flex-col gap-2 border-0 p-0">
+                    <legend className="mb-1.5 text-sm font-medium text-gray-700">
+                      Energy by time of day (1-10)
+                    </legend>
+                    <div className="grid grid-cols-3 gap-4">
+                      {TIME_OF_DAY_ENERGY_FIELDS.map((field) => (
+                        <div key={field.key} className="flex flex-col gap-1.5">
+                          <label
+                            htmlFor={`journal-${field.key}`}
+                            className="text-sm text-gray-700"
+                          >
+                            {field.label}{' '}
+                            <span className="text-xs text-gray-500">
+                              ({field.hours})
+                            </span>
+                          </label>
+                          <Input
+                            id={`journal-${field.key}`}
+                            name={`journal-${field.key}`}
+                            type="number"
+                            min="1"
+                            max="10"
+                            value={formData[field.key]}
+                            onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                [field.key]: e.target.value,
+                              })
+                            }
+                            placeholder="1-10"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      Optional. Rate how you felt in each part of the day to see
+                      your own rhythm in Analytics.
+                    </p>
+                  </fieldset>
+                )}
 
                 <div>
                   <label

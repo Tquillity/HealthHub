@@ -1,5 +1,8 @@
 'use client';
 
+import type { TimeOfDayEnergySummary } from '@/lib/circadian-data';
+import { JournalTimeOfDayEnergy } from './journal-time-of-day-energy';
+
 /**
  * JournalAnalytics Component
  * 
@@ -19,13 +22,25 @@ interface JournalAnalyticsProps {
     energy: number | null;
     sleepHours: number | null;
   }>;
+  /** Last 30 days of energy by time of day; null unless circadian insights are on. */
+  timeOfDayEnergy?: TimeOfDayEnergySummary | null;
 }
 
-export function JournalAnalytics({ entries }: JournalAnalyticsProps) {
+export function JournalAnalytics({
+  entries,
+  timeOfDayEnergy = null,
+}: JournalAnalyticsProps) {
+  const timeOfDaySection = timeOfDayEnergy ? (
+    <JournalTimeOfDayEnergy summary={timeOfDayEnergy} />
+  ) : null;
+
   if (entries.length === 0) {
     return (
-      <div className="text-center py-8">
-        <p className="text-gray-500">Not enough data for analytics. Log more entries to see trends.</p>
+      <div className="flex flex-col gap-6">
+        <div className="text-center py-8">
+          <p className="text-gray-500">Not enough data for analytics. Log more entries to see trends.</p>
+        </div>
+        {timeOfDaySection}
       </div>
     );
   }
@@ -211,6 +226,8 @@ export function JournalAnalytics({ entries }: JournalAnalyticsProps) {
           </div>
         </div>
       </div>
+
+      {timeOfDaySection}
     </div>
   );
 }

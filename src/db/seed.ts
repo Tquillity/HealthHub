@@ -23,6 +23,7 @@ import {
 import { PrismaClient, Prisma } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
+import { CIRCADIAN_RESOURCES } from './circadian-resources';
 
 // Get __dirname equivalent for ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -809,6 +810,8 @@ async function seed() {
           'https://images.unsplash.com/photo-1518977822534-7049a61ee0c2?w=800&h=400&fit=crop',
         featured: true,
       },
+      // Circadian insights: daily hormone rhythm, light, sleep, meal and training timing.
+      ...CIRCADIAN_RESOURCES,
     ];
 
     console.log(

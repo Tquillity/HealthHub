@@ -46,6 +46,7 @@ export async function buildAccountExport(userId: string) {
       briefingFrequency: true,
       briefingSources: true,
       briefingDetail: true,
+      enableCircadianInsights: true,
     },
   });
 
@@ -253,6 +254,10 @@ export async function buildAccountExport(userId: string) {
       // PRIVATE, or ORGANIZATION when you shared this day with a household or collective.
       visibility: entry.sharedOrganization ? entry.visibility : 'PRIVATE',
       sharedWith: entry.sharedOrganization,
+      // Energy check-ins by time of day (circadian insights), 1-10.
+      energyMorning: entry.energyMorning,
+      energyAfternoon: entry.energyAfternoon,
+      energyEvening: entry.energyEvening,
       createdAt: entry.createdAt,
       updatedAt: entry.updatedAt,
     })),
