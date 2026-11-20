@@ -44,6 +44,25 @@ describe('CircadianSettingsControls', () => {
     expect(active.attributes).not.toContain('aria-disabled="');
   });
 
+  it('makes the 44px row the label of the opt-in checkbox', () => {
+    const html = render(10);
+    const row = html.match(
+      /<label([^>]*)>\s*(<input[^>]*>)\s*<span>Show circadian insights<\/span>\s*<\/label>/
+    );
+    expect(row).not.toBeNull();
+    const [, label, input] = row!;
+    // The checkbox sits inside its label, so the whole row toggles it.
+    expect(label).toContain('min-h-[44px]');
+    expect(label).toContain('items-center');
+    expect(input).toContain('name="enable-circadian-insights"');
+    // Still described by the hint and the time zone line.
+    const describedBy = input.match(/aria-describedby="([^"]+)"/)?.[1] ?? '';
+    expect(describedBy.split(' ')).toHaveLength(2);
+    for (const id of describedBy.split(' ')) {
+      expect(html).toContain(`<p id="${id}"`);
+    }
+  });
+
   it('marks the opt-in checkbox busy with aria-disabled, not disabled', () => {
     const checkbox = render(10).match(/<input[^>]*type="checkbox"[^>]*>/)?.[0];
     expect(checkbox).toContain('aria-disabled:opacity-50');

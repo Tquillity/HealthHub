@@ -179,7 +179,8 @@ export function CircadianSettingsControls({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">
-        <div className="flex min-h-[44px] items-center gap-3">
+        {/* The whole 44px row is the label, so a tap anywhere on it toggles the box. */}
+        <label className="flex min-h-[44px] cursor-pointer items-center gap-3 text-sm font-medium text-gray-700">
           <input
             type="checkbox"
             id={`${id}-enable-circadian`}
@@ -188,15 +189,10 @@ export function CircadianSettingsControls({
             aria-disabled={saving || undefined}
             aria-describedby={`${hintId} ${zoneId}`}
             onChange={(e) => void changeEnabled(e.target.checked)}
-            className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-2 focus:ring-primary-600 aria-disabled:opacity-50"
+            className="h-4 w-4 shrink-0 rounded border-gray-300 text-primary-600 focus:ring-2 focus:ring-primary-600 aria-disabled:opacity-50"
           />
-          <label
-            htmlFor={`${id}-enable-circadian`}
-            className="text-sm font-medium text-gray-700"
-          >
-            Show circadian insights
-          </label>
-        </div>
+          <span>Show circadian insights</span>
+        </label>
         <p id={hintId} className="pl-7 text-xs text-gray-500">
           Adds a time-of-day card with a quick energy check-in to your
           dashboard, morning, afternoon and evening energy to your journal, and
