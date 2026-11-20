@@ -389,25 +389,25 @@ describe('buildDailyBriefing: missing data', () => {
   });
 
   it('does not claim no check-ins when energy is checked in by time of day only', () => {
-    // As loaded with circadian insights on: no journal entry, energy from the check-ins.
-    const energyOnly = (date: string, energy: number) =>
-      journalDay(date, { energy, checkIn: false, energyCheckIn: true });
+    // As loaded with circadian insights on: no journal entry and no daily energy rating,
+    // only time-of-day check-ins.
+    const energyOnly = (date: string) =>
+      journalDay(date, { checkIn: false, energyCheckIn: true });
     const briefing = buildDailyBriefing(
       input({
         journal: [
-          ...days('2026-11-01', '2026-11-14').map((date) => energyOnly(date, 7)),
-          ...days('2026-11-18', TODAY).map((date) => energyOnly(date, 2.5)),
+          ...days('2026-11-01', '2026-11-14').map(energyOnly),
+          ...days('2026-11-18', TODAY).map(energyOnly),
         ],
       })
     );
     expect(briefing.notes).toEqual([
-      'Your last 3 days have only energy check-ins by time of day, so mood, sleep and symptoms are not part of this briefing. Log them in your journal to make it more personal.',
+      'Your last 3 days have only energy check-ins by time of day, so mood, sleep, symptoms and your daily energy are not part of this briefing. Log them in your journal to make it more personal.',
     ]);
-    // Their energy counts: a week of low check-ins makes it a gentler day.
     expect(briefing.headline).toBe(
-      "A gentler day may suit you. Here's what your recent logs suggest."
+      'Check in with your journal to make your briefing more personal.'
     );
-    expect(keys(briefing)).toContain('routine.ease-intensity');
+    expect(keys(briefing)).toEqual([]);
   });
 
   it('ignores a single check-in and works without a logged period', () => {

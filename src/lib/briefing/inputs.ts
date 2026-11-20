@@ -59,7 +59,7 @@ async function loadJournalDays(
   userId: string,
   from: string,
   to: string,
-  /** Also note the days with a time-of-day energy check-in (circadian insights on). */
+  /** Also mark the days with a time-of-day energy check-in (circadian insights on). */
   timeOfDayEnergy: boolean
 ): Promise<BriefingJournalDay[]> {
   const rows = await prisma.journalEntry.findMany({
@@ -88,21 +88,13 @@ async function loadJournalDays(
   });
   return rows.map((row) => {
     const checkIn = isJournalCheckIn(row);
-    const ratings = timeOfDayEnergy
-      ? ENERGY_SLOTS.flatMap((slot) => {
-          const rating = row[ENERGY_SLOT_FIELDS[slot]];
-          return typeof rating === 'number' ? [rating] : [];
-        })
-      : [];
     return {
       date: toDateOnlyString(row.date),
       mood: row.mood,
-      // Same 1-10 scale: a day without a daily rating takes its check-ins by time of day.
-      energy:
-        row.energy ??
-        (ratings.length > 0
-          ? ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length
-          : null),
+      // The daily rating only. Check-ins by time of day do not stand in for it: energy
+      // normally differs by time of day, so a mean of whichever slots were rated would
+      // compare when someone checked in, not how their energy was.
+      energy: row.energy,
       sleepHours: row.sleepHours,
       symptoms: checkIn
         ? [
@@ -111,7 +103,11 @@ async function loadJournalDays(
           ]
         : [],
       checkIn,
-      energyCheckIn: ratings.length > 0,
+      energyCheckIn:
+        timeOfDayEnergy &&
+        ENERGY_SLOTS.some(
+          (slot) => typeof row[ENERGY_SLOT_FIELDS[slot]] === 'number'
+        ),
     };
   });
 }

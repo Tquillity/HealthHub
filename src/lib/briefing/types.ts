@@ -116,10 +116,7 @@ export type BriefingJournalDay = {
   date: string;
   /** Self-rated 1-10. */
   mood: number | null;
-  /**
-   * Self-rated 1-10. Without a daily rating, the mean of the day's time-of-day energy
-   * check-ins (same scale) while circadian insights are on.
-   */
+  /** Self-rated 1-10 for the day; never taken from the time-of-day check-ins. */
   energy: number | null;
   sleepHours: number | null;
   /** Physical and mental symptoms, decrypted. */

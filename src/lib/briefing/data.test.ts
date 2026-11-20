@@ -484,23 +484,23 @@ describe.skipIf(!isolated)(
         },
       });
       try {
-        // Only dashboard check-ins: about 7 for two weeks, 2-3 over the last 3 days.
-        // None for the afternoon (right now at 12:00 UTC), so only the trend counts.
+        // Only dashboard check-ins: 7 on four weeks of mornings, then 5 on two evenings (an
+        // ordinary evening dip) and 5 this morning. None for the afternoon (right now at
+        // 12:00 UTC). Rated at different times of day, so they say nothing about whether
+        // energy is down, and they never stand in for a daily energy rating.
         await client.journalEntry.createMany({
           data: [
-            ...days('2026-11-01', '2026-11-14').map((date) => ({
+            ...days('2026-10-21', '2026-11-17').map((date) => ({
               userId: tod.id,
               date: utcDay(date),
               energyMorning: 7,
-              energyAfternoon: 7,
             })),
             ...days('2026-11-18', '2026-11-19').map((date) => ({
               userId: tod.id,
               date: utcDay(date),
-              energyMorning: 3,
-              energyEvening: 2,
+              energyEvening: 5,
             })),
-            { userId: tod.id, date: utcDay(TODAY), energyMorning: 3 },
+            { userId: tod.id, date: utcDay(TODAY), energyMorning: 5 },
           ],
         });
         const briefing = async () => {
@@ -511,11 +511,17 @@ describe.skipIf(!isolated)(
 
         const on = await briefing();
         expect(on.notes).toEqual([
-          'Your last 3 days have only energy check-ins by time of day, so mood, sleep and symptoms are not part of this briefing. Log them in your journal to make it more personal.',
+          'Your last 3 days have only energy check-ins by time of day, so mood, sleep, symptoms and your daily energy are not part of this briefing. Log them in your journal to make it more personal.',
         ]);
         expect(on.headline).toBe(
-          "A gentler day may suit you. Here's what your recent logs suggest."
+          'Check in with your journal to make your briefing more personal.'
         );
+        expect(on.suggestions.map((s) => s.key)).not.toContain(
+          'routine.ease-intensity'
+        );
+        // The circadian card reads the same inputs, so it does not hold back either.
+        const { loadEasyDay } = await import('@/lib/easy-day');
+        expect(await loadEasyDay(tod.id, NOW)).toBe(false);
 
         await client.user.update({
           where: { id: tod.id },
