@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import { DashboardClient } from '@/components/dashboard/dashboard-client';
 import { VitalsCard } from '@/components/dashboard/vitals-card';
 import { DailyBriefingCard } from '@/components/dashboard/daily-briefing-card';
+import { CircadianCard } from '@/components/dashboard/circadian-card';
 import { getPremiumPomoDashboardSnapshot } from '@/actions/pomo-state';
 import { progressFromPomoPayload } from '@/lib/pomo/utils/pomo-server-progress';
 
@@ -72,6 +73,7 @@ export default async function DashboardPage() {
         focusGoalProgress={focusGoalProgress}
       />
       <VitalsCard userId={session.user.id} />
+      <CircadianCard userId={session.user.id} />
     </div>
   );
 }
