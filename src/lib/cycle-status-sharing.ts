@@ -186,6 +186,36 @@ export function describeShareChange(household: CycleShareHousehold, cycleConfigu
   return `${listNames(seen)} now ${seen.length === 1 ? 'sees' : 'see'} your cycle status: ${label}.`;
 }
 
+/** The user's own share with one household, for that household's page (support-status.ts). */
+export type OwnCycleShare = {
+  household: CycleShareHousehold;
+  /** Cycle tracking is on and a last period date is set; a share shows nothing without both. */
+  cycleConfigured: boolean;
+};
+
+/**
+ * Who actually sees an existing share, for the household's privacy card: the level alone would
+ * suggest that everyone there sees it. Empty when nothing is shared.
+ */
+export function describeShareReach(
+  household: CycleShareHousehold,
+  cycleConfigured: boolean
+): string {
+  if (!household.share) return '';
+  if (!cycleConfigured) {
+    return 'Nobody sees it until cycle tracking and your last period date are set.';
+  }
+  if (household.members.length === 0) {
+    return 'Nobody else is in this household yet. People who join later see nothing until you include them.';
+  }
+  const seen = household.members.filter((member) => member.seesStatus).map((member) => member.name);
+  const later = membersNotYetIncluded(household);
+  const seenText = seen.length > 0 ? `Seen by ${listNames(seen)}.` : 'Nobody here sees it yet.';
+  if (later.length === 0) return seenText;
+  const verb = later.length === 1 ? 'sees' : 'see';
+  return `${seenText} ${listNames(later)} joined later and ${verb} nothing until you include them.`;
+}
+
 /** Who sees the status in this household, or would see it if the user shared. */
 export function describeAudience(household: CycleShareHousehold): string {
   const { name, members, share } = household;

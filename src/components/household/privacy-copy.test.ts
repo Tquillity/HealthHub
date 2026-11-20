@@ -1,7 +1,8 @@
 import { createElement, type ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { CycleShareLevel, OrganizationType } from '@prisma/client';
+import type { OrganizationType } from '@prisma/client';
+import type { CycleShareHousehold, OwnCycleShare, SharedLevel } from '@/lib/cycle-status-sharing';
 
 /**
  * What the invitation and household screens say about the journal and cycle (finding 10 of
@@ -38,19 +39,58 @@ const text = (html: string) =>
 const JOINING_SHARES_NOTHING = 'Joining shares nothing from your journal or cycle.';
 
 describe('OrgPrivacyCard', () => {
-  const render = (type: OrganizationType, yourCycleShareLevel?: CycleShareLevel) =>
-    text(renderToStaticMarkup(createElement(OrgPrivacyCard, { type, yourCycleShareLevel })));
+  const robin = { name: 'Robin Partner', seesStatus: true };
+  const carol = { name: 'Carol Later', seesStatus: false };
+  const shareOf = (
+    level: SharedLevel | null,
+    members: CycleShareHousehold['members'] = [robin],
+    cycleConfigured = true
+  ): OwnCycleShare => ({
+    household: {
+      id: 'org_home',
+      name: 'Our home',
+      share: level && { level, coversMembersJoinedBy: '2026-11-01T00:00:00.000Z' },
+      members,
+      listedMembersJoinedBy: '2026-11-01T00:00:00.000Z',
+    },
+    cycleConfigured,
+  });
+  const render = (type: OrganizationType, yourCycleShare?: OwnCycleShare | null) =>
+    text(renderToStaticMarkup(createElement(OrgPrivacyCard, { type, yourCycleShare })));
 
-  it('says you share your cycle status with this household, and at which level', () => {
-    const html = render('HOUSEHOLD', 'ENERGY');
-    expect(html).toContain('You share your cycle status with this household: Phase and energy.');
+  it('says you share your cycle status with this household, at which level and who sees it', () => {
+    const html = render('HOUSEHOLD', shareOf('ENERGY'));
+    expect(html).toContain(
+      'You share your cycle status with this household: Phase and energy. Seen by Robin Partner.'
+    );
     expect(html).toContain('Change or stop it in Profile');
     expect(html).not.toContain('Private.');
   });
 
+  it('does not suggest that members who joined later see the share', () => {
+    expect(render('HOUSEHOLD', shareOf('PHASE', [robin, carol]))).toContain(
+      'Phase only. Seen by Robin Partner. Carol Later joined later and sees nothing until you include them.'
+    );
+    // Shared before the partner joined: nobody there sees it.
+    expect(render('HOUSEHOLD', shareOf('FULL', [carol]))).toContain(
+      'Full status. Nobody here sees it yet. Carol Later joined later and sees nothing until you include them.'
+    );
+    expect(render('HOUSEHOLD', shareOf('FULL', []))).toContain(
+      'Full status. Nobody else is in this household yet. People who join later see nothing until you include them.'
+    );
+  });
+
+  it('says nobody sees the share while cycle tracking is not set up', () => {
+    const html = render('HOUSEHOLD', shareOf('FULL', [robin], false));
+    expect(html).toContain(
+      'Full status. Nobody sees it until cycle tracking and your last period date are set.'
+    );
+    expect(html).not.toContain('Seen by');
+  });
+
   it('calls the cycle private in a household only when you do not share it there', () => {
-    for (const level of [undefined, 'NONE'] as const) {
-      const html = render('HOUSEHOLD', level);
+    for (const share of [undefined, null, shareOf(null)]) {
+      const html = render('HOUSEHOLD', share);
       expect(html).toContain(
         'Private. You can share a single journal day, or your cycle status, with this household, and stop any time.'
       );
@@ -60,7 +100,7 @@ describe('OrgPrivacyCard', () => {
 
   it('links to the cycle sharing settings with a full-size target', () => {
     const html = renderToStaticMarkup(
-      createElement(OrgPrivacyCard, { type: 'HOUSEHOLD', yourCycleShareLevel: 'FULL' })
+      createElement(OrgPrivacyCard, { type: 'HOUSEHOLD', yourCycleShare: shareOf('FULL') })
     );
     const link = html.match(/<a[^>]*href="\/profile#cycle-sharing"[^>]*>/)?.[0];
     expect(link).toBeDefined();
@@ -69,7 +109,7 @@ describe('OrgPrivacyCard', () => {
 
   it('never claims a share where cycle status is not shown', () => {
     for (const type of ['COLLECTIVE', 'COMMUNITY', 'CORPORATE'] as const) {
-      const html = render(type, 'FULL');
+      const html = render(type, shareOf('FULL'));
       expect(html).not.toContain('You share your cycle status');
       expect(html).not.toContain('/profile#cycle-sharing');
     }

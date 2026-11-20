@@ -7,6 +7,7 @@ import {
   CYCLE_SHARE_LEVEL_INFO,
   describeAudience,
   describeShareChange,
+  describeShareReach,
   firstNameOf,
   getEffectiveShareLevel,
   getTimeOfDay,
@@ -423,6 +424,38 @@ describe('who a share covers', () => {
     expect(describeAudience(household({ members: [] }))).toBe('Nobody else is in Our home yet.');
     expect(describeAudience(household({ members: [], share: shared }))).toBe(
       'Nobody else is in Our home yet. People who join later see nothing until you include them.'
+    );
+  });
+
+  it('says who actually sees an existing share, for the household page', () => {
+    expect(describeShareReach(household(), true)).toBe('');
+    const robinSees = [
+      { name: 'Robin Partner', seesStatus: true },
+      { name: 'Sam Lodger', seesStatus: true },
+    ];
+    expect(describeShareReach(household({ share: shared, members: robinSees }), true)).toBe(
+      'Seen by Robin Partner and Sam Lodger.'
+    );
+    expect(
+      describeShareReach(
+        household({
+          share: shared,
+          members: [
+            { name: 'Robin Partner', seesStatus: true },
+            { name: 'Carol Later', seesStatus: false },
+          ],
+        }),
+        true
+      )
+    ).toBe('Seen by Robin Partner. Carol Later joined later and sees nothing until you include them.');
+    expect(describeShareReach(household({ share: shared }), true)).toBe(
+      'Nobody here sees it yet. Robin Partner and Sam Lodger joined later and see nothing until you include them.'
+    );
+    expect(describeShareReach(household({ share: shared, members: [] }), true)).toBe(
+      'Nobody else is in this household yet. People who join later see nothing until you include them.'
+    );
+    expect(describeShareReach(household({ share: shared, members: robinSees }), false)).toBe(
+      'Nobody sees it until cycle tracking and your last period date are set.'
     );
   });
 

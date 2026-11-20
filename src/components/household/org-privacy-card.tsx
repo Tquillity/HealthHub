@@ -1,8 +1,12 @@
-import type { CycleShareLevel, OrganizationType } from '@prisma/client';
+import type { OrganizationType } from '@prisma/client';
 import Link from 'next/link';
 import { BookLock, ShoppingCart, Users, UtensilsCrossed } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { CYCLE_SHARE_LEVEL_INFO } from '@/lib/cycle-status-sharing';
+import {
+  CYCLE_SHARE_LEVEL_INFO,
+  describeShareReach,
+  type OwnCycleShare,
+} from '@/lib/cycle-status-sharing';
 import { getOrgPolicy, MIN_AGGREGATE_GROUP_SIZE } from '@/lib/org-policy';
 
 type Row = {
@@ -14,21 +18,21 @@ type Row = {
 
 /**
  * Plain-language summary of what this space shares, from the org-policy rules. In a household
- * it also says whether the viewer shares their own cycle status here (`yourCycleShareLevel`,
- * the share for this space; NONE or left out when they do not).
+ * it also says whether the viewer shares their own cycle status here, at which level and who
+ * actually sees it (`yourCycleShare`, for this space; null or left out when there is none).
  */
 export function OrgPrivacyCard({
   type,
-  yourCycleShareLevel = 'NONE',
+  yourCycleShare = null,
   className,
 }: {
   type: OrganizationType;
-  yourCycleShareLevel?: CycleShareLevel;
+  yourCycleShare?: OwnCycleShare | null;
   className?: string;
 }) {
   const policy = getOrgPolicy(type);
-  const sharingCycleHere =
-    policy.cycleStatusSharing === 'opt-in' && yourCycleShareLevel !== 'NONE';
+  const ownShare =
+    policy.cycleStatusSharing === 'opt-in' ? (yourCycleShare?.household.share ?? null) : null;
 
   let journalAndCycle: Row;
   if (policy.individualSharing !== 'opt-in') {
@@ -43,11 +47,12 @@ export function OrgPrivacyCard({
       title: 'Journal and cycle',
       text: 'Private. You can share a single journal day here if you want to, and stop sharing any time. Cycle status is only ever shown to households.',
     };
-  } else if (sharingCycleHere) {
+  } else if (ownShare && yourCycleShare) {
+    const reach = describeShareReach(yourCycleShare.household, yourCycleShare.cycleConfigured);
     journalAndCycle = {
       icon: BookLock,
       title: 'Journal and cycle',
-      text: `Your journal stays private unless you share a day. You share your cycle status with this household: ${CYCLE_SHARE_LEVEL_INFO[yourCycleShareLevel].label}.`,
+      text: `Your journal stays private unless you share a day. You share your cycle status with this household: ${CYCLE_SHARE_LEVEL_INFO[ownShare.level].label}. ${reach}`,
       link: { href: '/profile#cycle-sharing', label: 'Change or stop it in Profile' },
     };
   } else {

@@ -15,6 +15,7 @@ import {
   timeOfDayIn,
   type CycleShareHousehold,
   type CycleSnapshot,
+  type OwnCycleShare,
   type ProjectedCycleStatus,
   type SetCycleStatusShareInput,
   type SharedLevel,
@@ -49,7 +50,7 @@ type CycleFields = {
   cycleLength: number;
 };
 
-function isCycleConfigured(user: CycleFields): boolean {
+function isCycleConfigured(user: Omit<CycleFields, 'cycleLength'>): boolean {
   return user.enableCycleTracking && user.lastPeriodDate !== null;
 }
 
@@ -218,16 +219,23 @@ export async function getCycleSharingPanelData(
   };
 }
 
-/** The level the user shares with one household; NONE when there is no share. */
-export async function getCycleShareLevel(
+/**
+ * The user's own share with one household, with who sees it, for that household's page. Null
+ * when the user is not a member or the space is not a household (nothing can be shared there).
+ */
+export async function getOwnCycleShare(
   userId: string,
   organizationId: string
-): Promise<CycleShareLevel> {
-  const share = await prisma.cycleStatusShare.findUnique({
-    where: { userId_organizationId: { userId, organizationId } },
-    select: { level: true },
-  });
-  return share?.level ?? 'NONE';
+): Promise<OwnCycleShare | null> {
+  const [[household], user] = await Promise.all([
+    getShareHouseholds(userId, organizationId),
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { enableCycleTracking: true, lastPeriodDate: true },
+    }),
+  ]);
+  if (!household || !user) return null;
+  return { household, cycleConfigured: isCycleConfigured(user) };
 }
 
 export type CycleShareUpdate = {

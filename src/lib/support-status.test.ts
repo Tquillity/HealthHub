@@ -482,8 +482,22 @@ describe.skipIf(!isolated)('support status against isolated PostgreSQL', () => {
       // 10:00 UTC is 12:00 in Stockholm.
       timeOfDay: 'afternoon',
     });
-    expect(await lib.getCycleShareLevel(full.id, home)).toBe('FULL');
-    expect(await lib.getCycleShareLevel(full.id, otherHome)).toBe('NONE');
+    // The household page's view of the user's own share there.
+    expect(await lib.getOwnCycleShare(full.id, home)).toEqual({
+      household: ours,
+      cycleConfigured: true,
+    });
+    expect(await lib.getOwnCycleShare(full.id, otherHome)).toEqual({
+      household: parents,
+      cycleConfigured: true,
+    });
+    expect(await lib.getOwnCycleShare(noTracking.id, home)).toMatchObject({
+      household: { id: home, share: { level: 'FULL' } },
+      cycleConfigured: false,
+    });
+    // Not a household (whatever the rows say), or not a member: nothing to show.
+    expect(await lib.getOwnCycleShare(full.id, collective)).toBeNull();
+    expect(await lib.getOwnCycleShare(full.id, elsewhere)).toBeNull();
     expect(await lib.getCycleSharingPanelData(`missing-${run}`, now)).toBeNull();
   });
 

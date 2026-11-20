@@ -23,7 +23,7 @@ const mocks = vi.hoisted(() => ({
   userFindUnique: vi.fn(),
   householdData: vi.fn(),
   sharedJournalEntries: vi.fn(),
-  cycleShareLevel: vi.fn(),
+  ownCycleShare: vi.fn(),
 }));
 
 /** Stand-in for a client component; the tests only look at the props a page passes. */
@@ -91,7 +91,7 @@ vi.mock('@/components/routines/routine-filters', () => ({
 vi.mock('@/components/recipes/recipe-form', () => ({ RecipeForm: stub('RecipeForm') }));
 vi.mock('@/lib/household-management', () => ({ getHouseholdData: mocks.householdData }));
 vi.mock('@/lib/journal-sharing', () => ({ getSharedJournalEntries: mocks.sharedJournalEntries }));
-vi.mock('@/lib/support-status', () => ({ getCycleShareLevel: mocks.cycleShareLevel }));
+vi.mock('@/lib/support-status', () => ({ getOwnCycleShare: mocks.ownCycleShare }));
 vi.mock('@/components/household/member-list', () => ({ MemberList: stub('MemberList') }));
 vi.mock('@/components/household/invite-form', () => ({ InviteForm: stub('InviteForm') }));
 vi.mock('@/components/household/pending-invitations', () => ({
@@ -348,19 +348,23 @@ describe('household page', () => {
 
   beforeEach(() => {
     mocks.sharedJournalEntries.mockResolvedValue([]);
-    mocks.cycleShareLevel.mockResolvedValue('NONE');
+    mocks.ownCycleShare.mockResolvedValue(null);
   });
 
   it("tells the privacy card what you share with the space it shows, and nothing else's", async () => {
     mocks.householdData.mockResolvedValue(household('family', 'Family'));
-    mocks.cycleShareLevel.mockImplementation(async (_userId: string, organizationId: string) =>
-      organizationId === 'family' ? 'ENERGY' : 'FULL'
+    const shareIn = (organizationId: string) => ({
+      household: { id: organizationId, share: { level: 'ENERGY' } },
+      cycleConfigured: true,
+    });
+    mocks.ownCycleShare.mockImplementation(async (_userId: string, organizationId: string) =>
+      shareIn(organizationId)
     );
     const page = await HouseholdPage();
-    expect(mocks.cycleShareLevel).toHaveBeenCalledWith('user-1', 'family');
+    expect(mocks.ownCycleShare).toHaveBeenCalledWith('user-1', 'family');
     expect(findOne(page, OrgPrivacyCard).props).toMatchObject({
       type: 'HOUSEHOLD',
-      yourCycleShareLevel: 'ENERGY',
+      yourCycleShare: shareIn('family'),
     });
   });
 

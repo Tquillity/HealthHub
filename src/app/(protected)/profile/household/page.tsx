@@ -4,7 +4,7 @@ import { ChevronLeft } from 'lucide-react';
 import { getServerSession } from '@/lib/session';
 import { getHouseholdData } from '@/lib/household-management';
 import { getSharedJournalEntries } from '@/lib/journal-sharing';
-import { getCycleShareLevel } from '@/lib/support-status';
+import { getOwnCycleShare } from '@/lib/support-status';
 import { canManage } from '@/lib/org-roles';
 import { PageHeader } from '@/components/ui/page-header';
 import { OrgTypeBadge, RoleBadge } from '@/components/household/org-badges';
@@ -40,9 +40,9 @@ export default async function HouseholdPage() {
   const household = result.data;
   const { organization } = household;
   const isManager = canManage(household.currentUserRole);
-  const [sharedEntries, yourCycleShareLevel] = await Promise.all([
+  const [sharedEntries, yourCycleShare] = await Promise.all([
     getSharedJournalEntries(session.user.id, organization.id),
-    getCycleShareLevel(session.user.id, organization.id),
+    getOwnCycleShare(session.user.id, organization.id),
   ]);
 
   return (
@@ -77,7 +77,7 @@ export default async function HouseholdPage() {
           currentUserRole={household.currentUserRole}
           organizationName={organization.name}
         />
-        <OrgPrivacyCard type={organization.type} yourCycleShareLevel={yourCycleShareLevel} />
+        <OrgPrivacyCard type={organization.type} yourCycleShare={yourCycleShare} />
 
         {isManager && (
           <>
