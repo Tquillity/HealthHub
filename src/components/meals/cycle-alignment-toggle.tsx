@@ -5,8 +5,9 @@ import type { GeneratorCycleOptions } from '@/lib/meal-cycle-alignment';
 
 /**
  * "Align with cycle phase" switch for the Meal Plan Generator. Rendered only for people
- * who track their cycle; disabled (with a pointer to the profile) until a last period
- * start date exists.
+ * who track their cycle, in households; disabled (with a pointer to the profile) until a
+ * last period start date exists. Off unless the user turned it on: the plan it fills is
+ * shared, and the note under it says so.
  */
 export function CycleAlignmentToggle({
   options,
@@ -30,7 +31,7 @@ export function CycleAlignmentToggle({
           checked={enabled && checked}
           disabled={!enabled}
           onChange={(event) => onCheckedChange(event.target.checked)}
-          aria-describedby="meal-plan-align-cycle-hint"
+          aria-describedby="meal-plan-align-cycle-hint meal-plan-align-cycle-visibility"
           className="h-5 w-5 shrink-0 cursor-pointer rounded border-gray-300 text-primary-600 focus:ring-2 focus:ring-primary-600 disabled:cursor-not-allowed"
         />
         <label
@@ -56,6 +57,10 @@ export function CycleAlignmentToggle({
             to use this.
           </>
         )}
+      </p>
+      <p id="meal-plan-align-cycle-visibility" className="text-xs text-gray-500">
+        Other members of this space can see the planned meals, and the pattern may hint at
+        your phase.
       </p>
     </div>
   );

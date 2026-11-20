@@ -3,4 +3,4 @@ ALTER TABLE "recipe" ADD COLUMN     "nutrientHighlights" TEXT[] DEFAULT ARRAY[]:
 ADD COLUMN     "phaseTags" TEXT[] DEFAULT ARRAY[]::TEXT[];
 
 -- AlterTable
-ALTER TABLE "user" ADD COLUMN     "alignMealsWithCycle" BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE "user" ADD COLUMN     "alignMealsWithCycle" BOOLEAN NOT NULL DEFAULT false;

@@ -17,7 +17,7 @@ import { differenceInCalendarDays } from 'date-fns';
 import { getMealPlannerCycleData } from '@/lib/meal-cycle-alignment';
 
 export default async function MealPlannerPage() {
-  const { plan, recipes, duration, startDate, endDate, useDefaultStart } =
+  const { plan, organizationType, recipes, duration, startDate, endDate, useDefaultStart } =
     await getWeeklyPlan();
   const profileResult = await getProfile();
 
@@ -29,12 +29,17 @@ export default async function MealPlannerPage() {
   // Changes go to the space this plan belongs to, even if another tab switches spaces.
   const { organizationId } = plan;
 
-  // The viewer's own cycle data only (Biological Fueling, issue #2)
-  const cycle = await getMealPlannerCycleData(user.id, {
-    startDate,
-    days: differenceInCalendarDays(endDate, startDate) + 1,
-    recipeIds: plan.items.map((item) => item.recipeId),
-  });
+  // The viewer's own cycle data only (Biological Fueling, issue #2). The generator offers
+  // cycle alignment in households only: the plan it fills is shared.
+  const cycle = await getMealPlannerCycleData(
+    user.id,
+    {
+      startDate,
+      days: differenceInCalendarDays(endDate, startDate) + 1,
+      recipeIds: plan.items.map((item) => item.recipeId),
+    },
+    organizationType
+  );
 
   return (
     <div className="flex h-full flex-col p-6">

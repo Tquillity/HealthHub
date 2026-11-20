@@ -28,7 +28,8 @@ export function MealPlanGenerator({
   const [showDialog, setShowDialog] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [alignWithCycle, setAlignWithCycle] = useState(cycleOptions?.alignByDefault ?? true);
+  // Opt-in: starts from the saved choice, which is off until the user turns it on.
+  const [alignWithCycle, setAlignWithCycle] = useState(cycleOptions?.alignByDefault ?? false);
   const [result, setResult] = useState<{
     message: string;
     phases: PhaseAlignmentSummary[];

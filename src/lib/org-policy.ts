@@ -122,6 +122,17 @@ export function canShowIndividualCycleStatus(
   return ORG_POLICIES[type].cycleStatusSharing === 'opt-in' && options.sharerOptedIn;
 }
 
+/**
+ * For cycle-aware meal planning (#2): may the Meal Plan Generator favor recipes for the
+ * generating person's estimated cycle phase when it fills this organization's plan? The plan
+ * is shared, and its day-by-day picks can hint at that person's phase, so this is a cycle
+ * disclosure like partner sync: households only. The person must also turn it on
+ * (User.alignMealsWithCycle, off by default); callers check that.
+ */
+export function canAlignMealPlanWithCycle(type: OrganizationType): boolean {
+  return ORG_POLICIES[type].cycleStatusSharing === 'opt-in';
+}
+
 /** Organization types where people may show their cycle status (households only). */
 export const CYCLE_STATUS_ORG_TYPES: OrganizationType[] = ORGANIZATION_TYPES.filter(
   (type) => ORG_POLICIES[type].cycleStatusSharing === 'opt-in'

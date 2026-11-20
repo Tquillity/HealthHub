@@ -1,12 +1,16 @@
 import { randomUUID } from 'node:crypto';
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 
 const session = vi.hoisted(() => vi.fn());
+const cookies = vi.hoisted(() => vi.fn());
 
 vi.mock('@/lib/session', () => ({ requireSessionUserId: session }));
+// The action takes the space the page was rendered for; the active-space cookie must never
+// be read (another tab may have switched it, and a DB test has no request scope).
+vi.mock('next/headers', () => ({ cookies }));
 vi.mock('next/cache', () => ({
   revalidatePath: vi.fn(),
   revalidateTag: vi.fn(),
@@ -27,9 +31,17 @@ describe.skipIf(!isolated)('generateMealPlan against isolated PostgreSQL', () =>
   const me = { id: `bio-me-${run}`, email: `bio-me-${run}@example.com` };
   const housemate = { id: `bio-mate-${run}`, email: `bio-mate-${run}@example.com` };
   const household = `bio-household-${run}`;
+  // Spaces where a plan aligned with one person's cycle is not allowed
+  const otherSpaces = {
+    COLLECTIVE: `bio-collective-${run}`,
+    COMMUNITY: `bio-club-${run}`,
+    CORPORATE: `bio-office-${run}`,
+  } as const;
+  const newcomer = { id: `bio-new-${run}`, email: `bio-new-${run}@example.com` };
   let pool: Pool;
   let client: PrismaClient;
   let generateMealPlan: (typeof import('./meal-auto-fill'))['generateMealPlan'];
+  let CYCLE_ALIGNMENT_HOUSEHOLD_ONLY_ERROR: string;
 
   const signIn = (userId: string) => session.mockResolvedValue({ ok: true, userId });
   const savedChoice = async (userId: string) =>
@@ -44,6 +56,7 @@ describe.skipIf(!isolated)('generateMealPlan against isolated PostgreSQL', () =>
     pool = new Pool({ connectionString: process.env.DATABASE_URL });
     client = new PrismaClient({ adapter: new PrismaPg(pool) });
     ({ generateMealPlan } = await import('./meal-auto-fill'));
+    ({ CYCLE_ALIGNMENT_HOUSEHOLD_ONLY_ERROR } = await import('@/lib/meal-cycle-alignment'));
 
     await client.user.create({
       data: {
@@ -65,45 +78,125 @@ describe.skipIf(!isolated)('generateMealPlan against isolated PostgreSQL', () =>
         lastPeriodDate: new Date(Date.UTC(2027, 0, 3)),
       },
     });
+    // Created like sign-up does: no cycle alignment choice made yet
+    await client.user.create({
+      data: {
+        ...newcomer,
+        name: 'Newcomer',
+        enableCycleTracking: true,
+        cycleLength: 28,
+        lastPeriodDate: new Date(Date.UTC(2026, 11, 20)),
+      },
+    });
     await client.organization.create({
       data: { id: household, name: 'Bio home', slug: household },
     });
+    for (const [type, id] of Object.entries(otherSpaces)) {
+      await client.organization.create({
+        data: { id, name: `Bio ${type}`, slug: id, type: type as keyof typeof otherSpaces },
+      });
+    }
     await client.member.createMany({
       data: [
         { id: `bm1-${run}`, organizationId: household, userId: me.id, role: 'owner' },
         { id: `bm2-${run}`, organizationId: household, userId: housemate.id, role: 'member' },
+        { id: `bm3-${run}`, organizationId: household, userId: newcomer.id, role: 'member' },
+        ...Object.values(otherSpaces).map((organizationId, index) => ({
+          id: `bm-other-${index}-${run}`,
+          organizationId,
+          userId: me.id,
+          role: 'member',
+        })),
       ],
     });
-    const recipe = (name: string, phaseTags: string[], nutrientHighlights: string[]) => ({
-      id: `bio-${name}-${run}`,
+    const recipe = (
+      name: string,
+      phaseTags: string[],
+      nutrientHighlights: string[],
+      organizationId = household
+    ) => ({
+      id: `bio-${name}-${organizationId}-${run}`,
       name,
       cuisine,
       servings: 2,
-      organizationId: household,
+      organizationId,
       phaseTags,
       nutrientHighlights,
     });
     await client.recipe.createMany({
-      data: [
-        recipe('luteal-bowl', ['luteal'], ['magnesium', 'complex-carbs']),
-        recipe('menstrual-stew', ['menstrual'], ['iron']),
-        recipe('plain-toast', [], []),
-      ],
+      data: [household, ...Object.values(otherSpaces)].flatMap((organizationId) => [
+        recipe('luteal-bowl', ['luteal'], ['magnesium', 'complex-carbs'], organizationId),
+        recipe('menstrual-stew', ['menstrual'], ['iron'], organizationId),
+        recipe('plain-toast', [], [], organizationId),
+      ]),
     });
   });
 
   afterAll(async () => {
-    await client.organization.deleteMany({ where: { id: household } });
+    await client.organization.deleteMany({
+      where: { id: { in: [household, ...Object.values(otherSpaces)] } },
+    });
     await client.recipe.deleteMany({ where: { cuisine } });
-    await client.user.deleteMany({ where: { id: { in: [me.id, housemate.id] } } });
+    await client.user.deleteMany({
+      where: { id: { in: [me.id, housemate.id, newcomer.id] } },
+    });
     await client.$disconnect();
     await pool.end();
   });
 
   beforeEach(() => {
     session.mockReset();
+    cookies.mockReset();
+    cookies.mockRejectedValue(new Error('cookies() read in a space-scoped write'));
     vi.spyOn(console, 'error').mockImplementation(() => {});
   });
+
+  afterEach(() => {
+    expect(cookies).not.toHaveBeenCalled();
+  });
+
+  it('starts with cycle alignment off: it is opt-in', async () => {
+    expect(await savedChoice(newcomer.id)).toBe(false);
+
+    signIn(newcomer.id);
+    const result = await generateMealPlan(household, {
+      weekStart: '2027-03-01',
+      cuisinePreferences: [cuisine],
+    });
+    expect(result.success).toBe(true);
+    expect(result.data?.cycleAlignment).toBeNull();
+    expect(await savedChoice(newcomer.id)).toBe(false);
+  });
+
+  it.each(Object.entries(otherSpaces))(
+    'refuses to align a %s plan with the cycle and writes nothing',
+    async (_type, space) => {
+      signIn(me.id);
+      await client.user.update({ where: { id: me.id }, data: { alignMealsWithCycle: true } });
+
+      const refused = await generateMealPlan(space, {
+        weekStart: '2027-03-08',
+        cuisinePreferences: [cuisine],
+        alignWithCycle: true,
+      });
+      expect(refused).toEqual({
+        success: false,
+        error: CYCLE_ALIGNMENT_HOUSEHOLD_ONLY_ERROR,
+      });
+      expect(
+        await client.mealPlanItem.count({ where: { mealPlan: { organizationId: space } } })
+      ).toBe(0);
+
+      // The household choice saved earlier is not applied here
+      const plain = await generateMealPlan(space, {
+        weekStart: '2027-03-08',
+        cuisinePreferences: [cuisine],
+      });
+      expect(plain.success).toBe(true);
+      expect(plain.data).toEqual({ generated: 21, cycleAlignment: null });
+      expect(await savedChoice(me.id)).toBe(true);
+    }
+  );
 
   it("explains the plan with the generating person's own phases", async () => {
     signIn(me.id);
@@ -133,7 +226,11 @@ describe.skipIf(!isolated)('generateMealPlan against isolated PostgreSQL', () =>
       }),
     ]);
     const stored = await client.mealPlanItem.count({
-      where: { mealPlan: { organizationId: household } },
+      where: {
+        mealPlan: { organizationId: household },
+        // Planned on the server's calendar: local midnight of each day of that week
+        date: { gte: new Date(2027, 0, 4), lte: new Date(2027, 0, 10) },
+      },
     });
     expect(stored).toBe(21);
     expect(await savedChoice(me.id)).toBe(true);

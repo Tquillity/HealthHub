@@ -4,6 +4,7 @@ import {
   applyGroceryPrivacy,
   canShareJournalWith,
   canShowAggregate,
+  canAlignMealPlanWithCycle,
   canShowIndividualCycleStatus,
   canViewSharedJournals,
   CYCLE_STATUS_ORG_TYPES,
@@ -74,6 +75,16 @@ describe('canShowIndividualCycleStatus (partner sync)', () => {
     expect(canShowIndividualCycleStatus('COLLECTIVE', { sharerOptedIn: true })).toBe(false);
     expect(canShareJournalWith('COLLECTIVE')).toBe(true);
     expect(CYCLE_STATUS_ORG_TYPES).toEqual(['HOUSEHOLD']);
+  });
+});
+
+describe('canAlignMealPlanWithCycle (cycle-aware meal planning)', () => {
+  it("allows a plan aligned with one person's cycle in households only", () => {
+    expect(canAlignMealPlanWithCycle('HOUSEHOLD')).toBe(true);
+    // The shared plan would hint at the person's phase to a wider circle
+    expect(canAlignMealPlanWithCycle('COLLECTIVE')).toBe(false);
+    expect(canAlignMealPlanWithCycle('COMMUNITY')).toBe(false);
+    expect(canAlignMealPlanWithCycle('CORPORATE')).toBe(false);
   });
 });
 

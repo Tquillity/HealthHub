@@ -1,8 +1,9 @@
 import { addDays, format } from 'date-fns';
-import type { Prisma } from '@prisma/client';
+import type { OrganizationType, Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { getPhaseForDateKey, type CyclePhase } from '@/lib/cycle-calculator';
 import { isDateOnlyString, toDateOnlyString } from '@/lib/date-only';
+import { canAlignMealPlanWithCycle } from '@/lib/org-policy';
 import { resolveRecipeBioProfile, type RecipeBioProfile } from '@/lib/phase-nutrition';
 
 /**
@@ -13,7 +14,14 @@ import { resolveRecipeBioProfile, type RecipeBioProfile } from '@/lib/phase-nutr
  * take from the session) and never another member's. The client receives estimated
  * phases for the viewer's own calendar days, nothing else about the cycle: no last
  * period date, no cycle length.
+ *
+ * Aligning a generated plan with the cycle is different: the picks land in the space's
+ * shared plan. It is opt-in and offered in households only (canAlignMealPlanWithCycle).
  */
+
+/** "Align with cycle phase" was sent for a space that is not a household. */
+export const CYCLE_ALIGNMENT_HOUSEHOLD_ONLY_ERROR =
+  'Cycle alignment is only available in a household. Turn it off to plan meals here.';
 
 export const mealCycleSettingsSelect = {
   enableCycleTracking: true,
@@ -76,11 +84,16 @@ export interface GeneratorCycleOptions {
   alignByDefault: boolean;
 }
 
-/** Null hides all cycle UI: the user does not track their cycle. */
+/**
+ * Null hides the toggle: the user does not track their cycle, or the plan belongs to a
+ * space where a plan aligned with one person's cycle is not allowed (not a household).
+ */
 export function toGeneratorCycleOptions(
-  settings: MealCycleSettings | null | undefined
+  settings: MealCycleSettings | null | undefined,
+  organizationType: OrganizationType
 ): GeneratorCycleOptions | null {
   if (!settings?.enableCycleTracking) return null;
+  if (!canAlignMealPlanWithCycle(organizationType)) return null;
   return {
     canAlign: hasCycleEstimate(settings),
     alignByDefault: settings.alignMealsWithCycle,
@@ -97,6 +110,7 @@ export interface MealBoardBiology {
 
 export interface MealPlannerCycleData {
   generator: GeneratorCycleOptions | null;
+  /** Rendered for the viewer only, so badges show in every kind of space. */
   board: MealBoardBiology | null;
 }
 
@@ -117,14 +131,16 @@ export function boardDateKeys(startDate: Date, days: number): string[] {
 
 /**
  * Cycle data for the meal planner page of `userId` (the signed-in viewer).
- * `recipeIds` are the recipes planned on the board the viewer is looking at.
+ * `recipeIds` are the recipes planned on the board the viewer is looking at, and
+ * `organizationType` is the type of the space that board belongs to.
  */
 export async function getMealPlannerCycleData(
   userId: string,
-  window: { startDate: Date; days: number; recipeIds: readonly string[] }
+  window: { startDate: Date; days: number; recipeIds: readonly string[] },
+  organizationType: OrganizationType
 ): Promise<MealPlannerCycleData> {
   const settings = await getMealCycleSettings(userId);
-  const generator = toGeneratorCycleOptions(settings);
+  const generator = toGeneratorCycleOptions(settings, organizationType);
   if (!hasCycleEstimate(settings)) return { generator, board: null };
 
   const recipeIds = [...new Set(window.recipeIds)];

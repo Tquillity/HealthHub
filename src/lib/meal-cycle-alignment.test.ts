@@ -37,14 +37,14 @@ describe('hasCycleEstimate / toGeneratorCycleOptions', () => {
   it('hides cycle options from people who do not track their cycle', () => {
     const off = { ...tracking, enableCycleTracking: false };
     expect(hasCycleEstimate(off)).toBe(false);
-    expect(toGeneratorCycleOptions(off)).toBeNull();
-    expect(toGeneratorCycleOptions(null)).toBeNull();
+    expect(toGeneratorCycleOptions(off, 'HOUSEHOLD')).toBeNull();
+    expect(toGeneratorCycleOptions(null, 'HOUSEHOLD')).toBeNull();
   });
 
   it('needs a last period date before the toggle can be used', () => {
     const noDate = { ...tracking, lastPeriodDate: null };
     expect(hasCycleEstimate(noDate)).toBe(false);
-    expect(toGeneratorCycleOptions(noDate)).toEqual({
+    expect(toGeneratorCycleOptions(noDate, 'HOUSEHOLD')).toEqual({
       canAlign: false,
       alignByDefault: true,
     });
@@ -54,7 +54,7 @@ describe('hasCycleEstimate / toGeneratorCycleOptions', () => {
     // Saved before the profile action validated dates (a year typed as "25")
     const legacy = { ...tracking, lastPeriodDate: new Date('0025-11-03') };
     expect(hasCycleEstimate(legacy)).toBe(false);
-    expect(toGeneratorCycleOptions(legacy)).toEqual({
+    expect(toGeneratorCycleOptions(legacy, 'HOUSEHOLD')).toEqual({
       canAlign: false,
       alignByDefault: true,
     });
@@ -63,10 +63,22 @@ describe('hasCycleEstimate / toGeneratorCycleOptions', () => {
   });
 
   it('reflects the saved choice', () => {
-    expect(toGeneratorCycleOptions({ ...tracking, alignMealsWithCycle: false })).toEqual({
+    expect(
+      toGeneratorCycleOptions({ ...tracking, alignMealsWithCycle: false }, 'HOUSEHOLD')
+    ).toEqual({
       canAlign: true,
       alignByDefault: false,
     });
+  });
+
+  it('offers the toggle in households only, where the shared plan may follow a cycle', () => {
+    expect(toGeneratorCycleOptions(tracking, 'HOUSEHOLD')).toEqual({
+      canAlign: true,
+      alignByDefault: true,
+    });
+    for (const type of ['COLLECTIVE', 'COMMUNITY', 'CORPORATE'] as const) {
+      expect(toGeneratorCycleOptions(tracking, type), type).toBeNull();
+    }
   });
 });
 
@@ -131,7 +143,7 @@ describe('getMealPlannerCycleData', () => {
       },
     ]);
 
-    const data = await getMealPlannerCycleData('viewer', window);
+    const data = await getMealPlannerCycleData('viewer', window, 'HOUSEHOLD');
 
     expect(mocks.userFindUnique).toHaveBeenCalledTimes(1);
     expect(mocks.userFindUnique).toHaveBeenCalledWith(
@@ -164,15 +176,24 @@ describe('getMealPlannerCycleData', () => {
     expect(json).not.toContain('2026-11-01');
   });
 
+  it('keeps the badges but hides the toggle outside households', async () => {
+    mocks.userFindUnique.mockResolvedValue(tracking);
+    mocks.recipeFindMany.mockResolvedValue([]);
+    const data = await getMealPlannerCycleData('viewer', window, 'CORPORATE');
+    expect(data.generator).toBeNull();
+    // Badges are rendered for the viewer only
+    expect(data.board?.phaseByDate['2026-11-18']).toBe('luteal');
+  });
+
   it('shows no badges without a cycle estimate', async () => {
     mocks.userFindUnique.mockResolvedValue({ ...tracking, enableCycleTracking: false });
-    expect(await getMealPlannerCycleData('viewer', window)).toEqual({
+    expect(await getMealPlannerCycleData('viewer', window, 'HOUSEHOLD')).toEqual({
       generator: null,
       board: null,
     });
 
     mocks.userFindUnique.mockResolvedValue({ ...tracking, lastPeriodDate: null });
-    expect(await getMealPlannerCycleData('viewer', window)).toEqual({
+    expect(await getMealPlannerCycleData('viewer', window, 'HOUSEHOLD')).toEqual({
       generator: { canAlign: false, alignByDefault: true },
       board: null,
     });
@@ -184,7 +205,7 @@ describe('getMealPlannerCycleData', () => {
       ...tracking,
       lastPeriodDate: new Date('0025-11-03'),
     });
-    expect(await getMealPlannerCycleData('viewer', window)).toEqual({
+    expect(await getMealPlannerCycleData('viewer', window, 'HOUSEHOLD')).toEqual({
       generator: { canAlign: false, alignByDefault: true },
       board: null,
     });

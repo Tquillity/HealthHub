@@ -29,8 +29,9 @@ model User {
   mealPlanDuration      String?
   mealPlanStartDate     DateTime?
   /// Meal Plan Generator favors recipes that suit each day's estimated cycle phase.
-  /// Only takes effect while cycle tracking is on and a last period date is set.
-  alignMealsWithCycle   Boolean                    @default(true)
+  /// Opt-in: the picks land in the space's shared plan. Only takes effect while cycle
+  /// tracking is on, a last period date is set, and the space is a household.
+  alignMealsWithCycle   Boolean                    @default(false)
   isPremium             Boolean                    @default(false) @map("is_premium")
   /// Preferred unit for basal body temperature ("C" or "F"). Readings are always stored in Celsius.
   temperatureUnit       String                     @default("C")

@@ -30,6 +30,7 @@ vi.mock('@/lib/db', () => ({
 }));
 
 import { generateMealPlan } from './meal-auto-fill';
+import { CYCLE_ALIGNMENT_HOUSEHOLD_ONLY_ERROR } from '@/lib/meal-cycle-alignment';
 
 const request = {
   weekStart: '2026-11-16',
@@ -93,6 +94,56 @@ describe('generateMealPlan follows the space on screen', () => {
     expect(mocks.planFindFirst).not.toHaveBeenCalled();
     expect(mocks.planCreate).not.toHaveBeenCalled();
     expect(mocks.itemCreateMany).not.toHaveBeenCalled();
+  });
+});
+
+describe('generateMealPlan aligns with the cycle in households only', () => {
+  const tracking = {
+    dietaryRestrictions: [],
+    healthGoals: [],
+    enableCycleTracking: true,
+    cycleLength: 28,
+    lastPeriodDate: new Date(Date.UTC(2026, 10, 1)),
+    alignMealsWithCycle: true,
+  };
+  const inSpace = (type: string) =>
+    mocks.writableMembershipIn.mockImplementation(
+      async (_userId: string, organizationId: string) => ({
+        ok: true,
+        membership: {
+          memberId: `member-${organizationId}`,
+          organizationId,
+          role: 'member',
+          organization: { id: organizationId, name: organizationId, type },
+        },
+      })
+    );
+
+  it.each(['COLLECTIVE', 'COMMUNITY', 'CORPORATE'])(
+    'refuses alignment in a %s space before writing anything',
+    async (type) => {
+      inSpace(type);
+      mocks.userFindUnique.mockResolvedValue(tracking);
+      const result = await generateMealPlan('office', { ...request, alignWithCycle: true });
+      expect(result).toEqual({ success: false, error: CYCLE_ALIGNMENT_HOUSEHOLD_ONLY_ERROR });
+      expect(mocks.planFindFirst).not.toHaveBeenCalled();
+      expect(mocks.planCreate).not.toHaveBeenCalled();
+      expect(mocks.itemCreateMany).not.toHaveBeenCalled();
+    }
+  );
+
+  it('ignores a saved choice to align outside households', async () => {
+    inSpace('CORPORATE');
+    mocks.userFindUnique.mockResolvedValue(tracking);
+    const result = await generateMealPlan('office', request);
+    expect(result).toMatchObject({ success: true, data: { cycleAlignment: null } });
+  });
+
+  it('aligns in a household when the person turned it on', async () => {
+    mocks.userFindUnique.mockResolvedValue(tracking);
+    const result = await generateMealPlan('family', request);
+    expect(result.success).toBe(true);
+    expect(result.data?.cycleAlignment).not.toBeNull();
   });
 });
 

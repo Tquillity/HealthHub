@@ -258,6 +258,7 @@ describe('meal planner page', () => {
     });
     mocks.weeklyPlan.mockResolvedValue({
       plan: { id: 'plan-1', organizationId: 'family', startDate: new Date(), items: [] },
+      organizationType: 'HOUSEHOLD',
       recipes: [],
       duration: '1week',
       startDate: new Date('2026-11-16T00:00:00'),
@@ -270,6 +271,27 @@ describe('meal planner page', () => {
     const page = await MealPlannerPage();
     for (const component of [MealBoard, MealPlanGenerator, ClearAllMealsButton, SaveTemplateButton]) {
       expect(findOne(page, component).props.organizationId).toBe('family');
+    }
+  });
+
+  it('offers cycle alignment in households only, where the shared plan may follow it', async () => {
+    mocks.userFindUnique.mockResolvedValue({
+      enableCycleTracking: true,
+      cycleLength: 28,
+      lastPeriodDate: new Date(Date.UTC(2026, 10, 1)),
+      alignMealsWithCycle: false,
+    });
+    const home = await MealPlannerPage();
+    expect(findOne(home, MealPlanGenerator).props.cycleOptions).toEqual({
+      canAlign: true,
+      alignByDefault: false,
+    });
+
+    const weekly = await mocks.weeklyPlan();
+    for (const organizationType of ['COLLECTIVE', 'COMMUNITY', 'CORPORATE']) {
+      mocks.weeklyPlan.mockResolvedValue({ ...weekly, organizationType });
+      const page = await MealPlannerPage();
+      expect(findOne(page, MealPlanGenerator).props.cycleOptions, organizationType).toBeNull();
     }
   });
 });

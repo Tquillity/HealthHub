@@ -18,10 +18,12 @@ import {
 import { DateOnlyStringSchema, dateOnlyToLocalDate } from '@/lib/date-only';
 import {
   buildPhaseCalendar,
+  CYCLE_ALIGNMENT_HOUSEHOLD_ONLY_ERROR,
   getMealCycleSettings,
   hasCycleEstimate,
 } from '@/lib/meal-cycle-alignment';
 import { resolveRecipeBioProfile, type RecipeBioProfile } from '@/lib/phase-nutrition';
+import { canAlignMealPlanWithCycle } from '@/lib/org-policy';
 import { safeErrorLabel } from '@/lib/safe-error';
 
 const OptionList = (maxItems: number, maxLength: number) =>
@@ -50,10 +52,13 @@ export interface GenerateMealPlanData {
  * planner was rendered for (not the cookie, which another tab may have switched).
  * Pure selection logic lives in `@/lib/meal-auto-fill` (Vitest-covered).
  *
- * With "Align with cycle phase" on (saved per user), each day's estimated phase comes
- * from the caller's own cycle settings and phase-matching recipes are favored. The
- * explanation is returned to the caller only; nothing about the cycle is stored on the
- * shared household plan.
+ * "Align with cycle phase" is opt-in (saved per user, off by default) and only works in a
+ * household (org-policy canAlignMealPlanWithCycle). With it on, each day's estimated phase
+ * comes from the caller's own cycle settings and phase-matching recipes are favored. The
+ * phases and the explanation are returned to the caller only and never stored, but the
+ * recipes picked for each day land in the space's shared plan, which every member sees,
+ * so the pattern of picks can hint at the caller's phase. That is why it is opt-in, the
+ * switch says so, and a request to align in any other kind of space is refused.
  */
 export async function generateMealPlan(
   organizationId: string,
@@ -86,6 +91,12 @@ export async function generateMealPlan(
     }
     const membership = access.membership;
 
+    // The picks would hint at the caller's phase to a wider circle than a household.
+    const spaceAllowsAlignment = canAlignMealPlanWithCycle(membership.organization.type);
+    if (data.alignWithCycle === true && !spaceAllowsAlignment) {
+      return { success: false, error: CYCLE_ALIGNMENT_HOUSEHOLD_ONLY_ERROR };
+    }
+
     const user = await prisma.user.findUnique({
       where: { id: authResult.userId },
       select: { dietaryRestrictions: true, healthGoals: true },
@@ -103,7 +114,9 @@ export async function generateMealPlan(
         data: { alignMealsWithCycle: data.alignWithCycle },
       });
     }
+    // Outside households the saved choice is ignored, never applied.
     const alignWithCycle =
+      spaceAllowsAlignment &&
       (data.alignWithCycle ?? cycleSettings?.alignMealsWithCycle ?? false) &&
       hasCycleEstimate(cycleSettings);
 

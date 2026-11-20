@@ -122,6 +122,8 @@ export async function getWeeklyPlan(date?: Date, organizationId?: string) {
 
   return { 
     plan, 
+    /** The space's type: what the page may offer there (src/lib/org-policy.ts). */
+    organizationType: membership.organization.type,
     recipes: await getAvailableRecipes(authResult.userId),
     duration,
     startDate,
