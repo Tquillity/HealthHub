@@ -255,22 +255,48 @@ export function summarizeSlotEnergy(
   return summary;
 }
 
+/** An average in tenths: averages are rounded to one decimal, so compare these. */
+function averageTenths(slot: SlotEnergy): number {
+  return Math.round((slot.average ?? 0) * 10);
+}
+
+/**
+ * A slot with fewer than `MIN_SLOT_DATA_POINTS` check-ins (an early estimate) whose
+ * average is at or above every personalised slot's, or null. The journal shows early
+ * estimates next to the personalised averages, so naming another slot as the best while
+ * this one looks as high would contradict the chart.
+ */
+export function leadingEarlyEstimate(
+  summary: SlotEnergySummary
+): EnergySlot | null {
+  const logged = ENERGY_SLOTS.filter((slot) => summary[slot].average !== null);
+  const personal = logged.filter((slot) => summary[slot].personalized);
+  const early = logged.filter((slot) => !summary[slot].personalized);
+  if (personal.length === 0 || early.length === 0) return null;
+  const topPersonal = Math.max(...personal.map((s) => averageTenths(summary[s])));
+  const topEarly = early.reduce((a, b) =>
+    averageTenths(summary[b]) > averageTenths(summary[a]) ? b : a
+  );
+  return averageTenths(summary[topEarly]) >= topPersonal ? topEarly : null;
+}
+
 /**
  * The slot with the clearly highest average energy, once at least two slots have enough
- * check-ins; null when it is too early to tell or the top two are within
- * `BEST_WINDOW_MIN_LEAD` of each other.
+ * check-ins; null when it is too early to tell, the top two are within
+ * `BEST_WINDOW_MIN_LEAD` of each other, or a slot with fewer check-ins looks as high
+ * (`leadingEarlyEstimate`).
  */
 export function detectBestWindow(
   summary: SlotEnergySummary
 ): EnergySlot | null {
   const ranked = ENERGY_SLOTS.filter(
     (slot) => summary[slot].personalized && summary[slot].average !== null
-  ).sort((a, b) => (summary[b].average ?? 0) - (summary[a].average ?? 0));
+  ).sort((a, b) => averageTenths(summary[b]) - averageTenths(summary[a]));
   if (ranked.length < 2) return null;
   const [best, next] = ranked;
-  const lead = (summary[best].average ?? 0) - (summary[next].average ?? 0);
-  // Compare in tenths: averages are rounded to one decimal.
-  return Math.round(lead * 10) >= BEST_WINDOW_MIN_LEAD * 10 ? best : null;
+  const lead = averageTenths(summary[best]) - averageTenths(summary[next]);
+  if (lead < BEST_WINDOW_MIN_LEAD * 10) return null;
+  return leadingEarlyEstimate(summary) === null ? best : null;
 }
 
 // ---------------------------------------------------------------------------

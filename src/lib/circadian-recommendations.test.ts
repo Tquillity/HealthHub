@@ -4,6 +4,7 @@ import {
   detectBestWindow,
   ENERGY_HISTORY_DAYS,
   intensityLabel,
+  leadingEarlyEstimate,
   localTimeIn,
   lotteryHintFromInsights,
   lotteryTargetFromInsights,
@@ -214,6 +215,35 @@ describe('detectBestWindow', () => {
       })
     ).toBeNull();
   });
+
+  it('names no best window while a slot with fewer check-ins looks as high', () => {
+    // The journal shows the evening's 9/10 next to the morning's 7/10.
+    const higher: SlotEnergySummary = {
+      morning: slot(7, 6),
+      afternoon: slot(6, 6),
+      evening: slot(9, 3),
+    };
+    expect(leadingEarlyEstimate(higher)).toBe('evening');
+    expect(detectBestWindow(higher)).toBeNull();
+
+    const level = { ...higher, evening: slot(7, 2) };
+    expect(leadingEarlyEstimate(level)).toBe('evening');
+    expect(detectBestWindow(level)).toBeNull();
+
+    const lower = { ...higher, evening: slot(6.9, 3) };
+    expect(leadingEarlyEstimate(lower)).toBeNull();
+    expect(detectBestWindow(lower)).toBe('morning');
+  });
+
+  it('has no leading early estimate without a personalised slot to compare', () => {
+    expect(
+      leadingEarlyEstimate({
+        morning: slot(9, 3),
+        afternoon: slot(null, 0),
+        evening: slot(4, 1),
+      })
+    ).toBeNull();
+  });
 });
 
 describe('routine intensity', () => {
@@ -390,6 +420,27 @@ describe('buildCircadianInsights', () => {
       rows,
     });
     expect(afternoon.suggestions[0].key).toBe('personal.best-now');
+  });
+
+  it('names no best window on the card while an early estimate looks higher', () => {
+    // Morning 7 and afternoon 6 from 6 check-ins each, evening 9 from 3.
+    const rows = history('2026-11-19', 6, [7, 6, null]).map((r, i) =>
+      i < 3 ? { ...r, energyEvening: 9 } : r
+    );
+    const insights = buildCircadianInsights({
+      now: lateMorning,
+      timeZone: zone,
+      rows,
+    });
+    expect(insights.slots.evening).toEqual({
+      average: 9,
+      count: 3,
+      personalized: false,
+    });
+    expect(insights.bestWindow).toBeNull();
+    expect(
+      insights.suggestions.filter((s) => s.key.startsWith('personal.best'))
+    ).toEqual([]);
   });
 
   it('keeps the night calm: wind-down only, no check-in slot or meal nudge', () => {
