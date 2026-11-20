@@ -9,6 +9,7 @@ import {
   clearActiveOrganizationCookie,
   getActiveMembership,
   setActiveOrganizationCookie,
+  SPACE_NOT_FOUND_ERROR,
 } from '@/lib/active-organization';
 import {
   acceptInvitation as acceptInvitationForUser,
@@ -26,6 +27,7 @@ import {
 import { InvitationIdSchema, invitePath } from '@/lib/invitations';
 import { ASSIGNABLE_ROLES } from '@/lib/org-roles';
 import { ORGANIZATION_TYPES } from '@/lib/org-policy';
+import { OrganizationIdSchema } from '@/lib/validation/organization-schemas';
 
 /**
  * Household (organization) management. Thin wrappers: validate input with Zod, take the user
@@ -37,6 +39,8 @@ type ActionResult<T = undefined> = { success: boolean; error?: string; data?: T 
 const IdSchema = z.string().trim().min(1).max(128);
 
 const InviteMemberSchema = z.object({
+  /** The space the household page was rendered for (not the cookie, which may have changed). */
+  organizationId: OrganizationIdSchema,
   email: z.string().trim().max(254).pipe(z.email('Please enter a valid email address')),
   role: z.enum(ASSIGNABLE_ROLES).default('member'),
 });
@@ -101,7 +105,13 @@ export async function inviteMember(
     const authResult = await requireSessionUserId();
     if (!authResult.ok) return { success: false, error: authResult.error };
     const parsed = InviteMemberSchema.safeParse(input);
-    if (!parsed.success) return { success: false, error: validationError(parsed.error) };
+    if (!parsed.success) {
+      const badSpace = parsed.error.issues.some((issue) => issue.path[0] === 'organizationId');
+      return {
+        success: false,
+        error: badSpace ? SPACE_NOT_FOUND_ERROR : validationError(parsed.error),
+      };
+    }
 
     const result = await inviteMemberForUser(
       authResult.userId,

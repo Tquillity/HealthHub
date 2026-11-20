@@ -13,28 +13,43 @@ import { ROLE_DESCRIPTIONS, ROLE_LABELS, type AssignableRole } from '@/lib/org-r
 import { useUIStore } from '@/lib/store';
 
 type InviteFormProps = {
+  /** The space the page was rendered for; the invitation is for this space. */
+  organizationId: string;
   /** Roles this person may hand out (an admin cannot invite admins). */
   roles: AssignableRole[];
   organizationName: string;
   className?: string;
 };
 
-export function InviteForm({ roles, organizationName, className }: InviteFormProps) {
+export function InviteForm({
+  organizationId,
+  roles,
+  organizationName,
+  className,
+}: InviteFormProps) {
   const router = useRouter();
   const showToast = useUIStore((state) => state.showToast);
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<AssignableRole>(roles.includes('member') ? 'member' : roles[0]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [created, setCreated] = useState<{ email: string; invitePath: string } | null>(null);
+  const [created, setCreated] = useState<{
+    email: string;
+    invitePath: string;
+    organizationName: string;
+  } | null>(null);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setIsSubmitting(true);
-    const result = await inviteMember({ email, role });
+    const result = await inviteMember({ organizationId, email, role });
     setIsSubmitting(false);
 
     if (result.success && result.data) {
-      setCreated({ email: result.data.email, invitePath: result.data.invitePath });
+      setCreated({
+        email: result.data.email,
+        invitePath: result.data.invitePath,
+        organizationName,
+      });
       setEmail('');
       showToast(`Invitation ready for ${result.data.email}. Copy the link and send it to them.`, 'success');
       router.refresh();
@@ -107,8 +122,9 @@ export function InviteForm({ roles, organizationName, className }: InviteFormPro
             className="flex flex-col gap-3 rounded-lg border border-wellness-200 bg-wellness-50 p-4"
           >
             <p className="text-sm text-wellness-800">
-              Send this link to <span className="font-semibold">{created.email}</span>. They sign in
-              (or create an account) with that address and tap Accept.
+              Send this link to <span className="font-semibold">{created.email}</span> to invite
+              them to {created.organizationName}. They sign in (or create an account) with that
+              address and tap Accept.
             </p>
             <CopyInviteLinkButton
               path={created.invitePath}

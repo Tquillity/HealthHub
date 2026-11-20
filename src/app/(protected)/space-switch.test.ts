@@ -21,6 +21,8 @@ const mocks = vi.hoisted(() => ({
   mealPlanTemplates: vi.fn(),
   routineFindMany: vi.fn(),
   userFindUnique: vi.fn(),
+  householdData: vi.fn(),
+  sharedJournalEntries: vi.fn(),
 }));
 
 /** Stand-in for a client component; the tests only look at the props a page passes. */
@@ -86,6 +88,32 @@ vi.mock('@/components/routines/routine-filters', () => ({
   RoutineFilters: stub('RoutineFilters'),
 }));
 vi.mock('@/components/recipes/recipe-form', () => ({ RecipeForm: stub('RecipeForm') }));
+vi.mock('@/lib/household-management', () => ({ getHouseholdData: mocks.householdData }));
+vi.mock('@/lib/journal-sharing', () => ({ getSharedJournalEntries: mocks.sharedJournalEntries }));
+vi.mock('@/components/household/member-list', () => ({ MemberList: stub('MemberList') }));
+vi.mock('@/components/household/invite-form', () => ({ InviteForm: stub('InviteForm') }));
+vi.mock('@/components/household/pending-invitations', () => ({
+  PendingInvitations: stub('PendingInvitations'),
+}));
+vi.mock('@/components/household/invitations-for-you', () => ({
+  InvitationsForYou: stub('InvitationsForYou'),
+}));
+vi.mock('@/components/household/org-privacy-card', () => ({
+  OrgPrivacyCard: stub('OrgPrivacyCard'),
+}));
+vi.mock('@/components/household/shared-journal-feed', () => ({
+  SharedJournalFeed: stub('SharedJournalFeed'),
+}));
+vi.mock('@/components/household/create-organization-form', () => ({
+  CreateOrganizationForm: stub('CreateOrganizationForm'),
+}));
+vi.mock('@/components/household/leave-organization-card', () => ({
+  LeaveOrganizationCard: stub('LeaveOrganizationCard'),
+}));
+vi.mock('@/components/household/org-badges', () => ({
+  OrgTypeBadge: stub('OrgTypeBadge'),
+  RoleBadge: stub('RoleBadge'),
+}));
 vi.mock('@/components/groceries/grocery-list-client', () => ({
   GroceryListClient: stub('GroceryListClient'),
 }));
@@ -111,11 +139,16 @@ import { SaveTemplateButton } from '@/components/meals/save-template-button';
 import { MealPlanTemplatesClient } from '@/components/meals/meal-plan-templates-client';
 import { RoutinesClient } from '@/components/routines/routines-client';
 import { RecipeForm } from '@/components/recipes/recipe-form';
+import { MemberList } from '@/components/household/member-list';
+import { InviteForm } from '@/components/household/invite-form';
+import { PendingInvitations } from '@/components/household/pending-invitations';
+import { LeaveOrganizationCard } from '@/components/household/leave-organization-card';
 import GroceriesPage from './groceries/page';
 import MealPlannerPage from './meal-planner/page';
 import MealPlanTemplatesPage from './meal-planner/templates/page';
 import RoutinesPage from './routines/page';
 import NewRecipePage from './recipes/new/page';
+import HouseholdPage from './profile/household/page';
 import RecipeDetailPage from '../(public)/recipes/[id]/page';
 
 type Props = Record<string, unknown>;
@@ -291,5 +324,53 @@ describe('new recipe page', () => {
     mocks.userFindUnique.mockResolvedValue({ role: 'admin' });
     const page = await NewRecipePage();
     expect(findOne(page, RecipeForm).props.organizationId).toBe('family');
+  });
+});
+
+describe('household page', () => {
+  const household = (id: string, name: string) => ({
+    ok: true,
+    data: {
+      organization: { id, name, type: 'HOUSEHOLD' },
+      currentUserId: 'user-1',
+      currentUserRole: 'owner',
+      members: [],
+      invitations: [],
+      invitationsForYou: [],
+      invitableRoles: ['admin', 'member', 'viewer'],
+      ownerCount: 1,
+      membershipCount: 2,
+    },
+  });
+
+  beforeEach(() => {
+    mocks.sharedJournalEntries.mockResolvedValue([]);
+  });
+
+  it('invites to the space it shows', async () => {
+    mocks.householdData.mockResolvedValue(household('running-club', 'Running club'));
+    const page = await HouseholdPage();
+    expect(findOne(page, InviteForm).props).toMatchObject({
+      organizationId: 'running-club',
+      organizationName: 'Running club',
+    });
+  });
+
+  it('remounts the invite form, pending invitations and member cards per space', async () => {
+    const keysFor = async (id: string, name: string) => {
+      mocks.householdData.mockResolvedValue(household(id, name));
+      const page = await HouseholdPage();
+      return [InviteForm, PendingInvitations, MemberList, LeaveOrganizationCard].map(
+        (component) => findOne(page, component).key
+      );
+    };
+    const club = await keysFor('running-club', 'Running club');
+    const family = await keysFor('family', 'Family');
+    for (const key of [...club, ...family]) expect(key).toBeTruthy();
+    // Every key changes with the space, so React drops the old component and its state.
+    club.forEach((key, index) => expect(key).not.toBe(family[index]));
+    expect(club.every((key) => key?.includes('running-club'))).toBe(true);
+    // Siblings must not share a key.
+    expect(new Set(club).size).toBe(club.length);
   });
 });
