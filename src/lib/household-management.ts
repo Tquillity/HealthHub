@@ -408,20 +408,18 @@ export async function acceptInvitation(
       data: { status: 'accepted' },
     });
     if (updated.count === 0) return false;
-    const existing = await tx.member.findFirst({
-      where: { userId, organizationId: invitation.organizationId },
-      select: { id: true },
+    // Someone who is already a member keeps their membership and role. The unique
+    // (organizationId, userId) index makes a second accept running at the same time wait and
+    // then skip, instead of adding a second row.
+    await tx.member.createMany({
+      data: {
+        id: generateRecordId('mem'),
+        organizationId: invitation.organizationId,
+        userId,
+        role,
+      },
+      skipDuplicates: true,
     });
-    if (!existing) {
-      await tx.member.create({
-        data: {
-          id: generateRecordId('mem'),
-          organizationId: invitation.organizationId,
-          userId,
-          role,
-        },
-      });
-    }
     return true;
   });
   if (!accepted) return fail(INVITATION_CHECK_MESSAGES.not_pending);

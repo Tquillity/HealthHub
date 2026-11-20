@@ -1,4 +1,6 @@
 import { randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
@@ -196,6 +198,90 @@ describe.skipIf(!isolated)('household integrity against isolated PostgreSQL', ()
       const other = await createOrg('keep-other', [[keeper, 'owner']]);
       expect(await lib.removeMember(owner, space.memberIds[1])).toMatchObject({ ok: true });
       expect(await membershipsOf(keeper)).toEqual([{ organizationId: other.id, role: 'owner' }]);
+    });
+  });
+
+  describe('one membership per space', () => {
+    const invite = async (organizationId: string, inviter: string, invitee: string, key: string) => {
+      const id = `hi-inv-${key}-${run}`;
+      await client.invitation.create({
+        data: {
+          id,
+          organizationId,
+          email: `${invitee}@example.com`,
+          role: 'member',
+          status: 'pending',
+          expiresAt: new Date('2099-01-01'),
+          inviterId: inviter,
+        },
+      });
+      return id;
+    };
+
+    it('accepting two invitations to the same space at once adds one membership', async () => {
+      const inviter = await createUser('inviter');
+      const invitee = await createUser('invitee');
+      const space = await createOrg('invite-space', [[inviter, 'owner']]);
+      const first = await invite(space.id, inviter, invitee, 'first');
+      const second = await invite(space.id, inviter, invitee, 'second');
+
+      const results = await Promise.all([
+        lib.acceptInvitation(invitee, first),
+        lib.acceptInvitation(invitee, second),
+      ]);
+      expect(results).toEqual([
+        { ok: true, data: { organizationId: space.id } },
+        { ok: true, data: { organizationId: space.id } },
+      ]);
+      expect(await client.member.count({ where: { userId: invitee, organizationId: space.id } })).toBe(1);
+      // A second row cannot be written any other way either.
+      await expect(
+        client.member.create({
+          data: { id: `hi-dupe-${run}`, organizationId: space.id, userId: invitee, role: 'viewer' },
+        })
+      ).rejects.toMatchObject({ code: 'P2002' });
+    });
+
+    it('the migration keeps the oldest row of each pair, with the strongest role', async () => {
+      const migration = readFileSync(
+        path.join(process.cwd(), 'prisma/migrations/20261120170000_member_unique_per_org/migration.sql'),
+        'utf8'
+      );
+      const a = await createUser('dupe-a');
+      const b = await createUser('dupe-b');
+      const space = await createOrg('dupe-space', []);
+      const at = (minute: number) => new Date(Date.UTC(2025, 0, 1, 0, minute));
+      const rows: Array<[id: string, userId: string, role: string, createdAt: Date]> = [
+        [`hi-dupe-a1-${run}`, a, 'member', at(1)],
+        [`hi-dupe-a2-${run}`, a, 'owner', at(2)],
+        [`hi-dupe-a3-${run}`, a, 'viewer', at(3)],
+        [`hi-dupe-b1-${run}`, b, 'viewer', at(4)],
+        [`hi-dupe-b2-${run}`, b, 'Admin, member', at(5)],
+      ];
+      const conn = await pool.connect();
+      try {
+        await conn.query('BEGIN');
+        // Recreate the state before the migration inside a transaction that is rolled back.
+        await conn.query('DROP INDEX "member_organizationId_userId_key"');
+        for (const [id, userId, role, createdAt] of rows) {
+          await conn.query(
+            'INSERT INTO "member" (id, "organizationId", "userId", role, "createdAt") VALUES ($1, $2, $3, $4, $5)',
+            [id, space.id, userId, role, createdAt]
+          );
+        }
+        await conn.query(migration);
+        const { rows: kept } = await conn.query(
+          'SELECT id, "userId", role FROM "member" WHERE "organizationId" = $1 ORDER BY "createdAt"',
+          [space.id]
+        );
+        expect(kept).toEqual([
+          { id: `hi-dupe-a1-${run}`, userId: a, role: 'owner' },
+          { id: `hi-dupe-b1-${run}`, userId: b, role: 'Admin, member' },
+        ]);
+      } finally {
+        await conn.query('ROLLBACK');
+        conn.release();
+      }
     });
   });
 });
