@@ -37,6 +37,17 @@ describe('JournalTimeOfDayEnergy', () => {
     expect(html).toContain('Your energy is usually highest in the morning.');
   });
 
+  it('does not save hard training for an evening best time', () => {
+    const html = render({
+      morning: slot(5, 6),
+      afternoon: slot(5, 6),
+      evening: slot(8, 6),
+    });
+    expect(html).toContain('Your energy is usually highest in the evening.');
+    expect(html).toContain('keep hard training well before bed');
+    expect(html).not.toMatch(/harder training|demanding tasks/);
+  });
+
   it('names no best time while a slot with fewer check-ins shows a higher average', () => {
     const html = render({
       morning: slot(7, 6),

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  bestWindowAdvice,
   buildCircadianInsights,
   detectBestWindow,
   ENERGY_HISTORY_DAYS,
@@ -420,6 +421,77 @@ describe('buildCircadianInsights', () => {
       rows,
     });
     expect(afternoon.suggestions[0].key).toBe('personal.best-now');
+  });
+
+  it('shows the best window without a training push right after a low rating', () => {
+    // Mornings usually 8 and afternoons 5, but today's morning check-in is 2/10.
+    const rows = [
+      ...history('2026-11-19', 6, [8, 5, null]),
+      row('2026-11-20', 2, null, null),
+    ];
+    const now = buildCircadianInsights({
+      now: lateMorning,
+      timeZone: zone,
+      rows,
+    });
+    expect(now.bestWindow).toBe('morning');
+    const keys = now.suggestions.map((s) => s.key);
+    expect(keys.slice(0, 2)).toEqual(['personal.low-now', 'personal.best-now']);
+    const bestNow = now.suggestions[1];
+    expect(bestNow.body).toBe(
+      'Over the last 30 days your morning energy has averaged 7.1/10, your highest of the day.'
+    );
+    for (const suggestion of now.suggestions.slice(1)) {
+      expect(suggestion.body).not.toMatch(/training|demanding/i);
+    }
+
+    // The same low rating with the best window later in the day.
+    const later = buildCircadianInsights({
+      now: lateMorning,
+      timeZone: zone,
+      rows: [
+        ...history('2026-11-19', 6, [5, 8, null]),
+        row('2026-11-20', 2, null, null),
+      ],
+    });
+    const bestLater = later.suggestions.find(
+      (s) => s.key === 'personal.best-later'
+    );
+    expect(bestLater?.body).toBe(
+      'Over the last 30 days your energy has averaged 8/10 in the afternoon, compared with 4.6/10 in the morning.'
+    );
+  });
+
+  it('never pushes hard training for an evening best window', () => {
+    const rows = history('2026-11-19', 6, [5, 5, 8]);
+    // 21:30 in Stockholm: late in the evening, the best window.
+    const evening = buildCircadianInsights({
+      now: new Date('2026-11-20T20:30:00Z'),
+      timeZone: zone,
+      rows,
+    });
+    expect(evening.bestWindow).toBe('evening');
+    const bestNow = evening.suggestions.find(
+      (s) => s.key === 'personal.best-now'
+    );
+    expect(bestNow?.body).toContain('keep hard training well before bed');
+    for (const suggestion of evening.suggestions) {
+      expect(suggestion.body).not.toMatch(
+        /most demanding|harder training|demanding tasks/i
+      );
+    }
+
+    // Earlier in the day, the pointer to the evening does not plan hard training either.
+    const morning = buildCircadianInsights({
+      now: lateMorning,
+      timeZone: zone,
+      rows,
+    });
+    const bestLater = morning.suggestions.find(
+      (s) => s.key === 'personal.best-later'
+    );
+    expect(bestLater?.body).toContain(bestWindowAdvice('evening', 'later'));
+    expect(bestLater?.body).not.toMatch(/harder training|demanding tasks/i);
   });
 
   it('names no best window on the card while an early estimate looks higher', () => {

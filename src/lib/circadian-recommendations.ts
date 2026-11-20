@@ -506,18 +506,40 @@ const SLOT_NAMES: Record<EnergySlot, string> = {
   evening: 'evening',
 };
 
+/**
+ * What the personal best window suits, for the dashboard card and the journal. The
+ * evening gets no push for hard training even when it is the best window: very hard
+ * sessions close to bedtime can delay sleep, and the evening suggestions are about
+ * recovery (sources at the top).
+ */
+export function bestWindowAdvice(
+  best: EnergySlot,
+  when: 'now' | 'later'
+): string {
+  if (best === 'evening') {
+    return when === 'now'
+      ? 'A good time for focused tasks or easy movement; keep hard training well before bed.'
+      : 'When you can, plan focused tasks or easy movement for then, and keep hard training well before bed.';
+  }
+  return when === 'now'
+    ? 'A good time for your most demanding tasks or training.'
+    : 'When you can, plan harder training or demanding tasks for then.';
+}
+
 function personalSuggestions(input: {
   moment: DayMoment;
   slot: EnergySlot | null;
   currentEnergy: number | null;
+  /** The user just rated their energy as low (`LOW_ENERGY_RATING`). */
+  lowNow: boolean;
   slots: SlotEnergySummary;
   bestWindow: EnergySlot | null;
 }): CircadianSuggestion[] {
-  const { moment, slot, currentEnergy, slots, bestWindow } = input;
+  const { moment, slot, currentEnergy, lowNow, slots, bestWindow } = input;
   if (moment === 'night' || slot === null) return [];
   const result: CircadianSuggestion[] = [];
 
-  if (currentEnergy !== null && currentEnergy <= LOW_ENERGY_RATING) {
+  if (lowNow) {
     result.push({
       key: 'personal.low-now',
       kind: 'personal',
@@ -539,12 +561,15 @@ function personalSuggestions(input: {
 
   if (bestWindow !== null) {
     const best = slots[bestWindow];
+    // Right after a low rating, the pattern only: no push for harder work.
+    const advice = (when: 'now' | 'later') =>
+      lowNow ? '' : ` ${bestWindowAdvice(bestWindow, when)}`;
     if (bestWindow === slot) {
       result.push({
         key: 'personal.best-now',
         kind: 'personal',
         title: 'Usually your best time of day',
-        body: `Over the last ${ENERGY_HISTORY_DAYS} days your ${SLOT_NAMES[slot]} energy has averaged ${best.average}/10, your highest of the day. A good time for your most demanding tasks or training.`,
+        body: `Over the last ${ENERGY_HISTORY_DAYS} days your ${SLOT_NAMES[slot]} energy has averaged ${best.average}/10, your highest of the day.${advice('now')}`,
       });
     } else {
       const current = slots[slot];
@@ -556,7 +581,7 @@ function personalSuggestions(input: {
         key: 'personal.best-later',
         kind: 'personal',
         title: `Your best window is the ${SLOT_NAMES[bestWindow]}`,
-        body: `Over the last ${ENERGY_HISTORY_DAYS} days your energy has averaged ${best.average}/10 in the ${SLOT_NAMES[bestWindow]}${comparison}. When you can, plan harder training or demanding tasks for then.`,
+        body: `Over the last ${ENERGY_HISTORY_DAYS} days your energy has averaged ${best.average}/10 in the ${SLOT_NAMES[bestWindow]}${comparison}.${advice('later')}`,
       });
     }
   }
@@ -670,7 +695,14 @@ export function buildCircadianInsights(input: {
     .filter((suggestion) => !(lowNow && suggestion.demanding))
     .map(({ key, kind, title, body }) => ({ key, kind, title, body }));
   const suggestions = [
-    ...personalSuggestions({ moment, slot, currentEnergy, slots, bestWindow }),
+    ...personalSuggestions({
+      moment,
+      slot,
+      currentEnergy,
+      lowNow,
+      slots,
+      bestWindow,
+    }),
     ...base,
   ].slice(0, MAX_SUGGESTIONS);
 

@@ -1,5 +1,6 @@
 import type { TimeOfDayEnergySummary } from '@/lib/circadian-data';
 import {
+  bestWindowAdvice,
   ENERGY_SLOTS,
   leadingEarlyEstimate,
   MIN_SLOT_DATA_POINTS,
@@ -100,7 +101,7 @@ export function JournalTimeOfDayEnergy({
           </dl>
           <p className="text-sm text-gray-600">
             {best
-              ? `Your energy is usually highest in the ${best}. When you can, save harder training and demanding tasks for then.`
+              ? `Your energy is usually highest in the ${best}. ${bestWindowAdvice(best, 'later')}`
               : early
                 ? `Too early to name your best time of day: the ${early} scores as high or higher so far, but from fewer than ${MIN_SLOT_DATA_POINTS} check-ins.`
                 : `Your best time of day shows once at least two times of day have ${MIN_SLOT_DATA_POINTS} check-ins and one stands out.`}
