@@ -7,8 +7,7 @@ import { prisma } from '@/lib/db';
 import { ensurePersonalHousehold } from '@/lib/household';
 import {
   DISABLED_ORGANIZATION_PATHS,
-  orgAccessControl,
-  orgRoles,
+  organizationPluginOptions,
 } from '@/lib/org-access-control';
 import { getSocialProviderFlags } from '@/lib/social-providers';
 
@@ -72,5 +71,5 @@ export const auth = betterAuth({
       },
     },
   },
-  plugins: [organization({ ac: orgAccessControl, roles: orgRoles })],
+  plugins: [organization(organizationPluginOptions)],
 });

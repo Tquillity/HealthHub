@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest';
+import { organization } from 'better-auth/plugins';
 import { defaultRoles } from 'better-auth/plugins/organization/access';
-import { DISABLED_ORGANIZATION_PATHS, orgRoles } from './org-access-control';
+import {
+  DISABLED_ORGANIZATION_PATHS,
+  organizationPluginOptions,
+  orgRoles,
+} from './org-access-control';
+
+function endpointPaths(plugin: { endpoints: object }): string[] {
+  return Object.values(plugin.endpoints as Record<string, { path?: unknown }>)
+    .map((endpoint) => endpoint.path)
+    .filter((path): path is string => typeof path === 'string');
+}
 
 describe('Better-Auth organization roles', () => {
   it('keeps the plugin defaults for owner, admin and member', () => {
@@ -17,14 +28,30 @@ describe('Better-Auth organization roles', () => {
     expect(orgRoles.owner.authorize({ invitation: ['create'] }).success).toBe(true);
   });
 
-  it('keeps the mutating organization endpoints off the HTTP router', () => {
-    expect(DISABLED_ORGANIZATION_PATHS).toEqual(
+  it('keeps every organization endpoint we register off the HTTP router', () => {
+    const registered = endpointPaths(organization(organizationPluginOptions));
+    // Reads too: list-invitations and get-full-organization would show invitee emails to
+    // every member, and list-user-invitations would list invitations by an unverified email.
+    expect(registered).toEqual(
       expect.arrayContaining([
         '/organization/accept-invitation',
-        '/organization/update-member-role',
-        '/organization/remove-member',
-        '/organization/leave',
+        '/organization/list-invitations',
+        '/organization/list-user-invitations',
+        '/organization/get-full-organization',
+        '/organization/list-members',
       ])
     );
+    expect(registered.filter((path) => !DISABLED_ORGANIZATION_PATHS.includes(path))).toEqual([]);
+  });
+
+  it('also covers the team and dynamic role endpoints, should those be turned on', () => {
+    const everything = endpointPaths(
+      organization({
+        ...organizationPluginOptions,
+        teams: { enabled: true },
+        dynamicAccessControl: { enabled: true },
+      })
+    );
+    expect(everything.filter((path) => !DISABLED_ORGANIZATION_PATHS.includes(path))).toEqual([]);
   });
 });
