@@ -23,6 +23,8 @@ import {
   invitationExpiry,
   normalizeEmail,
 } from '@/lib/invitations';
+import { createPersonalHousehold } from '@/lib/household';
+import { lockUserMemberships } from '@/lib/membership-locks';
 import { generateInvitationId, generateRecordId } from '@/lib/record-ids';
 
 /**
@@ -499,7 +501,10 @@ export async function transferOwnership(
   return { ok: true, data: { organizationId: target.organizationId } };
 }
 
-/** Remove someone from an organization. Owners only; owners themselves cannot be removed. */
+/**
+ * Remove someone from an organization. Owners only; owners themselves cannot be removed.
+ * Someone removed from their only space gets a new household of their own.
+ */
 export async function removeMember(
   userId: string,
   memberId: string
@@ -515,8 +520,20 @@ export async function removeMember(
   });
   if (!check.ok) return fail(check.error);
   await prisma.$transaction(async (tx) => {
+    // Waits for the target leaving another space at the same time, so the count below holds.
+    await lockUserMemberships(tx, target.userId);
     await tx.member.delete({ where: { id: target.id } });
     await unshareJournalEntries(tx, target.userId, target.organizationId);
+    // Nobody is left without a space: someone removed from their last one gets a new, empty
+    // household of their own, never their old personal household (it may be someone else's now).
+    const remaining = await tx.member.count({ where: { userId: target.userId } });
+    if (remaining === 0) {
+      const removedUser = await tx.user.findUnique({
+        where: { id: target.userId },
+        select: { id: true, name: true },
+      });
+      if (removedUser) await createPersonalHousehold(tx, removedUser);
+    }
   });
   return {
     ok: true,

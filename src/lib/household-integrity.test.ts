@@ -39,6 +39,14 @@ describe.skipIf(!isolated)('household integrity against isolated PostgreSQL', ()
     userIds.push(id);
     return id;
   };
+  const createOrg = async (key: string, members: Array<[userId: string, role: string]>) => {
+    const id = `hi-${key}-${run}`;
+    await client.organization.create({ data: { id, name: key, slug: id } });
+    orgIds.push(id);
+    const memberIds: string[] = [];
+    for (const [userId, role] of members) memberIds.push(await addMember(id, userId, role));
+    return { id, memberIds };
+  };
   const addMember = async (organizationId: string, userId: string, role: string) => {
     seq += 1;
     const id = `hi-m${seq}-${run}`;
@@ -136,6 +144,58 @@ describe.skipIf(!isolated)('household integrity against isolated PostgreSQL', ()
       expect(
         (await client.organization.findUniqueOrThrow({ where: { id: memberships[0].organizationId } })).name
       ).toBe('My Household');
+    });
+  });
+
+  describe('removing a member', () => {
+    it('gives someone removed from their only space a household of their own at once', async () => {
+      const owner = await createUser('remover');
+      const removed = await createUser('removed');
+      const space = await createOrg('remove-space', [
+        [owner, 'owner'],
+        [removed, 'member'],
+      ]);
+      expect(await lib.removeMember(owner, space.memberIds[1])).toMatchObject({ ok: true });
+      expect(await membershipsOf(removed)).toEqual([
+        { organizationId: `household-${removed}`, role: 'owner' },
+      ]);
+    });
+
+    it('gives a removed former owner a new household, not the one they handed over', async () => {
+      const former = await createUser('handover');
+      const newOwner = await createUser('new-owner');
+      await household.ensurePersonalHousehold({ id: former, name: 'Handover' });
+      const handedOver = `household-${former}`;
+      const newOwnerMember = await addMember(handedOver, newOwner, 'member');
+      expect(await lib.transferOwnership(former, newOwnerMember)).toMatchObject({ ok: true });
+      const formerMember = await client.member.findFirstOrThrow({
+        where: { userId: former, organizationId: handedOver },
+      });
+      expect(await lib.removeMember(newOwner, formerMember.id)).toMatchObject({ ok: true });
+
+      const memberships = await membershipsOf(former);
+      expect(memberships).toHaveLength(1);
+      expect(memberships[0]).toMatchObject({ role: 'owner' });
+      expect(memberships[0].organizationId).not.toBe(handedOver);
+      // The next page load finds that household and changes nothing.
+      await household.ensurePersonalHousehold({ id: former, name: 'Handover' });
+      expect(await membershipsOf(former)).toEqual(memberships);
+      expect(await ownersOf(handedOver)).toEqual([newOwner]);
+      expect(
+        (await client.member.findMany({ where: { organizationId: handedOver } })).map((m) => m.userId)
+      ).toEqual([newOwner]);
+    });
+
+    it('leaves people who keep another space alone', async () => {
+      const owner = await createUser('keeper-owner');
+      const keeper = await createUser('keeper');
+      const space = await createOrg('keep-space', [
+        [owner, 'owner'],
+        [keeper, 'member'],
+      ]);
+      const other = await createOrg('keep-other', [[keeper, 'owner']]);
+      expect(await lib.removeMember(owner, space.memberIds[1])).toMatchObject({ ok: true });
+      expect(await membershipsOf(keeper)).toEqual([{ organizationId: other.id, role: 'owner' }]);
     });
   });
 });

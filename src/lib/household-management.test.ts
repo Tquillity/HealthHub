@@ -88,7 +88,9 @@ describe.skipIf(!isolated)('household management against isolated PostgreSQL', (
     await client.invitation.deleteMany({ where: { organizationId: { in: allOrgs } } });
     await client.organization.deleteMany({ where: { id: { in: allOrgs } } });
     await client.organization.deleteMany({ where: { members: { none: {} }, id: { startsWith: 'household-hm-' } } });
-    await client.organization.deleteMany({ where: { id: `household-${loner.id}` } });
+    await client.organization.deleteMany({
+      where: { id: { in: allUsers.map((u) => `household-${u.id}`) } },
+    });
     await client.user.deleteMany({ where: { id: { in: allUsers.map((u) => u.id) } } });
     await client.$disconnect();
     await pool.end();
@@ -363,6 +365,10 @@ describe.skipIf(!isolated)('household management against isolated PostgreSQL', (
     it('the new owner can remove a member', async () => {
       expect(await lib.removeMember(partner.id, `hm-m-viewer-${run}`)).toMatchObject({ ok: true });
       expect(await memberRole(viewer.id, home)).toBeNull();
+      // It was the viewer's only space, so they now own a new household of their own.
+      expect(await active.listUserOrganizations(viewer.id)).toEqual([
+        expect.objectContaining({ id: `household-${viewer.id}`, role: 'owner' }),
+      ]);
     });
   });
 
