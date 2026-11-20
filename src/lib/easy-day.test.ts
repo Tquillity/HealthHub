@@ -338,6 +338,7 @@ describe.skipIf(!isolated)(
 
     beforeEach(async () => {
       await client.journalEntry.deleteMany({ where: { userId } });
+      await client.briefingFeedback.deleteMany({ where: { userId } });
       await client.user.update({
         where: { id: userId },
         data: {
@@ -615,14 +616,61 @@ describe.skipIf(!isolated)(
         await circadian.loadCircadianLotteryHint(userId, lateAfternoon)
       ).toEqual({ windowLabel: 'Afternoon', recommendedIntensity: 'medium' });
 
-      // The same with the briefing card turned off: the card still does not push.
+      // Hidden for the day, the briefing still counts: the card does not push.
+      await briefingData.dismissBriefing(userId, TODAY, lateAfternoon);
+      expect(
+        (await circadian.loadCircadianInsights(userId, lateAfternoon))?.easyDay
+      ).toBe(true);
+    });
+
+    it('reads none of the briefing sources while the briefing is set to Never', async () => {
+      // A low week in the journal and low recovery in the vitals: a take-it-easy day.
+      await client.user.update({
+        where: { id: userId },
+        data: { trackVitals: true },
+      });
+      await writeJournal(
+        { energy: 7, sleepHours: 8 },
+        { energy: 3, sleepHours: 5 }
+      );
+      await client.journalEntry.updateMany({
+        where: { userId },
+        data: { restingHeartRate: 55, heartRateVariability: 70 },
+      });
+      await client.journalEntry.updateMany({
+        where: { userId, date: { gte: new Date('2026-11-18T00:00:00Z') } },
+        data: { restingHeartRate: 72, heartRateVariability: 35 },
+      });
+      expect(await easyDay.loadEasyDay(userId, lateAfternoon)).toEqual({
+        fromLogs: true,
+        maxRoutineEnergy: 'low',
+      });
+
+      // Never: Profile locks the briefing's source switches, so the card no longer
+      // follows them.
       await client.user.update({
         where: { id: userId },
         data: { briefingFrequency: 'never' },
       });
-      expect(
-        (await circadian.loadCircadianInsights(userId, lateAfternoon))?.easyDay
-      ).toBe(true);
+      expect(await easyDay.loadEasyDay(userId, lateAfternoon)).toBeNull();
+      const never = await circadian.loadCircadianInsights(
+        userId,
+        lateAfternoon
+      );
+      expect(never?.easyDay).toBe(false);
+      expect(never?.suggestions.map((s) => s.key)).toContain(
+        'afternoon.training'
+      );
+
+      // A low check-in still holds the card back: the circadian opt-in covers it.
+      await circadian.saveEnergyNow(userId, 2, lateAfternoon);
+      expect(await easyDay.loadEasyDay(userId, lateAfternoon)).toEqual({
+        fromLogs: false,
+        maxRoutineEnergy: 'medium',
+      });
+      const low = await circadian.loadCircadianInsights(userId, lateAfternoon);
+      expect(low?.suggestions[0].key).toBe('personal.low-now');
+      expect(low?.recommendedIntensity).toBe('medium');
     });
   }
 );

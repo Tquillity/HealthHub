@@ -32,8 +32,9 @@ import { localTimeIn, lowCheckInToday } from '@/lib/circadian-recommendations';
  * Only the user's own rows are read, only from the sources the user lets the briefing read
  * (the briefing's own source switches), and nothing is stored. The one exception is the
  * low check-in today, which the circadian opt-in covers (see the notes in
- * lib/briefing/data). This module sits outside lib/briefing and lib/circadian-* so that
- * neither data layer imports the other.
+ * lib/briefing/data). With the briefing set to Never, Profile locks those switches, so no
+ * source is read for the card then: only that check-in counts. This module sits outside
+ * lib/briefing and lib/circadian-* so that neither data layer imports the other.
  */
 
 export type EasyDayInputs = SignalInputs & {
@@ -82,7 +83,8 @@ export async function loadEasyDayInputs(
 /**
  * Whether the daily briefing calls today a take-it-easy day for this user at `now`, and
  * why (null when it does not), whether or not the briefing card itself is shown (it can
- * be off or hidden for the day).
+ * be hidden for the day or not due). With the briefing set to Never, only a low check-in
+ * today counts: the user can no longer see or switch the briefing's sources.
  */
 export async function loadEasyDay(
   userId: string,
@@ -94,12 +96,9 @@ export async function loadEasyDay(
   });
   const preferences = parseBriefingPreferences(user);
   const today = dateKeyInTimeZone(now, user.timezone);
-  const inputs = await loadEasyDayInputs(
-    userId,
-    user,
-    new Set(preferences.sources),
-    today,
-    now
+  const sources = new Set<BriefingSource>(
+    preferences.frequency === 'never' ? [] : preferences.sources
   );
+  const inputs = await loadEasyDayInputs(userId, user, sources, today, now);
   return takeItEasyOf({ today, ...inputs });
 }
