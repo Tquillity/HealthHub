@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { updateProfile } from '@/actions/profile-actions';
 import { useUIStore } from '@/lib/store';
+import { timeZoneFieldAfterSavedChange } from '@/lib/time-zone';
 import { CheckCircle2 } from 'lucide-react';
 
 interface ProfileClientProps {
@@ -46,6 +47,22 @@ export function ProfileClient({ profile: initialProfile }: ProfileClientProps) {
     lastPeriodDate: dateInputValue(profile.lastPeriodDate),
     focusPreference: profile.focusPreference || 'both',
   });
+
+  // The saved zone can change outside this form: cycle status sharing fills in the device's
+  // zone while the profile has the default, and the page re-renders with it (the action
+  // revalidates /profile). The field follows, so it agrees with the sharing panel below,
+  // unless the person has typed a zone of their own here.
+  const [savedTimeZone, setSavedTimeZone] = useState(initialProfile.timezone);
+  if (initialProfile.timezone !== savedTimeZone) {
+    setSavedTimeZone(initialProfile.timezone);
+    const previous = profile.timezone;
+    const next = initialProfile.timezone;
+    setFormData((current) => ({
+      ...current,
+      timezone: timeZoneFieldAfterSavedChange(current.timezone, previous, next),
+    }));
+    setProfile((current) => ({ ...current, timezone: next }));
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

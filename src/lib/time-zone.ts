@@ -68,3 +68,16 @@ export function timeZoneToAdopt(
   if (!isUnsetTimeZone(stored) || device === stored) return null;
   return device;
 }
+
+/**
+ * The Profile time zone field after the saved zone changed outside the form (cycle status
+ * sharing can fill in the device's zone): it follows the saved zone, unless the person had
+ * already typed something else, which is kept for them to save.
+ */
+export function timeZoneFieldAfterSavedChange(
+  field: string,
+  previousSaved: string | null | undefined,
+  nextSaved: string | null | undefined
+): string {
+  return field === (previousSaved || DEFAULT_TIME_ZONE) ? nextSaved || DEFAULT_TIME_ZONE : field;
+}

@@ -202,7 +202,6 @@ function HouseholdShareCard({
   previewSource,
   draftMessage,
   messageDirty,
-  onTimeZoneChange,
 }: {
   initialHousehold: CycleShareHousehold;
   index: number;
@@ -210,7 +209,6 @@ function HouseholdShareCard({
   previewSource: CycleSharingPanelData['preview'];
   draftMessage: string;
   messageDirty: boolean;
-  onTimeZoneChange: (timeZone: string) => void;
 }) {
   const showToast = useUIStore((state) => state.showToast);
   const [household, setHousehold] = useState(initialHousehold);
@@ -241,7 +239,6 @@ function HouseholdShareCard({
       // The button goes once everyone is included; keep focus in this household.
       if (document.activeElement === includeRef.current) switchRef.current?.focus();
       setHousehold(result.data.household);
-      onTimeZoneChange(result.data.timeZone);
       // Says what is actually shared now, from the server's answer.
       const message = describeShareChange(result.data.household, result.data.cycleConfigured);
       setStatus(message);
@@ -301,12 +298,14 @@ export function CycleSharingSettingsPanel({ data }: { data: CycleSharingPanelDat
   const [draftMessage, setDraftMessage] = useState(data.supportMessage ?? '');
   const [savingMessage, setSavingMessage] = useState(false);
   const [messageStatus, setMessageStatus] = useState('');
-  const [timeZone, setTimeZone] = useState(data.timeZone);
   const messageRef = useRef<HTMLTextAreaElement>(null);
   const removeRef = useRef<HTMLButtonElement>(null);
 
-  // From props: saving the profile form above re-renders this with fresh cycle data.
+  // From props: saving the profile form above, or sharing (which can fill in the device's time
+  // zone), revalidates /profile and re-renders this with fresh data. The Personal Information
+  // form follows the same saved zone, so the two never disagree.
   const cycleConfigured = data.cycleConfigured;
+  const timeZone = data.timeZone;
   const messageDirty = draftMessage.trim() !== savedMessage;
 
   const saveMessage = async (supportMessage: string | null, successMessage: string) => {
@@ -373,7 +372,6 @@ export function CycleSharingSettingsPanel({ data }: { data: CycleSharingPanelDat
                   previewSource={data.preview}
                   draftMessage={draftMessage}
                   messageDirty={messageDirty}
-                  onTimeZoneChange={setTimeZone}
                 />
               </li>
             ))}

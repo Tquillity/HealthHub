@@ -4,6 +4,7 @@ import {
   getLocalHour,
   isUnsetTimeZone,
   resolveTimeZone,
+  timeZoneFieldAfterSavedChange,
   timeZoneToAdopt,
 } from './time-zone';
 
@@ -60,5 +61,18 @@ describe('time zone helpers', () => {
     for (const stored of ['Europe/Stockholm', 'America/Los_Angeles', 'Australia/Sydney']) {
       expect(isUnsetTimeZone(stored)).toBe(false);
     }
+  });
+
+  it('moves an untouched time zone field to a zone saved elsewhere, and keeps an edited one', () => {
+    // Sharing filled in the device zone while the field still showed the saved default.
+    expect(timeZoneFieldAfterSavedChange('UTC', 'UTC', 'Australia/Sydney')).toBe(
+      'Australia/Sydney'
+    );
+    expect(timeZoneFieldAfterSavedChange('UTC', null, 'Australia/Sydney')).toBe('Australia/Sydney');
+    // The person had typed a zone of their own: it stays for them to save.
+    expect(timeZoneFieldAfterSavedChange('Europe/Paris', 'UTC', 'Australia/Sydney')).toBe(
+      'Europe/Paris'
+    );
+    expect(timeZoneFieldAfterSavedChange('Australia/Sydney', 'Australia/Sydney', null)).toBe('UTC');
   });
 });
