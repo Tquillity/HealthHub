@@ -1,9 +1,14 @@
 'use server';
 
 import { z } from 'zod';
+import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db';
 import { getServerSession, requireSessionUserId } from '@/lib/session';
 import { calculateCyclePhase } from '@/lib/cycle-calculator';
+import { loadCycleDashboardInsights, todayDateKey } from '@/lib/daily-metrics';
+import { recordPeriodStart, removePeriodStart } from '@/lib/period-starts';
+import { safeErrorLabel } from '@/lib/safe-error';
+import { PeriodStartInputSchema } from '@/lib/validation/vitals-schemas';
 import {
   phaseRecommendationWithExpertInclude,
   type FocusPreference,
@@ -25,6 +30,8 @@ const cycleUserSelect = {
   cycleLength: true,
   lastPeriodDate: true,
   focusPreference: true,
+  temperatureUnit: true,
+  trackVitals: true,
 } as const;
 
 function categoryFilterForFocus(focusPreference: string | null | undefined): string[] {
@@ -74,18 +81,30 @@ export async function getCycleDashboard() {
     const phaseData = calculateCyclePhase(user.lastPeriodDate, cycleLength);
     const categoryFilter = categoryFilterForFocus(user.focusPreference);
 
-    const recommendations = await prisma.phaseRecommendation.findMany({
-      where: {
-        phase: phaseData.currentPhase,
-        category: {
-          in: categoryFilter,
+    const [recommendations, insights] = await Promise.all([
+      prisma.phaseRecommendation.findMany({
+        where: {
+          phase: phaseData.currentPhase,
+          category: {
+            in: categoryFilter,
+          },
         },
-      },
-      include: phaseRecommendationWithExpertInclude,
-      orderBy: {
-        createdAt: 'asc',
-      },
-    });
+        include: phaseRecommendationWithExpertInclude,
+        orderBy: {
+          createdAt: 'asc',
+        },
+      }),
+      // BBT series and thermal shift of the current cycle, plus the recovery series
+      // (only with the vitals opt-in) for the clinical chart and the quick-log card.
+      loadCycleDashboardInsights(userId, {
+        today: todayDateKey(),
+        cycleLength,
+        daysIntoCycle: phaseData.daysIntoCycle,
+        lastPeriodDate: user.lastPeriodDate,
+        temperatureUnit: user.temperatureUnit,
+        trackVitals: user.trackVitals,
+      }),
+    ]);
 
     return {
       success: true,
@@ -96,6 +115,7 @@ export async function getCycleDashboard() {
         focusPreference: parseFocusPreference(user.focusPreference),
         cycleLength,
       },
+      insights,
       error: null,
     };
   } catch (error) {
@@ -296,5 +316,64 @@ export async function updateFocusPreference(focusPreference: FocusPreference) {
   } catch (error) {
     console.error('Error updating focus preference:', error);
     return { success: false, error: 'Failed to update focus preference' };
+  }
+}
+
+/**
+ * Server Action: "My period started" on a day (today by default in the UI).
+ * Adds the day to the period history and moves lastPeriodDate forward if it is newer.
+ */
+export async function logPeriodStart(date: string) {
+  try {
+    const authResult = await requireSessionUserId();
+    if (!authResult.ok) {
+      return { success: false, error: authResult.error };
+    }
+    const parsed = PeriodStartInputSchema.safeParse({ date });
+    if (!parsed.success) {
+      return {
+        success: false,
+        error: parsed.error.issues[0]?.message ?? 'Invalid date',
+      };
+    }
+    const data = await recordPeriodStart(authResult.userId, parsed.data.date);
+    revalidatePath('/cycle');
+    revalidatePath('/profile');
+    revalidatePath('/dashboard');
+    return { success: true, data, error: null };
+  } catch (error) {
+    console.error('Error logging period start:', safeErrorLabel(error));
+    return { success: false, error: 'Failed to log your period start' };
+  }
+}
+
+/**
+ * Server Action: Remove a mistaken period start. If it was the latest one, the previous
+ * logged start becomes the current one.
+ */
+export async function deletePeriodStart(date: string) {
+  try {
+    const authResult = await requireSessionUserId();
+    if (!authResult.ok) {
+      return { success: false, error: authResult.error };
+    }
+    const parsed = PeriodStartInputSchema.safeParse({ date });
+    if (!parsed.success) {
+      return {
+        success: false,
+        error: parsed.error.issues[0]?.message ?? 'Invalid date',
+      };
+    }
+    const data = await removePeriodStart(authResult.userId, parsed.data.date);
+    if (!data.removed) {
+      return { success: false, error: 'That period start was not found' };
+    }
+    revalidatePath('/cycle');
+    revalidatePath('/profile');
+    revalidatePath('/dashboard');
+    return { success: true, data, error: null };
+  } catch (error) {
+    console.error('Error deleting period start:', safeErrorLabel(error));
+    return { success: false, error: 'Failed to remove that period start' };
   }
 }

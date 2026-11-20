@@ -175,7 +175,16 @@ describe.skipIf(!isolated)(
         ],
       });
       await client.journalEntry.create({
-        data: { userId: leaving.id, date: new Date('2026-01-05'), mood: 7 },
+        data: {
+          userId: leaving.id,
+          date: new Date('2026-01-05'),
+          mood: 7,
+          temperature: 36.4,
+          restingHeartRate: 60,
+        },
+      });
+      await client.periodStart.create({
+        data: { userId: leaving.id, date: new Date('2026-01-01') },
       });
     });
 
@@ -261,6 +270,9 @@ describe.skipIf(!isolated)(
       await client.user.delete({ where: { id: leaving.id } });
       expect(
         await client.journalEntry.count({ where: { userId: leaving.id } })
+      ).toBe(0);
+      expect(
+        await client.periodStart.count({ where: { userId: leaving.id } })
       ).toBe(0);
       expect(await client.member.count({ where: { userId: leaving.id } })).toBe(
         0

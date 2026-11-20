@@ -6,6 +6,7 @@ import { requireSessionUserId } from '@/lib/session';
 import { revalidatePath } from 'next/cache';
 import { UpdateProfileSchema } from '@/lib/validation/profile-schemas';
 import { dateOnlyToUtcDate } from '@/lib/date-only';
+import { setLatestPeriodStartFromProfile } from '@/lib/period-starts';
 
 export async function updateProfile(data: z.infer<typeof UpdateProfileSchema>) {
   try {
@@ -17,42 +18,51 @@ export async function updateProfile(data: z.infer<typeof UpdateProfileSchema>) {
     // Validate input
     const validated = UpdateProfileSchema.parse(data);
 
-    // Update user profile
-    const updatedUser = await prisma.user.update({
-      where: { id: authResult.userId },
-      data: {
-        ...(validated.name && { name: validated.name }),
-        ...(validated.energyLevel && { energyLevel: validated.energyLevel }),
-        ...(validated.dietaryRestrictions !== undefined && {
-          dietaryRestrictions: validated.dietaryRestrictions,
-        }),
-        ...(validated.healthGoals !== undefined && {
-          healthGoals: validated.healthGoals,
-        }),
-        ...(validated.timezone && { timezone: validated.timezone }),
-        ...(validated.mealPlanDuration && {
-          mealPlanDuration: validated.mealPlanDuration,
-        }),
-        ...(validated.mealPlanStartDate !== undefined && {
-          mealPlanStartDate: validated.mealPlanStartDate
-            ? dateOnlyToUtcDate(validated.mealPlanStartDate)
-            : null,
-        }),
-        ...(validated.enableCycleTracking !== undefined && {
-          enableCycleTracking: validated.enableCycleTracking,
-        }),
-        ...(validated.cycleLength !== undefined && {
-          cycleLength: validated.cycleLength,
-        }),
-        ...(validated.lastPeriodDate !== undefined && {
-          lastPeriodDate: validated.lastPeriodDate
-            ? dateOnlyToUtcDate(validated.lastPeriodDate)
-            : null,
-        }),
-        ...(validated.focusPreference !== undefined && {
-          focusPreference: validated.focusPreference,
-        }),
-      },
+    // Update user profile. A new last period date is also recorded in the period
+    // history (an earlier date corrects the current start), in the same transaction.
+    const updatedUser = await prisma.$transaction(async (tx) => {
+      const lastPeriodDate =
+        validated.lastPeriodDate === undefined
+          ? undefined
+          : validated.lastPeriodDate
+            ? await setLatestPeriodStartFromProfile(
+                tx,
+                authResult.userId,
+                validated.lastPeriodDate
+              )
+            : null;
+      return tx.user.update({
+        where: { id: authResult.userId },
+        data: {
+          ...(validated.name && { name: validated.name }),
+          ...(validated.energyLevel && { energyLevel: validated.energyLevel }),
+          ...(validated.dietaryRestrictions !== undefined && {
+            dietaryRestrictions: validated.dietaryRestrictions,
+          }),
+          ...(validated.healthGoals !== undefined && {
+            healthGoals: validated.healthGoals,
+          }),
+          ...(validated.timezone && { timezone: validated.timezone }),
+          ...(validated.mealPlanDuration && {
+            mealPlanDuration: validated.mealPlanDuration,
+          }),
+          ...(validated.mealPlanStartDate !== undefined && {
+            mealPlanStartDate: validated.mealPlanStartDate
+              ? dateOnlyToUtcDate(validated.mealPlanStartDate)
+              : null,
+          }),
+          ...(validated.enableCycleTracking !== undefined && {
+            enableCycleTracking: validated.enableCycleTracking,
+          }),
+          ...(validated.cycleLength !== undefined && {
+            cycleLength: validated.cycleLength,
+          }),
+          ...(lastPeriodDate !== undefined && { lastPeriodDate }),
+          ...(validated.focusPreference !== undefined && {
+            focusPreference: validated.focusPreference,
+          }),
+        },
+      });
     });
 
     // Return a serializable DTO (do NOT return raw Prisma User with Date fields)

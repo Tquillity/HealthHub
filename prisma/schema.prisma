@@ -29,8 +29,13 @@ model User {
   mealPlanDuration      String?
   mealPlanStartDate     DateTime?
   isPremium             Boolean                    @default(false) @map("is_premium")
+  /// Preferred unit for basal body temperature ("C" or "F"). Readings are always stored in Celsius.
+  temperatureUnit       String                     @default("C")
+  /// Opt-in for resting heart rate, HRV and sleep quality logging and the recovery score.
+  trackVitals           Boolean                    @default(false)
   members               Member[]
   journalEntries        JournalEntry[]
+  periodStarts          PeriodStart[]
   ingredientPreferences UserIngredientPreference[]
   pomoState             PomoState?
 
@@ -300,30 +305,54 @@ model ShoppingListItem {
 }
 
 model JournalEntry {
-  id               String   @id @default(cuid())
-  userId           String
-  date             DateTime
-  mood             Int?
-  energy           Int?
-  sleepHours       Float?
-  notes            String?
-  tags             String[]
-  gratitudeEntries String[]
-  gratitudeNotes   String?
-  goalsAchieved    String[]
-  goalsProgress    String[]
-  goalsNotes       String?
-  symptomsPhysical String[]
-  symptomsMental   String[]
-  symptomsNotes    String?
-  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id                   String   @id @default(cuid())
+  userId               String
+  date                 DateTime
+  mood                 Int?
+  energy               Int?
+  sleepHours           Float?
+  notes                String?
+  tags                 String[]
+  gratitudeEntries     String[]
+  gratitudeNotes       String?
+  goalsAchieved        String[]
+  goalsProgress        String[]
+  goalsNotes           String?
+  symptomsPhysical     String[]
+  symptomsMental       String[]
+  symptomsNotes        String?
+  /// Basal body temperature, stored in Celsius (2 decimals) whatever unit was entered.
+  temperature          Float?
+  /// Encrypted (lib/encryption): one of dry | sticky | creamy | egg-white | watery.
+  cervicalMucus        String?
+  /// Resting heart rate in beats per minute.
+  restingHeartRate     Int?
+  /// Heart rate variability as RMSSD in milliseconds.
+  heartRateVariability Float?
+  /// Self-rated sleep quality, 1-10.
+  sleepQuality         Int?
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
   // The unique index leads with userId, so it also serves userId-only and userId + date-range
   // queries; a separate @@index([userId]) would only add write cost.
   @@unique([userId, date])
   @@map("journal_entry")
+}
+
+/// First day of a period. One row per logged start; the latest one is mirrored in
+/// User.lastPeriodDate. Used to rebuild past cycles (BBT analysis, cycle lengths).
+model PeriodStart {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Date-only, stored as UTC midnight like JournalEntry.date (see lib/date-only).
+  date      DateTime
+  createdAt DateTime @default(now())
+
+  @@unique([userId, date])
+  @@map("period_start")
 }
 
 model EducationalResource {

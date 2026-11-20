@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  addDaysToDateOnly,
+  daysBetweenDateOnly,
   DateOnlyStringSchema,
   dateOnlyToLocalDate,
   dateOnlyToUtcDate,
@@ -99,5 +101,27 @@ describe('parseMonthKey', () => {
     ]) {
       expect(parseMonthKey(value)).toBeNull();
     }
+  });
+});
+
+describe('addDaysToDateOnly / daysBetweenDateOnly', () => {
+  it('adds calendar days across month, year and leap-day boundaries', () => {
+    expect(addDaysToDateOnly('2026-01-31', 1)).toBe('2026-02-01');
+    expect(addDaysToDateOnly('2026-12-31', 1)).toBe('2027-01-01');
+    expect(addDaysToDateOnly('2024-02-28', 1)).toBe('2024-02-29');
+    expect(addDaysToDateOnly('2026-03-01', -1)).toBe('2026-02-28');
+    expect(addDaysToDateOnly('2026-03-29', 0)).toBe('2026-03-29');
+  });
+
+  it('counts whole days between two dates (UTC dates have no DST)', () => {
+    expect(daysBetweenDateOnly('2026-03-01', '2026-03-29')).toBe(28);
+    expect(daysBetweenDateOnly('2026-03-29', '2026-03-01')).toBe(-28);
+    expect(daysBetweenDateOnly('2026-10-20', '2026-11-02')).toBe(13);
+    expect(daysBetweenDateOnly('2026-05-05', '2026-05-05')).toBe(0);
+  });
+
+  it('rejects invalid dates', () => {
+    expect(() => addDaysToDateOnly('2026-02-30', 1)).toThrow();
+    expect(() => daysBetweenDateOnly('nope', '2026-01-01')).toThrow();
   });
 });

@@ -7,7 +7,7 @@
  * Allows users to switch between Lifestyle, Science, and Correlative modes.
  * 
  * Features:
- * - 5 toggle badges (Energy, Estrogen, Progesterone, LH, FSH)
+ * - Toggle badges (Energy, hormones, and your own BBT / Recovery data when available)
  * - Color-coded indicators matching chart line styles
  * - Updates URL state via nuqs for persistence
  * - PWA-optimized touch targets (min-h-[44px])
@@ -16,9 +16,38 @@
 
 import { useMemo } from 'react';
 import { useQueryState, parseAsString } from 'nuqs';
-import { Zap, Activity } from 'lucide-react';
+import { Zap, Activity, Thermometer, HeartPulse } from 'lucide-react';
 
-export type SeriesType = 'energy' | 'estrogen' | 'progesterone' | 'lh' | 'fsh' | 'testosterone';
+export type SeriesType =
+  | 'energy'
+  | 'estrogen'
+  | 'progesterone'
+  | 'lh'
+  | 'fsh'
+  | 'testosterone'
+  | 'bbt'
+  | 'recovery';
+
+const ALL_SERIES: readonly SeriesType[] = [
+  'energy',
+  'estrogen',
+  'progesterone',
+  'lh',
+  'fsh',
+  'testosterone',
+  'bbt',
+  'recovery',
+];
+
+/**
+ * Shown when the URL has no `show` param. BBT and Recovery are the user's own data and
+ * only render in clinical mode when there is something to draw.
+ */
+const DEFAULT_SERIES: readonly SeriesType[] = ['energy', 'bbt', 'recovery'];
+
+function isSeriesType(value: string): value is SeriesType {
+  return (ALL_SERIES as readonly string[]).includes(value);
+}
 
 interface SeriesConfig {
   id: SeriesType;
@@ -64,26 +93,44 @@ const SERIES_CONFIG: SeriesConfig[] = [
     color: '#f97316', // orange-500
     icon: <Activity className="h-4 w-4" />,
   },
+  {
+    id: 'bbt',
+    label: 'BBT (yours)',
+    color: '#ea580c', // orange-600, matches the chart line
+    icon: <Thermometer className="h-4 w-4" />,
+  },
+  {
+    id: 'recovery',
+    label: 'Recovery (yours)',
+    color: '#0d9488', // teal-600, matches the chart line
+    icon: <HeartPulse className="h-4 w-4" />,
+  },
 ];
 
 interface SeriesSelectorProps {
   onSeriesChange?: (visibleSeries: SeriesType[]) => void;
+  /** Series without data to show (for example Recovery when vitals are off). */
+  hiddenSeries?: readonly SeriesType[];
 }
 
-export function SeriesSelector({ onSeriesChange }: SeriesSelectorProps) {
+export function SeriesSelector({
+  onSeriesChange,
+  hiddenSeries = [],
+}: SeriesSelectorProps) {
   // Parse URL state for visible series (comma-separated list)
   const [visibleSeriesStr, setVisibleSeriesStr] = useQueryState(
     'show',
-    parseAsString.withDefault('energy')
+    parseAsString
   );
 
   // Parse visible series from URL string
-  const visibleSeries = useMemo(() => {
-    if (!visibleSeriesStr) return ['energy'] as SeriesType[];
-    return visibleSeriesStr.split(',').filter((s): s is SeriesType => 
-      ['energy', 'estrogen', 'progesterone', 'lh', 'fsh', 'testosterone'].includes(s.trim())
-    );
-  }, [visibleSeriesStr]);
+  const visibleSeries = useMemo(
+    () => getVisibleSeries(visibleSeriesStr),
+    [visibleSeriesStr]
+  );
+  const shownConfig = SERIES_CONFIG.filter(
+    (series) => !hiddenSeries.includes(series.id)
+  );
 
   // Toggle series visibility
   const toggleSeries = (seriesId: SeriesType) => {
@@ -115,7 +162,7 @@ export function SeriesSelector({ onSeriesChange }: SeriesSelectorProps) {
       aria-label="Chart series visibility controls"
       className="flex flex-wrap gap-3 pt-4 border-t border-gray-200"
     >
-      {SERIES_CONFIG.map((series) => {
+      {shownConfig.map((series) => {
         const isVisible = visibleSeries.includes(series.id);
         return (
           <button
@@ -165,13 +212,14 @@ export function SeriesSelector({ onSeriesChange }: SeriesSelectorProps) {
  * Get visible series from URL or default
  * 
  * @param urlValue - Comma-separated string from URL
- * @returns Array of visible series IDs (always returns at least ['energy'] if empty)
+ * @returns Array of visible series IDs (the default set without a param; at least ['energy'])
  */
 export function getVisibleSeries(urlValue: string | null): SeriesType[] {
-  if (!urlValue) return ['energy'] as SeriesType[];
-  const series = urlValue.split(',').filter((s): s is SeriesType => 
-    ['energy', 'estrogen', 'progesterone', 'lh', 'fsh', 'testosterone'].includes(s.trim())
-  );
+  if (!urlValue) return [...DEFAULT_SERIES];
+  const series = urlValue
+    .split(',')
+    .map((s) => s.trim())
+    .filter(isSeriesType);
   // Ensure at least one series is always visible (default to energy)
   return series.length > 0 ? series : (['energy'] as SeriesType[]);
 }

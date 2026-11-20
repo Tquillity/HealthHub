@@ -9,6 +9,7 @@ import type { JournalEntry } from '@prisma/client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { dateOnlyToLocalDate } from '@/lib/date-only';
+import { JournalBodySignals } from './journal-body-signals';
 
 interface JournalEntryDetailProps {
   entry: JournalEntry;
@@ -149,6 +150,8 @@ export function JournalEntryDetail({
                 </div>
               </div>
             )}
+
+            <JournalBodySignals entry={entry} />
 
             {/* Notes */}
             {entry.notes && (

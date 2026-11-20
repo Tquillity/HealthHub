@@ -91,3 +91,19 @@ export function parseMonthKey(value: string | null | undefined): {
     end: new Date(Date.UTC(year, month, 1)),
   };
 }
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+/** `YYYY-MM-DD` plus `days` calendar days (negative goes back). Throws on an invalid date. */
+export function addDaysToDateOnly(value: string, days: number): string {
+  const date = dateOnlyToUtcDate(value);
+  return toDateOnlyString(new Date(date.getTime() + days * MS_PER_DAY));
+}
+
+/** Whole calendar days from `from` to `to` (`to` minus `from`; negative when `to` is earlier). */
+export function daysBetweenDateOnly(from: string, to: string): number {
+  return Math.round(
+    (dateOnlyToUtcDate(to).getTime() - dateOnlyToUtcDate(from).getTime()) /
+      MS_PER_DAY
+  );
+}

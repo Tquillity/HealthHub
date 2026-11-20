@@ -10,7 +10,9 @@ import {
   DashboardStatsSkeleton,
   FocusGoalSkeleton,
   RecentRoutinesSkeleton,
+  VitalsCardSkeleton,
 } from '@/components/dashboard/dashboard-skeletons';
+import { VitalsCard } from '@/components/dashboard/vitals-card';
 
 /**
  * The shell (greeting, quick actions, today's tip) needs only the session, so it renders at once.
@@ -47,6 +49,9 @@ export default async function DashboardPage() {
           <div className="lg:col-span-2 flex flex-col gap-6">
             <Suspense fallback={<FocusGoalSkeleton />}>
               <DashboardFocusGoal />
+            </Suspense>
+            <Suspense fallback={<VitalsCardSkeleton />}>
+              <VitalsCard userId={userId} />
             </Suspense>
             <Suspense fallback={<DashboardStatsSkeleton />}>
               <DashboardStats userId={userId} />
