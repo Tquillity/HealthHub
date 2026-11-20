@@ -111,6 +111,9 @@ describe.skipIf(!isolated)(
         await data.loadLotteryCircadianTarget(userId, stockholmMorning)
       ).toBe(null);
       expect(
+        await data.loadCircadianLotteryHint(userId, stockholmMorning)
+      ).toBe(null);
+      expect(
         await data.allowedTimeOfDayEnergy(userId, { energyMorning: 6 })
       ).toEqual({});
       expect(await client.journalEntry.count({ where: { userId } })).toBe(0);
@@ -262,6 +265,12 @@ describe.skipIf(!isolated)(
       expect(
         await data.loadLotteryCircadianTarget(userId, stockholmMorning)
       ).toEqual({ window: 'morning', intensity: insights?.intensityTarget });
+      expect(
+        await data.loadCircadianLotteryHint(userId, stockholmMorning)
+      ).toEqual({
+        windowLabel: 'Morning',
+        recommendedIntensity: insights?.recommendedIntensity,
+      });
     });
 
     it('clears only time-of-day check-ins, only for this user', async () => {

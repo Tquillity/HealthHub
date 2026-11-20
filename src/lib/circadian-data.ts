@@ -7,17 +7,20 @@ import {
   toDateOnlyString,
 } from '@/lib/date-only';
 import { isValidTimeZone } from '@/lib/briefing/schedule';
+import { safeErrorLabel } from '@/lib/safe-error';
 import {
   buildCircadianInsights,
   ENERGY_HISTORY_DAYS,
   ENERGY_SLOT_FIELDS,
   LIGHT_DINNER_MAX_KCAL,
   localTimeIn,
+  lotteryHintFromInsights,
   lotteryTargetFromInsights,
   PROTEIN_RICH_BREAKFAST_MIN_GRAMS,
   slotForWindow,
   windowForHour,
   type CircadianInsights,
+  type CircadianLotteryHint,
   type EnergySlot,
   type EnergySlotField,
   type LotteryCircadianTarget,
@@ -133,6 +136,26 @@ export async function loadLotteryCircadianTarget(
 ): Promise<LotteryCircadianTarget | null> {
   const insights = await loadCircadianInsights(userId, now);
   return insights ? lotteryTargetFromInsights(insights) : null;
+}
+
+/**
+ * The routines page hint for the lottery dialog, or null when the opt-in is off. Never
+ * throws: the page works without it.
+ */
+export async function loadCircadianLotteryHint(
+  userId: string,
+  now: Date = new Date()
+): Promise<CircadianLotteryHint | null> {
+  try {
+    const insights = await loadCircadianInsights(userId, now);
+    return insights ? lotteryHintFromInsights(insights) : null;
+  } catch (error) {
+    console.error(
+      '[circadian] Failed to load the lottery hint:',
+      safeErrorLabel(error)
+    );
+    return null;
+  }
 }
 
 export type EnergyCheckIn = {

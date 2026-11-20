@@ -667,6 +667,21 @@ export type LotteryCircadianTarget = {
   intensity: number;
 };
 
+/** What the lottery dialog tells the user about the weighting. */
+export type CircadianLotteryHint = {
+  windowLabel: string;
+  recommendedIntensity: RoutineIntensity;
+};
+
+export function lotteryHintFromInsights(
+  insights: CircadianInsights
+): CircadianLotteryHint {
+  return {
+    windowLabel: CIRCADIAN_WINDOW_LABELS[insights.window],
+    recommendedIntensity: insights.recommendedIntensity,
+  };
+}
+
 export function lotteryTargetFromInsights(
   insights: CircadianInsights
 ): LotteryCircadianTarget {

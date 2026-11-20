@@ -5,6 +5,7 @@ import {
   ENERGY_HISTORY_DAYS,
   intensityLabel,
   localTimeIn,
+  lotteryHintFromInsights,
   lotteryTargetFromInsights,
   MAX_SUGGESTIONS,
   mealFocusForMoment,
@@ -436,6 +437,10 @@ describe('buildCircadianInsights', () => {
     expect(lotteryTargetFromInsights(insights)).toEqual({
       window: 'morning',
       intensity: 2,
+    });
+    expect(lotteryHintFromInsights(insights)).toEqual({
+      windowLabel: 'Morning',
+      recommendedIntensity: 'high',
     });
   });
 });

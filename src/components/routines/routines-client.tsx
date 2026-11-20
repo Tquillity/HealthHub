@@ -13,13 +13,21 @@ import { useUIStore } from '@/lib/store';
 import { RoutineCard } from './routine-card';
 import { RoutinesGrid } from './routines-grid';
 import { RoutineRichForm } from './routine-rich-form';
+import type { CircadianLotteryHint } from '@/lib/circadian-recommendations';
 
 interface RoutinesClientProps {
   routines: Routine[];
+  /** Set when the user turned circadian insights on: the lottery is time-weighted. */
+  circadianLottery?: CircadianLotteryHint | null;
 }
+
+/** "Match my rhythm": no energy filter, the server weights the draw instead. */
+const MATCH_MY_RHYTHM = 'rhythm';
+type LotteryEnergyChoice = 'low' | 'medium' | 'high' | typeof MATCH_MY_RHYTHM;
 
 export function RoutinesClient({
   routines: initialRoutines,
+  circadianLottery = null,
 }: RoutinesClientProps) {
   const router = useRouter();
   const showToast = useUIStore((state) => state.showToast);
@@ -71,8 +79,8 @@ export function RoutinesClient({
   const [showLotteryDialog, setShowLotteryDialog] = useState(false);
   const [lotteryResults, setLotteryResults] = useState<Routine[]>([]);
   const [lotterySpinning, setLotterySpinning] = useState(false);
-  const [lotteryEnergy, setLotteryEnergy] = useState<'low' | 'medium' | 'high'>(
-    'medium'
+  const [lotteryEnergy, setLotteryEnergy] = useState<LotteryEnergyChoice>(
+    circadianLottery ? MATCH_MY_RHYTHM : 'medium'
   );
   const [lotteryMaxTime, setLotteryMaxTime] = useState(30);
   const [lotteryCount, setLotteryCount] = useState(1);
@@ -89,7 +97,7 @@ export function RoutinesClient({
     await new Promise((resolve) => setTimeout(resolve, 1500));
 
     const result = await drawLottery({
-      energy: lotteryEnergy,
+      energy: lotteryEnergy === MATCH_MY_RHYTHM ? undefined : lotteryEnergy,
       maxTime: lotteryMaxTime,
       count: lotteryCount,
       context: lotteryContext || undefined,
@@ -219,22 +227,42 @@ export function RoutinesClient({
 
             <div className="flex flex-col gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label
+                  htmlFor="lottery-energy"
+                  className="block text-sm font-medium text-gray-700"
+                >
                   Your Energy Level
                 </label>
                 <select
+                  id="lottery-energy"
                   value={lotteryEnergy}
                   onChange={(e) =>
-                    setLotteryEnergy(
-                      e.target.value as 'low' | 'medium' | 'high'
-                    )
+                    setLotteryEnergy(e.target.value as LotteryEnergyChoice)
+                  }
+                  aria-describedby={
+                    circadianLottery ? 'lottery-energy-hint' : undefined
                   }
                   className="mt-1 flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
                 >
+                  {circadianLottery && (
+                    <option value={MATCH_MY_RHYTHM}>
+                      {`Match my rhythm (suggested now: ${circadianLottery.recommendedIntensity})`}
+                    </option>
+                  )}
                   <option value="low">Low</option>
                   <option value="medium">Medium</option>
                   <option value="high">High</option>
                 </select>
+                {circadianLottery && (
+                  <p
+                    id="lottery-energy-hint"
+                    className="mt-1 text-xs text-gray-500"
+                  >
+                    Circadian insights are on, so picks lean towards routines
+                    that suit the {circadianLottery.windowLabel.toLowerCase()}{' '}
+                    and your energy. Every matching routine can still come up.
+                  </p>
+                )}
               </div>
 
               <div>
