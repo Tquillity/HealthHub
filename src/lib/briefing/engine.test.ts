@@ -271,6 +271,7 @@ describe('buildDailyBriefing: missing data', () => {
     expect(briefing).toMatchObject({
       date: TODAY,
       phase: null,
+      phaseNote: null,
       suggestions: [],
       notes: [],
       headline: 'Here are a few ideas for today.',
@@ -298,16 +299,43 @@ describe('buildDailyBriefing: missing data', () => {
     expect(briefing.suggestions).toEqual([]);
   });
 
-  it('notes a cycle that is longer than usual', () => {
+  it('estimates no phase for a cycle longer than usual and says so up front', () => {
     const briefing = buildDailyBriefing(
-      input({ today: '2026-12-02', cycle: CYCLE })
+      input({
+        today: '2026-12-02',
+        cycle: CYCLE,
+        journal: [
+          ...LOW_ENERGY_JOURNAL.slice(0, -3),
+          journalDay('2026-11-30', { energy: 4 }),
+          journalDay('2026-12-01', { energy: 4 }),
+          journalDay('2026-12-02', { energy: 4 }),
+        ],
+      })
     );
     expect(briefing.phase).toMatchObject({
-      phase: 'luteal',
+      phase: null,
       cycleDay: 35,
       pastTypicalLength: true,
     });
-    expect(briefing.notes[0]).toContain('past your usual 28-day cycle');
+    // Not "luteal": no phase-based meal idea, no phase in the headline or the evidence.
+    expect(keys(briefing)).toEqual(['routine.ease-intensity']);
+    const text = JSON.stringify(briefing);
+    expect(text).not.toMatch(/luteal/i);
+    expect(briefing.suggestions[0].evidence).toContain(
+      'Cycle day 35, longer than your usual 28 days, so no phase is estimated.'
+    );
+    // The caveat is its own field, shown at every detail level, not a detail note.
+    expect(briefing.phaseNote).toBe(
+      'Day 35 is longer than your usual 28-day cycle, so phase-based ideas are paused. If your period has started, log it on the cycle page.'
+    );
+    expect(briefing.notes.join(' ')).not.toContain('Day 35');
+    expect(
+      buildDailyBriefing(input({ today: '2026-12-02', cycle: CYCLE })).headline
+    ).toBe('Here are a few ideas for today.');
+  });
+
+  it('has no phase note within the usual cycle length', () => {
+    expect(buildDailyBriefing(input({ cycle: CYCLE })).phaseNote).toBeNull();
   });
 
   it('uses meal adherence only when cooked meals are tracked', () => {

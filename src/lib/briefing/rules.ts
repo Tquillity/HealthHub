@@ -123,8 +123,9 @@ export function buildCandidates(
     add('routine.go-for-it', 35 + (recovery?.good ? 10 : 0));
   }
 
-  // Meals: phase needs (lib/dietary-recommendations)
-  if (phase) {
+  // Meals: phase needs (lib/dietary-recommendations). None without a phase estimate
+  // (a cycle longer than usual), so nothing says "in the luteal phase" on day 35.
+  if (phase?.phase) {
     if (isIronWindow(signals)) {
       add('meal.iron', 45 + (energyLow ? 15 : 0));
     } else if (phase.phase === 'luteal') {

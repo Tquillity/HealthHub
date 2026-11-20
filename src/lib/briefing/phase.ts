@@ -22,13 +22,22 @@ import type { BriefingCycleData, BriefingPhaseInfo } from './types';
  * calendar estimate (Marshall J, "A field trial of the basal body-temperature method of
  * regulating births", Lancet 1968;2:8-10; luteal phase ~12-14 days, NIH/Endotext).
  *
- * The current cycle does not wrap after the typical length: if the period has not been
- * logged yet, the days stay in the luteal phase and the briefing says the cycle is
- * longer than usual, instead of guessing that a new period has started.
+ * The current cycle does not wrap after the typical length (that would guess that a new
+ * period started), and its days after that length get no phase at all: the next period
+ * is late or not logged, so ovulation and the luteal phase cannot be placed and the model
+ * would otherwise call every later day luteal (day 35, day 180, ...). This is how the
+ * clinical summary treats those days (lib/clinical-report `phaseOf`). The briefing then
+ * skips phase-based ideas and says, next to the cycle day, that the cycle is longer
+ * than usual. After a BBT-confirmed ovulation the luteal phase is placed on the measured
+ * day, so it lasts until that day + 14 if that is later than the typical length.
  */
 
 export type DayPhase = {
-  phase: CyclePhase;
+  /**
+   * null for a day of the open cycle after its expected length (the typical length, or
+   * the BBT ovulation day + 14 when later): no phase can be estimated.
+   */
+  phase: CyclePhase | null;
   cycleDay: number;
   /**
    * The cycle length the phase was placed with (`getPhaseForDay(cycleDay, length)`): the
@@ -66,24 +75,25 @@ export function buildPhaseResolver(cycle: BriefingCycleData): PhaseResolver {
     const info = getCycleDayInfo(cycles, date, cycle.typicalCycleLength);
     if (!info) return null;
     const ovulationDay = ovulationDayByStart.get(info.cycle.start);
-    if (ovulationDay === undefined) {
-      return {
-        phase: info.phase,
-        cycleDay: info.cycleDay,
-        phaseCycleLength: info.phaseCycleLength,
-        temperatureConfirmed: false,
-        inOpenCycle: info.cycle.isOpen,
-      };
-    }
     // getPhaseForDay places ovulation 14 days before the end of the cycle length it is
     // given, so a length of (measured ovulation day + 14) puts it on the measured day.
-    const phaseCycleLength = ovulationDay + 14;
-    const phase = getPhaseForDay(info.cycleDay, phaseCycleLength);
+    const phaseCycleLength =
+      ovulationDay === undefined ? info.phaseCycleLength : ovulationDay + 14;
+    const beyondExpectedLength =
+      info.cycle.isOpen &&
+      info.cycleDay > Math.max(cycle.typicalCycleLength, phaseCycleLength);
     return {
-      phase,
+      phase: beyondExpectedLength
+        ? null
+        : ovulationDay === undefined
+          ? info.phase
+          : getPhaseForDay(info.cycleDay, phaseCycleLength),
       cycleDay: info.cycleDay,
       phaseCycleLength,
-      temperatureConfirmed: info.cycleDay > ovulationDay,
+      temperatureConfirmed:
+        ovulationDay !== undefined &&
+        !beyondExpectedLength &&
+        info.cycleDay > ovulationDay,
       inOpenCycle: info.cycle.isOpen,
     };
   };

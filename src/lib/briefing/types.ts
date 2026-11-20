@@ -180,7 +180,11 @@ export type BriefingEngineInput = {
 // ---------------------------------------------------------------------------
 
 export type BriefingPhaseInfo = {
-  phase: CyclePhase;
+  /**
+   * null when the current cycle has run past its expected length (period late or not
+   * logged): no phase is estimated and phase-based ideas are skipped (see phase.ts).
+   */
+  phase: CyclePhase | null;
   /** 1-based day of the current cycle. */
   cycleDay: number;
   /** The phase follows a BBT thermal shift (ovulation confirmed) rather than the calendar. */
@@ -209,6 +213,11 @@ export type DailyBriefing = {
   focus: FocusPreference;
   detail: BriefingDetail;
   headline: string;
+  /**
+   * A caveat about the cycle phase (the cycle is longer than usual), shown next to the
+   * phase at every detail level; null when there is none.
+   */
+  phaseNote: string | null;
   /** Ranked, most relevant first. Suggestions dismissed today are left out. */
   suggestions: BriefingSuggestion[];
   /** Notes about missing or limited data. */

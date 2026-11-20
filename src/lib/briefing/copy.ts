@@ -86,6 +86,11 @@ function capitalize(text: string): string {
 function phaseEvidence(signals: BriefingSignals): string[] {
   const phase = signals.phase;
   if (!phase) return [];
+  if (!phase.phase) {
+    return [
+      `Cycle day ${phase.cycleDay}, longer than your usual ${phase.typicalCycleLength} days, so no phase is estimated.`,
+    ];
+  }
   const confirmed = phase.temperatureConfirmed
     ? ', confirmed by your temperature shift'
     : '';
@@ -103,7 +108,7 @@ function recoveryEvidence(signals: BriefingSignals): string[] {
   ];
   if (latest.usualScore !== null) {
     const where =
-      latest.comparedWith === 'phase' && latest.phase
+      latest.comparedWith === 'phase' && latest.phase && signals.phase?.phase
         ? ` in the ${phaseName(latest.phase)}`
         : '';
     lines.push(`Your usual recovery${where}: about ${latest.usualScore}.`);
@@ -143,7 +148,7 @@ function mealEvidence(signals: BriefingSignals): string[] {
   return [];
 }
 
-function phaseFoodHint(phase: CyclePhase | undefined): string {
+function phaseFoodHint(phase: CyclePhase | null | undefined): string {
   if (!phase) return '';
   const focus = getDietaryRecommendations(phase)?.focus ?? [];
   if (focus.length < 2) return '';
@@ -231,8 +236,11 @@ export function phraseSuggestion(
       };
     case 'recovery.rest-day': {
       const recovery = signals.recovery;
+      // The phase is named only while the briefing shows one (cycle source on, phase known).
       const forPhase =
-        recovery?.latest.comparedWith === 'phase' ? ' for this phase' : '';
+        recovery?.latest.comparedWith === 'phase' && phase
+          ? ' for this phase'
+          : '';
       return {
         title: 'Consider adding a rest day',
         body: withDetail(
@@ -396,24 +404,32 @@ export function buildHeadline(signals: BriefingSignals): string {
   if (signals.checkInDays === 0) {
     return 'Check in with your journal to make your briefing more personal.';
   }
-  if (signals.phase) {
+  if (signals.phase?.phase) {
     return `Here are a few ideas for your ${phaseName(signals.phase.phase)}.`;
   }
   return 'Here are a few ideas for today.';
 }
 
-/** Notes about missing or limited data (shown in the card's details). */
+/**
+ * The caveat shown next to the cycle day when the current cycle is longer than usual.
+ * Always visible (not only in the details), because the phase and the phase-based ideas
+ * depend on it.
+ */
+export function buildPhaseNote(signals: BriefingSignals): string | null {
+  const phase = signals.phase;
+  if (!phase?.pastTypicalLength) return null;
+  if (!phase.phase) {
+    return `Day ${phase.cycleDay} is longer than your usual ${phase.typicalCycleLength}-day cycle, so phase-based ideas are paused. If your period has started, log it on the cycle page.`;
+  }
+  return `You're on cycle day ${phase.cycleDay}, past your usual ${phase.typicalCycleLength}-day cycle. When your period starts, log it on the cycle page so your phases stay accurate.`;
+}
+
+/** Notes about missing or limited data (shown in the card's details; see buildPhaseNote). */
 export function buildNotes(signals: BriefingSignals): string[] {
   const notes: string[] = [];
   if (signals.checkInDays === 0) {
     notes.push(
       'No journal check-ins in the last 3 days, so energy, sleep and symptoms are not part of this briefing. Log how you feel to make it more personal.'
-    );
-  }
-  const phase = signals.phase;
-  if (phase?.pastTypicalLength) {
-    notes.push(
-      `You're on cycle day ${phase.cycleDay}, past your usual ${phase.typicalCycleLength}-day cycle. When your period starts, log it on the cycle page so your phases stay accurate.`
     );
   }
   if (signals.energy?.comparison.source === 'typical') {

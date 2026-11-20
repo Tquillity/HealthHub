@@ -6,7 +6,12 @@ import {
   summarizeFeedback,
   todaysFeedback,
 } from './rank';
-import { buildHeadline, buildNotes, phraseSuggestion } from './copy';
+import {
+  buildHeadline,
+  buildNotes,
+  buildPhaseNote,
+  phraseSuggestion,
+} from './copy';
 import type { BriefingEngineInput, DailyBriefing } from './types';
 
 /**
@@ -36,6 +41,7 @@ export function buildDailyBriefing(input: BriefingEngineInput): DailyBriefing {
     focus: input.focus,
     detail: input.detail,
     headline: buildHeadline(signals),
+    phaseNote: buildPhaseNote(signals),
     suggestions: visible.map((candidate) => ({
       key: candidate.key,
       category: candidate.category,

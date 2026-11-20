@@ -31,21 +31,42 @@ describe('buildPhaseResolver', () => {
     expect(phaseOf('2026-09-15')).toBeNull();
   });
 
-  it('keeps an overdue cycle in the luteal phase instead of wrapping', () => {
+  it('gives an overdue cycle no phase instead of calling every later day luteal', () => {
     const resolver = buildPhaseResolver(base);
+    // The last day of the typical length is still luteal ...
+    expect(resolver.phaseOf(cycleDay(28))).toMatchObject({
+      phase: 'luteal',
+      cycleDay: 28,
+    });
+    // ... after it there is no estimate (and no wrapping to a guessed new cycle).
     const today = cycleDay(34);
     expect(resolver.phaseOf(today)).toMatchObject({
-      phase: 'luteal',
+      phase: null,
       cycleDay: 34,
+      inOpenCycle: true,
     });
     expect(describeTodayPhase(resolver, base, today)).toMatchObject({
-      phase: 'luteal',
+      phase: null,
       cycleDay: 34,
       pastTypicalLength: true,
     });
+    expect(resolver.phaseOf(cycleDay(180))?.phase).toBeNull();
     expect(
       describeTodayPhase(resolver, base, cycleDay(20))?.pastTypicalLength
     ).toBe(false);
+  });
+
+  it('keeps the phases of a completed long cycle', () => {
+    // A completed 40-day cycle is placed on its real length: day 35 is luteal.
+    const resolver = buildPhaseResolver({
+      ...base,
+      periodStarts: ['2026-09-19', OPEN_START],
+    });
+    expect(resolver.phaseOf('2026-10-23')).toMatchObject({
+      phase: 'luteal',
+      cycleDay: 35,
+      inOpenCycle: false,
+    });
   });
 
   it('moves the phases to a BBT-confirmed ovulation day', () => {
@@ -74,5 +95,18 @@ describe('buildPhaseResolver', () => {
     });
     expect(phaseOf(cycleDay(3))?.phase).toBe('menstrual');
     expect(phaseOf(cycleDay(10))?.phase).toBe('follicular');
+    // A measured late ovulation keeps the luteal phase until that day + 14 (day 31),
+    // past the typical 28 days, then there is no estimate either.
+    expect(phaseOf(cycleDay(30))).toMatchObject({
+      phase: 'luteal',
+      temperatureConfirmed: true,
+    });
+    expect(phaseOf(cycleDay(31))?.phase).toBe('luteal');
+    expect(phaseOf(cycleDay(32))).toMatchObject({
+      phase: null,
+      temperatureConfirmed: false,
+    });
+    expect(describeTodayPhase(buildPhaseResolver(withBbt), withBbt, cycleDay(30)))
+      .toMatchObject({ phase: 'luteal', pastTypicalLength: true });
   });
 });

@@ -30,6 +30,7 @@ import { cn } from '@/lib/utils';
 import { dateOnlyToLocalDate } from '@/lib/date-only';
 import { localDateKey } from '@/lib/quick-log-input';
 import { PHASE_THEMES } from '@/lib/phase-theme';
+import { phaseLabel } from './daily-briefing-view';
 import {
   dismissBriefingSuggestion,
   dismissDailyBriefing,
@@ -67,13 +68,6 @@ const CATEGORY_META: Record<
 
 const iconButtonClass =
   'min-h-[44px] min-w-[44px] rounded-full px-0 py-0 text-gray-600 hover:bg-white/80 hover:text-gray-900 focus-visible:ring-primary-500';
-
-function phaseLabel(briefing: DailyBriefing): string | null {
-  const phase = briefing.phase;
-  if (!phase) return null;
-  const name = phase.phase.charAt(0).toUpperCase() + phase.phase.slice(1);
-  return `${name} phase · day ${phase.cycleDay}`;
-}
 
 function SuggestionItem({
   suggestion,
@@ -361,7 +355,7 @@ export function DailyBriefingPanel({
   }
 
   const phase = briefing.phase;
-  const phaseTheme = phase ? PHASE_THEMES[phase.phase] : null;
+  const phaseTheme = phase?.phase ? PHASE_THEMES[phase.phase] : null;
 
   return (
     <section
@@ -395,20 +389,32 @@ export function DailyBriefingPanel({
                 Your daily briefing
               </h2>
               <p className="text-sm text-gray-700">{briefing.headline}</p>
-              {phase && phaseTheme && (
+              {phase && (
                 <p className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
                   <span
                     className={cn(
                       'rounded-full px-2.5 py-0.5 font-semibold',
-                      phaseTheme.bg.accent,
-                      phaseTheme.text.accent
+                      phaseTheme
+                        ? [phaseTheme.bg.accent, phaseTheme.text.accent]
+                        : 'bg-gray-100 text-gray-800'
                     )}
                   >
-                    {phaseLabel(briefing)}
+                    {phaseLabel(phase)}
                   </span>
                   {phase.temperatureConfirmed && (
                     <span>Confirmed by your temperature shift</span>
                   )}
+                </p>
+              )}
+              {briefing.phaseNote && (
+                <p className="text-xs leading-relaxed text-gray-700">
+                  {briefing.phaseNote}{' '}
+                  <Link
+                    href="/cycle"
+                    className="inline-flex min-h-[44px] items-center font-medium text-primary-700 underline-offset-2 hover:underline"
+                  >
+                    Go to the cycle page
+                  </Link>
                 </p>
               )}
             </div>
