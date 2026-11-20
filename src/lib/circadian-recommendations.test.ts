@@ -523,7 +523,50 @@ describe('buildCircadianInsights', () => {
       'Over the last 30 days your afternoon energy has averaged 8.1/10, your highest of the day.'
     );
 
-    // Without a high rating, the dip still points to later this afternoon.
+    // Nor that the dip may be lowering their energy, next to "plenty of energy right now".
+    for (const rows of [
+      [...history('2026-11-19', 6, [5, 8, 4]), today],
+      [today],
+    ]) {
+      const keys = buildCircadianInsights({
+        now,
+        timeZone: zone,
+        rows,
+      }).suggestions.map((s) => s.key);
+      expect(keys).not.toContain('afternoon.dip');
+    }
+
+    // A morning best window: shown as a pattern only, without "plan harder training for
+    // then" next to "now is a good time".
+    const morningBest = buildCircadianInsights({
+      now,
+      timeZone: zone,
+      rows: [...history('2026-11-19', 6, [8, 5, 4]), today],
+    });
+    expect(morningBest.bestWindow).toBe('morning');
+    expect(morningBest.suggestions[0].key).toBe('personal.high-now');
+    const bestLater = morningBest.suggestions.find(
+      (s) => s.key === 'personal.best-later'
+    );
+    expect(bestLater?.body).toMatch(
+      /averaged [\d.]+\/10 in the morning, compared with [\d.]+\/10 in the afternoon\.$/
+    );
+    expect(bestLater?.body).not.toMatch(/when you can|plan harder|demanding/i);
+    // Without a high rating, the same window keeps its advice.
+    const morningBestUsual = buildCircadianInsights({
+      now,
+      timeZone: zone,
+      rows: [
+        ...history('2026-11-19', 6, [8, 5, 4]),
+        row('2026-11-20', null, 6, null),
+      ],
+    }).suggestions.find((s) => s.key === 'personal.best-later');
+    expect(morningBestUsual?.body).toContain(
+      'When you can, plan harder training or demanding tasks for then.'
+    );
+
+    // Without a high rating, the dip still points to later this afternoon, and the dip
+    // suggestion is back.
     const usual = buildCircadianInsights({
       now,
       timeZone: zone,
@@ -532,6 +575,7 @@ describe('buildCircadianInsights', () => {
     expect(usual.suggestions.map((s) => s.key)).toContain(
       'afternoon.training-later'
     );
+    expect(usual.suggestions.map((s) => s.key)).toContain('afternoon.dip');
   });
 
   it('shows the best window without a training push right after a low rating', () => {

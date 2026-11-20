@@ -388,6 +388,8 @@ type BaseSuggestion = CircadianSuggestion & {
   demanding?: boolean;
   /** Points to later today; left out next to "now is a good time" (personal.high-now). */
   later?: boolean;
+  /** About a dip in energy; left out next to "now is a good time" (personal.high-now). */
+  forLowEnergy?: boolean;
 };
 
 const SUGGESTIONS = {
@@ -422,6 +424,7 @@ const SUGGESTIONS = {
     kind: 'movement',
     title: 'Ride out the early-afternoon dip',
     body: 'Many people feel a natural dip in alertness in the early afternoon. A 10-minute walk, ideally outside, or a low-energy routine from the lottery can lift your energy.',
+    forLowEnergy: true,
   },
   afternoonCaffeine: {
     key: 'afternoon.caffeine',
@@ -633,7 +636,11 @@ function personalSuggestions(input: {
         key: 'personal.best-later',
         kind: 'personal',
         title: `Your best window is the ${SLOT_NAMES[bestWindow]}`,
-        body: `Over the last ${ENERGY_HISTORY_DAYS} days your energy has averaged ${best.average}/10 in the ${SLOT_NAMES[bestWindow]}${comparison}.${advice(bestWindowAdvice(bestWindow, 'later'))}`,
+        // Next to "now is a good time" (personal.high-now), the pattern only, so the card
+        // does not also say to save harder work for another time of day.
+        body: `Over the last ${ENERGY_HISTORY_DAYS} days your energy has averaged ${best.average}/10 in the ${SLOT_NAMES[bestWindow]}${comparison}.${advice(
+          highNow ? null : bestWindowAdvice(bestWindow, 'later')
+        )}`,
       });
     }
   }
@@ -817,7 +824,10 @@ export function buildCircadianInsights(input: {
 
   const base: CircadianSuggestion[] = MOMENT_SUGGESTIONS[moment]
     .filter((suggestion) => !(holdBack && suggestion.demanding))
-    .filter((suggestion) => !(highNow && suggestion.later))
+    .filter(
+      (suggestion) =>
+        !(highNow && (suggestion.later || suggestion.forLowEnergy))
+    )
     .map(({ key, kind, title, body }) => ({ key, kind, title, body }));
   const suggestions = [
     ...personalSuggestions({

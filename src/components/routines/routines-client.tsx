@@ -246,9 +246,9 @@ export function RoutinesClient({
 
       {/* Lottery Dialog */}
       {showLotteryDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div
-            className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl"
+            className="max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-lg bg-white p-6 shadow-xl"
             style={{ viewTransitionName: LOTTERY_DIALOG_TRANSITION_NAME }}
           >
             <div className="mb-4 flex items-center justify-between">

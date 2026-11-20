@@ -51,10 +51,10 @@ and invalid summaries, and the routine lottery reveal with View Transitions and
 with reduced motion. Authenticated specs run only in the authenticated
 Playwright project, after its sign-in setup. The circadian insights spec turns a
 per-user opt-in on for the shared signed-in user, so it has its own project,
-`authenticated-settings`, which starts only after the authenticated project has
-finished, and it turns the opt-in off again even when it fails. Running that
-spec on its own therefore runs the authenticated specs first; add `--no-deps`
-to skip them once `e2e/.auth/user.json` exists. Another regression test performs
+`authenticated-settings`, which depends only on the sign-in setup and turns the
+opt-in off again even when it fails. Specs that could be affected by the opt-in
+set their own inputs: the routine lottery picks its energy level itself. Another
+regression test performs
 110 session reads, verifies the dashboard remains accessible, and checks that
 invalid sign-ins are still rate limited.
 

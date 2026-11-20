@@ -11,8 +11,8 @@ async function drawOneRoutine(page: Page) {
   page.on('pageerror', (error) => errors.push(error.message));
 
   await page.goto('/routines');
-  // The cookie notice sits over the bottom of the page, where the dialog's Spin button
-  // ends up once the dialog grows (the circadian hint adds a line).
+  // Answer the cookie notice first, as a visitor would: it is fixed to the bottom of the
+  // page, so it could sit over page controls there (open dialogs cover it).
   const notice = page.getByRole('dialog', { name: 'Cookie preferences' });
   const manageCookies = page.getByRole('button', {
     name: 'Manage cookie preferences',
