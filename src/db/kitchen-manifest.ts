@@ -7,11 +7,7 @@ import {
   yieldAmountSchema,
   yieldUnitSchema,
 } from '@/lib/lean-kitchen';
-import {
-  nutrientHighlightsSchema,
-  phaseTagsSchema,
-  resolveRecipeBioProfile,
-} from '@/lib/phase-nutrition';
+import { nutrientHighlightsSchema, phaseTagsSchema } from '@/lib/phase-nutrition';
 
 /**
  * Runtime shape of `kitchen-manifest.json` (the system recipe catalog seeded by
@@ -27,7 +23,9 @@ import {
  * confident about them:
  *   "phaseTags":          ["menstrual" | "follicular" | "ovulation" | "luteal", ...]
  *   "nutrientHighlights": ["iron", "magnesium", ...]  (src/lib/phase-nutrition.ts)
- * Anything left out is worked out from the ingredient names when the seed runs.
+ * Only these explicit lists are stored. Anything left out is worked out from the
+ * ingredient names when the recipe is read (resolveRecipeBioProfile), so Treat and
+ * Process recipes keep "explicit phases only" and later ingredient edits are followed.
  */
 
 const leanInfoSchema = z
@@ -133,16 +131,11 @@ export function parseKitchenManifest(json: unknown): KitchenManifest {
  * Recipe columns the seed owns for a system recipe. Images and the HH Chefs Verified
  * flag are not in the manifest, so an update leaves what an admin set there.
  *
- * Phase tags and nutrient highlights: explicit manifest values win; otherwise they are
- * inferred from the ingredients (same rules as at runtime, see resolveRecipeBioProfile).
+ * Phase tags and nutrient highlights: only explicit manifest values are stored. Empty
+ * columns mean "infer when read" (resolveRecipeBioProfile); storing inferred nutrients
+ * would make them look explicit and give treats phases they were never tagged with.
  */
 export function toSystemRecipeFields(recipe: KitchenManifestRecipe) {
-  const bio = resolveRecipeBioProfile({
-    phaseTags: recipe.phaseTags,
-    nutrientHighlights: recipe.nutrientHighlights,
-    ingredients: recipe.ingredients,
-    leanRole: recipe.leanInfo?.leanRole,
-  });
   return {
     name: recipe.name,
     description: recipe.description ?? null,
@@ -161,8 +154,8 @@ export function toSystemRecipeFields(recipe: KitchenManifestRecipe) {
     batchEfficiency: recipe.leanInfo?.batchEfficiency ?? null,
     yieldAmount: recipe.yield?.amount ?? null,
     yieldUnit: recipe.yield?.unit ?? null,
-    phaseTags: bio.phases,
-    nutrientHighlights: bio.nutrients,
+    phaseTags: recipe.phaseTags ?? [],
+    nutrientHighlights: recipe.nutrientHighlights ?? [],
     isSystem: true,
     isSecret: recipe.isSecret ?? false,
     isPrivate: false,

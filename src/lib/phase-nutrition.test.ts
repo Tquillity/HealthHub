@@ -205,6 +205,23 @@ describe('resolveRecipeBioProfile', () => {
       'follicular',
     ]);
   });
+
+  it('never derives phases for treats and building blocks from nutrients, even saved ones', () => {
+    // "Use suggestions" in the recipe form (or an older seed) saves the inferred nutrients
+    const savedPie = { ingredients: [{ name: 'Ägg' }], leanRole: 'Treat', nutrientHighlights: ['protein'] };
+    expect(resolveRecipeBioProfile(savedPie)).toEqual({ phases: [], nutrients: ['protein'] });
+    expect(
+      resolveRecipeBioProfile({
+        ingredients: [{ name: 'Jordnötssmör' }],
+        leanRole: 'Process',
+        nutrientHighlights: ['protein', 'magnesium'],
+      }).phases
+    ).toEqual([]);
+    // An explicit phase still counts
+    expect(resolveRecipeBioProfile({ ...savedPie, phaseTags: ['follicular'] }).phases).toEqual([
+      'follicular',
+    ]);
+  });
 });
 
 describe('getBiologicalMatch', () => {

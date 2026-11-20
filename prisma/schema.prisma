@@ -196,7 +196,8 @@ model Recipe {
   /// High | Medium | Low (validated in src/lib/lean-kitchen.ts)
   batchEfficiency       String?
   /// Cycle phases the recipe suits: menstrual | follicular | ovulation | luteal.
-  /// Empty means "infer from nutrients/ingredients" (src/lib/phase-nutrition.ts).
+  /// Empty means "infer from nutrients/ingredients" (src/lib/phase-nutrition.ts), except
+  /// for Treat and Process recipes, which match only the phases tagged here.
   phaseTags             String[]               @default([])
   /// Key nutrients from the controlled vocabulary in src/lib/phase-nutrition.ts.
   /// Empty means "infer from ingredient names".

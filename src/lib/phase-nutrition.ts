@@ -700,11 +700,11 @@ export interface RecipeBioProfile {
 }
 
 /**
- * LEAN roles whose phases come only from explicit tags. Treats and building blocks
+ * LEAN roles whose phases come only from explicit phase tags. Treats and building blocks
  * (Process: sauces, dressings, spice mixes) are eaten in small amounts or as part of
  * another dish: a few eggs in a lemon meringue pie or peanut butter in a sauce should
- * not make them a "Biological Match". Tag one yourself when it really fits (e.g. dark
- * chocolate for the luteal phase).
+ * not make them a "Biological Match", whether their nutrients were inferred or saved.
+ * Tag a phase yourself when it really fits (e.g. dark chocolate for the luteal phase).
  */
 export const EXPLICIT_PHASES_ONLY_ROLES = ['Treat', 'Process'] as const;
 
@@ -715,8 +715,9 @@ function needsExplicitPhases(leanRole: string | null | undefined): boolean {
 
 /**
  * Explicit tags on the recipe win. Empty lists fall back to inference: nutrients from
- * ingredient names, phases from the nutrients (not for EXPLICIT_PHASES_ONLY_ROLES, unless
- * their nutrients were set explicitly).
+ * ingredient names, phases from the nutrients. EXPLICIT_PHASES_ONLY_ROLES never get
+ * phases from nutrients, not even from saved ones (the recipe form's "Use suggestions"
+ * saves the inferred list): only their explicit phase tags count.
  */
 export function resolveRecipeBioProfile(recipe: RecipeBioInput): RecipeBioProfile {
   const explicitNutrients = sanitizeNutrientHighlights(recipe.nutrientHighlights);
@@ -726,8 +727,8 @@ export function resolveRecipeBioProfile(recipe: RecipeBioInput): RecipeBioProfil
       : inferNutrientHighlights(recipe.ingredients ?? []);
   const explicitPhases = sanitizePhaseTags(recipe.phaseTags);
   if (explicitPhases.length > 0) return { phases: explicitPhases, nutrients };
-  const inferredOnly = explicitNutrients.length === 0 && needsExplicitPhases(recipe.leanRole);
-  return { phases: inferredOnly ? [] : derivePhaseTags(nutrients), nutrients };
+  if (needsExplicitPhases(recipe.leanRole)) return { phases: [], nutrients };
+  return { phases: derivePhaseTags(nutrients), nutrients };
 }
 
 export interface BiologicalMatch {
