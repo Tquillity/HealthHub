@@ -2,6 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { InvitationResponse } from '@/components/household/invitation-response';
 import { OrgTypeBadge, RoleBadge } from '@/components/household/org-badges';
 import type { InvitationForYou } from '@/lib/household-management';
+import { joinPrivacyNote } from '@/lib/org-policy';
 import { cn } from '@/lib/utils';
 
 /** Pending invitations sent to the signed-in user's email address. */
@@ -42,6 +43,9 @@ export function InvitationsForYou({
                   </span>
                   <RoleBadge role={invitation.role} />
                 </div>
+                <p className="text-sm text-gray-600">
+                  {joinPrivacyNote(invitation.organizationType)}
+                </p>
               </div>
               <InvitationResponse
                 invitationId={invitation.id}

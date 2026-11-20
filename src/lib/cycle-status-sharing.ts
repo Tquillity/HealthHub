@@ -1,15 +1,20 @@
 import { z } from 'zod';
 import type { CycleShareLevel } from '@prisma/client';
-import type { CyclePhase, CyclePhaseResult } from '@/lib/cycle-calculator';
+import { getPhaseForDay, type CyclePhase } from '@/lib/cycle-calculator';
+import { dateOnlyToUtcDate, isDateOnlyString, toDateOnlyString } from '@/lib/date-only';
 import { PHASE_THEMES } from '@/lib/phase-theme';
+import { getLocalHour, isUnsetTimeZone, resolveTimeZone } from '@/lib/time-zone';
+import { OrganizationIdSchema } from '@/lib/validation/organization-schemas';
 import type { FocusPreference } from '@/types/cycle';
 
 /**
  * Partner sync (issue #3): what household members may see of someone's current cycle status.
  *
- * Sharing is off by default. It is effective only while the master switch is on, the level is
- * not NONE and the person has cycle tracking set up (see getEffectiveShareLevel). Where it may
- * be shown is decided by org-policy (households only).
+ * Sharing is off by default and chosen per household: each share names one household, a level,
+ * and the members it covers (those who had joined when the person agreed; people who join
+ * later see nothing until they are included). It is effective only while the person has cycle
+ * tracking set up (see getEffectiveShareLevel). Where it may be shown at all is decided by
+ * org-policy (households only).
  *
  * `projectCycleStatus` is the single definition of what each level reveals. The dashboard
  * widget and the Profile preview both use it, so the preview is exactly what others see:
@@ -64,12 +69,43 @@ export const CYCLE_SHARE_LEVEL_INFO: Record<
 export const NEVER_SHARED_NOTE =
   'Your journal notes, symptoms, mood, sleep, temperature and other health details are never shared at any level.';
 
-/** Settings update from Profile. Only the fields that are sent change. */
-export const UpdateCycleSharingSchema = z
+/** Levels a share can have. NONE is no share at all (the row is deleted). */
+export const SHARED_LEVELS = ['PHASE', 'ENERGY', 'FULL'] as const satisfies readonly Exclude<
+  CycleShareLevel,
+  'NONE'
+>[];
+
+export type SharedLevel = (typeof SHARED_LEVELS)[number];
+
+/**
+ * Start, change or stop sharing with one household, from Profile. The household is the one the
+ * Profile page listed (checked on the server); NONE stops sharing there.
+ */
+export const SetCycleStatusShareSchema = z
   .object({
-    shareCycleStatus: z.boolean().optional(),
-    shareCycleLevel: z.enum(CYCLE_SHARE_LEVELS).optional(),
-    /** Plain text; '' or null clears it. Stored encrypted. */
+    organizationId: OrganizationIdSchema,
+    level: z.enum(CYCLE_SHARE_LEVELS),
+    /**
+     * When the newest member the page listed joined (CycleShareHousehold). Starting to share, or
+     * including the people who joined since, covers the members who had joined by then and
+     * nobody who joined later.
+     */
+    listedMembersJoinedBy: z.iso.datetime(),
+    /** Also show the status to the members who joined after sharing started. */
+    includeNewMembers: z.boolean().optional(),
+    /**
+     * The browser's IANA time zone. Saved to the profile while it still has the default, so
+     * "today" for the household is the person's own day (see timeZoneToAdopt).
+     */
+    deviceTimeZone: z.string().trim().max(100).optional(),
+  })
+  .strict();
+
+export type SetCycleStatusShareInput = z.infer<typeof SetCycleStatusShareSchema>;
+
+/** The personal message. Plain text; '' or null clears it. Stored encrypted. */
+export const UpdateSupportMessageSchema = z
+  .object({
     supportMessage: z
       .string()
       .trim()
@@ -77,27 +113,122 @@ export const UpdateCycleSharingSchema = z
         SUPPORT_MESSAGE_MAX_LENGTH,
         `Keep your message to ${SUPPORT_MESSAGE_MAX_LENGTH} characters or fewer`
       )
-      .nullable()
-      .optional(),
+      .nullable(),
   })
-  .strict()
-  .refine((value) => Object.values(value).some((field) => field !== undefined), {
-    message: 'Nothing to update',
-  });
-
-export type UpdateCycleSharingInput = z.infer<typeof UpdateCycleSharingSchema>;
+  .strict();
 
 /**
- * The level that actually applies: NONE unless the master switch is on and cycle tracking is
- * set up (tracking enabled and a last period date), whatever level is stored.
+ * The level that actually applies in one household: NONE unless the person shares with it and
+ * has cycle tracking set up (tracking enabled and a last period date), whatever is stored.
  */
 export function getEffectiveShareLevel(settings: {
-  shareCycleStatus: boolean;
-  shareCycleLevel: CycleShareLevel;
+  /** The household's share level; NONE when there is no share. */
+  level: CycleShareLevel;
   cycleConfigured: boolean;
 }): CycleShareLevel {
-  if (!settings.shareCycleStatus || !settings.cycleConfigured) return 'NONE';
-  return settings.shareCycleLevel;
+  if (!settings.cycleConfigured) return 'NONE';
+  return settings.level;
+}
+
+/**
+ * Who sees a share: members who had joined by `coversMembersJoinedBy`. Members who joined
+ * later are not covered until the sharer includes them. Times compare as instants.
+ */
+export function isCoveredByShare(
+  memberJoinedAt: Date | string,
+  coversMembersJoinedBy: Date | string
+): boolean {
+  return new Date(memberJoinedAt).getTime() <= new Date(coversMembersJoinedBy).getTime();
+}
+
+/** One household in Profile > Cycle status sharing (built in src/lib/support-status.ts). */
+export type CycleShareHousehold = {
+  id: string;
+  name: string;
+  /** Null when nothing is shared with this household. */
+  share: { level: SharedLevel; coversMembersJoinedBy: string } | null;
+  /** The other current members, oldest first, and whether they see the status now. */
+  members: { name: string; seesStatus: boolean }[];
+  /**
+   * When the newest member listed joined (ISO; the user's own join time when nobody else is
+   * listed). Sent back when starting to share or including new members, so the share covers
+   * the people the page listed and nobody who joined later, even someone whose join was still
+   * being saved while the page was read.
+   */
+  listedMembersJoinedBy: string;
+};
+
+/** "Robin", "Robin and Sam", "Robin, Sam, and Alex". */
+export function listNames(names: string[]): string {
+  return new Intl.ListFormat('en', { style: 'long', type: 'conjunction' }).format(names);
+}
+
+/** Members of a shared household who joined after sharing started and do not see it. */
+export function membersNotYetIncluded(household: CycleShareHousehold): string[] {
+  if (!household.share) return [];
+  return household.members.filter((member) => !member.seesStatus).map((member) => member.name);
+}
+
+/**
+ * What a saved change actually shares, for the confirmation after saving: who sees what in
+ * this household now. `household` is the server's state after the save.
+ */
+export function describeShareChange(household: CycleShareHousehold, cycleConfigured: boolean): string {
+  const { name, share, members } = household;
+  if (!share) return `${name} can no longer see your cycle status.`;
+  if (!cycleConfigured) {
+    return `Sharing with ${name} is on, but nothing is shown until cycle tracking and your last period date are set.`;
+  }
+  if (members.length === 0) return `Sharing with ${name} is on, but nobody else is in it yet.`;
+  const seen = members.filter((member) => member.seesStatus).map((member) => member.name);
+  if (seen.length === 0) return `Sharing with ${name} is on, but nobody there sees it yet.`;
+  const label = CYCLE_SHARE_LEVEL_INFO[share.level].label;
+  return `${listNames(seen)} now ${seen.length === 1 ? 'sees' : 'see'} your cycle status: ${label}.`;
+}
+
+/** The user's own share with one household, for that household's page (support-status.ts). */
+export type OwnCycleShare = {
+  household: CycleShareHousehold;
+  /** Cycle tracking is on and a last period date is set; a share shows nothing without both. */
+  cycleConfigured: boolean;
+};
+
+/**
+ * Who actually sees an existing share, for the household's privacy card: the level alone would
+ * suggest that everyone there sees it. Empty when nothing is shared.
+ */
+export function describeShareReach(
+  household: CycleShareHousehold,
+  cycleConfigured: boolean
+): string {
+  if (!household.share) return '';
+  if (!cycleConfigured) {
+    return 'Nobody sees it until cycle tracking and your last period date are set.';
+  }
+  if (household.members.length === 0) {
+    return 'Nobody else is in this household yet. People who join later see nothing until you include them.';
+  }
+  const seen = household.members.filter((member) => member.seesStatus).map((member) => member.name);
+  const later = membersNotYetIncluded(household);
+  const seenText = seen.length > 0 ? `Seen by ${listNames(seen)}.` : 'Nobody here sees it yet.';
+  if (later.length === 0) return seenText;
+  const verb = later.length === 1 ? 'sees' : 'see';
+  return `${seenText} ${listNames(later)} joined later and ${verb} nothing until you include them.`;
+}
+
+/** Who sees the status in this household, or would see it if the user shared. */
+export function describeAudience(household: CycleShareHousehold): string {
+  const { name, members, share } = household;
+  if (members.length === 0) {
+    return share
+      ? `Nobody else is in ${name} yet. People who join later see nothing until you include them.`
+      : `Nobody else is in ${name} yet.`;
+  }
+  if (!share) {
+    return `If you share, ${listNames(members.map((member) => member.name))} will see it. People who join later will not, until you include them.`;
+  }
+  const seen = members.filter((member) => member.seesStatus).map((member) => member.name);
+  return seen.length > 0 ? `Seen by ${listNames(seen)}.` : `Nobody in ${name} sees it yet.`;
 }
 
 export const PHASE_LABELS: Record<CyclePhase, string> = {
@@ -141,22 +272,62 @@ export type CycleSnapshot = {
   daysUntilNextPeriod: number;
 };
 
-/** The parts of calculateCyclePhase's result that partner sync uses. */
-export function toCycleSnapshot(result: CyclePhaseResult, cycleLength: number): CycleSnapshot {
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+/**
+ * Where someone is in their cycle on `dayKey` (`YYYY-MM-DD`), their own calendar day. Same
+ * model and phase boundaries as calculateCyclePhase (getPhaseForDay), but for a given day
+ * rather than the server's, so the phase and cycle day match the day their energy is read for.
+ *
+ * Both values are date-only (stored as UTC midnight), so the difference is whole days. A start
+ * date after `dayKey` means the person saved their own "today" before the time zone used here
+ * reached it: the period has started, so it is day 1 of the menstrual phase.
+ * Null for invalid input.
+ */
+export function cycleSnapshotOn(
+  lastPeriodDate: Date,
+  cycleLength: number,
+  dayKey: string
+): CycleSnapshot | null {
+  if (
+    !isDateOnlyString(dayKey) ||
+    !Number.isInteger(cycleLength) ||
+    cycleLength < 1 ||
+    Number.isNaN(lastPeriodDate.getTime())
+  ) {
+    return null;
+  }
+  const periodStart = dateOnlyToUtcDate(toDateOnlyString(lastPeriodDate));
+  const daysSinceStart = Math.round(
+    (dateOnlyToUtcDate(dayKey).getTime() - periodStart.getTime()) / MS_PER_DAY
+  );
+  const cycleDay = daysSinceStart < 0 ? 1 : (daysSinceStart % cycleLength) + 1;
   return {
-    phase: result.currentPhase,
-    cycleDay: result.daysIntoCycle,
-    daysUntilNextPeriod: Math.max(1, cycleLength - result.daysIntoCycle + 1),
+    phase: getPhaseForDay(cycleDay, cycleLength),
+    cycleDay,
+    daysUntilNextPeriod: Math.max(1, cycleLength - cycleDay + 1),
   };
 }
 
-export type TimeOfDay = 'morning' | 'afternoon' | 'evening' | 'night';
+/** 'unknown': the person's local hour is not known, so ideas use neutral daytime wording. */
+export type TimeOfDay = 'morning' | 'afternoon' | 'evening' | 'night' | 'unknown';
 
 export function getTimeOfDay(hour: number): TimeOfDay {
   if (hour >= 5 && hour < 12) return 'morning';
   if (hour >= 12 && hour < 17) return 'afternoon';
   if (hour >= 17 && hour < 22) return 'evening';
   return 'night';
+}
+
+/**
+ * Someone's time of day at `now`, from the time zone in their profile. While that is still
+ * unset (the UTC default, empty or unknown; see isUnsetTimeZone), their hour is not known:
+ * guessing UTC would offer night ideas on a Los Angeles evening or a Sydney morning, so it is
+ * 'unknown' and the wording stays neutral ("today").
+ */
+export function timeOfDayIn(storedTimeZone: string | null | undefined, now: Date): TimeOfDay {
+  if (isUnsetTimeZone(storedTimeZone)) return 'unknown';
+  return getTimeOfDay(getLocalHour(now, resolveTimeZone(storedTimeZone)));
 }
 
 /** "Mikael Andersson" -> "Mikael". Other members only ever see the first name. */
@@ -176,6 +347,7 @@ const WHEN: Record<Exclude<TimeOfDay, 'night'>, string> = {
   morning: 'today',
   afternoon: 'this afternoon',
   evening: 'this evening',
+  unknown: 'today',
 };
 
 /**

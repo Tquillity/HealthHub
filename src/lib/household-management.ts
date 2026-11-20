@@ -50,9 +50,13 @@ export const MEMBERSHIP_CHANGED_ERROR =
 
 class MembershipChangedError extends Error {}
 
-/** Journal entries a person shared with an organization stop being shared when they leave it. */
-async function unshareJournalEntries(
-  tx: Pick<typeof prisma, 'journalEntry'>,
+/**
+ * What a person shared with an organization stops being shared when they leave it: journal
+ * entries go back to private and their cycle status share is deleted. Runs in the transaction
+ * that deletes or creates the membership.
+ */
+async function unshareEverything(
+  tx: Pick<typeof prisma, 'journalEntry' | 'cycleStatusShare'>,
   userId: string,
   organizationId: string
 ) {
@@ -60,6 +64,7 @@ async function unshareJournalEntries(
     where: { userId, sharedOrganizationId: organizationId },
     data: { visibility: 'PRIVATE', sharedOrganizationId: null },
   });
+  await tx.cycleStatusShare.deleteMany({ where: { userId, organizationId } });
 }
 
 async function countOwners(
@@ -439,9 +444,10 @@ export async function acceptInvitation(
       skipDuplicates: true,
     });
     if (joined.count > 0) {
-      // A new membership starts with nothing shared. A share that raced an earlier removal or
-      // leave would otherwise reappear in the group's feed without being shared again.
-      await unshareJournalEntries(tx, userId, invitation.organizationId);
+      // A new membership starts with nothing shared, journal days or cycle status. A share
+      // that raced an earlier removal or leave would otherwise reappear without being shared
+      // again.
+      await unshareEverything(tx, userId, invitation.organizationId);
     }
     return true;
   });
@@ -571,7 +577,7 @@ export async function removeMember(
     // through a concurrent transfer is not removed.
     const deleted = await tx.member.deleteMany({ where: { id: target.id, role: target.role } });
     if (deleted.count === 0) return false;
-    await unshareJournalEntries(tx, target.userId, target.organizationId);
+    await unshareEverything(tx, target.userId, target.organizationId);
     // Nobody is left without a space: someone removed from their last one gets a new, empty
     // household of their own, never their old personal household (it may be someone else's now).
     const remaining = await tx.member.count({ where: { userId: target.userId } });
@@ -620,7 +626,7 @@ export async function leaveOrganization(
     // Only while the role is the one checked: someone just made owner must transfer first.
     const deleted = await tx.member.deleteMany({ where: { id: own.id, role: own.role } });
     if (deleted.count === 0) return fail(MEMBERSHIP_CHANGED_ERROR);
-    await unshareJournalEntries(tx, userId, organizationId);
+    await unshareEverything(tx, userId, organizationId);
     return { ok: true, data: { organizationId } };
   });
 }

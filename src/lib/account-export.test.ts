@@ -44,8 +44,6 @@ describe.skipIf(!isolated)('account export against isolated PostgreSQL', () => {
           ],
         },
         alignMealsWithCycle: false,
-        shareCycleStatus: true,
-        shareCycleLevel: 'FULL',
         supportMessage: encrypt('Tea and a quiet evening, please'),
       },
     });
@@ -97,6 +95,16 @@ describe.skipIf(!isolated)('account export against isolated PostgreSQL', () => {
           createdAt: new Date('2099-01-01T00:00:00Z'),
         },
       ],
+    });
+    // Cycle status shared with the household only, at Full.
+    await client.cycleStatusShare.create({
+      data: {
+        id: `css-${run}`,
+        userId: me.id,
+        organizationId: household,
+        level: 'FULL',
+        coversMembersJoinedBy: new Date('2026-03-05T00:00:00Z'),
+      },
     });
     await client.recipe.create({
       data: {
@@ -184,8 +192,6 @@ describe.skipIf(!isolated)('account export against isolated PostgreSQL', () => {
       briefingSources: ['journal', 'meals'],
       briefingDetail: 'detailed',
       alignMealsWithCycle: false,
-      shareCycleStatus: true,
-      shareCycleLevel: 'FULL',
       supportMessage: 'Tea and a quiet evening, please',
     });
     // Suggestion keys are stored encrypted and exported in clear; only this user's rows.
@@ -201,6 +207,15 @@ describe.skipIf(!isolated)('account export against isolated PostgreSQL', () => {
         suggestion: 'briefing',
         action: 'dismissed',
         createdAt: expect.any(Date),
+      },
+    ]);
+    expect(data.cycleStatusSharing).toEqual([
+      {
+        household: { id: household, name: 'Our home' },
+        level: 'FULL',
+        coversMembersJoinedBy: new Date('2026-03-05T00:00:00Z'),
+        sharedSince: expect.any(Date),
+        updatedAt: expect.any(Date),
       },
     ]);
     expect(data.periodStarts).toEqual([

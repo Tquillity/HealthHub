@@ -1,12 +1,41 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 
 const hasSeededAuth =
   Boolean(process.env.PLAYWRIGHT_TEST_EMAIL) &&
   Boolean(process.env.PLAYWRIGHT_TEST_PASSWORD) &&
   process.env.PLAYWRIGHT_SEEDED_DB === '1';
 
-// Fixtures (scripts/seed-e2e.ts): the signed-in user tracks their cycle with sharing off, and
-// "Robin Partner" in the same household shares their full status.
+// Fixtures (scripts/seed-e2e.ts): the signed-in user tracks their cycle and shares with no
+// household, and "Robin Partner" shares their full status with "E2E household", which they
+// are both in.
+
+/**
+ * Puts the signed-in user's sharing back to the seeded state (off for E2E household, no
+ * message) through the UI. CI retries a failed test without reseeding, and a local rerun may
+ * not reseed either, so the Profile test must not depend on an earlier attempt having
+ * finished. Turning sharing off deletes the share, so turning it on again starts at Phase only.
+ */
+async function resetOwnSharing(page: Page) {
+  await page.goto('/profile');
+  const section = page.getByRole('region', { name: 'Cycle status sharing' });
+  const household = section.getByRole('region', { name: 'E2E household' });
+  const toggle = household.getByRole('switch', {
+    name: 'Share my cycle status with E2E household',
+  });
+  await expect(toggle).toBeVisible();
+  if (await toggle.isChecked()) {
+    await toggle.click();
+    await expect(household.getByRole('status')).toHaveText(
+      'E2E household can no longer see your cycle status.'
+    );
+  }
+  const remove = section.getByRole('button', { name: 'Remove message' });
+  if (await remove.isVisible()) {
+    await remove.click();
+    await expect(remove).toHaveCount(0);
+  }
+}
+
 test.describe('partner sync', () => {
   test.beforeEach(() => {
     test.skip(!hasSeededAuth, 'Requires authenticated E2E with the isolated fixtures');
@@ -35,42 +64,57 @@ test.describe('partner sync', () => {
     await expect(robin).toContainText('Tea and a short walk would be lovely.');
   });
 
-  test('sharing is off by default, and the preview follows each choice', async ({ page }) => {
+  test('sharing is off by default, chosen per household, and the preview follows each choice', async ({
+    page,
+  }) => {
+    await resetOwnSharing(page);
     await page.goto('/profile');
     const section = page.getByRole('region', { name: 'Cycle status sharing' });
-    const toggle = section.getByRole('switch', {
-      name: 'Share my cycle status with my household',
+    const household = section.getByRole('region', { name: 'E2E household' });
+    const toggle = household.getByRole('switch', {
+      name: 'Share my cycle status with E2E household',
     });
     await expect(toggle).not.toBeChecked();
-    await expect(
-      section.getByText('Nothing. Household members see nothing about your cycle.')
-    ).toBeVisible();
-    await expect(section.getByRole('radio', { name: /^Full status/ })).toBeDisabled();
+    // Before sharing, it names who would see it.
+    await expect(household).toContainText('Robin Partner');
+    await expect(household.getByText('Nothing. They see nothing about your cycle.')).toBeVisible();
+    await expect(household.getByRole('radio')).toHaveCount(0);
 
+    // Results are read out from each household's status region (toasts are not announced).
+    const status = household.getByRole('status');
     await toggle.click();
-    await expect(page.getByText('Your household can now see your cycle status.')).toBeVisible();
+    await expect(status).toHaveText('Robin Partner now sees your cycle status: Phase only.');
     await expect(toggle).toBeChecked();
-    await expect(section.getByRole('radio', { name: /^Phase only/ })).toBeChecked();
-    const preview = section.getByRole('article');
+    // Focus stays on the switch while and after saving.
+    await expect(toggle).toBeFocused();
+    await expect(household).toContainText('Seen by Robin Partner');
+    await expect(household.getByRole('radio', { name: /^Phase only/ })).toBeChecked();
+    const preview = household.getByRole('article');
     await expect(preview).toContainText(/is in the \w+ phase\./);
     await expect(preview.getByText('Energy logged today')).toHaveCount(0);
 
-    await section.getByRole('radio', { name: /^Full status/ }).click();
-    await expect(section.getByRole('radio', { name: /^Full status/ })).toBeChecked();
+    // Arrow keys move through the levels; each one saves and focus stays in the group.
+    await household.getByRole('radio', { name: /^Phase only/ }).focus();
+    await page.keyboard.press('ArrowDown');
+    await expect(status).toHaveText('Robin Partner now sees your cycle status: Phase and energy.');
+    await page.keyboard.press('ArrowDown');
+    await expect(status).toHaveText('Robin Partner now sees your cycle status: Full status.');
+    await expect(household.getByRole('radio', { name: /^Full status/ })).toBeChecked();
+    await expect(household.getByRole('radio', { name: /^Full status/ })).toBeFocused();
     await expect(preview.getByText('Next period')).toBeVisible();
 
     await section.getByLabel('Message for your household (optional)').fill('Back rubs welcome');
     await expect(preview).toContainText('Back rubs welcome');
-    await expect(section.getByText('Message not saved yet')).toBeVisible();
+    await expect(household.getByText('Message not saved yet')).toBeVisible();
     await section.getByRole('button', { name: 'Save message' }).click();
-    await expect(page.getByText('Your message is saved.')).toBeVisible();
-    await expect(section.getByText('Message not saved yet')).toHaveCount(0);
+    await expect(
+      section.getByRole('status').filter({ hasText: 'Your message is saved.' })
+    ).toHaveCount(1);
+    await expect(household.getByText('Message not saved yet')).toHaveCount(0);
 
     await toggle.click();
-    await expect(page.getByText('Your cycle status is private again.')).toBeVisible();
+    await expect(status).toHaveText('E2E household can no longer see your cycle status.');
     await expect(toggle).not.toBeChecked();
-    await expect(
-      section.getByText('Nothing. Household members see nothing about your cycle.')
-    ).toBeVisible();
+    await expect(household.getByText('Nothing. They see nothing about your cycle.')).toBeVisible();
   });
 });

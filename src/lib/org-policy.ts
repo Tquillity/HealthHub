@@ -133,6 +133,24 @@ export function canAlignMealPlanWithCycle(type: OrganizationType): boolean {
   return ORG_POLICIES[type].cycleStatusSharing === 'opt-in';
 }
 
+/**
+ * What joining a space of this type shares, for the invitation screens. Joining shares nothing
+ * from the journal or cycle: journal days and cycle status are each shared later, by choice,
+ * with one space at a time (cycle status per household, starting at nothing). Accepting an
+ * invitation also clears anything left shared with that space from an earlier membership.
+ */
+export function joinPrivacyNote(type: OrganizationType): string {
+  const policy = ORG_POLICIES[type];
+  const start = 'Joining shares nothing from your journal or cycle.';
+  if (policy.individualSharing === 'never') {
+    return `${start} Nobody here can see anyone's journal or cycle.`;
+  }
+  if (policy.cycleStatusSharing === 'opt-in') {
+    return `${start} Both stay private unless you choose to share a journal day, or your cycle status, with this household.`;
+  }
+  return `${start} Your journal stays private unless you choose to share a day here, and your cycle status is never shown here.`;
+}
+
 /** Organization types where people may show their cycle status (households only). */
 export const CYCLE_STATUS_ORG_TYPES: OrganizationType[] = ORGANIZATION_TYPES.filter(
   (type) => ORG_POLICIES[type].cycleStatusSharing === 'opt-in'
