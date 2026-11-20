@@ -242,13 +242,80 @@ export async function allowedTimeOfDayEnergy(
   return user.enableCircadianInsights ? sent : {};
 }
 
-/** "Delete my energy check-ins": clears the time-of-day fields on every journal day. */
+/**
+ * Every journal field other than the time-of-day check-ins is empty. A day like that exists
+ * only because of its check-ins (`saveEnergyNow` creates the day when there is no entry
+ * yet). Lists every content field of JournalEntry: a new one must be added here, which
+ * circadian-data.test.ts checks against the schema.
+ */
+export const noJournalDataBesideCheckIns = {
+  mood: null,
+  energy: null,
+  sleepHours: null,
+  notes: null,
+  gratitudeNotes: null,
+  goalsNotes: null,
+  symptomsNotes: null,
+  temperature: null,
+  cervicalMucus: null,
+  restingHeartRate: null,
+  heartRateVariability: null,
+  sleepQuality: null,
+  // A list is empty when it is NULL (a day created without it) or '{}'. Prisma reads
+  // both as [], but `isEmpty` only matches '{}'.
+  AND: [
+    { OR: [{ tags: { equals: null } }, { tags: { isEmpty: true } }] },
+    {
+      OR: [
+        { gratitudeEntries: { equals: null } },
+        { gratitudeEntries: { isEmpty: true } },
+      ],
+    },
+    {
+      OR: [
+        { goalsAchieved: { equals: null } },
+        { goalsAchieved: { isEmpty: true } },
+      ],
+    },
+    {
+      OR: [
+        { goalsProgress: { equals: null } },
+        { goalsProgress: { isEmpty: true } },
+      ],
+    },
+    {
+      OR: [
+        { symptomsPhysical: { equals: null } },
+        { symptomsPhysical: { isEmpty: true } },
+      ],
+    },
+    {
+      OR: [
+        { symptomsMental: { equals: null } },
+        { symptomsMental: { isEmpty: true } },
+      ],
+    },
+  ],
+} satisfies Prisma.JournalEntryWhereInput;
+
+/**
+ * "Delete my energy check-ins": deletes the journal days that hold nothing but check-ins
+ * and clears the time-of-day fields on every other day, leaving the rest of the journal
+ * as it is. Returns the number of days affected.
+ */
 export async function clearTimeOfDayEnergy(userId: string): Promise<number> {
-  const { count } = await prisma.journalEntry.updateMany({
-    where: { userId, ...timeOfDayLogged },
-    data: { energyMorning: null, energyAfternoon: null, energyEvening: null },
-  });
-  return count;
+  const [removed, cleared] = await prisma.$transaction([
+    // Postgres re-checks the condition on a row that changes meanwhile, so a day that
+    // gets other journal data while this runs is cleared below, not deleted.
+    prisma.journalEntry.deleteMany({
+      where: { userId, ...timeOfDayLogged, ...noJournalDataBesideCheckIns },
+    }),
+    prisma.journalEntry.updateMany({
+      where: { userId, ...timeOfDayLogged },
+      data: { energyMorning: null, energyAfternoon: null, energyEvening: null },
+    }),
+  ]);
+  return removed.count + cleared.count;
 }
 
 export type CircadianSettings = {

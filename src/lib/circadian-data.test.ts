@@ -1,10 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 import { decrypt, decryptArray, encrypt, encryptArray } from './encryption';
-import { addDaysToDateOnly } from './date-only';
+import { addDaysToDateOnly, toDateOnlyString } from './date-only';
 
 // Recipe visibility follows the active space (hh_active_org cookie). No cookie here,
 // so the user's oldest membership is used, as in a browser that never switched.
@@ -316,11 +316,116 @@ describe.skipIf(!isolated)(
         energy: 5,
         energyMorning: null,
       });
-      expect((await readEntry('2026-11-19')).energyEvening).toBeNull();
+      expect((await readEntry('2026-11-20')).mood).toBe(4);
+      expect((await data.getCircadianSettings(userId)).loggedDays).toBe(0);
       const other = await client.journalEntry.findFirstOrThrow({
         where: { userId: otherId },
       });
       expect(other.energyMorning).toBe(9);
+    });
+
+    it('deletes the days that only check-ins created, keeping every other day', async () => {
+      // A day with check-ins and one other kind of journal data each: all of them stay.
+      const kept: Record<string, Prisma.JournalEntryUncheckedCreateInput> = {
+        '2026-11-01': { userId, date: day('2026-11-01'), energy: 5 },
+        '2026-11-02': { userId, date: day('2026-11-02'), sleepHours: 7 },
+        '2026-11-03': { userId, date: day('2026-11-03'), notes: encrypt('Note') },
+        '2026-11-04': { userId, date: day('2026-11-04'), tags: ['calm'] },
+        '2026-11-05': {
+          userId,
+          date: day('2026-11-05'),
+          gratitudeEntries: encryptArray(['Tea']) ?? [],
+        },
+        '2026-11-06': {
+          userId,
+          date: day('2026-11-06'),
+          symptomsMental: encryptArray(['Foggy']) ?? [],
+        },
+        '2026-11-07': { userId, date: day('2026-11-07'), temperature: 36.6 },
+        '2026-11-08': {
+          userId,
+          date: day('2026-11-08'),
+          cervicalMucus: encrypt('creamy'),
+        },
+        '2026-11-09': { userId, date: day('2026-11-09'), sleepQuality: 6 },
+        '2026-11-10': { userId, date: day('2026-11-10'), goalsNotes: encrypt('Run') },
+      };
+      await client.journalEntry.createMany({
+        data: [
+          ...Object.values(kept).map((entry) => ({ ...entry, energyEvening: 4 })),
+          // Only check-ins, saved from the journal form (empty lists): deleted.
+          {
+            userId,
+            date: day('2026-11-12'),
+            energyMorning: 7,
+            energyAfternoon: 5,
+            energyEvening: 3,
+            tags: [],
+            gratitudeEntries: [],
+            goalsAchieved: [],
+            goalsProgress: [],
+            symptomsPhysical: [],
+            symptomsMental: [],
+          },
+          // Empty, but without check-ins: not this control's to delete.
+          { userId, date: day('2026-11-13') },
+        ],
+      });
+      // Only check-ins, created by the dashboard check-in: deleted.
+      await data.saveEnergyNow(userId, 6, stockholmMorning);
+      await data.saveEnergyNow(userId, 4, new Date('2026-11-20T13:30:00Z'));
+
+      expect(await data.clearTimeOfDayEnergy(userId)).toBe(12);
+
+      const remaining = await client.journalEntry.findMany({
+        where: { userId },
+        orderBy: { date: 'asc' },
+      });
+      expect(remaining.map((entry) => toDateOnlyString(entry.date))).toEqual([
+        ...Object.keys(kept),
+        '2026-11-13',
+      ]);
+      for (const entry of remaining) {
+        expect(entry).toMatchObject({
+          energyMorning: null,
+          energyAfternoon: null,
+          energyEvening: null,
+        });
+      }
+      expect(await readEntry('2026-11-04')).toMatchObject({ tags: ['calm'] });
+      expect(decrypt((await readEntry('2026-11-08')).cervicalMucus)).toBe(
+        'creamy'
+      );
+    });
+
+    it('treats every JournalEntry content field as journal data', () => {
+      // Keeps the delete above in step with the schema: a new content field must be
+      // listed in noJournalDataBesideCheckIns, or its days would be deleted.
+      const notContent = [
+        'id',
+        'userId',
+        'date',
+        'visibility',
+        'sharedOrganizationId',
+        'createdAt',
+        'updatedAt',
+        'energyMorning',
+        'energyAfternoon',
+        'energyEvening',
+      ];
+      const fieldsIn = (where: object): string[] =>
+        Object.entries(where).flatMap(([key, value]) =>
+          key === 'AND' || key === 'OR'
+            ? (value as object[]).flatMap(fieldsIn)
+            : [key]
+        );
+      expect(
+        [...new Set(fieldsIn(data.noJournalDataBesideCheckIns))].sort()
+      ).toEqual(
+        Object.keys(Prisma.JournalEntryScalarFieldEnum)
+          .filter((field) => !notContent.includes(field))
+          .sort()
+      );
     });
 
     it('turns the opt-in on and off', async () => {

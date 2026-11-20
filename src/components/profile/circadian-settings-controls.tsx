@@ -107,7 +107,8 @@ export function CircadianSettingsControls({
             <p className="text-sm text-red-800">
               This clears morning, afternoon and evening energy from every
               journal day. Your daily energy rating and the rest of your journal
-              stay. This cannot be undone. It affects {dayCount(loggedDays)}.
+              stay; days with nothing else logged are removed. This cannot be
+              undone. It affects {dayCount(loggedDays)}.
             </p>
             <div className="flex flex-wrap gap-6">
               <Button
