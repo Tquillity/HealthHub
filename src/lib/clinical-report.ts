@@ -79,6 +79,7 @@ import {
   type BbtReading,
   type TemperatureUnit,
 } from '@/lib/bbt';
+import { EMOJI_PART } from '@/lib/pdf-text';
 import { computeRecoverySeries, mean, sampleSd } from '@/lib/recovery';
 import { buildRecoveryInputs, type DailyMetricsRow } from '@/lib/cycle-insights';
 import {
@@ -722,9 +723,11 @@ export function summarizeBbt(
   };
 }
 
-/** Emoji, their modifiers and joiners: "Tired 😴" is grouped with "Tired". */
-const EMOJI =
-  /\p{Extended_Pictographic}|[\u{1F3FB}-\u{1F3FF}]|\u200D|\uFE0E|\uFE0F/gu;
+/**
+ * Emoji and their parts, flags included (the same set the PDF drops): "Tired 😴" is
+ * grouped with "Tired" and "Trip 🇸🇪" with "Trip".
+ */
+const EMOJI = new RegExp(EMOJI_PART.source, 'gu');
 
 /**
  * Grouping key and display label for a free-text symptom or tag: emoji removed,

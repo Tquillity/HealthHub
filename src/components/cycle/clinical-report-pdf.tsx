@@ -43,7 +43,7 @@ import {
   formatValue,
   pluralize,
 } from '@/lib/clinical-report-format';
-import { toPdfText } from '@/lib/pdf-text';
+import { toPdfText, UNPRINTABLE_TEXT } from '@/lib/pdf-text';
 import {
   BarRow,
   BbtChart,
@@ -908,7 +908,7 @@ function NotesSection({ report }: { report: ClinicalReport }) {
           <Note>
             {`Included at the user's request: their own journal notes${
               report.meta.sections.symptomNotes ? ', symptom notes' : ''
-            } and tags, unedited apart from shortening long notes.`}
+            } and tags, unedited apart from shortening long notes. Emoji are left out, and words in a script this PDF cannot show are marked ${UNPRINTABLE_TEXT}.`}
           </Note>
           {notes.tagCounts.length > 0 && (
             <Paragraph>

@@ -119,6 +119,11 @@ describe('helpers', () => {
     expect(normalizeLabel('   ')).toBeNull();
     expect(normalizeLabel('Tired 😴')).toEqual({ key: 'tired', label: 'Tired' });
     expect(normalizeLabel('❤️‍🩹')).toBeNull();
+    // Flags are emoji too, so "Trip 🇸🇪" is grouped with "Trip".
+    expect(normalizeLabel('Trip 🇸🇪')).toEqual({ key: 'trip', label: 'Trip' });
+    expect(normalizeLabel('Trip 🏴󠁧󠁢󠁳󠁣󠁴󠁿')).toEqual({ key: 'trip', label: 'Trip' });
+    expect(normalizeLabel('🇸🇪')).toBeNull();
+    expect(normalizeLabel('Dose 1️⃣')).toEqual({ key: 'dose 1', label: 'Dose 1' });
     expect(normalizeLabel('x'.repeat(100))?.label).toHaveLength(60);
   });
 
