@@ -349,16 +349,22 @@ export function routineIntensityTarget(
   return (typical + energyToIntensity(energy)) / 2;
 }
 
+/** Floating-point noise around a halfway target, so 1.5000000000000002 is still halfway. */
+const HALFWAY_TOLERANCE = 1e-9;
+
 /**
  * The label for an intensity target. A target halfway between two labels takes the
  * lighter one: the early morning (1.5) is medium and the early-afternoon dip (0.5) is low,
  * as that moment's suggestions say (a longer warm-up first, something light in the dip).
- * The lottery still weights both neighbours of a halfway target equally.
+ * Only an exact halfway value counts: just above it (an 8/10 check-in in the early
+ * morning gives 1.53) takes the heavier label. The lottery still weights both neighbours
+ * of a halfway target equally.
  */
 export function intensityLabel(target: number): RoutineIntensity {
-  // In tenths, so floating-point noise cannot tip a halfway value up.
-  const tenths = Math.round(target * 10);
-  const index = Math.min(2, Math.max(0, Math.ceil((tenths - 5) / 10)));
+  const index = Math.min(
+    2,
+    Math.max(0, Math.ceil(target - 0.5 - HALFWAY_TOLERANCE))
+  );
   return ROUTINE_INTENSITIES[index];
 }
 

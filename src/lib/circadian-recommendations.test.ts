@@ -281,6 +281,53 @@ describe('routine intensity', () => {
     expect(intensityLabel(5)).toBe('high');
   });
 
+  it('gives just-above-halfway targets the heavier label', () => {
+    expect(intensityLabel(0.5000000000000001)).toBe('low');
+    expect(intensityLabel(0.52)).toBe('medium');
+    expect(intensityLabel(0.549)).toBe('medium');
+    expect(intensityLabel(1.4999999999999998)).toBe('medium');
+    expect(intensityLabel(1.51)).toBe('high');
+    expect(intensityLabel(1.53)).toBe('high');
+    expect(intensityLabel(1.549)).toBe('high');
+  });
+
+  it('labels a high early-morning check-in high, next to its suggestion', () => {
+    // 07:15 with 8/10 this morning: (1.5 + 14/9) / 2 is about 1.53.
+    const insights = buildCircadianInsights({
+      now: new Date('2026-11-20T07:15:00Z'),
+      timeZone: 'UTC',
+      rows: [row('2026-11-20', 8, null, null)],
+    });
+    expect(insights.intensityTarget).toBeCloseTo(1.528, 3);
+    expect(insights.suggestions[0].key).toBe('personal.high-now');
+    expect(insights.recommendedIntensity).toBe('high');
+    expect(lotteryHintFromInsights(insights).recommendedIntensity).toBe('high');
+  });
+
+  it('labels a personal usual just above halfway with the heavier label', () => {
+    // No check-in today: a usual morning of 8/10 at 07:00 is high.
+    const early = buildCircadianInsights({
+      now: new Date('2026-11-20T07:00:00Z'),
+      timeZone: 'UTC',
+      rows: history('2026-11-19', 6, [8, 5, 5]),
+    });
+    expect(early.currentEnergy).toBeNull();
+    expect(early.recommendedIntensity).toBe('high');
+    // A usual late morning of 5.6/10 is high; exactly 5.5/10 is halfway, so medium.
+    const usual = (morning: number[]) =>
+      buildCircadianInsights({
+        now: new Date('2026-11-20T10:00:00Z'),
+        timeZone: 'UTC',
+        rows: morning.map((rating, i) =>
+          row(addDaysToDateOnly('2026-11-19', -i), rating, null, null)
+        ),
+      });
+    expect(usual([6, 6, 6, 5, 5]).slots.morning.average).toBe(5.6);
+    expect(usual([6, 6, 6, 5, 5]).recommendedIntensity).toBe('high');
+    expect(usual([6, 6, 6, 5, 5, 5]).slots.morning.average).toBe(5.5);
+    expect(usual([6, 6, 6, 5, 5, 5]).recommendedIntensity).toBe('medium');
+  });
+
   it("matches the label to the moment's suggestions without a check-in", () => {
     const at = (utc: string) =>
       buildCircadianInsights({ now: new Date(utc), timeZone: 'UTC', rows: [] });
