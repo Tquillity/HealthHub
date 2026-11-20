@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getServerSession } from '@/lib/session';
 import { prisma } from '@/lib/db';
+import { getActiveMembership } from '@/lib/active-organization';
 import { RecipeForm } from '@/components/recipes/recipe-form';
 import { AppErrorBoundary } from '@/components/ui/error-boundary';
 import Link from 'next/link';
@@ -25,6 +26,12 @@ export default async function NewRecipePage() {
   }
 
   const isSuperadmin = user?.role === 'superadmin';
+  // The space picked in the sidebar switcher. The form sends its id back, so a switch in
+  // another tab cannot file the recipe somewhere else.
+  const membership = await getActiveMembership(session.user.id);
+  if (!membership) {
+    redirect('/recipes');
+  }
 
   return (
     <div className="container mx-auto max-w-4xl p-6">
@@ -39,12 +46,12 @@ export default async function NewRecipePage() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Create New Recipe</h1>
         <p className="mt-2 text-gray-500">
-          Add a new recipe to your household collection.
+          Add a new recipe to {membership.organization.name}.
         </p>
       </div>
 
       <AppErrorBoundary sectionLabel="Recipe form">
-        <RecipeForm isSuperadmin={isSuperadmin} />
+        <RecipeForm organizationId={membership.organizationId} isSuperadmin={isSuperadmin} />
       </AppErrorBoundary>
     </div>
   );

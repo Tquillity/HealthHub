@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   weeklyPlan: vi.fn(),
   mealPlanTemplates: vi.fn(),
   routineFindMany: vi.fn(),
+  userFindUnique: vi.fn(),
 }));
 
 /** Stand-in for a client component; the tests only look at the props a page passes. */
@@ -48,6 +49,7 @@ vi.mock('@/lib/db', () => ({
   prisma: {
     educationalResource: { findFirst: mocks.educationalResource },
     routine: { findMany: mocks.routineFindMany },
+    user: { findUnique: mocks.userFindUnique },
   },
 }));
 vi.mock('@/actions/grocery-actions', () => ({ getGroceryList: mocks.groceryList }));
@@ -83,6 +85,7 @@ vi.mock('@/components/routines/routines-client', () => ({
 vi.mock('@/components/routines/routine-filters', () => ({
   RoutineFilters: stub('RoutineFilters'),
 }));
+vi.mock('@/components/recipes/recipe-form', () => ({ RecipeForm: stub('RecipeForm') }));
 vi.mock('@/components/groceries/grocery-list-client', () => ({
   GroceryListClient: stub('GroceryListClient'),
 }));
@@ -107,10 +110,12 @@ import { ClearAllMealsButton } from '@/components/meals/clear-all-meals-button';
 import { SaveTemplateButton } from '@/components/meals/save-template-button';
 import { MealPlanTemplatesClient } from '@/components/meals/meal-plan-templates-client';
 import { RoutinesClient } from '@/components/routines/routines-client';
+import { RecipeForm } from '@/components/recipes/recipe-form';
 import GroceriesPage from './groceries/page';
 import MealPlannerPage from './meal-planner/page';
 import MealPlanTemplatesPage from './meal-planner/templates/page';
 import RoutinesPage from './routines/page';
+import NewRecipePage from './recipes/new/page';
 import RecipeDetailPage from '../(public)/recipes/[id]/page';
 
 type Props = Record<string, unknown>;
@@ -278,5 +283,13 @@ describe('routines page', () => {
       routines: [{ id: 'routine-office' }],
     });
     expect(office.key).toBe('office');
+  });
+});
+
+describe('new recipe page', () => {
+  it('files the recipe under the space it shows', async () => {
+    mocks.userFindUnique.mockResolvedValue({ role: 'admin' });
+    const page = await NewRecipePage();
+    expect(findOne(page, RecipeForm).props.organizationId).toBe('family');
   });
 });

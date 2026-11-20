@@ -121,7 +121,9 @@ export function useRecipeForm(
   recipe: RecipeWithDetails | undefined,
   isSuperadmin: boolean,
   onSuccess?: () => void,
-  onCancel?: () => void
+  onCancel?: () => void,
+  /** Where a new recipe goes; the server refuses a missing or foreign space. */
+  organizationId?: string
 ) {
   const router = useRouter();
   const showToast = useUIStore((state) => state.showToast);
@@ -447,11 +449,11 @@ export function useRecipeForm(
       instructions: instructions
         .filter((inst) => inst.text.trim())
         .map((inst, idx) => ({ stepNumber: idx + 1, text: inst.text })),
-    } satisfies Parameters<typeof createRecipe>[0];
+    } satisfies Parameters<typeof createRecipe>[1];
 
     const result = isEditing
       ? await updateRecipe({ ...recipeData, id: recipe!.id })
-      : await createRecipe(recipeData);
+      : await createRecipe(organizationId ?? '', recipeData);
 
     if (result.success) {
       showToast(
