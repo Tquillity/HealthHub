@@ -5,12 +5,17 @@ const briefingCard = (page: Page) =>
 
 async function setFrequency(page: Page, label: RegExp) {
   await page.goto('/profile');
-  const radio = page
-    .getByRole('region', { name: 'Daily briefing', exact: true })
-    .getByRole('radio', { name: label });
+  const settings = page.getByRole('region', {
+    name: 'Daily briefing',
+    exact: true,
+  });
+  const radio = settings.getByRole('radio', { name: label });
   if (!(await radio.isChecked())) {
     await radio.check();
-    await expect(page.getByText('Briefing settings saved')).toBeVisible();
+    // The settings' own status region; the toast shows the same words.
+    await expect(settings.getByRole('status')).toHaveText(
+      'Briefing settings saved.'
+    );
   }
   await expect(radio).toBeChecked();
 }
