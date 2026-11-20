@@ -114,6 +114,9 @@ describe.skipIf(!isolated)(
         await data.loadCircadianLotteryHint(userId, stockholmMorning)
       ).toBe(null);
       expect(
+        await data.loadTimeOfDayEnergySummary(userId, stockholmMorning)
+      ).toBe(null);
+      expect(
         await data.allowedTimeOfDayEnergy(userId, { energyMorning: 6 })
       ).toEqual({});
       expect(await client.journalEntry.count({ where: { userId } })).toBe(0);
@@ -260,6 +263,13 @@ describe.skipIf(!isolated)(
           afternoon: { average: 8, count: 6, personalized: true },
           evening: { average: 4, count: 6, personalized: true },
         },
+        bestWindow: 'afternoon',
+      });
+      expect(
+        await data.loadTimeOfDayEnergySummary(userId, stockholmMorning)
+      ).toEqual({
+        days: 30,
+        slots: insights?.slots,
         bestWindow: 'afternoon',
       });
       expect(

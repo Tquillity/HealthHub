@@ -25,6 +25,7 @@ import {
   type EnergySlotField,
   type LotteryCircadianTarget,
   type MealFocus,
+  type SlotEnergySummary,
   type TimeOfDayEnergyRow,
 } from '@/lib/circadian-recommendations';
 import type {
@@ -152,6 +153,39 @@ export async function loadCircadianLotteryHint(
   } catch (error) {
     console.error(
       '[circadian] Failed to load the lottery hint:',
+      safeErrorLabel(error)
+    );
+    return null;
+  }
+}
+
+export type TimeOfDayEnergySummary = {
+  /** Length of the history window in days. */
+  days: number;
+  slots: SlotEnergySummary;
+  bestWindow: EnergySlot | null;
+};
+
+/**
+ * Journal page data: energy by time of day over the last `ENERGY_HISTORY_DAYS` days, or
+ * null when the opt-in is off (the journal then shows no time-of-day fields). Never
+ * throws: the journal works without it.
+ */
+export async function loadTimeOfDayEnergySummary(
+  userId: string,
+  now: Date = new Date()
+): Promise<TimeOfDayEnergySummary | null> {
+  try {
+    const insights = await loadCircadianInsights(userId, now);
+    if (!insights) return null;
+    return {
+      days: ENERGY_HISTORY_DAYS,
+      slots: insights.slots,
+      bestWindow: insights.bestWindow,
+    };
+  } catch (error) {
+    console.error(
+      '[circadian] Failed to load energy by time of day:',
       safeErrorLabel(error)
     );
     return null;

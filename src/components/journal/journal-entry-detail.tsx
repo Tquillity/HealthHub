@@ -17,6 +17,8 @@ interface JournalEntryDetailProps {
   dateKey: string;
   onClose: () => void;
   onEdit: () => void;
+  /** Show morning, afternoon and evening energy (circadian insights opt-in). */
+  showTimeOfDayEnergy?: boolean;
 }
 
 export function JournalEntryDetail({
@@ -24,11 +26,19 @@ export function JournalEntryDetail({
   dateKey,
   onClose,
   onEdit,
+  showTimeOfDayEnergy = false,
 }: JournalEntryDetailProps) {
   const router = useRouter();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   // Stored dates are UTC midnight; format the calendar day as a local date so it doesn't shift.
   const entryDay = dateOnlyToLocalDate(dateKey);
+  const timeOfDayEnergy = showTimeOfDayEnergy
+    ? [
+        { label: 'Morning', value: entry.energyMorning },
+        { label: 'Afternoon', value: entry.energyAfternoon },
+        { label: 'Evening', value: entry.energyEvening },
+      ].filter((row) => row.value !== null)
+    : [];
 
   const getRatingColor = (rating: number | null) => {
     if (!rating) return 'text-gray-600';
@@ -129,6 +139,17 @@ export function JournalEntryDetail({
                       ⚡ {entry.energy !== null ? `${entry.energy}/10` : '—'}
                     </span>
                   </div>
+                  {timeOfDayEnergy.map((row) => (
+                    <div
+                      key={row.label}
+                      className="flex items-center justify-between"
+                    >
+                      <span className="text-sm text-gray-600">{row.label}</span>
+                      <span className="text-sm font-semibold text-gray-900">
+                        {row.value}/10
+                      </span>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>

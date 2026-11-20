@@ -8,6 +8,7 @@ import { decrypt, decryptArray } from '@/lib/encryption';
 import JournalPageClient from '@/components/journal/journal-page-client';
 import { PageHeader } from '@/components/ui/page-header';
 import { AppErrorBoundary } from '@/components/ui/error-boundary';
+import { loadTimeOfDayEnergySummary } from '@/lib/circadian-data';
 
 interface JournalPageProps {
   searchParams: Promise<SearchParams>;
@@ -29,16 +30,20 @@ export default async function JournalPage({ searchParams }: JournalPageProps) {
     redirect('/journal');
   }
 
-  const entries = await prisma.journalEntry.findMany({
-    where: {
-      userId: session.user.id,
-      date: {
-        gte: monthRange.start,
-        lt: monthRange.end,
+  const [entries, timeOfDayEnergy] = await Promise.all([
+    prisma.journalEntry.findMany({
+      where: {
+        userId: session.user.id,
+        date: {
+          gte: monthRange.start,
+          lt: monthRange.end,
+        },
       },
-    },
-    orderBy: { date: 'asc' },
-  });
+      orderBy: { date: 'asc' },
+    }),
+    // Null unless circadian insights are on (last 30 days, not the shown month).
+    loadTimeOfDayEnergySummary(session.user.id),
+  ]);
 
   // Decrypt sensitive fields before passing to client
   const decryptedEntries = entries.map((entry) => ({
@@ -66,6 +71,7 @@ export default async function JournalPage({ searchParams }: JournalPageProps) {
         <JournalPageClient
           initialEntries={decryptedEntries}
           monthKey={monthKey}
+          timeOfDayEnergy={timeOfDayEnergy}
         />
       </AppErrorBoundary>
     </div>
