@@ -32,6 +32,11 @@ export type FormData = {
   difficulty: string;
   cuisine: string;
   leanRole: string;
+  activeTime: string;
+  passiveTime: string;
+  yieldAmount: string;
+  yieldUnit: string;
+  batchEfficiency: string;
   dietaryTags: string;
   calories: string;
   protein: string;
@@ -98,6 +103,12 @@ export interface RecipeFormBasicSectionProps {
   handleAddAdditionalImage: (e: ChangeEvent<HTMLInputElement>) => Promise<void>;
   handleRemoveAdditionalImage: (index: number) => void;
   handleSetAsMainImage: (imageUrl: string, index: number) => void;
+}
+
+export interface RecipeFormLeanSectionProps {
+  formData: FormData;
+  setFormData: Dispatch<SetStateAction<FormData>>;
+  errors: Record<string, string>;
 }
 
 export interface RecipeFormNutritionSectionProps {

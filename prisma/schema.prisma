@@ -145,7 +145,17 @@ model Recipe {
   sodium                Float?
   tags                  String[]
   dietaryTags           String[]
+  /// LEAN Kitchen role: Infrastructure | Process | Daily | Treat (validated in src/lib/lean-kitchen.ts)
   leanRole              String?
+  /// Hands-on minutes (chopping, mixing, shaping, stirring)
+  activeTime            Int?
+  /// Hands-off minutes (oven, rising, soaking, chilling, simmering)
+  passiveTime           Int?
+  /// What one batch produces, e.g. 36 "frallor" or 2.5 "dl"
+  yieldAmount           Float?
+  yieldUnit             String?
+  /// High | Medium | Low (validated in src/lib/lean-kitchen.ts)
+  batchEfficiency       String?
   isSystem              Boolean                @default(false)
   isSecret              Boolean                @default(false)
   isPrivate             Boolean                @default(false)

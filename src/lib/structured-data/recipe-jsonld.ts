@@ -1,5 +1,6 @@
 import type { RecipeWithDetails } from '@/actions/recipe-actions';
 import { SITE_NAME } from '@/lib/site-metadata';
+import { formatYield } from '@/lib/lean-kitchen';
 
 export function minutesToIsoDuration(minutes: number): string {
   if (minutes <= 0) {
@@ -94,8 +95,17 @@ export function buildRecipeJsonLd(
     jsonLd.cookTime = minutesToIsoDuration(recipe.cookTime);
   }
 
-  if (recipe.servings != null && recipe.servings > 0) {
-    jsonLd.recipeYield = `${recipe.servings} servings`;
+  // Google: recipeYield is the number of servings; "if you want to use a different
+  // unit (for example, number of items), you can include additional yields".
+  // https://developers.google.com/search/docs/appearance/structured-data/recipe#recipe-properties
+  const recipeYield = [
+    ...(recipe.servings != null && recipe.servings > 0
+      ? [`${recipe.servings} servings`]
+      : []),
+    formatYield(recipe.yieldAmount, recipe.yieldUnit),
+  ].filter((value): value is string => Boolean(value));
+  if (recipeYield.length > 0) {
+    jsonLd.recipeYield = recipeYield.length === 1 ? recipeYield[0] : recipeYield;
   }
 
   if (recipe.category) {

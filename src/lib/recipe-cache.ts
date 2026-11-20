@@ -8,12 +8,14 @@ import { buildRecipeVisibilityFilter } from '@/actions/recipe-shared';
 import { getSessionUserId } from '@/lib/session';
 
 const cacheOptions = { revalidate: 3600, tags: ['recipes'] };
+// Bump the key version whenever the Recipe row shape changes (v3: LEAN Kitchen
+// columns), so entries cached by an older deployment are never served without them.
 const cachedRecipes = unstable_cache(
   queryRecipes,
-  ['recipes-v2'],
+  ['recipes-v3'],
   cacheOptions
 );
-const cachedRecipe = unstable_cache(queryRecipe, ['recipe-v2'], cacheOptions);
+const cachedRecipe = unstable_cache(queryRecipe, ['recipe-v3'], cacheOptions);
 
 // Resolve session, membership and role on every request. The resulting visibility
 // filter is a cache argument, so losing household/admin access changes the key.

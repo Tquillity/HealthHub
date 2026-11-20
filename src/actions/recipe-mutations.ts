@@ -6,8 +6,18 @@ import { requireSessionUserId } from '@/lib/session';
 import { revalidatePath, revalidateTag, updateTag } from 'next/cache';
 import type { Prisma } from '@prisma/client';
 import { isMainAdmin, preprocessRecipeInput } from './recipe-shared';
+import {
+  activeTimeSchema,
+  batchEfficiencySchema,
+  isYieldPairIncomplete,
+  leanRoleSchema,
+  passiveTimeSchema,
+  YIELD_PAIR_MESSAGE,
+  yieldAmountSchema,
+  yieldUnitSchema,
+} from '@/lib/lean-kitchen';
 
-const CreateRecipeSchema = z.object({
+const RecipeFieldsSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   description: z.string().optional(),
   imageUrl: z.preprocess(
@@ -30,7 +40,13 @@ const CreateRecipeSchema = z.object({
   difficulty: z.enum(['easy', 'medium', 'hard']).optional(),
   cuisine: z.string().optional(),
   dietaryTags: z.array(z.string()).default([]),
-  leanRole: z.string().optional(),
+  // LEAN Kitchen fields: null clears the value on update, undefined leaves it unchanged.
+  leanRole: leanRoleSchema.optional(),
+  activeTime: activeTimeSchema.optional(),
+  passiveTime: passiveTimeSchema.optional(),
+  yieldAmount: yieldAmountSchema.optional(),
+  yieldUnit: yieldUnitSchema.optional(),
+  batchEfficiency: batchEfficiencySchema.optional(),
   calories: z.number().positive().optional(),
   protein: z.number().positive().optional(),
   carbs: z.number().positive().optional(),
@@ -58,7 +74,14 @@ const CreateRecipeSchema = z.object({
   ).min(1, 'At least one instruction is required'),
 });
 
-const UpdateRecipeSchema = CreateRecipeSchema.partial().extend({
+// Zod 4 cannot .partial() a refined object, so refinements go on the derived schemas.
+const CreateRecipeSchema = RecipeFieldsSchema.superRefine((data, ctx) => {
+  if (isYieldPairIncomplete(data.yieldAmount, data.yieldUnit)) {
+    ctx.addIssue({ code: 'custom', path: ['yieldUnit'], message: YIELD_PAIR_MESSAGE });
+  }
+});
+
+const UpdateRecipeSchema = RecipeFieldsSchema.partial().extend({
   id: z.string().min(1),
   ingredients: z.array(
     z.object({
@@ -75,6 +98,15 @@ const UpdateRecipeSchema = CreateRecipeSchema.partial().extend({
       text: z.string().min(1),
     })
   ).optional(),
+}).superRefine((data, ctx) => {
+  // A partial update may send only one half; the form always sends both.
+  if (
+    data.yieldAmount !== undefined &&
+    data.yieldUnit !== undefined &&
+    isYieldPairIncomplete(data.yieldAmount, data.yieldUnit)
+  ) {
+    ctx.addIssue({ code: 'custom', path: ['yieldUnit'], message: YIELD_PAIR_MESSAGE });
+  }
 });
 
 export async function createRecipe(data: z.infer<typeof CreateRecipeSchema>) {
@@ -131,7 +163,12 @@ export async function createRecipe(data: z.infer<typeof CreateRecipeSchema>) {
           difficulty: validated.difficulty || null,
           cuisine: validated.cuisine || null,
           dietaryTags: validated.dietaryTags,
-          leanRole: validated.leanRole || null,
+          leanRole: validated.leanRole ?? null,
+          activeTime: validated.activeTime ?? null,
+          passiveTime: validated.passiveTime ?? null,
+          yieldAmount: validated.yieldAmount ?? null,
+          yieldUnit: validated.yieldUnit ?? null,
+          batchEfficiency: validated.batchEfficiency ?? null,
           calories: validated.calories || null,
           protein: validated.protein || null,
           carbs: validated.carbs || null,

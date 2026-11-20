@@ -28,6 +28,11 @@ const baseRecipe: RecipeWithDetails = {
   tags: ['salad'],
   dietaryTags: ['vegetarian'],
   leanRole: null,
+  activeTime: null,
+  passiveTime: null,
+  yieldAmount: null,
+  yieldUnit: null,
+  batchEfficiency: null,
   isSystem: true,
   isSecret: false,
   isPrivate: false,
@@ -92,6 +97,42 @@ describe('buildRecipeJsonLd', () => {
     ]);
   });
 
+  it('adds the batch yield as an extra recipeYield entry', () => {
+    const jsonLd = buildRecipeJsonLd(
+      {
+        ...baseRecipe,
+        servings: 36,
+        yieldAmount: 36,
+        yieldUnit: 'frallor',
+        leanRole: 'Infrastructure',
+        activeTime: 35,
+        passiveTime: 240,
+        batchEfficiency: 'High',
+      },
+      { baseUrl: 'https://healthhub.example' }
+    );
+
+    expect(jsonLd.recipeYield).toEqual(['36 servings', '36 frallor']);
+  });
+
+  it('uses the batch yield alone when servings are unknown', () => {
+    const jsonLd = buildRecipeJsonLd(
+      { ...baseRecipe, servings: null, yieldAmount: 2.5, yieldUnit: 'dl' },
+      { baseUrl: 'https://healthhub.example' }
+    );
+
+    expect(jsonLd.recipeYield).toBe('2.5 dl');
+  });
+
+  it('ignores a batch yield without a unit', () => {
+    const jsonLd = buildRecipeJsonLd(
+      { ...baseRecipe, yieldAmount: 4, yieldUnit: null },
+      { baseUrl: 'https://healthhub.example' }
+    );
+
+    expect(jsonLd.recipeYield).toBe('2 servings');
+  });
+
   it('falls back gracefully for minimal recipes', () => {
     const minimal: RecipeWithDetails = {
       ...baseRecipe,
@@ -125,6 +166,7 @@ describe('buildRecipeJsonLd', () => {
     expect(jsonLd.isAccessibleForFree).toBe(true);
     expect(jsonLd.image).toBeUndefined();
     expect(jsonLd.prepTime).toBeUndefined();
+    expect(jsonLd.recipeYield).toBeUndefined();
     expect(jsonLd.recipeIngredient).toBeUndefined();
   });
 });
