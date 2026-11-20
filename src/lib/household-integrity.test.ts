@@ -31,6 +31,7 @@ describe.skipIf(!isolated)('household integrity against isolated PostgreSQL', ()
   let client: PrismaClient;
   let household: typeof import('./household');
   let lib: typeof import('./household-management');
+  let sharing: typeof import('./journal-sharing');
 
   let seq = 0;
   const createUser = async (key: string) => {
@@ -72,11 +73,57 @@ describe.skipIf(!isolated)('household integrity against isolated PostgreSQL', ()
     return owners.map((m) => m.userId);
   };
 
+  /**
+   * Another request's transaction, held open: it has run `statements` (and holds their row
+   * locks) but has not committed. runWhileHeld starts `action`, commits the holder once the
+   * action is waiting on one of its locks (or has finished without waiting), and returns
+   * the action's result. This replays a race deterministically.
+   */
+  const holdTransaction = async (statements: Array<[sql: string, params: unknown[]]>) => {
+    const conn = await pool.connect();
+    await conn.query('BEGIN');
+    for (const [sql, params] of statements) await conn.query(sql, params);
+    const { rows } = await conn.query<{ pid: number }>('SELECT pg_backend_pid() AS pid');
+    return {
+      pid: rows[0].pid,
+      commit: async () => {
+        await conn.query('COMMIT');
+        conn.release();
+      },
+    };
+  };
+  const runWhileHeld = async <T>(
+    holder: Awaited<ReturnType<typeof holdTransaction>>,
+    action: () => Promise<T>
+  ): Promise<T> => {
+    const settled = action().then(
+      (value) => ({ value }),
+      (error: unknown) => ({ error })
+    );
+    let done = false;
+    void settled.then(() => {
+      done = true;
+    });
+    for (let attempt = 0; attempt < 500 && !done; attempt += 1) {
+      const { rows } = await pool.query<{ waiting: number }>(
+        'SELECT count(*)::int AS waiting FROM pg_stat_activity WHERE $1 = ANY(pg_blocking_pids(pid))',
+        [holder.pid]
+      );
+      if (rows[0].waiting > 0) break;
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    await holder.commit();
+    const outcome = await settled;
+    if ('error' in outcome) throw outcome.error;
+    return outcome.value;
+  };
+
   beforeAll(async () => {
     pool = new Pool({ connectionString: process.env.DATABASE_URL });
     client = new PrismaClient({ adapter: new PrismaPg(pool) });
     household = await import('./household');
     lib = await import('./household-management');
+    sharing = await import('./journal-sharing');
   });
 
   afterAll(async () => {
@@ -282,6 +329,101 @@ describe.skipIf(!isolated)('household integrity against isolated PostgreSQL', ()
         await conn.query('ROLLBACK');
         conn.release();
       }
+    });
+  });
+
+  describe('journal shares and membership', () => {
+    const day = '2026-03-01';
+    const createEntry = (userId: string) =>
+      client.journalEntry.create({
+        data: { userId, date: new Date(`${day}T00:00:00Z`), mood: 6 },
+        select: { id: true },
+      });
+    const sharingOf = (id: string) =>
+      client.journalEntry.findUniqueOrThrow({
+        where: { id },
+        select: { visibility: true, sharedOrganizationId: true },
+      });
+
+    it('a share racing a removal fails instead of outliving the membership', async () => {
+      const owner = await createUser('share-owner');
+      const author = await createUser('share-author');
+      const space = await createOrg('share-space', [
+        [owner, 'owner'],
+        [author, 'member'],
+      ]);
+      await createOrg('share-other', [[author, 'owner']]);
+      const entry = await createEntry(author);
+
+      // The owner's removal has deleted the membership and unshared, but not committed yet.
+      const removal = await holdTransaction([
+        ['DELETE FROM "member" WHERE id = $1', [space.memberIds[1]]],
+        [
+          `UPDATE "journal_entry" SET visibility = 'PRIVATE', "sharedOrganizationId" = NULL
+           WHERE "userId" = $1 AND "sharedOrganizationId" = $2`,
+          [author, space.id],
+        ],
+      ]);
+      const result = await runWhileHeld(removal, () =>
+        sharing.setJournalEntrySharing(author, day, space.id)
+      );
+
+      expect(result).toEqual({ ok: false, error: 'You are not a member of that space.' });
+      expect(await sharingOf(entry.id)).toEqual({ visibility: 'PRIVATE', sharedOrganizationId: null });
+    });
+
+    it('a removal waiting on a share unshares it', async () => {
+      const owner = await createUser('wait-owner');
+      const author = await createUser('wait-author');
+      const space = await createOrg('wait-space', [
+        [owner, 'owner'],
+        [author, 'member'],
+      ]);
+      await createOrg('wait-other', [[author, 'owner']]);
+      const entry = await createEntry(author);
+
+      // The author's share holds the membership row and has written the share, uncommitted.
+      const share = await holdTransaction([
+        ['SELECT id FROM "member" WHERE id = $1 FOR SHARE', [space.memberIds[1]]],
+        [
+          `UPDATE "journal_entry" SET visibility = 'ORGANIZATION', "sharedOrganizationId" = $2
+           WHERE id = $1`,
+          [entry.id, space.id],
+        ],
+      ]);
+      const result = await runWhileHeld(share, () => lib.removeMember(owner, space.memberIds[1]));
+
+      expect(result).toMatchObject({ ok: true });
+      expect(await sharingOf(entry.id)).toEqual({ visibility: 'PRIVATE', sharedOrganizationId: null });
+    });
+
+    it('rejoining starts with nothing shared, whatever an old race left behind', async () => {
+      const owner = await createUser('rejoin-owner');
+      const author = await createUser('rejoin-author');
+      const space = await createOrg('rejoin-space', [[owner, 'owner']]);
+      await createOrg('rejoin-other', [[author, 'owner']]);
+      const entry = await createEntry(author);
+      // A share that won a race against the author's earlier removal.
+      await client.journalEntry.update({
+        where: { id: entry.id },
+        data: { visibility: 'ORGANIZATION', sharedOrganizationId: space.id },
+      });
+      const invitationId = `hi-inv-rejoin-${run}`;
+      await client.invitation.create({
+        data: {
+          id: invitationId,
+          organizationId: space.id,
+          email: `${author}@example.com`,
+          role: 'member',
+          status: 'pending',
+          expiresAt: new Date('2099-01-01'),
+          inviterId: owner,
+        },
+      });
+
+      expect(await lib.acceptInvitation(author, invitationId)).toMatchObject({ ok: true });
+      expect(await sharingOf(entry.id)).toEqual({ visibility: 'PRIVATE', sharedOrganizationId: null });
+      expect(await sharing.getSharedJournalEntries(owner, space.id)).toEqual([]);
     });
   });
 });

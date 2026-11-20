@@ -411,7 +411,7 @@ export async function acceptInvitation(
     // Someone who is already a member keeps their membership and role. The unique
     // (organizationId, userId) index makes a second accept running at the same time wait and
     // then skip, instead of adding a second row.
-    await tx.member.createMany({
+    const joined = await tx.member.createMany({
       data: {
         id: generateRecordId('mem'),
         organizationId: invitation.organizationId,
@@ -420,6 +420,11 @@ export async function acceptInvitation(
       },
       skipDuplicates: true,
     });
+    if (joined.count > 0) {
+      // A new membership starts with nothing shared. A share that raced an earlier removal or
+      // leave would otherwise reappear in the group's feed without being shared again.
+      await unshareJournalEntries(tx, userId, invitation.organizationId);
+    }
     return true;
   });
   if (!accepted) return fail(INVITATION_CHECK_MESSAGES.not_pending);
