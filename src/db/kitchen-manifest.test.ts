@@ -9,6 +9,7 @@ import {
   toSystemRecipeFields,
 } from './kitchen-manifest';
 import { QUICK_PREP_MAX_ACTIVE_MINUTES } from '@/lib/lean-kitchen';
+import { CYCLE_PHASES, NUTRIENT_HIGHLIGHTS } from '@/lib/phase-nutrition';
 
 const manifest = parseKitchenManifest(
   JSON.parse(
@@ -74,6 +75,26 @@ describe('kitchen-manifest.json', () => {
       )
     ).toBe(true);
   });
+  it('gives every seeded recipe valid phase tags and nutrient highlights', () => {
+    for (const recipe of seededRecipes) {
+      const fields = toSystemRecipeFields(recipe);
+      for (const phase of fields.phaseTags) {
+        expect(CYCLE_PHASES, recipe.name).toContain(phase);
+      }
+      for (const nutrient of fields.nutrientHighlights) {
+        expect(NUTRIENT_HIGHLIGHTS, recipe.name).toContain(nutrient);
+      }
+    }
+    // Explicit tags where we are confident about them
+    const byName = new Map(seededRecipes.map((r) => [r.name, r]));
+    expect(byName.get('Fröknäcke (Grundrecept)')?.phaseTags).toEqual([
+      'ovulation',
+      'luteal',
+    ]);
+    // Inferred everywhere else: a good share of the catalog suits some phase
+    const tagged = seededRecipes.filter((r) => toSystemRecipeFields(r).phaseTags.length > 0);
+    expect(tagged.length).toBeGreaterThan(seededRecipes.length / 3);
+  });
 });
 
 describe('parseKitchenManifest', () => {
@@ -103,6 +124,22 @@ describe('parseKitchenManifest', () => {
     expect(parseWith({ yield: { amount: 4, unit: null } })).toThrow(/yield/);
     expect(parseWith({ yield: { amount: 0, unit: 'st' } })).toThrow(/amount/);
     expect(parseWith({ leanInfo: { activeTime: 2.5 } })).toThrow(/activeTime/);
+  });
+
+  it('normalises phase tags and nutrient highlights to the vocabulary order', () => {
+    const parsed = parseWith({
+      phaseTags: ['Luteal', 'menstrual', 'luteal'],
+      nutrientHighlights: [' Magnesium', 'iron'],
+    })();
+    expect(parsed.recipes[0]).toMatchObject({
+      phaseTags: ['menstrual', 'luteal'],
+      nutrientHighlights: ['iron', 'magnesium'],
+    });
+  });
+
+  it('rejects unknown phases and nutrients', () => {
+    expect(parseWith({ phaseTags: ['pms'] })).toThrow(/phaseTags/);
+    expect(parseWith({ nutrientHighlights: ['vitamin-z'] })).toThrow(/nutrientHighlights/);
   });
 
   it('rejects broken recipes and duplicate names', () => {
@@ -159,6 +196,60 @@ describe('toSystemRecipeFields', () => {
     });
     expect(fields).not.toHaveProperty('imageUrl');
     expect(fields).not.toHaveProperty('isHhChefsVerified');
+  });
+
+  it('keeps explicit phase tags and nutrients from the manifest', () => {
+    const [recipe] = parseWith({
+      phaseTags: ['luteal'],
+      nutrientHighlights: ['magnesium'],
+      ingredients: [{ name: 'Lax', quantity: 400, unit: 'g' }],
+    })().recipes;
+    expect(toSystemRecipeFields(recipe)).toMatchObject({
+      phaseTags: ['luteal'],
+      nutrientHighlights: ['magnesium'],
+    });
+  });
+
+  it('infers phase tags and nutrients from the ingredients when left out', () => {
+    const [recipe] = parseWith({
+      ingredients: [
+        { name: 'Laxfilé', quantity: 400, unit: 'g' },
+        { name: 'Salt', quantity: 1, unit: 'tsk' },
+      ],
+    })().recipes;
+    const fields = toSystemRecipeFields(recipe);
+    expect(fields.nutrientHighlights).toEqual(
+      expect.arrayContaining(['protein', 'omega-3'])
+    );
+    expect(fields.phaseTags).toContain('menstrual');
+  });
+
+  it('does not infer phases for treats', () => {
+    const ingredients = [{ name: 'Mörk choklad', quantity: 100, unit: 'g' }];
+    const [treat, tagged] = parseKitchenManifest({
+      recipes: [
+        { ...minimalRecipe, ingredients, leanInfo: { leanRole: 'Treat' } },
+        {
+          ...minimalRecipe,
+          name: 'Tagged',
+          ingredients,
+          leanInfo: { leanRole: 'Treat' },
+          phaseTags: ['luteal'],
+        },
+      ],
+    }).recipes;
+    expect(toSystemRecipeFields(treat).phaseTags).toEqual([]);
+    expect(toSystemRecipeFields(tagged).phaseTags).toEqual(['luteal']);
+  });
+
+  it('stores empty lists when nothing can be inferred', () => {
+    const [recipe] = parseWith({
+      ingredients: [{ name: 'Salt', quantity: 1, unit: 'krm' }],
+    })().recipes;
+    expect(toSystemRecipeFields(recipe)).toMatchObject({
+      phaseTags: [],
+      nutrientHighlights: [],
+    });
   });
 
   it('maps ingredient notes to null when absent', () => {

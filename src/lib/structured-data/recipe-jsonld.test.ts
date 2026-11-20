@@ -33,6 +33,8 @@ const baseRecipe: RecipeWithDetails = {
   yieldAmount: null,
   yieldUnit: null,
   batchEfficiency: null,
+  phaseTags: [],
+  nutrientHighlights: [],
   isSystem: true,
   isSecret: false,
   isPrivate: false,

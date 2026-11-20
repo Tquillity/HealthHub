@@ -40,6 +40,7 @@ describe.skipIf(!isolated)('account export against isolated PostgreSQL', () => {
             { date: new Date('2026-03-01T00:00:00Z') },
           ],
         },
+        alignMealsWithCycle: false,
       },
     });
     await client.user.create({ data: { ...housemate, name: 'Housemate' } });
@@ -102,6 +103,8 @@ describe.skipIf(!isolated)('account export against isolated PostgreSQL', () => {
         yieldAmount: 2,
         yieldUnit: 'bowls',
         batchEfficiency: 'Low',
+        phaseTags: ['follicular'],
+        nutrientHighlights: ['complex-carbs', 'fiber'],
         ingredients: { create: [{ name: 'Oats', quantity: 1, unit: 'cup' }] },
         instructions: { create: [{ stepNumber: 1, text: 'Cook' }] },
       },
@@ -149,6 +152,7 @@ describe.skipIf(!isolated)('account export against isolated PostgreSQL', () => {
       lastPeriodDate: '2026-03-01',
       temperatureUnit: 'F',
       trackVitals: true,
+      alignMealsWithCycle: false,
     });
     expect(data.periodStarts).toEqual([
       { date: '2026-02-01', loggedAt: expect.any(Date) },
@@ -206,6 +210,8 @@ describe.skipIf(!isolated)('account export against isolated PostgreSQL', () => {
         yieldAmount: 2,
         yieldUnit: 'bowls',
         batchEfficiency: 'Low',
+        phaseTags: ['follicular'],
+        nutrientHighlights: ['complex-carbs', 'fiber'],
         ingredients: [expect.objectContaining({ name: 'Oats' })],
         instructions: [expect.objectContaining({ text: 'Cook' })],
       }),

@@ -24,6 +24,7 @@
  */
 
 import { differenceInDays } from 'date-fns';
+import { dateOnlyToUtcDate, isDateOnlyString, toDateOnlyString } from './date-only';
 
 export type CyclePhase = 'menstrual' | 'follicular' | 'ovulation' | 'luteal';
 
@@ -64,6 +65,42 @@ export function getPhaseForDay(day: number, cycleLength: number): CyclePhase {
   if (day <= ovulationDay - 4) return 'follicular';
   if (day <= ovulationDay) return 'ovulation';
   return 'luteal';
+}
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+/**
+ * Estimated phase on any calendar day, projected forward from the last period start
+ * with a fixed cycle length: the same model and boundaries as `calculateCyclePhase`,
+ * for a chosen day instead of "today" (used to plan meals for upcoming days).
+ *
+ * Both inputs are date-only values (src/lib/date-only.ts): `lastPeriodDate` is stored as
+ * UTC midnight and `dateKey` is a `YYYY-MM-DD` calendar day, so the difference is a
+ * whole number of UTC days with no timezone or daylight-saving drift.
+ *
+ * Returns null for days before the last period start (nothing to project from, and a
+ * backwards guess would be shown as fact) and for invalid input.
+ */
+export function getPhaseForDateKey(
+  lastPeriodDate: Date,
+  cycleLength: number,
+  dateKey: string
+): CyclePhase | null {
+  if (
+    !isDateOnlyString(dateKey) ||
+    !Number.isInteger(cycleLength) ||
+    cycleLength < 1 ||
+    Number.isNaN(lastPeriodDate.getTime())
+  ) {
+    return null;
+  }
+  const periodStart = dateOnlyToUtcDate(toDateOnlyString(lastPeriodDate));
+  const day = dateOnlyToUtcDate(dateKey);
+  const daysSinceStart = Math.round(
+    (day.getTime() - periodStart.getTime()) / MS_PER_DAY
+  );
+  if (daysSinceStart < 0) return null;
+  return getPhaseForDay((daysSinceStart % cycleLength) + 1, cycleLength);
 }
 
 /**

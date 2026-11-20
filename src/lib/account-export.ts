@@ -37,6 +37,7 @@ export async function buildAccountExport(userId: string) {
       enableCycleTracking: true,
       cycleLength: true,
       lastPeriodDate: true,
+      alignMealsWithCycle: true,
       focusPreference: true,
       mealPlanDuration: true,
       mealPlanStartDate: true,
