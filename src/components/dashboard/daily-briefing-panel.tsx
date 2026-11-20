@@ -29,7 +29,14 @@ import { useUIStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
 import { dateOnlyToLocalDate } from '@/lib/date-only';
 import { PHASE_THEMES } from '@/lib/phase-theme';
-import { phaseLabel } from './daily-briefing-view';
+import {
+  emptyLocalFeedback,
+  phaseLabel,
+  shownBriefing,
+  visibleSuggestions,
+  type LocalFeedback,
+  type RefreshedBriefing,
+} from './daily-briefing-view';
 import {
   dismissBriefingSuggestion,
   dismissDailyBriefing,
@@ -41,6 +48,7 @@ import type {
   BriefingSuggestion,
   DailyBriefing,
   SuggestionCategory,
+  SuggestionKey,
   SuggestionRating,
 } from '@/lib/briefing/types';
 
@@ -201,7 +209,7 @@ function SuggestionItem({
 }
 
 export function DailyBriefingPanel({
-  briefing: initialBriefing,
+  briefing: serverBriefing,
 }: {
   briefing: DailyBriefing;
 }) {
@@ -209,10 +217,17 @@ export function DailyBriefingPanel({
   const id = useId();
   const titleId = `${id}-title`;
   const detailsId = `${id}-details`;
-  const [briefing, setBriefing] = useState(initialBriefing);
-  const [suggestions, setSuggestions] = useState(initialBriefing.suggestions);
+  // The server prop is the source of truth: a revalidated dashboard (for example after a
+  // vitals quick log) passes a new briefing, which replaces what Refresh fetched. Only
+  // today's optimistic ratings and dismissals are kept locally, on top of either.
+  const [refreshed, setRefreshed] = useState<RefreshedBriefing | null>(null);
+  const briefing = shownBriefing(serverBriefing, refreshed);
+  const [local, setLocal] = useState<LocalFeedback>(() =>
+    emptyLocalFeedback(serverBriefing.date)
+  );
+  const suggestions = visibleSuggestions(briefing, local);
   const [expanded, setExpanded] = useState(
-    initialBriefing.detail === 'detailed'
+    serverBriefing.detail === 'detailed'
   );
   const [hidden, setHidden] = useState(false);
   const [gone, setGone] = useState(false);
@@ -221,22 +236,41 @@ export function DailyBriefingPanel({
 
   if (gone) return null;
 
-  const updateSuggestion = (
-    key: BriefingSuggestion['key'],
-    patch: Partial<BriefingSuggestion>
-  ) =>
-    setSuggestions((current) =>
-      current.map((s) => (s.key === key ? { ...s, ...patch } : s))
+  /** Updates today's local feedback (started afresh when the briefing day changed). */
+  const updateLocal = (change: (current: LocalFeedback) => LocalFeedback) =>
+    setLocal((current) =>
+      change(
+        current.date === briefing.date
+          ? current
+          : emptyLocalFeedback(briefing.date)
+      )
     );
+  /** Shows `rating` for the suggestion; `undefined` goes back to the briefing's own. */
+  const setLocalRating = (
+    key: SuggestionKey,
+    rating: SuggestionRating | null | undefined
+  ) =>
+    updateLocal((current) => ({
+      ...current,
+      ratings: { ...current.ratings, [key]: rating },
+    }));
+  const setLocalDismissed = (key: SuggestionKey, dismissed: boolean) =>
+    updateLocal((current) => ({
+      ...current,
+      dismissed: dismissed
+        ? [...current.dismissed, key]
+        : current.dismissed.filter((k) => k !== key),
+    }));
 
   const rate = async (
     suggestion: BriefingSuggestion,
     rating: SuggestionRating
   ) => {
-    const previous = suggestion.rating;
+    const previous =
+      local.date === briefing.date ? local.ratings[suggestion.key] : undefined;
     // Pressing the selected rating again clears it.
-    const next = previous === rating ? null : rating;
-    updateSuggestion(suggestion.key, { rating: next });
+    const next = suggestion.rating === rating ? null : rating;
+    setLocalRating(suggestion.key, next);
     setBusyKey(suggestion.key);
     const result = await rateBriefingSuggestion({
       date: briefing.date,
@@ -253,14 +287,13 @@ export function DailyBriefingPanel({
             : "Thanks. You'll see fewer suggestions like this."
       );
     } else {
-      updateSuggestion(suggestion.key, { rating: previous });
+      setLocalRating(suggestion.key, previous);
       showToast(result.error, 'error');
     }
   };
 
   const dismissOne = async (suggestion: BriefingSuggestion) => {
-    const before = suggestions;
-    setSuggestions(before.filter((s) => s.key !== suggestion.key));
+    setLocalDismissed(suggestion.key, true);
     setBusyKey(suggestion.key);
     const result = await dismissBriefingSuggestion({
       date: briefing.date,
@@ -270,7 +303,7 @@ export function DailyBriefingPanel({
     if (result.success) {
       setStatus(`"${suggestion.title}" hidden for today.`);
     } else {
-      setSuggestions(before);
+      setLocalDismissed(suggestion.key, false);
       showToast(result.error, 'error');
     }
   };
@@ -311,8 +344,7 @@ export function DailyBriefingPanel({
     }
     const state = result.data;
     if (state.status === 'ready') {
-      setBriefing(state.briefing);
-      setSuggestions(state.briefing.suggestions);
+      setRefreshed({ from: serverBriefing, briefing: state.briefing });
       setStatus('Briefing updated.');
     } else if (state.status === 'dismissed') {
       setHidden(true);

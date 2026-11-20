@@ -13,7 +13,13 @@ vi.mock('@/actions/briefing-actions', () => ({
 }));
 
 import { DailyBriefingPanel } from './daily-briefing-panel';
-import { phaseLabel } from './daily-briefing-view';
+import {
+  emptyLocalFeedback,
+  phaseLabel,
+  shownBriefing,
+  visibleSuggestions,
+  type LocalFeedback,
+} from './daily-briefing-view';
 
 const briefing: DailyBriefing = {
   date: '2026-11-20',
@@ -87,5 +93,65 @@ describe('DailyBriefingPanel: cycle phase', () => {
     );
     // The detail notes stay behind "Show details".
     expect(html).not.toContain('Energy is compared with a typical pattern');
+  });
+});
+
+describe('DailyBriefingPanel: server briefing after revalidation', () => {
+  // The vitals quick log revalidates the dashboard: the card gets a new briefing prop.
+  const revalidated: DailyBriefing = {
+    ...briefing,
+    suggestions: [
+      {
+        key: 'recovery.rest-day',
+        category: 'recovery',
+        urgency: 'high',
+        title: 'Consider adding a rest day',
+        body: 'Your recovery scores have been below your usual.',
+        evidence: ['Recovery today: 40/100 (Prioritise rest).'],
+        action: { href: '/routines?energy=low', label: 'Browse gentle routines' },
+        rating: null,
+      },
+      ...briefing.suggestions,
+    ],
+  };
+
+  it('shows a new server briefing instead of an earlier copy', () => {
+    expect(shownBriefing(briefing, null)).toBe(briefing);
+    expect(shownBriefing(revalidated, null)).toBe(revalidated);
+    // Refresh replaced the prop it was fetched for ...
+    const fetched = { ...briefing, headline: 'Here are a few ideas for today.' };
+    expect(shownBriefing(briefing, { from: briefing, briefing: fetched })).toBe(fetched);
+    // ... but a newer prop from the server wins over it.
+    expect(shownBriefing(revalidated, { from: briefing, briefing: fetched })).toBe(
+      revalidated
+    );
+  });
+
+  it("keeps today's local ratings and dismissals on the new suggestions", () => {
+    const local: LocalFeedback = {
+      date: '2026-11-20',
+      ratings: { 'routine.ease-intensity': 'helpful' },
+      dismissed: ['meal.plan-ahead'],
+    };
+    expect(visibleSuggestions(revalidated, local).map((s) => [s.key, s.rating])).toEqual([
+      ['recovery.rest-day', null],
+      ['routine.ease-intensity', 'helpful'],
+    ]);
+    // A cleared rating (null) shows as cleared.
+    const rated: DailyBriefing = {
+      ...briefing,
+      suggestions: briefing.suggestions.map((s) => ({ ...s, rating: 'helpful' as const })),
+    };
+    const cleared = { ...local, ratings: { 'routine.ease-intensity': null } };
+    expect(visibleSuggestions(rated, cleared)[0].rating).toBeNull();
+    // Feedback from another day does not apply to a new day's briefing.
+    expect(visibleSuggestions({ ...revalidated, date: '2026-11-21' }, local)).toHaveLength(3);
+    expect(visibleSuggestions(revalidated, emptyLocalFeedback('2026-11-20'))).toEqual(
+      revalidated.suggestions
+    );
+  });
+
+  it('renders the suggestions of the prop it is given', () => {
+    expect(render(revalidated)).toContain('Consider adding a rest day');
   });
 });
