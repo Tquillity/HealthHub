@@ -312,7 +312,8 @@ describe.skipIf(!isolated)('household integrity against isolated PostgreSQL', ()
         await conn.query('DROP INDEX "member_organizationId_userId_key"');
         for (const [id, userId, role, createdAt] of rows) {
           await conn.query(
-            'INSERT INTO "member" (id, "organizationId", "userId", role, "createdAt") VALUES ($1, $2, $3, $4, $5)',
+            `INSERT INTO "member" (id, "organizationId", "userId", role, "createdAt")
+             VALUES ($1, $2, $3, $4, $5)`,
             [id, space.id, userId, role, createdAt]
           );
         }
@@ -424,6 +425,74 @@ describe.skipIf(!isolated)('household integrity against isolated PostgreSQL', ()
       expect(await lib.acceptInvitation(author, invitationId)).toMatchObject({ ok: true });
       expect(await sharingOf(entry.id)).toEqual({ visibility: 'PRIVATE', sharedOrganizationId: null });
       expect(await sharing.getSharedJournalEntries(owner, space.id)).toEqual([]);
+    });
+  });
+
+  describe('ownership never lapses', () => {
+    const changed = {
+      ok: false,
+      error: 'Something changed in this space just now. Reload the page and try again.',
+    };
+    /** O owns the space; A is an admin; M and N are members. */
+    const setUp = async (key: string) => {
+      const owner = await createUser(`${key}-o`);
+      const admin = await createUser(`${key}-a`);
+      const m = await createUser(`${key}-m`);
+      const n = await createUser(`${key}-n`);
+      const space = await createOrg(`${key}-space`, [
+        [owner, 'owner'],
+        [admin, 'admin'],
+        [m, 'member'],
+        [n, 'member'],
+      ]);
+      for (const userId of [owner, admin, m, n]) await createOrg(`${key}-own-${userId}`, [[userId, 'owner']]);
+      const [ownerMember, , mMember, nMember] = space.memberIds;
+      return { owner, admin, m, n, space: space.id, ownerMember, mMember, nMember };
+    };
+    /** O's "Make owner" on `memberId`, written but not committed yet. */
+    const transferInFlight = (ownerMember: string, memberId: string) =>
+      holdTransaction([
+        [`UPDATE "member" SET role = 'admin' WHERE id = $1`, [ownerMember]],
+        [`UPDATE "member" SET role = 'owner' WHERE id = $1`, [memberId]],
+      ]);
+
+    it('a role change that read the old role does not overwrite a new owner', async () => {
+      const t = await setUp('role');
+      const transfer = await transferInFlight(t.ownerMember, t.mMember);
+      const result = await runWhileHeld(transfer, () => lib.updateMemberRole(t.admin, t.mMember, 'viewer'));
+
+      expect(result).toEqual(changed);
+      expect(await ownersOf(t.space)).toEqual([t.m]);
+    });
+
+    it('two transfers at once leave exactly one owner', async () => {
+      const t = await setUp('twice');
+      const transfer = await transferInFlight(t.ownerMember, t.mMember);
+      const result = await runWhileHeld(transfer, () => lib.transferOwnership(t.owner, t.nMember));
+
+      expect(result).toEqual(changed);
+      expect(await ownersOf(t.space)).toEqual([t.m]);
+      expect(await client.member.findUniqueOrThrow({ where: { id: t.nMember } })).toMatchObject({
+        role: 'member',
+      });
+    });
+
+    it('a transfer to someone just removed changes nothing', async () => {
+      const t = await setUp('gone');
+      const removal = await holdTransaction([['DELETE FROM "member" WHERE id = $1', [t.mMember]]]);
+      const result = await runWhileHeld(removal, () => lib.transferOwnership(t.owner, t.mMember));
+
+      expect(result).toEqual(changed);
+      expect(await ownersOf(t.space)).toEqual([t.owner]);
+    });
+
+    it('a removal that read the old role does not remove a new owner', async () => {
+      const t = await setUp('evict');
+      const transfer = await transferInFlight(t.ownerMember, t.mMember);
+      const result = await runWhileHeld(transfer, () => lib.removeMember(t.owner, t.mMember));
+
+      expect(result).toEqual(changed);
+      expect(await ownersOf(t.space)).toEqual([t.m]);
     });
   });
 });

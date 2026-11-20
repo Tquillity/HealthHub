@@ -39,6 +39,16 @@ export type Result<T> = { ok: true; data: T } | { ok: false; error: string };
 
 const fail = <T>(error: string): Result<T> => ({ ok: false, error });
 
+/**
+ * A role or membership changed between our checks and the write (another tab, another owner
+ * or admin acting at the same moment). Writes are conditional on what was checked, so nothing
+ * was changed; reloading shows the current state.
+ */
+export const MEMBERSHIP_CHANGED_ERROR =
+  'Something changed in this space just now. Reload the page and try again.';
+
+class MembershipChangedError extends Error {}
+
 /** Journal entries a person shared with an organization stop being shared when they leave it. */
 async function unshareJournalEntries(
   tx: Pick<typeof prisma, 'journalEntry'>,
@@ -479,7 +489,13 @@ export async function updateMemberRole(
     newRole,
   });
   if (!check.ok) return fail(check.error);
-  await prisma.member.update({ where: { id: target.id }, data: { role: newRole } });
+  // Only while the target still has the role checked above. Postgres re-checks the condition
+  // after waiting for a concurrent transfer, so a member who just became owner keeps it.
+  const updated = await prisma.member.updateMany({
+    where: { id: target.id, role: target.role },
+    data: { role: newRole },
+  });
+  if (updated.count === 0) return fail(MEMBERSHIP_CHANGED_ERROR);
   return { ok: true, data: { organizationId: target.organizationId } };
 }
 
@@ -490,17 +506,35 @@ export async function transferOwnership(
 ): Promise<Result<{ organizationId: string }>> {
   const target = await loadTargetMember(memberId);
   if (!target) return fail('Member not found');
-  const actor = await getMembershipIn(userId, target.organizationId);
+  const actor = await prisma.member.findFirst({
+    where: { userId, organizationId: target.organizationId },
+    select: { id: true, role: true },
+  });
   if (!actor) return fail('Member not found');
   const check = checkOwnershipTransfer({
-    actorRole: actor.role,
+    actorRole: parseOrgRole(actor.role),
     actorIsTarget: target.userId === userId,
   });
   if (!check.ok) return fail(check.error);
-  await prisma.$transaction([
-    prisma.member.update({ where: { id: target.id }, data: { role: 'owner' } }),
-    prisma.member.update({ where: { id: actor.memberId }, data: { role: 'admin' } }),
-  ]);
+  try {
+    await prisma.$transaction(async (tx) => {
+      // Both writes apply only to the roles checked above. If either changed in the meantime
+      // (a second transfer, a role change, a removal), the transaction rolls back.
+      const demoted = await tx.member.updateMany({
+        where: { id: actor.id, role: actor.role },
+        data: { role: 'admin' },
+      });
+      if (demoted.count === 0) throw new MembershipChangedError();
+      const promoted = await tx.member.updateMany({
+        where: { id: target.id, role: target.role },
+        data: { role: 'owner' },
+      });
+      if (promoted.count === 0) throw new MembershipChangedError();
+    });
+  } catch (error) {
+    if (error instanceof MembershipChangedError) return fail(MEMBERSHIP_CHANGED_ERROR);
+    throw error;
+  }
   return { ok: true, data: { organizationId: target.organizationId } };
 }
 
@@ -522,10 +556,13 @@ export async function removeMember(
     targetRole: parseOrgRole(target.role),
   });
   if (!check.ok) return fail(check.error);
-  await prisma.$transaction(async (tx) => {
+  const removed = await prisma.$transaction(async (tx) => {
     // Waits for the target leaving another space at the same time, so the count below holds.
     await lockUserMemberships(tx, target.userId);
-    await tx.member.delete({ where: { id: target.id } });
+    // Only while the target still has the role checked above: someone who just became owner
+    // through a concurrent transfer is not removed.
+    const deleted = await tx.member.deleteMany({ where: { id: target.id, role: target.role } });
+    if (deleted.count === 0) return false;
     await unshareJournalEntries(tx, target.userId, target.organizationId);
     // Nobody is left without a space: someone removed from their last one gets a new, empty
     // household of their own, never their old personal household (it may be someone else's now).
@@ -537,7 +574,9 @@ export async function removeMember(
       });
       if (removedUser) await createPersonalHousehold(tx, removedUser);
     }
+    return true;
   });
+  if (!removed) return fail(MEMBERSHIP_CHANGED_ERROR);
   return {
     ok: true,
     data: { organizationId: target.organizationId, removedUserId: target.userId },
