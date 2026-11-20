@@ -47,7 +47,12 @@ export default async function RoutinesPage() {
       </div>
 
       <AppErrorBoundary sectionLabel="Routines">
-        <RoutinesClient routines={routines} />
+        {/* Keyed by space: a switch remounts it instead of keeping the old space's state. */}
+        <RoutinesClient
+          key={membership.organizationId}
+          organizationId={membership.organizationId}
+          routines={routines}
+        />
       </AppErrorBoundary>
     </div>
   );

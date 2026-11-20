@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => ({
   profile: vi.fn(),
   weeklyPlan: vi.fn(),
   mealPlanTemplates: vi.fn(),
+  routineFindMany: vi.fn(),
 }));
 
 /** Stand-in for a client component; the tests only look at the props a page passes. */
@@ -44,7 +45,10 @@ vi.mock('@/lib/active-organization', () => ({
   getActiveMembership: mocks.activeMembership,
 }));
 vi.mock('@/lib/db', () => ({
-  prisma: { educationalResource: { findFirst: mocks.educationalResource } },
+  prisma: {
+    educationalResource: { findFirst: mocks.educationalResource },
+    routine: { findMany: mocks.routineFindMany },
+  },
 }));
 vi.mock('@/actions/grocery-actions', () => ({ getGroceryList: mocks.groceryList }));
 vi.mock('@/actions/recipe-actions', () => ({ getUserRole: mocks.userRole }));
@@ -73,6 +77,12 @@ vi.mock('@/components/meals/save-template-button', () => ({
 vi.mock('@/components/meals/meal-plan-templates-client', () => ({
   MealPlanTemplatesClient: stub('MealPlanTemplatesClient'),
 }));
+vi.mock('@/components/routines/routines-client', () => ({
+  RoutinesClient: stub('RoutinesClient'),
+}));
+vi.mock('@/components/routines/routine-filters', () => ({
+  RoutineFilters: stub('RoutineFilters'),
+}));
 vi.mock('@/components/groceries/grocery-list-client', () => ({
   GroceryListClient: stub('GroceryListClient'),
 }));
@@ -96,9 +106,11 @@ import { MealPlanGenerator } from '@/components/meals/meal-plan-generator';
 import { ClearAllMealsButton } from '@/components/meals/clear-all-meals-button';
 import { SaveTemplateButton } from '@/components/meals/save-template-button';
 import { MealPlanTemplatesClient } from '@/components/meals/meal-plan-templates-client';
+import { RoutinesClient } from '@/components/routines/routines-client';
 import GroceriesPage from './groceries/page';
 import MealPlannerPage from './meal-planner/page';
 import MealPlanTemplatesPage from './meal-planner/templates/page';
+import RoutinesPage from './routines/page';
 import RecipeDetailPage from '../(public)/recipes/[id]/page';
 
 type Props = Record<string, unknown>;
@@ -239,6 +251,32 @@ describe('meal plan templates page', () => {
     mocks.activeMembership.mockResolvedValue(membership('office'));
     const office = findOne(await MealPlanTemplatesPage(), MealPlanTemplatesClient);
     expect(office.props.organizationId).toBe('office');
+    expect(office.key).toBe('office');
+  });
+});
+
+describe('routines page', () => {
+  it('gives the routines the space it shows and remounts them per space', async () => {
+    mocks.routineFindMany.mockResolvedValue([{ id: 'routine-family' }]);
+    const family = findOne(await RoutinesPage(), RoutinesClient);
+    expect(family.props).toMatchObject({
+      organizationId: 'family',
+      routines: [{ id: 'routine-family' }],
+    });
+    expect(family.key).toBe('family');
+    expect(mocks.routineFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { OR: [{ organizationId: 'family' }, { isSystem: true }] },
+      })
+    );
+
+    mocks.activeMembership.mockResolvedValue(membership('office'));
+    mocks.routineFindMany.mockResolvedValue([{ id: 'routine-office' }]);
+    const office = findOne(await RoutinesPage(), RoutinesClient);
+    expect(office.props).toMatchObject({
+      organizationId: 'office',
+      routines: [{ id: 'routine-office' }],
+    });
     expect(office.key).toBe('office');
   });
 });
