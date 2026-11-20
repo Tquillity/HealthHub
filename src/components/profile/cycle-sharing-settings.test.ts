@@ -105,6 +105,23 @@ describe('HouseholdShareFields', () => {
   });
 });
 
+describe('CycleSharingSettingsPanel preview', () => {
+  it('shows what the household sees while the cycle is longer than usual: no phase, not nothing', () => {
+    const html = renderToStaticMarkup(
+      createElement(CycleSharingSettingsPanel, {
+        data: { ...panelData, preview: { ...previewSource, snapshot: { phase: null } } },
+      })
+    ).replace(/&#x27;/g, "'");
+    expect(html).toContain('What Our home sees');
+    expect(html).not.toContain('Nothing. They see nothing about your cycle.');
+    const preview = html.match(/<article[^>]*>[\s\S]*?<\/article>/)?.[0] ?? '';
+    expect(preview).toContain('aria-label="Mia, No phase shown"');
+    expect(preview).toContain("Mia's cycle is longer than usual right now, so no phase is shown.");
+    expect(preview).toContain('Tea, please');
+    expect(preview).not.toMatch(/Day \d|Next period|Typical energy|luteal/i);
+  });
+});
+
 describe('CycleSharingSettingsPanel', () => {
   const html = renderToStaticMarkup(createElement(CycleSharingSettingsPanel, { data: panelData }));
 

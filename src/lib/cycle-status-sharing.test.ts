@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { getPhaseForDay, type CyclePhase } from './cycle-calculator';
 import {
+  buildLongerCycleNote,
   buildSupportSuggestion,
   cycleSnapshotOn,
   CYCLE_SHARE_LEVELS,
@@ -102,6 +103,43 @@ describe('projectCycleStatus', () => {
       daysUntilNextPeriod: 9,
       supportMessage: 'A quiet evening would be lovely.',
     });
+  });
+
+  it('still shows someone whose cycle is longer than usual, with nothing that needs a phase', () => {
+    // Day 35 of a 28-day cycle: the period is a week late, or was not logged.
+    const snapshot = cycleSnapshotOn(new Date('2026-10-17T00:00:00Z'), 28, '2026-11-20');
+    const late = (level: CycleStatusSource['level']) =>
+      projectCycleStatus(source({ level, snapshot, todayEnergy: 2 }), viewer);
+    const note = "Mikael's cycle is longer than usual right now, so no phase is shown.";
+
+    expect(late('PHASE')).toEqual({
+      level: 'PHASE',
+      id: 'user-1',
+      firstName: 'Mikael',
+      phase: null,
+      // The logged energy is not shared at this level.
+      suggestion: note,
+    });
+    const energy = {
+      id: 'user-1',
+      firstName: 'Mikael',
+      phase: null,
+      suggestion: `${note} Mikael logged low energy today, so keeping plans easy could mean a lot.`,
+      typicalEnergy: null,
+      todayEnergy: 2,
+    };
+    expect(late('ENERGY')).toEqual({ level: 'ENERGY', ...energy });
+    expect(late('FULL')).toEqual({
+      level: 'FULL',
+      ...energy,
+      cycleDay: null,
+      daysUntilNextPeriod: null,
+      supportMessage: 'A quiet evening would be lovely.',
+    });
+    for (const level of ['PHASE', 'ENERGY', 'FULL'] as const) {
+      expect(JSON.stringify(late(level))).not.toMatch(/menstrual|follicular|ovulation|luteal/i);
+    }
+    expect(late('NONE')).toBeNull();
   });
 
   it('never passes on other fields, even if a caller hands them over', () => {
@@ -229,6 +267,20 @@ describe('buildSupportSuggestion', () => {
     expect(buildSupportSuggestion({ ...base, todayEnergy: null })).not.toMatch(/logged/);
   });
 
+  it('says plainly why no phase is shown while the cycle is longer than usual', () => {
+    expect(buildLongerCycleNote('Robin')).toBe(
+      "Robin's cycle is longer than usual right now, so no phase is shown."
+    );
+    expect(buildLongerCycleNote('Robin', 9)).toBe(
+      "Robin's cycle is longer than usual right now, so no phase is shown. Robin logged plenty of energy today."
+    );
+    expect(buildLongerCycleNote('Robin', 5)).not.toMatch(/logged/);
+    // Neutral: nothing about a late period, pregnancy or health advice.
+    expect(buildLongerCycleNote('Robin', 2)).not.toMatch(
+      /\blate\b|period|diagnos|medic|pregnan|should|must/i
+    );
+  });
+
   it('is friendly and non-medical for every phase, focus and time of day', () => {
     for (const phase of PHASES) {
       for (const viewerFocus of FOCUSES) {
@@ -291,14 +343,35 @@ describe('helpers', () => {
       daysUntilNextPeriod: 15,
     });
     expect(cycleSnapshotOn(start, 28, '2026-11-15')).toMatchObject({ phase: 'luteal', cycleDay: 15 });
-    expect(cycleSnapshotOn(start, 28, '2026-11-28')?.daysUntilNextPeriod).toBe(1);
-    // A new cycle starts after cycleLength days.
-    expect(cycleSnapshotOn(start, 28, '2026-11-29')).toMatchObject({ phase: 'menstrual', cycleDay: 1 });
     // Same boundaries as the cycle page for every day.
     for (let day = 1; day <= 28; day += 1) {
       const key = `2026-11-${String(day).padStart(2, '0')}`;
       expect(cycleSnapshotOn(start, 28, key)?.phase).toBe(getPhaseForDay(day, 28));
     }
+  });
+
+  it('gives no phase once the cycle is longer than usual, never a made-up new cycle', () => {
+    const start = new Date('2026-10-24T00:00:00Z');
+    // Day 28 of a 28-day cycle is the last expected day: the period is due tomorrow.
+    expect(cycleSnapshotOn(start, 28, '2026-11-20')).toEqual({
+      phase: 'luteal',
+      cycleDay: 28,
+      daysUntilNextPeriod: 1,
+    });
+    // Day 29 (one day late) and day 35 (a week late): no new period was logged, so no
+    // phase, cycle day or next-period date (the daily briefing pauses phase ideas too).
+    expect(cycleSnapshotOn(start, 28, '2026-11-21')).toEqual({ phase: null });
+    expect(cycleSnapshotOn(start, 28, '2026-11-27')).toEqual({ phase: null });
+    // Someone who stopped logging months ago.
+    expect(cycleSnapshotOn(new Date('2026-06-01T00:00:00Z'), 28, '2026-11-20')).toEqual({
+      phase: null,
+    });
+    // A longer typical cycle still has a phase on day 35.
+    expect(cycleSnapshotOn(start, 35, '2026-11-27')).toMatchObject({
+      phase: 'luteal',
+      cycleDay: 35,
+      daysUntilNextPeriod: 1,
+    });
   });
 
   it('treats a period start after the sharer’s day as day 1 of the period, not follicular', () => {
