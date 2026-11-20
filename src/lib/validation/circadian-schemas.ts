@@ -22,7 +22,11 @@ export const TimeOfDayEnergyFieldsSchema = z.object({
 });
 export type TimeOfDayEnergyFields = z.infer<typeof TimeOfDayEnergyFieldsSchema>;
 
-export const CircadianPreferencesSchema = z.object({ enabled: z.boolean() });
+export const CircadianPreferencesSchema = z.object({
+  enabled: z.boolean(),
+  /** The browser's zone, saved on opt-in while the profile still has the default. */
+  deviceTimeZone: z.string().trim().max(100).optional(),
+});
 export type CircadianPreferencesInput = z.infer<
   typeof CircadianPreferencesSchema
 >;

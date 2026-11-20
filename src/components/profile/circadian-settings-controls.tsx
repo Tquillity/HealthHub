@@ -8,6 +8,7 @@ import {
   updateCircadianPreferences,
 } from '@/actions/circadian-actions';
 import type { CircadianSettings } from '@/lib/circadian-data';
+import { deviceTimeZone } from '@/lib/time-zone';
 
 function dayCount(days: number): string {
   return days === 1 ? '1 day' : `${days} days`;
@@ -119,7 +120,11 @@ export function CircadianSettingsControls({
     setStatus('');
     let result: Awaited<ReturnType<typeof updateCircadianPreferences>>;
     try {
-      result = await updateCircadianPreferences({ enabled: next });
+      result = await updateCircadianPreferences({
+        enabled: next,
+        // Saved on opt-in while the profile zone is still the default.
+        deviceTimeZone: deviceTimeZone(),
+      });
     } catch {
       result = { success: false, error: 'Failed to save your preference' };
     }

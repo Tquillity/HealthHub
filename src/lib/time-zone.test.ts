@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  deviceTimeZone,
   getLocalDateKey,
   getLocalHour,
   isUnsetTimeZone,
@@ -52,6 +53,10 @@ describe('time zone helpers', () => {
     expect(timeZoneToAdopt('UTC', 'Not/AZone')).toBeNull();
     expect(timeZoneToAdopt('UTC', undefined)).toBeNull();
     expect(timeZoneToAdopt('UTC', '')).toBeNull();
+  });
+
+  it("reads the device's zone from the runtime", () => {
+    expect(deviceTimeZone()).toBe(Intl.DateTimeFormat().resolvedOptions().timeZone);
   });
 
   it('treats the UTC default, an empty zone and an unknown zone as unset', () => {

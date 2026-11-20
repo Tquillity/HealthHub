@@ -23,6 +23,7 @@ import {
 } from '@/lib/cycle-status-sharing';
 import type { CycleSharingPanelData } from '@/lib/support-status';
 import { useUIStore } from '@/lib/store';
+import { deviceTimeZone } from '@/lib/time-zone';
 import { cn } from '@/lib/utils';
 
 type HouseholdShareFieldsProps = {
@@ -184,15 +185,6 @@ export function HouseholdShareFields({
       </div>
     </section>
   );
-}
-
-/** The browser's IANA time zone, if it reports one. */
-function deviceTimeZone(): string | undefined {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined;
-  } catch {
-    return undefined;
-  }
 }
 
 function HouseholdShareCard({

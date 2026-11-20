@@ -126,6 +126,25 @@ describe('updateCircadianPreferences', () => {
     });
   });
 
+  it("passes on the device's time zone, trimmed", async () => {
+    await updateCircadianPreferences({
+      enabled: true,
+      deviceTimeZone: ' Europe/Stockholm ',
+    });
+    expect(mocks.updateCircadianPreferences).toHaveBeenCalledWith('me', {
+      enabled: true,
+      deviceTimeZone: 'Europe/Stockholm',
+    });
+    expect(
+      (
+        await updateCircadianPreferences({
+          enabled: true,
+          deviceTimeZone: 'x'.repeat(101),
+        })
+      ).success
+    ).toBe(false);
+  });
+
   it('rejects guests and anything but a boolean', async () => {
     mocks.requireSessionUserId.mockResolvedValueOnce(guest);
     expect((await updateCircadianPreferences({ enabled: true })).success).toBe(

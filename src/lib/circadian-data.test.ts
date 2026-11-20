@@ -466,6 +466,42 @@ describe.skipIf(!isolated)(
       expect((await data.getCircadianSettings(userId)).enabled).toBe(false);
     });
 
+    it("saves the device's time zone on opt-in while the profile has the default", async () => {
+      const zone = async () =>
+        (await data.getCircadianSettings(userId)).timeZone;
+      await client.user.update({
+        where: { id: userId },
+        data: { timezone: 'UTC', enableCircadianInsights: false },
+      });
+      // Turning it off, or a zone the runtime does not know, changes nothing.
+      await data.updateCircadianPreferences(userId, {
+        enabled: false,
+        deviceTimeZone: 'America/New_York',
+      });
+      await data.updateCircadianPreferences(userId, {
+        enabled: true,
+        deviceTimeZone: 'Not/AZone',
+      });
+      expect(await zone()).toBe('UTC');
+
+      await data.updateCircadianPreferences(userId, {
+        enabled: true,
+        deviceTimeZone: 'America/New_York',
+      });
+      expect(await zone()).toBe('America/New_York');
+
+      // A zone of the person's own is never replaced.
+      await client.user.update({
+        where: { id: userId },
+        data: { timezone: 'Europe/Stockholm' },
+      });
+      await data.updateCircadianPreferences(userId, {
+        enabled: true,
+        deviceTimeZone: 'Australia/Sydney',
+      });
+      expect(await zone()).toBe('Europe/Stockholm');
+    });
+
     it('suggests only visible recipes that fit the meal nudge', async () => {
       const name = (suffix: string) => `cd-${run} ${suffix}`;
       await client.recipe.createMany({

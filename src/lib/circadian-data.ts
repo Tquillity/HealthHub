@@ -13,6 +13,7 @@ import {
   JOURNAL_VALUE_FIELDS,
 } from '@/lib/journal-content';
 import { safeErrorLabel } from '@/lib/safe-error';
+import { adoptDeviceTimeZone } from '@/lib/support-status';
 import {
   buildCircadianInsights,
   detectBestWindow,
@@ -356,6 +357,9 @@ export async function updateCircadianPreferences(
     data: { enableCircadianInsights: input.enabled },
     select: { enableCircadianInsights: true },
   });
+  // Slots and check-in days follow the profile zone: while it is still the default (UTC),
+  // the device's zone is saved, as cycle status sharing does, so morning is their morning.
+  if (input.enabled) await adoptDeviceTimeZone(userId, input.deviceTimeZone);
   return { enabled: user.enableCircadianInsights };
 }
 
