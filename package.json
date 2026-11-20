@@ -26,6 +26,7 @@
     "@prisma/adapter-pg": "^7.10.1",
     "@prisma/client": "^7.10.1",
     "@tailwindcss/postcss": "^4.3.5",
+    "@vercel/blob": "^2.9.0",
     "bcryptjs": "^3.0.3",
     "better-auth": "~1.6.34",
     "clsx": "^2.1.1",

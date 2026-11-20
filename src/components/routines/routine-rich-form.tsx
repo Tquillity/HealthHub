@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Plus, Trash2, Upload, X } from 'lucide-react';
 import { createRoutine, updateRoutine } from '@/actions/routine-actions';
 import { uploadImage } from '@/actions/image-upload';
+import { MAX_IMAGE_UPLOAD_BYTES, MAX_IMAGE_UPLOAD_LABEL } from '@/lib/upload-limits';
 import type { Routine } from '@prisma/client';
 
 interface RoutineStep {
@@ -78,8 +79,8 @@ export function RoutineRichForm({ routine, onSuccess, onCancel }: RoutineRichFor
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      setErrors({ ...errors, image: 'Image size must be less than 5MB' });
+    if (file.size > MAX_IMAGE_UPLOAD_BYTES) {
+      setErrors({ ...errors, image: `Image size must be less than ${MAX_IMAGE_UPLOAD_LABEL}` });
       return;
     }
 
@@ -93,8 +94,14 @@ export function RoutineRichForm({ routine, onSuccess, onCancel }: RoutineRichFor
     const uploadFormData = new FormData();
     uploadFormData.append('file', file);
 
-    const result = await uploadImage(uploadFormData);
-    setIsUploading(false);
+    let result: Awaited<ReturnType<typeof uploadImage>>;
+    try {
+      result = await uploadImage(uploadFormData);
+    } catch {
+      result = { success: false, error: 'Failed to upload image' };
+    } finally {
+      setIsUploading(false);
+    }
 
     if (result.success && result.url) {
       setFormData({ ...formData, imageUrl: result.url });

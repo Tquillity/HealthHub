@@ -1,7 +1,9 @@
 'use server';
 
 import { randomUUID } from 'crypto';
+import { put } from '@vercel/blob';
 import { z } from 'zod';
+import { MAX_IMAGE_UPLOAD_BYTES } from '@/lib/upload-limits';
 import { requireSessionUserId } from '@/lib/session';
 
 const FileSchema = z.custom<File>(
@@ -17,7 +19,7 @@ const AllowedMimeSchema = z.enum([
   'image/gif',
 ]);
 
-const MaxFileSizeSchema = z.number().max(5 * 1024 * 1024);
+const MaxFileSizeSchema = z.number().max(MAX_IMAGE_UPLOAD_BYTES);
 
 /** The stored extension comes from the validated MIME type, never from the client filename. */
 const EXTENSION_BY_MIME: Record<z.infer<typeof AllowedMimeSchema>, string> = {
@@ -80,24 +82,10 @@ export async function uploadImage(
     }
     const filename = `${Date.now()}-${randomUUID()}.${EXTENSION_BY_MIME[mimeResult.data]}`;
 
-    const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
-    if (blobToken) {
+    // A static import, so Next's output tracing ships @vercel/blob with the server bundle.
+    // (The previous runtime `import()` was invisible to the bundler and always failed in production.)
+    if (process.env.BLOB_READ_WRITE_TOKEN) {
       try {
-        const runtimeImport = new Function(
-          'm',
-          'return import(m)',
-        ) as unknown as (moduleName: string) => Promise<unknown>;
-
-        const vercelBlob = (await runtimeImport('@vercel/blob')) as {
-          put: (
-            pathname: string,
-            body: Buffer,
-            options: { access: 'public' | 'private'; contentType?: string },
-          ) => Promise<{ url: string }>;
-        };
-
-        const { put } = vercelBlob;
-
         const blob = await put(`recipes/${filename}`, buffer, {
           access: 'public',
           contentType: mimeResult.data,
@@ -106,6 +94,7 @@ export async function uploadImage(
         return { success: true, url: blob.url };
       } catch (blobError) {
         console.error('Vercel Blob upload failed:', blobError);
+        return { success: false, error: 'Image upload failed. Please try again.' };
       }
     }
 

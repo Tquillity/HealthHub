@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useUIStore } from '@/lib/store';
 import { createRecipe, updateRecipe, type RecipeWithDetails } from '@/actions/recipe-actions';
 import { uploadImage } from '@/actions/image-upload';
+import { MAX_IMAGE_UPLOAD_BYTES, MAX_IMAGE_UPLOAD_LABEL } from '@/lib/upload-limits';
 import { getUnitValidationMessage, getSuggestedUnit } from '@/lib/ingredient-unit-validation';
 import type { FormData, Ingredient, Instruction } from './recipe-form-types';
 
@@ -149,8 +150,11 @@ export function useRecipeForm(
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      setErrors((prev) => ({ ...prev, image: 'Image size must be less than 5MB' }));
+    if (file.size > MAX_IMAGE_UPLOAD_BYTES) {
+      setErrors((prev) => ({
+        ...prev,
+        image: `Image size must be less than ${MAX_IMAGE_UPLOAD_LABEL}`,
+      }));
       return;
     }
 
@@ -164,8 +168,15 @@ export function useRecipeForm(
     const uploadFormData = new FormData();
     uploadFormData.append('file', file);
 
-    const result = await uploadImage(uploadFormData);
-    setIsUploading(false);
+    let result: Awaited<ReturnType<typeof uploadImage>>;
+    try {
+      result = await uploadImage(uploadFormData);
+    } catch {
+      // A rejected Server Action (e.g. a network drop) must not leave the spinner running.
+      result = { success: false, error: 'Failed to upload image' };
+    } finally {
+      setIsUploading(false);
+    }
 
     if (result.success && result.url) {
       setFormData((prev) => ({ ...prev, imageUrl: result.url! }));
@@ -193,8 +204,11 @@ export function useRecipeForm(
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      setErrors((prev) => ({ ...prev, additionalImages: 'Image size must be less than 5MB' }));
+    if (file.size > MAX_IMAGE_UPLOAD_BYTES) {
+      setErrors((prev) => ({
+        ...prev,
+        additionalImages: `Image size must be less than ${MAX_IMAGE_UPLOAD_LABEL}`,
+      }));
       return;
     }
 
@@ -202,8 +216,14 @@ export function useRecipeForm(
     const uploadFormData = new FormData();
     uploadFormData.append('file', file);
 
-    const result = await uploadImage(uploadFormData);
-    setIsUploadingAdditional(false);
+    let result: Awaited<ReturnType<typeof uploadImage>>;
+    try {
+      result = await uploadImage(uploadFormData);
+    } catch {
+      result = { success: false, error: 'Failed to upload image' };
+    } finally {
+      setIsUploadingAdditional(false);
+    }
 
     if (result.success && result.url) {
       setAdditionalImages((prev) => [...prev, result.url!]);
