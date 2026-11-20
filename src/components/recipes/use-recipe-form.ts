@@ -17,7 +17,48 @@ import {
   getUnitValidationMessage,
   getSuggestedUnit,
 } from '@/lib/ingredient-unit-validation';
+import {
+  isYieldPairIncomplete,
+  normalizeBatchEfficiency,
+  normalizeLeanRole,
+  YIELD_PAIR_MESSAGE,
+} from '@/lib/lean-kitchen';
 import type { FormData, Ingredient, Instruction } from './recipe-form-types';
+
+type LeanFormFields = Pick<
+  FormData,
+  | 'leanRole'
+  | 'activeTime'
+  | 'passiveTime'
+  | 'yieldAmount'
+  | 'yieldUnit'
+  | 'batchEfficiency'
+>;
+
+/** Older rows may hold other casings; the selects only know the canonical values. */
+function buildLeanFormFields(recipe?: RecipeWithDetails): LeanFormFields {
+  return {
+    leanRole: normalizeLeanRole(recipe?.leanRole) ?? '',
+    activeTime: recipe?.activeTime != null ? recipe.activeTime.toString() : '',
+    passiveTime:
+      recipe?.passiveTime != null ? recipe.passiveTime.toString() : '',
+    yieldAmount:
+      recipe?.yieldAmount != null ? recipe.yieldAmount.toString() : '',
+    yieldUnit: recipe?.yieldUnit ?? '',
+    batchEfficiency: normalizeBatchEfficiency(recipe?.batchEfficiency) ?? '',
+  };
+}
+
+/** Blank → null so that saving an edited recipe clears the stored value. */
+function parseOptionalNumber(
+  value: string,
+  parse: (raw: string) => number
+): number | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const parsed = parse(trimmed);
+  return Number.isFinite(parsed) ? parsed : null;
+}
 
 function buildInitialFormData(recipe?: RecipeWithDetails): FormData {
   return {
@@ -31,7 +72,7 @@ function buildInitialFormData(recipe?: RecipeWithDetails): FormData {
     tags: recipe?.tags?.join(', ') || '',
     difficulty: recipe?.difficulty || '',
     cuisine: recipe?.cuisine || '',
-    leanRole: recipe?.leanRole || '',
+    ...buildLeanFormFields(recipe),
     dietaryTags: recipe?.dietaryTags?.join(', ') || '',
     calories: recipe?.calories?.toString() || '',
     protein: recipe?.protein?.toString() || '',
@@ -126,7 +167,7 @@ export function useRecipeForm(
         tags: recipe.tags?.join(', ') || '',
         difficulty: recipe.difficulty || '',
         cuisine: recipe.cuisine || '',
-        leanRole: recipe.leanRole || '',
+        ...buildLeanFormFields(recipe),
         dietaryTags: recipe.dietaryTags?.join(', ') || '',
         isSecret: recipe.isSecret || false,
         isHhChefsVerified: recipe.isHhChefsVerified || false,
@@ -345,6 +386,12 @@ export function useRecipeForm(
       newErrors.ingredients = `Please fix unit issues: ${unitWarnings.join('; ')}`;
     }
 
+    const yieldAmount = parseOptionalNumber(formData.yieldAmount, parseFloat);
+    const yieldUnit = formData.yieldUnit.trim() || null;
+    if (isYieldPairIncomplete(yieldAmount, yieldUnit)) {
+      newErrors.yield = YIELD_PAIR_MESSAGE;
+    }
+
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       setIsSubmitting(false);
@@ -371,7 +418,17 @@ export function useRecipeForm(
           ? formData.difficulty
           : undefined,
       cuisine: formData.cuisine || undefined,
-      leanRole: formData.leanRole || undefined,
+      // LEAN fields send null when blank so an edit can clear them.
+      leanRole: normalizeLeanRole(formData.leanRole),
+      activeTime: parseOptionalNumber(formData.activeTime, (raw) =>
+        parseInt(raw, 10)
+      ),
+      passiveTime: parseOptionalNumber(formData.passiveTime, (raw) =>
+        parseInt(raw, 10)
+      ),
+      yieldAmount,
+      yieldUnit,
+      batchEfficiency: normalizeBatchEfficiency(formData.batchEfficiency),
       dietaryTags: formData.dietaryTags
         .split(',')
         .map((t: string) => t.trim())

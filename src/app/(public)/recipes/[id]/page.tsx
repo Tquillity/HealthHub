@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 import { ServingsScaler } from '@/components/recipes/servings-scaler';
 import { RecipeDetailClient } from '@/components/recipes/recipe-detail-client';
+import { RecipeLeanInfo } from '@/components/recipes/recipe-lean-info';
+import { formatMinutes, getRecipeTimeSummary } from '@/lib/lean-kitchen';
 
 // Resolve visibility at request time; builds never enumerate recipes from the DB.
 export const dynamic = 'force-dynamic';
@@ -118,7 +120,8 @@ export default async function RecipeDetailPage({
     },
   });
 
-  const totalMins = (recipe.prepTime || 0) + (recipe.cookTime || 0);
+  // Includes rising/soaking/chilling once LEAN times are recorded.
+  const totalMins = getRecipeTimeSummary(recipe).totalMinutes;
   const recipeJsonLd = buildRecipeJsonLd(recipe, {
     baseUrl: getMetadataBase().toString(),
   });
@@ -248,7 +251,7 @@ export default async function RecipeDetailPage({
                   Total Time
                 </p>
                 <p className="font-semibold text-gray-900">
-                  {totalMins || 0} mins
+                  {formatMinutes(totalMins)}
                 </p>
               </div>
             </div>
@@ -266,6 +269,8 @@ export default async function RecipeDetailPage({
               </div>
             </div>
           </div>
+
+          <RecipeLeanInfo recipe={recipe} />
 
           {/* Nutrition Info */}
           {(recipe.calories ||

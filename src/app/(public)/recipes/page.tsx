@@ -11,8 +11,6 @@ import type { Metadata } from 'next';
 import { createPageMetadata } from '@/lib/site-metadata';
 import { Plus } from 'lucide-react';
 import { AdsenseSlot } from '@/components/ads/adsense-slot';
-import type { SearchParams } from 'nuqs/server';
-import { loadRecipeSearchParams } from '@/lib/recipe-search-params';
 
 // Recipe rows are cached by resolved visibility; the page renders per request.
 export const dynamic = 'force-dynamic';
@@ -24,36 +22,18 @@ export const metadata: Metadata = createPageMetadata({
   path: '/recipes',
 });
 
-interface PageProps {
-  searchParams: Promise<SearchParams>;
-}
-
-export default async function RecipesPage({ searchParams }: PageProps) {
-  // Same nuqs parsers as the client filters (arrays are comma-separated: ?dietaryTags=a,b).
-  const params = await loadRecipeSearchParams(searchParams);
-
-  const query = params.q.trim() || undefined;
-  const category = params.category !== 'all' ? params.category : undefined;
-  const difficulty = params.difficulty ?? undefined;
-  const cuisine = params.cuisine ?? undefined;
-  const dietaryTags = params.dietaryTags ?? undefined;
-  const leanRole = params.leanRole ?? undefined;
-
-  // Parallel data fetching with error handling
+export default async function RecipesPage() {
+  // Load every recipe the viewer may see; RecipesClient applies the URL filters with
+  // matchesRecipeFilters (SSR included). Filtering on the server as well made the
+  // list stale: filter changes update the URL shallowly, so clearing a filter that
+  // came in with the page link could never bring the other recipes back.
   let recipes: RecipeWithDetails[] = [];
   let categories: string[] = [];
   let isAdmin = false;
 
   try {
     const [recipesResult, categoriesResult, roleResult] = await Promise.all([
-      getCachedRecipes({
-        query,
-        category,
-        difficulty,
-        cuisine,
-        dietaryTags,
-        leanRole,
-      }),
+      getCachedRecipes({}),
       getRecipeCategories(),
       getUserRole(),
     ]);
@@ -94,8 +74,6 @@ export default async function RecipesPage({ searchParams }: PageProps) {
         recipes={recipes}
         categories={categories}
         isAdmin={isAdmin}
-        initialQuery={query}
-        initialCategory={category}
       />
 
       <AdsenseSlot
