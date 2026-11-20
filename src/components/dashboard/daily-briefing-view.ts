@@ -1,0 +1,97 @@
+import type {
+  BriefingPhaseInfo,
+  BriefingSuggestion,
+  DailyBriefing,
+  SuggestionKey,
+  SuggestionRating,
+} from '@/lib/briefing/types';
+
+/**
+ * Pure helpers for the dashboard briefing panel (daily-briefing-panel.tsx), kept apart
+ * so they can be tested without a DOM.
+ */
+
+/** "Luteal phase · day 23", or "Cycle day 35 · longer than usual" without a phase estimate. */
+export function phaseLabel(phase: BriefingPhaseInfo): string {
+  if (!phase.phase) {
+    return `Cycle day ${phase.cycleDay} · longer than usual`;
+  }
+  const name = phase.phase.charAt(0).toUpperCase() + phase.phase.slice(1);
+  return `${name} phase · day ${phase.cycleDay}`;
+}
+
+/** A briefing the card's Refresh fetched, and the server prop it replaced. */
+export type RefreshedBriefing = {
+  from: DailyBriefing;
+  briefing: DailyBriefing;
+};
+
+/**
+ * The briefing to show: the server prop, unless Refresh fetched a newer one since that
+ * prop arrived. A new prop (the dashboard was revalidated, for example after a vitals
+ * quick log) always wins, so the card never keeps a stale copy of the server's briefing.
+ */
+export function shownBriefing(
+  prop: DailyBriefing,
+  refreshed: RefreshedBriefing | null
+): DailyBriefing {
+  return refreshed && refreshed.from === prop ? refreshed.briefing : prop;
+}
+
+/**
+ * What the user changed on the card today before the server confirmed it (optimistic
+ * ratings and dismissals). Kept apart from the briefing so a refreshed briefing can
+ * replace the suggestions without losing them.
+ */
+export type LocalFeedback = {
+  date: string;
+  /** null clears a rating. */
+  ratings: Partial<Record<SuggestionKey, SuggestionRating | null>>;
+  dismissed: readonly SuggestionKey[];
+};
+
+export function emptyLocalFeedback(date: string): LocalFeedback {
+  return { date, ratings: {}, dismissed: [] };
+}
+
+/** The briefing's suggestions with today's local ratings and dismissals applied. */
+export function visibleSuggestions(
+  briefing: DailyBriefing,
+  local: LocalFeedback
+): BriefingSuggestion[] {
+  if (local.date !== briefing.date) return briefing.suggestions;
+  return briefing.suggestions
+    .filter((suggestion) => !local.dismissed.includes(suggestion.key))
+    .map((suggestion) => {
+      const rating = local.ratings[suggestion.key];
+      return rating === undefined ? suggestion : { ...suggestion, rating };
+    });
+}
+
+/**
+ * Where focus goes after a suggestion is dismissed: the one that takes its place, else
+ * the one before it, else null (none left).
+ */
+export function focusAfterDismiss(
+  keys: readonly SuggestionKey[],
+  dismissed: SuggestionKey
+): SuggestionKey | null {
+  const index = keys.indexOf(dismissed);
+  if (index === -1) return keys[0] ?? null;
+  return keys[index + 1] ?? keys[index - 1] ?? null;
+}
+
+/**
+ * What the status region reads out once a rating is saved. It names the suggestion, so
+ * rating a second suggestion the same way is announced too: a screen reader does not
+ * read a status region again when its text has not changed.
+ */
+export function ratingStatus(
+  title: string,
+  rating: SuggestionRating | null
+): string {
+  if (rating === null) return `Feedback removed for "${title}".`;
+  return rating === 'helpful'
+    ? `Marked "${title}" as helpful. You'll see more suggestions like this.`
+    : `Marked "${title}" as not helpful. You'll see fewer suggestions like this.`;
+}

@@ -86,3 +86,17 @@ export function VitalsCardSkeleton() {
     </div>
   );
 }
+
+export function DailyBriefingSkeleton() {
+  return (
+    <div
+      role="status"
+      className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-6 shadow-sm"
+    >
+      <Loading label="Loading your daily briefing…" />
+      <Bar className="h-6 w-48" />
+      <Bar className="h-4 w-full" />
+      <Bar className="h-4 w-3/4" />
+    </div>
+  );
+}

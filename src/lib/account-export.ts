@@ -43,6 +43,9 @@ export async function buildAccountExport(userId: string) {
       isPremium: true,
       temperatureUnit: true,
       trackVitals: true,
+      briefingFrequency: true,
+      briefingSources: true,
+      briefingDetail: true,
     },
   });
 
@@ -54,6 +57,7 @@ export async function buildAccountExport(userId: string) {
     timer,
     memberships,
     periodStarts,
+    briefingFeedback,
   ] = await Promise.all([
     prisma.account.findMany({
       where: { userId },
@@ -98,6 +102,11 @@ export async function buildAccountExport(userId: string) {
       where: { userId },
       select: { date: true, createdAt: true },
       orderBy: { date: 'asc' },
+    }),
+    prisma.briefingFeedback.findMany({
+      where: { userId },
+      select: { date: true, suggestionKey: true, action: true, createdAt: true },
+      orderBy: [{ date: 'asc' }, { createdAt: 'asc' }],
     }),
   ]);
 
@@ -250,6 +259,13 @@ export async function buildAccountExport(userId: string) {
     periodStarts: periodStarts.map((start) => ({
       date: dateOnly(start.date),
       loggedAt: start.createdAt,
+    })),
+    // Daily briefing feedback (preferences are in the profile). Keys are stored encrypted.
+    briefingFeedback: briefingFeedback.map((entry) => ({
+      date: dateOnly(entry.date),
+      suggestion: decrypt(entry.suggestionKey),
+      action: entry.action,
+      createdAt: entry.createdAt,
     })),
     ingredientPreferences: preferences,
     timerState: timer,
