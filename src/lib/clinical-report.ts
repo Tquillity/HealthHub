@@ -9,7 +9,7 @@
  * which draws the PDF; nothing is stored.
  *
  * Everything here describes the user's own self-reported data. It does not diagnose and
- * it uses no clinical cut-offs except the documented regularity bands below.
+ * it uses no clinical cut-offs except the documented FIGO regularity bands below.
  *
  * **Report range.** The last 3, 6 or 12 calendar months up to and including "today"
  * (`reportRange`). Cycles are rebuilt from logged period starts with lib/cycle-history.
@@ -21,17 +21,20 @@
  * change of at least 1 day per cycle is called lengthening/shortening (a descriptive
  * heuristic, not a clinical criterion).
  *
- * **Regularity indicator.** FIGO defines regularity by the shortest-to-longest cycle
- * difference: regular when it is at most 7-9 days, depending on age (Munro MG, Critchley
- * HOD, Fraser IS; FIGO Menstrual Disorders Committee, "The two FIGO systems for normal
- * and abnormal uterine bleeding symptoms and classification of causes of abnormal
- * uterine bleeding in the reproductive years: 2018 revisions", Int J Gynaecol Obstet
- * 2018;143:393-408). That difference grows with the number of cycles, so for 3-12 month
- * reports the indicator uses the standard deviation instead: for a handful of cycles
- * (n ≈ 6) the expected range is about 2.5 SD (range factor d2 = 2.534 for n = 6), so
- * 7 days ≈ SD 2.8 and 9 days ≈ SD 3.6. Bands: SD ≤ 2.8 "consistent", ≤ 3.6 "somewhat
- * variable", above that "variable". The raw difference is reported too, so a clinician
- * can apply FIGO directly.
+ * **Regularity indicator.** FIGO's own measure, the shortest-to-longest difference in
+ * completed cycle length: regular when it is at most 7-9 days and irregular from 8-10
+ * days, the limit depending on age (Munro MG, Critchley HOD, Fraser IS; FIGO Menstrual
+ * Disorders Committee, "The two FIGO systems for normal and abnormal uterine bleeding
+ * symptoms and classification of causes of abnormal uterine bleeding in the reproductive
+ * years: 2018 revisions", Int J Gynaecol Obstet 2018;143:393-408). Bands: up to 7 days
+ * "consistent" (regular at any age), 8-9 days "somewhat variable" (regular or not
+ * depending on age), 10 days or more "variable" (irregular at any age). More cycles can
+ * only widen the observed difference, so 10+ days is labelled from 2 completed cycles,
+ * while a smaller difference is labelled only from MIN_CYCLES_FOR_REGULARITY (with 2
+ * cycles it is a single difference). The SD is reported alongside but not used for the
+ * label: the range expected for a given SD grows with the number of cycles (range factor
+ * d2 = 1.13 for 2 cycles, 2.53 for 6, 3.26 for 12), so fixed SD bands would contradict
+ * FIGO for 3- and 12-month reports.
  *
  * **Phases.** The 4-phase wellness model of lib/cycle-calculator (`getPhaseForDay`):
  * completed cycles use their real length, the open cycle the user's typical length.
@@ -108,10 +111,15 @@ export const MIN_CYCLES_FOR_TREND = 3;
 /** Least-squares change (days per cycle) at which a trend counts as a change. */
 export const TREND_MIN_SLOPE_DAYS = 1;
 /**
- * Regularity bands on the cycle-length SD (days), derived above from FIGO 2018's
- * 7-9 day shortest-to-longest limits divided by the expected range factor of ~2.5.
+ * Regularity bands on the shortest-to-longest cycle length difference (days): FIGO
+ * 2018's 7-9 day limit for regular cycles (see the module notes).
  */
-export const REGULARITY_SD_BANDS = { consistent: 2.8, somewhatVariable: 3.6 } as const;
+export const REGULARITY_DIFFERENCE_BANDS = { consistent: 7, somewhatVariable: 9 } as const;
+/**
+ * Completed cycles needed before a difference within the FIGO limit gets a label. A
+ * difference above it is labelled "variable" from MIN_CYCLES_FOR_VARIABILITY cycles.
+ */
+export const MIN_CYCLES_FOR_REGULARITY = 3;
 
 export const MAX_SYMPTOMS_PER_KIND = 15;
 export const MAX_SYMPTOM_PAIRS = 10;
@@ -240,7 +248,16 @@ export type PhaseDistribution = {
   phases: PhaseShare[];
   /** Completed cycles the average phase lengths come from. */
   cyclesForLengths: number;
-  regularity: { level: RegularityLevel; sd: number; cycles: number } | null;
+  /** Null below MIN_CYCLES_FOR_VARIABILITY completed cycles. */
+  regularity: {
+    /** Null when there are too few cycles to call the difference regular. */
+    level: RegularityLevel | null;
+    /** Longest minus shortest completed cycle (days), the basis of `level`. */
+    differenceDays: number;
+    /** Sample standard deviation (days, 1 decimal), for information. */
+    sd: number;
+    cycles: number;
+  } | null;
 };
 
 export type BbtCycleStatus = 'confirmed' | 'no-shift' | 'not-enough-readings';
@@ -441,10 +458,21 @@ export function linearSlope(values: readonly number[]): number {
   return numerator / denominator;
 }
 
-export function classifyRegularity(sd: number): RegularityLevel {
-  if (sd <= REGULARITY_SD_BANDS.consistent) return 'consistent';
-  if (sd <= REGULARITY_SD_BANDS.somewhatVariable) return 'somewhat-variable';
-  return 'variable';
+/**
+ * Regularity label for a shortest-to-longest difference over `cycles` completed cycles,
+ * or null when there are too few cycles to give one (see the module notes).
+ */
+export function classifyRegularity(
+  differenceDays: number,
+  cycles: number
+): RegularityLevel | null {
+  if (cycles < MIN_CYCLES_FOR_VARIABILITY) return null;
+  if (differenceDays > REGULARITY_DIFFERENCE_BANDS.somewhatVariable) return 'variable';
+  // More cycles can only widen the difference, so a small one needs enough of them.
+  if (cycles < MIN_CYCLES_FOR_REGULARITY) return null;
+  return differenceDays <= REGULARITY_DIFFERENCE_BANDS.consistent
+    ? 'consistent'
+    : 'somewhat-variable';
 }
 
 /** Cuts `text` to at most `max` characters (whole code points), ending with "…". */
@@ -565,7 +593,10 @@ export function summarizePhaseDistribution(
   }
 
   const lengths = completed.map((cycle) => cycle.length);
-  const sd = lengths.length >= MIN_CYCLES_FOR_VARIABILITY ? sampleSd(lengths) : null;
+  const differenceDays =
+    lengths.length >= MIN_CYCLES_FOR_VARIABILITY
+      ? Math.max(...lengths) - Math.min(...lengths)
+      : null;
 
   return {
     trackedDays,
@@ -579,11 +610,12 @@ export function summarizePhaseDistribution(
     })),
     cyclesForLengths: completed.length,
     regularity:
-      sd === null
+      differenceDays === null
         ? null
         : {
-            level: classifyRegularity(round1(sd)),
-            sd: round1(sd),
+            level: classifyRegularity(differenceDays, lengths.length),
+            differenceDays,
+            sd: round1(sampleSd(lengths)),
             cycles: lengths.length,
           },
   };

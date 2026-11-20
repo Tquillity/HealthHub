@@ -80,12 +80,23 @@ describe('helpers', () => {
     expect(linearSlope([28, 30, 27, 29])).toBeCloseTo(0);
   });
 
-  it('classifies regularity with the documented SD bands', () => {
-    expect(classifyRegularity(0)).toBe('consistent');
-    expect(classifyRegularity(2.8)).toBe('consistent');
-    expect(classifyRegularity(2.9)).toBe('somewhat-variable');
-    expect(classifyRegularity(3.6)).toBe('somewhat-variable');
-    expect(classifyRegularity(3.7)).toBe('variable');
+  it('classifies regularity on the FIGO shortest-to-longest difference', () => {
+    expect(classifyRegularity(0, 6)).toBe('consistent');
+    expect(classifyRegularity(7, 6)).toBe('consistent');
+    expect(classifyRegularity(8, 6)).toBe('somewhat-variable');
+    expect(classifyRegularity(9, 6)).toBe('somewhat-variable');
+    expect(classifyRegularity(10, 6)).toBe('variable');
+    // The same difference gets the same label whatever the number of cycles.
+    expect(classifyRegularity(7, 3)).toBe('consistent');
+    expect(classifyRegularity(7, 13)).toBe('consistent');
+    expect(classifyRegularity(10, 13)).toBe('variable');
+  });
+
+  it('labels a small difference only from 3 cycles, a large one from 2', () => {
+    expect(classifyRegularity(10, 1)).toBeNull();
+    expect(classifyRegularity(10, 2)).toBe('variable');
+    expect(classifyRegularity(9, 2)).toBeNull();
+    expect(classifyRegularity(0, 2)).toBeNull();
   });
 
   it('truncates by whole characters with an ellipsis', () => {
@@ -231,7 +242,13 @@ describe('summarizePhaseDistribution', () => {
     expect(byPhase.luteal.averageLength).toBe(14);
     expect(byPhase.follicular.averageLength).toBe(5);
     expect(result.cyclesForLengths).toBe(2);
-    expect(result.regularity).toEqual({ level: 'consistent', sd: 0, cycles: 2 });
+    // Two equal cycles: a single difference, too little to call it regular yet.
+    expect(result.regularity).toEqual({
+      level: null,
+      differenceDays: 0,
+      sd: 0,
+      cycles: 2,
+    });
   });
 
   it('counts days before the first logged period as untracked', () => {
@@ -301,13 +318,56 @@ describe('summarizePhaseDistribution', () => {
     );
   });
 
-  it('flags variable cycles with the SD bands', () => {
+  it('flags variable cycles with the FIGO difference bands', () => {
     const cycles = buildCycleHistory(
       startsFrom('2026-05-25', [24, 33, 26, 35])
     );
     const result = summarizePhaseDistribution(cycles, RANGE_6, 28);
     expect(result.regularity?.level).toBe('variable');
+    expect(result.regularity?.differenceDays).toBe(11);
     expect(result.regularity?.cycles).toBe(4);
+  });
+
+  it('does not call a FIGO-regular 3-month report variable', () => {
+    // Two completed cycles of 28 and 34 days: difference 6 (SD 4.2).
+    const two = summarizePhaseDistribution(
+      buildCycleHistory(['2026-09-01', '2026-09-29', '2026-11-02']),
+      RANGE_3,
+      28
+    );
+    expect(two.regularity).toEqual({
+      level: null,
+      differenceDays: 6,
+      sd: 4.2,
+      cycles: 2,
+    });
+    // A third cycle within the limit makes it consistent, however large the SD.
+    const three = summarizePhaseDistribution(
+      buildCycleHistory(startsFrom('2026-08-22', [28, 34, 28])),
+      RANGE_3,
+      28
+    );
+    expect(three.regularity).toMatchObject({
+      level: 'consistent',
+      differenceDays: 6,
+      cycles: 3,
+    });
+  });
+
+  it('does not call a FIGO-irregular 12-month report consistent', () => {
+    const lengths = [28, 28, 28, 28, 23, 28, 28, 28, 33, 28, 28, 28];
+    const result = summarizePhaseDistribution(
+      buildCycleHistory(startsFrom('2025-11-22', lengths)),
+      reportRange(TODAY, 12),
+      28
+    );
+    // SD 2.1 would have been "consistent" with fixed SD bands; the difference is 10.
+    expect(result.regularity).toEqual({
+      level: 'variable',
+      differenceDays: 10,
+      sd: 2.1,
+      cycles: 12,
+    });
   });
 });
 
