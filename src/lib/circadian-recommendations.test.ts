@@ -618,6 +618,51 @@ describe('buildCircadianInsights', () => {
     expect(isLowEnergy(null)).toBe(false);
   });
 
+  it("holds back the push after a low rating once the next slot starts, until it's rated", () => {
+    // Mornings usually 5, afternoons 8; 2/10 this morning, at 11:50.
+    const rows = [
+      ...history('2026-11-19', 6, [5, 8, null]),
+      row('2026-11-20', 2, null, null),
+    ];
+    const at = (time: string, todayRows = rows) =>
+      buildCircadianInsights({
+        now: new Date(`2026-11-20T${time}:00Z`),
+        timeZone: 'UTC',
+        rows: todayRows,
+      });
+    const pushes = (insights: ReturnType<typeof buildCircadianInsights>) =>
+      insights.suggestions.filter((s) =>
+        /training|demanding|harder/i.test(`${s.title} ${s.body}`)
+      );
+
+    const beforeNoon = at('11:50');
+    expect(beforeNoon.suggestions[0].key).toBe('personal.low-now');
+    expect(pushes(beforeNoon)).toEqual([]);
+
+    // 12:05: the afternoon slot, not rated yet. The morning's 2/10 may be hours old, so
+    // it is not "right now", but there is no push for harder work either.
+    const afterNoon = at('12:05');
+    expect(afterNoon.currentEnergy).toBeNull();
+    expect(afterNoon.suggestions.map((s) => s.key)).not.toContain(
+      'personal.low-now'
+    );
+    expect(afterNoon.suggestions[0].key).toBe('personal.best-now');
+    expect(pushes(afterNoon)).toEqual([]);
+
+    // Rating the afternoon brings the push back.
+    const rated = at('12:05', [
+      ...history('2026-11-19', 6, [5, 8, null]),
+      row('2026-11-20', 2, 8, null),
+    ]);
+    expect(pushes(rated).length).toBeGreaterThan(0);
+    // A fine morning holds nothing back.
+    const fineMorning = at('12:05', [
+      ...history('2026-11-19', 6, [5, 8, null]),
+      row('2026-11-20', 6, null, null),
+    ]);
+    expect(pushes(fineMorning).length).toBeGreaterThan(0);
+  });
+
   it('never pushes hard training for an evening best window', () => {
     const rows = history('2026-11-19', 6, [5, 5, 8]);
     // 21:30 in Stockholm: late in the evening, the best window.

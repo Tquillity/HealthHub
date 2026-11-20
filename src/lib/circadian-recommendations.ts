@@ -752,10 +752,20 @@ export function buildCircadianInsights(input: {
     ? Math.min(target, EASY_DAY_MAX_INTENSITY)
     : target;
 
+  // Today's most recent check-in from an earlier slot.
+  const earlier = slot
+    ? ENERGY_SLOTS.slice(0, ENERGY_SLOTS.indexOf(slot))
+        .map((s) => todayEnergy[s])
+        .filter((value): value is number => value !== null)
+    : [];
+  const lastEarlier = earlier.length > 0 ? earlier[earlier.length - 1] : null;
+
   const lowNow = isLowEnergy(currentEnergy);
-  // No push for harder work right after a low rating, or on a day the daily briefing
-  // calls a take-it-easy day.
-  const holdBack = lowNow || easyDay;
+  // No push for harder work right after a low rating, on a day the daily briefing calls
+  // a take-it-easy day, or while this slot has no check-in yet and today's last one was
+  // low. That last one is not called "right now": it can be hours old.
+  const holdBack =
+    lowNow || easyDay || (currentEnergy === null && isLowEnergy(lastEarlier));
   const base: CircadianSuggestion[] = MOMENT_SUGGESTIONS[moment]
     .filter((suggestion) => !(holdBack && suggestion.demanding))
     .map(({ key, kind, title, body }) => ({ key, kind, title, body }));
