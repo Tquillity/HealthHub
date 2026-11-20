@@ -33,9 +33,16 @@ model User {
   temperatureUnit       String                     @default("C")
   /// Opt-in for resting heart rate, HRV and sleep quality logging and the recovery score.
   trackVitals           Boolean                    @default(false)
+  /// Dashboard daily briefing: "daily", "weekly" (Mondays in `timezone`) or "never".
+  briefingFrequency     String                     @default("daily")
+  /// Data the daily briefing may read: any of "journal", "cycle", "meals", "vitals".
+  briefingSources       String[]                   @default(["journal", "cycle", "meals", "vitals"])
+  /// Daily briefing detail level: "brief" or "detailed".
+  briefingDetail        String                     @default("brief")
   members               Member[]
   journalEntries        JournalEntry[]
   periodStarts          PeriodStart[]
+  briefingFeedback      BriefingFeedback[]
   ingredientPreferences UserIngredientPreference[]
   pomoState             PomoState?
 
@@ -337,6 +344,26 @@ model PeriodStart {
 
   @@unique([userId, date])
   @@map("period_start")
+}
+
+/// What the user did with the dashboard daily briefing, used to personalise later
+/// briefings (lib/briefing). One row per action; repeated clicks are de-duplicated in code.
+model BriefingFeedback {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Briefing day in the user's timezone. Date-only, stored as UTC midnight like
+  /// JournalEntry.date (see lib/date-only).
+  date          DateTime
+  /// Encrypted (lib/encryption): a suggestion key from lib/briefing, or "briefing" for
+  /// the whole card. Keys reveal inferred health state, so they are not stored in clear.
+  suggestionKey String
+  /// "dismissed" | "helpful" | "not_helpful"
+  action        String
+  createdAt     DateTime @default(now())
+
+  @@index([userId, date])
+  @@map("briefing_feedback")
 }
 
 model EducationalResource {
