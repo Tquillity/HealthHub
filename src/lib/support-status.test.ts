@@ -314,6 +314,19 @@ describe.skipIf(!isolated)('support status against isolated PostgreSQL', () => {
     });
     expect(await idsIn(lateJoiner.id, home)).toEqual([full.id]);
 
+    // "Include new members" from an older page (listed before Carol joined) never narrows it.
+    const fromOlderPage = await lib.setCycleStatusShare(full.id, {
+      organizationId: home,
+      level: 'FULL',
+      listedMembersJoinedBy: agreedAt.toISOString(),
+      includeNewMembers: true,
+    });
+    expect(fromOlderPage).toMatchObject({
+      ok: true,
+      data: { household: { share: { coversMembersJoinedBy: listed.listedMembersJoinedBy } } },
+    });
+    expect(await idsIn(lateJoiner.id, home)).toEqual([full.id]);
+
     // Back to the shared starting point for the tests below.
     await client.cycleStatusShare.update({
       where: { userId_organizationId: { userId: full.id, organizationId: home } },
