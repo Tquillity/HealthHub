@@ -67,3 +67,16 @@ export function visibleSuggestions(
       return rating === undefined ? suggestion : { ...suggestion, rating };
     });
 }
+
+/**
+ * Where focus goes after a suggestion is dismissed: the one that takes its place, else
+ * the one before it, else null (none left).
+ */
+export function focusAfterDismiss(
+  keys: readonly SuggestionKey[],
+  dismissed: SuggestionKey
+): SuggestionKey | null {
+  const index = keys.indexOf(dismissed);
+  if (index === -1) return keys[0] ?? null;
+  return keys[index + 1] ?? keys[index - 1] ?? null;
+}

@@ -8,7 +8,7 @@
  * Wellness ideas only, not medical advice.
  */
 
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import {
@@ -31,6 +31,7 @@ import { dateOnlyToLocalDate } from '@/lib/date-only';
 import { PHASE_THEMES } from '@/lib/phase-theme';
 import {
   emptyLocalFeedback,
+  focusAfterDismiss,
   phaseLabel,
   shownBriefing,
   visibleSuggestions,
@@ -73,28 +74,37 @@ const CATEGORY_META: Record<
   },
 };
 
+// Busy controls stay focusable (aria-disabled plus a guard in the handler, not disabled),
+// so the button just pressed keeps keyboard focus while its request runs.
 const iconButtonClass =
-  'min-h-[44px] min-w-[44px] rounded-full px-0 py-0 text-gray-600 hover:bg-white/80 hover:text-gray-900 focus-visible:ring-primary-500';
+  'min-h-[44px] min-w-[44px] rounded-full px-0 py-0 text-gray-600 hover:bg-white/80 hover:text-gray-900 focus-visible:ring-primary-500 aria-disabled:opacity-50';
 
-function SuggestionItem({
+/** Focus targets, by element id (`idPrefix` is the panel's useId). */
+const suggestionTitleId = (idPrefix: string, key: SuggestionKey) =>
+  `${idPrefix}-suggestion-${key}`;
+const suggestionDismissId = (idPrefix: string, key: SuggestionKey) =>
+  `${idPrefix}-dismiss-${key}`;
+
+export function SuggestionItem({
   suggestion,
-  index,
+  idPrefix,
   expanded,
   busy,
   onRate,
   onDismiss,
 }: {
   suggestion: BriefingSuggestion;
-  index: number;
+  idPrefix: string;
   expanded: boolean;
+  /** A request for this suggestion is running: its buttons do nothing until it ends. */
   busy: boolean;
   onRate: (rating: SuggestionRating) => void;
   onDismiss: () => void;
 }) {
   const meta = CATEGORY_META[suggestion.category];
   const Icon = meta.icon;
-  const titleId = `briefing-suggestion-title-${index}`;
-  const evidenceId = `briefing-suggestion-evidence-${index}`;
+  const titleId = suggestionTitleId(idPrefix, suggestion.key);
+  const evidenceId = `${idPrefix}-evidence-${suggestion.key}`;
 
   return (
     <li className="flex flex-col gap-3 rounded-xl border border-white/70 bg-white/70 p-4 shadow-sm">
@@ -117,7 +127,12 @@ function SuggestionItem({
               </span>
             )}
           </p>
-          <h3 id={titleId} className="text-base font-semibold text-gray-900">
+          {/* tabIndex -1: focus moves here when the suggestion before it is dismissed. */}
+          <h3
+            id={titleId}
+            tabIndex={-1}
+            className="text-base font-semibold text-gray-900"
+          >
             {suggestion.title}
           </h3>
           <p className="text-sm leading-relaxed text-gray-700">
@@ -161,7 +176,7 @@ function SuggestionItem({
             <Button
               type="button"
               variant="ghost"
-              disabled={busy}
+              aria-disabled={busy || undefined}
               aria-pressed={suggestion.rating === 'helpful'}
               aria-label={`Mark "${suggestion.title}" as helpful`}
               title="Helpful"
@@ -177,7 +192,7 @@ function SuggestionItem({
             <Button
               type="button"
               variant="ghost"
-              disabled={busy}
+              aria-disabled={busy || undefined}
               aria-pressed={suggestion.rating === 'not_helpful'}
               aria-label={`Mark "${suggestion.title}" as not helpful`}
               title="Not helpful"
@@ -192,9 +207,10 @@ function SuggestionItem({
             </Button>
           </div>
           <Button
+            id={suggestionDismissId(idPrefix, suggestion.key)}
             type="button"
             variant="ghost"
-            disabled={busy}
+            aria-disabled={busy || undefined}
             aria-label={`Dismiss "${suggestion.title}" for today`}
             title="Dismiss for today"
             onClick={onDismiss}
@@ -217,6 +233,10 @@ export function DailyBriefingPanel({
   const id = useId();
   const titleId = `${id}-title`;
   const detailsId = `${id}-details`;
+  const hideId = `${id}-hide`;
+  const undoId = `${id}-undo`;
+  const emptyId = `${id}-empty`;
+  const goneId = `${id}-gone`;
   // The server prop is the source of truth: a revalidated dashboard (for example after a
   // vitals quick log) passes a new briefing, which replaces what Refresh fetched. Only
   // today's optimistic ratings and dismissals are kept locally, on top of either.
@@ -234,7 +254,18 @@ export function DailyBriefingPanel({
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [status, setStatus] = useState('');
 
-  if (gone) return null;
+  // Hiding, undoing and dismissing replace the control that had focus. The element to
+  // focus next is set by the handler and focused once the new content is on screen.
+  const focusNext = useRef<string | null>(null);
+  useEffect(() => {
+    const target = focusNext.current;
+    if (target === null) return;
+    focusNext.current = null;
+    document.getElementById(target)?.focus();
+  });
+  const moveFocusTo = (elementId: string) => {
+    focusNext.current = elementId;
+  };
 
   /** Updates today's local feedback (started afresh when the briefing day changed). */
   const updateLocal = (change: (current: LocalFeedback) => LocalFeedback) =>
@@ -266,6 +297,7 @@ export function DailyBriefingPanel({
     suggestion: BriefingSuggestion,
     rating: SuggestionRating
   ) => {
+    if (busyKey === suggestion.key) return;
     const previous =
       local.date === briefing.date ? local.ratings[suggestion.key] : undefined;
     // Pressing the selected rating again clears it.
@@ -288,11 +320,19 @@ export function DailyBriefingPanel({
       );
     } else {
       setLocalRating(suggestion.key, previous);
+      setStatus(result.error);
       showToast(result.error, 'error');
     }
   };
 
   const dismissOne = async (suggestion: BriefingSuggestion) => {
+    if (busyKey === suggestion.key) return;
+    // Focus the suggestion that takes its place (or the one before, or the empty note).
+    const next = focusAfterDismiss(
+      suggestions.map((s) => s.key),
+      suggestion.key
+    );
+    moveFocusTo(next ? suggestionTitleId(id, next) : emptyId);
     setLocalDismissed(suggestion.key, true);
     setBusyKey(suggestion.key);
     const result = await dismissBriefingSuggestion({
@@ -304,12 +344,16 @@ export function DailyBriefingPanel({
       setStatus(`"${suggestion.title}" hidden for today.`);
     } else {
       setLocalDismissed(suggestion.key, false);
+      moveFocusTo(suggestionDismissId(id, suggestion.key));
+      setStatus(result.error);
       showToast(result.error, 'error');
     }
   };
 
   const hideCard = async () => {
+    if (busyKey !== null) return;
     setHidden(true);
+    moveFocusTo(undoId);
     setBusyKey('card');
     const result = await dismissDailyBriefing(briefing.date);
     setBusyKey(null);
@@ -317,28 +361,35 @@ export function DailyBriefingPanel({
       setStatus("Today's briefing is hidden.");
     } else {
       setHidden(false);
+      moveFocusTo(hideId);
+      setStatus(result.error);
       showToast(result.error, 'error');
     }
   };
 
   const undoHide = async () => {
+    if (busyKey !== null) return;
     setBusyKey('card');
     const result = await restoreDailyBriefing(briefing.date);
     setBusyKey(null);
     if (result.success) {
       setHidden(false);
+      moveFocusTo(hideId);
       setStatus("Today's briefing is back.");
     } else {
+      setStatus(result.error);
       showToast(result.error, 'error');
     }
   };
 
   const refresh = async () => {
+    if (busyKey !== null) return;
     setBusyKey('refresh');
     // The server picks the day (profile timezone), as it did for the page itself.
     const result = await generateDailyBriefing();
     setBusyKey(null);
     if (!result.success) {
+      setStatus(result.error);
       showToast(result.error, 'error');
       return;
     }
@@ -348,39 +399,57 @@ export function DailyBriefingPanel({
       setStatus('Briefing updated.');
     } else if (state.status === 'dismissed') {
       setHidden(true);
+      moveFocusTo(undoId);
+      setStatus("Today's briefing is hidden.");
     } else {
       setGone(true);
+      moveFocusTo(goneId);
+      setStatus("There's no briefing for today.");
     }
   };
 
   const busy = busyKey !== null;
-  const statusRegion = (
-    <p role="status" className="sr-only">
-      {status}
-    </p>
+  // One live region for every state of the card, so a change of state (hidden, back,
+  // updated) is announced: a region mounted together with its text usually is not.
+  const withStatus = (content: ReactNode) => (
+    <div>
+      {content}
+      <p role="status" className="sr-only">
+        {status}
+      </p>
+    </div>
   );
+  const barClass =
+    'flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/60 bg-white/60 px-5 py-3 shadow-sm backdrop-blur-md';
+
+  if (gone) {
+    return withStatus(
+      <section aria-label="Daily briefing" className={barClass}>
+        <p id={goneId} tabIndex={-1} className="text-sm text-gray-600">
+          There&apos;s no briefing for today.
+        </p>
+      </section>
+    );
+  }
 
   if (hidden) {
-    return (
-      <section
-        aria-label="Daily briefing"
-        className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/60 bg-white/60 px-5 py-3 shadow-sm backdrop-blur-md"
-      >
+    return withStatus(
+      <section aria-label="Daily briefing" className={barClass}>
         <p className="text-sm text-gray-600">
           Today&apos;s briefing is hidden. It will be back on your next briefing
           day.
         </p>
         <Button
+          id={undoId}
           type="button"
           variant="ghost"
           size="sm"
-          disabled={busy}
+          aria-disabled={busy || undefined}
           onClick={() => void undoHide()}
-          className="text-primary-700"
+          className="text-primary-700 aria-disabled:opacity-50"
         >
           Undo
         </Button>
-        {statusRegion}
       </section>
     );
   }
@@ -388,7 +457,7 @@ export function DailyBriefingPanel({
   const phase = briefing.phase;
   const phaseTheme = phase?.phase ? PHASE_THEMES[phase.phase] : null;
 
-  return (
+  return withStatus(
     <section
       aria-labelledby={titleId}
       className="relative isolate overflow-hidden rounded-2xl border border-white/60 bg-linear-to-br from-primary-100/80 via-white/50 to-wellness-100/80 shadow-lg"
@@ -456,7 +525,7 @@ export function DailyBriefingPanel({
               <Button
                 type="button"
                 variant="ghost"
-                disabled={busy}
+                aria-disabled={busy || undefined}
                 aria-label="Refresh briefing"
                 title="Refresh"
                 onClick={() => void refresh()}
@@ -489,9 +558,10 @@ export function DailyBriefingPanel({
               </Button>
             </div>
             <Button
+              id={hideId}
               type="button"
               variant="ghost"
-              disabled={busy}
+              aria-disabled={busy || undefined}
               aria-label="Hide today's briefing"
               title="Hide for today"
               onClick={() => void hideCard()}
@@ -505,11 +575,11 @@ export function DailyBriefingPanel({
         <div id={detailsId} className="flex flex-col gap-4">
           {suggestions.length > 0 ? (
             <ul aria-label="Suggestions" className="flex flex-col gap-3">
-              {suggestions.map((suggestion, index) => (
+              {suggestions.map((suggestion) => (
                 <SuggestionItem
                   key={suggestion.key}
                   suggestion={suggestion}
-                  index={index}
+                  idPrefix={id}
                   expanded={expanded}
                   busy={busyKey === suggestion.key}
                   onRate={(rating) => void rate(suggestion, rating)}
@@ -518,7 +588,11 @@ export function DailyBriefingPanel({
               ))}
             </ul>
           ) : (
-            <p className="rounded-xl bg-white/60 p-4 text-sm text-gray-600">
+            <p
+              id={emptyId}
+              tabIndex={-1}
+              className="rounded-xl bg-white/60 p-4 text-sm text-gray-600"
+            >
               You&apos;re all caught up for today.
             </p>
           )}
@@ -543,7 +617,6 @@ export function DailyBriefingPanel({
           </Link>
           .
         </p>
-        {statusRegion}
       </div>
     </section>
   );

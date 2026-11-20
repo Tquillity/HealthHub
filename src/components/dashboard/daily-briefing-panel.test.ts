@@ -12,9 +12,11 @@ vi.mock('@/actions/briefing-actions', () => ({
   restoreDailyBriefing: vi.fn(),
 }));
 
-import { DailyBriefingPanel } from './daily-briefing-panel';
+import { findButtons, findTagById } from '@/components/test-markup';
+import { DailyBriefingPanel, SuggestionItem } from './daily-briefing-panel';
 import {
   emptyLocalFeedback,
+  focusAfterDismiss,
   phaseLabel,
   shownBriefing,
   visibleSuggestions,
@@ -153,5 +155,67 @@ describe('DailyBriefingPanel: server briefing after revalidation', () => {
 
   it('renders the suggestions of the prop it is given', () => {
     expect(render(revalidated)).toContain('Consider adding a rest day');
+  });
+});
+
+describe('DailyBriefingPanel: focus and announcements', () => {
+  it('moves focus after a dismiss to the next suggestion, else the one before', () => {
+    const keys = [
+      'routine.ease-intensity',
+      'meal.magnesium',
+      'meal.plan-ahead',
+    ] as const;
+    expect(focusAfterDismiss(keys, 'routine.ease-intensity')).toBe('meal.magnesium');
+    expect(focusAfterDismiss(keys, 'meal.magnesium')).toBe('meal.plan-ahead');
+    expect(focusAfterDismiss(keys, 'meal.plan-ahead')).toBe('meal.magnesium');
+    // The last one: focus goes to the "all caught up" note.
+    expect(focusAfterDismiss(['meal.iron'], 'meal.iron')).toBeNull();
+  });
+
+  it('keeps a busy suggestion\'s buttons focusable (aria-disabled, not disabled)', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        'ul',
+        null,
+        createElement(SuggestionItem, {
+          suggestion: briefing.suggestions[0],
+          idPrefix: 'p',
+          expanded: false,
+          busy: true,
+          onRate: () => {},
+          onDismiss: () => {},
+        })
+      )
+    );
+    const buttons = findButtons(html);
+    expect(buttons).toHaveLength(3);
+    for (const button of buttons) {
+      expect(button.disabled, button.ariaLabel).toBe(false);
+      expect(button.attributes).toContain('aria-disabled="true"');
+      expect(button.attributes).toContain('min-h-[44px]');
+    }
+    // Focus targets: the title (after the suggestion before it is dismissed) and the
+    // dismiss button (when a dismissal fails).
+    expect(findTagById(html, 'p-suggestion-routine.ease-intensity')).toMatch(
+      /^<h3 [^>]*tabindex="-1"/
+    );
+    expect(findTagById(html, 'p-dismiss-routine.ease-intensity')).toMatch(/^<button /);
+  });
+
+  it('has one status region outside the card, kept for every state', () => {
+    const html = render(briefing);
+    expect(html.match(/role="status"/g)).toHaveLength(1);
+    // After the section, so hiding or bringing back the card does not remount it.
+    expect(html).toMatch(/<\/section><p role="status" class="sr-only"><\/p><\/div>$/);
+    const buttons = findButtons(html);
+    const hide = buttons.find((b) => b.ariaLabel === "Hide today's briefing");
+    const refresh = buttons.find((b) => b.ariaLabel === 'Refresh briefing');
+    expect(hide?.attributes).toMatch(/\sid="[^"]+-hide"/);
+    expect(hide?.disabled).toBe(false);
+    expect(refresh?.disabled).toBe(false);
+    // The "all caught up" note can take focus after the last dismissal.
+    expect(render({ ...briefing, suggestions: [] })).toMatch(
+      /<p id="[^"]+-empty" tabindex="-1"[^>]*>You(&#x27;|')re all caught up for today\.<\/p>/
+    );
   });
 });
