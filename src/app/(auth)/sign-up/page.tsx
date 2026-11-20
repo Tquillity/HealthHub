@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { authClient } from '@/lib/auth-client';
+import { getSafeRedirectPath } from '@/lib/safe-redirect';
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -30,7 +31,10 @@ export default function SignUpPage() {
       if (error) {
         setError(error.message || 'Failed to sign up');
       } else {
-        router.push('/dashboard');
+        // `?next=/invite/…` brings people back to an invitation (read here, not with
+        // useSearchParams, so this static page needs no Suspense boundary).
+        const next = new URLSearchParams(window.location.search).get('next');
+        router.push(getSafeRedirectPath(next));
         router.refresh();
       }
     } catch {

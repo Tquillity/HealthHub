@@ -1,21 +1,22 @@
 import { cache } from 'react';
+import { cookies } from 'next/headers';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
+import { ACTIVE_ORG_COOKIE, resolveActiveMembership } from '@/lib/active-organization';
 
 /** How many routines the dashboard's "Recent Routines" card lists. */
 export const RECENT_ROUTINES_LIMIT = 6;
 
 /**
- * The household the dashboard shows for this user, or null before one is provisioned
- * (the protected layout backfills it). Memoised per request with React `cache`, so the
- * dashboard sections that stream in separately share a single lookup.
+ * The space the dashboard shows: the one picked in the sidebar switcher (validated against the
+ * user's memberships), else the oldest membership. Null before a household is provisioned (the
+ * protected layout backfills it, so this read never writes). Memoised per request with React
+ * `cache`, so the dashboard sections that stream in separately share a single lookup.
  */
 export const getDashboardHouseholdId = cache(
   async (userId: string): Promise<string | null> => {
-    const membership = await prisma.member.findFirst({
-      where: { userId },
-      select: { organizationId: true },
-    });
+    const requested = (await cookies()).get(ACTIVE_ORG_COOKIE)?.value;
+    const membership = await resolveActiveMembership(userId, requested);
     return membership?.organizationId ?? null;
   }
 );

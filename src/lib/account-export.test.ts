@@ -17,6 +17,7 @@ describe.skipIf(!isolated)('account export against isolated PostgreSQL', () => {
   const me = { id: `exp-me-${run}`, email: `me-${run}@example.com` };
   const housemate = { id: `exp-mate-${run}`, email: `mate-${run}@example.com` };
   const household = `exp-household-${run}`;
+  const collective = `exp-collective-${run}`;
   let pool: Pool;
   let client: PrismaClient;
   let buildAccountExport: (typeof import('./account-export'))['buildAccountExport'];
@@ -61,8 +62,11 @@ describe.skipIf(!isolated)('account export against isolated PostgreSQL', () => {
         userAgent: 'Test browser',
       },
     });
-    await client.organization.create({
-      data: { id: household, name: 'Our home', slug: household },
+    await client.organization.createMany({
+      data: [
+        { id: household, name: 'Our home', slug: household },
+        { id: collective, name: 'Garden collective', slug: collective, type: 'COLLECTIVE' },
+      ],
     });
     await client.member.createMany({
       data: [
@@ -77,6 +81,13 @@ describe.skipIf(!isolated)('account export against isolated PostgreSQL', () => {
           organizationId: household,
           userId: housemate.id,
           role: 'member',
+        },
+        {
+          id: `m3-${run}`,
+          organizationId: collective,
+          userId: me.id,
+          role: 'viewer',
+          createdAt: new Date('2099-01-01T00:00:00Z'),
         },
       ],
     });
@@ -109,10 +120,19 @@ describe.skipIf(!isolated)('account export against isolated PostgreSQL', () => {
         sleepQuality: 8,
       },
     });
+    await client.journalEntry.create({
+      data: {
+        userId: me.id,
+        date: new Date('2026-03-03T00:00:00Z'),
+        notes: encrypt('Shared with home'),
+        visibility: 'ORGANIZATION',
+        sharedOrganizationId: household,
+      },
+    });
   });
 
   afterAll(async () => {
-    await client.organization.deleteMany({ where: { id: household } });
+    await client.organization.deleteMany({ where: { id: { in: [household, collective] } } });
     await client.recipe.deleteMany({ where: { id: `r-${run}` } });
     await client.user.deleteMany({
       where: { id: { in: [me.id, housemate.id] } },
@@ -151,15 +171,31 @@ describe.skipIf(!isolated)('account export against isolated PostgreSQL', () => {
         restingHeartRate: 58,
         heartRateVariability: 61.5,
         sleepQuality: 8,
+        visibility: 'PRIVATE',
+        sharedWith: null,
+      }),
+      expect.objectContaining({
+        date: '2026-03-03',
+        notes: 'Shared with home',
+        visibility: 'ORGANIZATION',
+        sharedWith: { id: household, name: 'Our home' },
       }),
     ]);
 
-    expect(data.households).toHaveLength(1);
-    const [home] = data.households;
+    expect(data.households).toHaveLength(2);
+    const [home, garden] = data.households;
     expect(home).toMatchObject({
       name: 'Our home',
+      type: 'HOUSEHOLD',
       yourRole: 'owner',
       memberCount: 2,
+    });
+    expect(garden).toMatchObject({
+      name: 'Garden collective',
+      type: 'COLLECTIVE',
+      yourRole: 'viewer',
+      memberCount: 1,
+      recipes: [],
     });
     expect(home.recipes).toEqual([
       expect.objectContaining({

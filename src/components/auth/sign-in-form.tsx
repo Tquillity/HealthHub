@@ -11,7 +11,14 @@ import type { SocialProviderFlags } from '@/lib/social-providers';
 
 type SocialProvider = keyof SocialProviderFlags;
 
-export function SignInForm({ providers }: { providers: SocialProviderFlags }) {
+export function SignInForm({
+  providers,
+  redirectTo = '/dashboard',
+}: {
+  providers: SocialProviderFlags;
+  /** Same-site path to open after signing in (already validated by the page). */
+  redirectTo?: string;
+}) {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -32,7 +39,7 @@ export function SignInForm({ providers }: { providers: SocialProviderFlags }) {
       if (error) {
         setError(error.message || 'Failed to sign in');
       } else {
-        router.push('/dashboard');
+        router.push(redirectTo);
         router.refresh();
       }
     } catch {
@@ -49,7 +56,7 @@ export function SignInForm({ providers }: { providers: SocialProviderFlags }) {
       // POST /api/auth/sign-in/social; the client redirects to the provider.
       const { error } = await authClient.signIn.social({
         provider,
-        callbackURL: '/dashboard',
+        callbackURL: redirectTo,
       });
       if (error) {
         setError(error.message || 'Failed to sign in');
@@ -196,7 +203,11 @@ export function SignInForm({ providers }: { providers: SocialProviderFlags }) {
           <div className="text-center text-sm">
             <span className="text-gray-600">Don't have an account? </span>
             <Link
-              href="/sign-up"
+              href={
+                redirectTo === '/dashboard'
+                  ? '/sign-up'
+                  : `/sign-up?next=${encodeURIComponent(redirectTo)}`
+              }
               className="font-medium text-primary-600 hover:text-primary-500"
             >
               Sign up

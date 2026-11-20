@@ -3,6 +3,8 @@
 import { z } from 'zod';
 import { prisma } from '@/lib/db';
 import { requireSessionUserId } from '@/lib/session';
+import { getMembershipIn } from '@/lib/active-organization';
+import { applyGroceryPrivacy } from '@/lib/org-policy';
 import {
   parseIngredientAlternatives,
   resolveIngredientChoiceFromPreferences,
@@ -68,12 +70,7 @@ export async function getGroceryList(
       };
     }
 
-    const membership = await prisma.member.findFirst({
-      where: {
-        userId: authResult.userId,
-        organizationId: organizationId,
-      },
-    });
+    const membership = await getMembershipIn(authResult.userId, organizationId);
 
     if (!membership) {
       return {
@@ -291,7 +288,8 @@ export async function getGroceryList(
 
     return {
       success: true,
-      data: groceryList,
+      // Communities and workplaces do not show which meal or day an item came from.
+      data: applyGroceryPrivacy(groceryList, membership.organization.type),
     };
   } catch (error) {
     console.error(
@@ -334,12 +332,10 @@ export async function getMealPlans(
       };
     }
 
-    const membership = await prisma.member.findFirst({
-      where: {
-        userId: authResult.userId,
-        organizationId: validated.organizationId,
-      },
-    });
+    const membership = await getMembershipIn(
+      authResult.userId,
+      validated.organizationId
+    );
 
     if (!membership) {
       return {

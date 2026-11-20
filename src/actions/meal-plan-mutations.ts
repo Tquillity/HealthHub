@@ -2,6 +2,7 @@
 
 import { prisma } from '@/lib/db';
 import { requireSessionUserId } from '@/lib/session';
+import { getWritableMembership } from '@/lib/active-organization';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { randomBytes } from 'crypto';
@@ -33,13 +34,12 @@ export async function addMealToPlan(
     }
     const validated = parsed.data;
 
-    const membership = await prisma.member.findFirst({
-      where: { userId: authResult.userId },
-      select: { organizationId: true },
-    });
-    if (!membership) {
-      return { success: false, error: 'No household found' };
+    // Viewers can look but not change shared plans and lists.
+    const access = await getWritableMembership(authResult.userId);
+    if (!access.ok) {
+      return { success: false, error: access.error };
     }
+    const membership = access.membership;
 
     const [plan, recipe] = await Promise.all([
       prisma.mealPlan.findFirst({
@@ -89,14 +89,12 @@ export async function applyMealPlanTemplate(
       return { success: false, error: authResult.error };
     }
 
-    const membership = await prisma.member.findFirst({
-      where: { userId: authResult.userId },
-      select: { organizationId: true },
-    });
-
-    if (!membership) {
-      return { success: false, error: 'No household found' };
+    // Viewers can look but not change shared plans and lists.
+    const access = await getWritableMembership(authResult.userId);
+    if (!access.ok) {
+      return { success: false, error: access.error };
     }
+    const membership = access.membership;
 
     // Get the template
     const template = await prisma.mealPlanTemplate.findFirst({
@@ -202,14 +200,12 @@ export async function clearAllMeals(planId: string) {
       return { success: false, error: authResult.error };
     }
 
-    const membership = await prisma.member.findFirst({
-      where: { userId: authResult.userId },
-      select: { organizationId: true },
-    });
-
-    if (!membership) {
-      return { success: false, error: 'No household found' };
+    // Viewers can look but not change shared plans and lists.
+    const access = await getWritableMembership(authResult.userId);
+    if (!access.ok) {
+      return { success: false, error: access.error };
     }
+    const membership = access.membership;
 
     // Verify the plan belongs to the user's organization
     const plan = await prisma.mealPlan.findFirst({
@@ -268,14 +264,12 @@ export async function deleteMealPlanTemplate(templateId: string) {
       return { success: false, error: authResult.error };
     }
 
-    const membership = await prisma.member.findFirst({
-      where: { userId: authResult.userId },
-      select: { organizationId: true },
-    });
-
-    if (!membership) {
-      return { success: false, error: 'No household found' };
+    // Viewers can look but not change shared plans and lists.
+    const access = await getWritableMembership(authResult.userId);
+    if (!access.ok) {
+      return { success: false, error: access.error };
     }
+    const membership = access.membership;
 
     // Verify template belongs to organization
     const template = await prisma.mealPlanTemplate.findFirst({
@@ -321,14 +315,12 @@ export async function duplicateMealPlanTemplate(templateId: string) {
       return { success: false, error: authResult.error };
     }
 
-    const membership = await prisma.member.findFirst({
-      where: { userId: authResult.userId },
-      select: { organizationId: true },
-    });
-
-    if (!membership) {
-      return { success: false, error: 'No household found' };
+    // Viewers can look but not change shared plans and lists.
+    const access = await getWritableMembership(authResult.userId);
+    if (!access.ok) {
+      return { success: false, error: access.error };
     }
+    const membership = access.membership;
 
     // Get the original template
     const original = await prisma.mealPlanTemplate.findFirst({
@@ -418,13 +410,12 @@ export async function removeMealFromPlan(itemId: string) {
       return { success: false, error: 'Invalid meal item' };
     }
 
-    const membership = await prisma.member.findFirst({
-      where: { userId: authResult.userId },
-      select: { organizationId: true },
-    });
-    if (!membership) {
-      return { success: false, error: 'No household found' };
+    // Viewers can look but not change shared plans and lists.
+    const access = await getWritableMembership(authResult.userId);
+    if (!access.ok) {
+      return { success: false, error: access.error };
     }
+    const membership = access.membership;
 
     // Scope the delete to the caller's household; deleteMany is a no-op for foreign ids.
     const result = await prisma.mealPlanItem.deleteMany({
@@ -463,14 +454,12 @@ export async function saveMealPlanAsTemplate(
 
     const validated = SaveTemplateSchema.parse(data);
 
-    const membership = await prisma.member.findFirst({
-      where: { userId: authResult.userId },
-      select: { organizationId: true },
-    });
-
-    if (!membership) {
-      return { success: false, error: 'No household found' };
+    // Viewers can look but not change shared plans and lists.
+    const access = await getWritableMembership(authResult.userId);
+    if (!access.ok) {
+      return { success: false, error: access.error };
     }
+    const membership = access.membership;
 
     // Get the meal plan with items
     const plan = await prisma.mealPlan.findFirst({
@@ -560,14 +549,12 @@ export async function shareMealPlanTemplate(templateId: string) {
       return { success: false, error: authResult.error };
     }
 
-    const membership = await prisma.member.findFirst({
-      where: { userId: authResult.userId },
-      select: { organizationId: true },
-    });
-
-    if (!membership) {
-      return { success: false, error: 'No household found' };
+    // Viewers can look but not change shared plans and lists.
+    const access = await getWritableMembership(authResult.userId);
+    if (!access.ok) {
+      return { success: false, error: access.error };
     }
+    const membership = access.membership;
 
     // Verify template belongs to organization
     const template = await prisma.mealPlanTemplate.findFirst({
@@ -611,14 +598,12 @@ export async function updateMealPlanTemplate(
 
     const validated = UpdateTemplateSchema.parse(data);
 
-    const membership = await prisma.member.findFirst({
-      where: { userId: authResult.userId },
-      select: { organizationId: true },
-    });
-
-    if (!membership) {
-      return { success: false, error: 'No household found' };
+    // Viewers can look but not change shared plans and lists.
+    const access = await getWritableMembership(authResult.userId);
+    if (!access.ok) {
+      return { success: false, error: access.error };
     }
+    const membership = access.membership;
 
     // Verify template belongs to organization
     const template = await prisma.mealPlanTemplate.findFirst({
