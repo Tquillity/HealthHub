@@ -1,4 +1,5 @@
 import { FALLBACK_TIME_ZONE, isValidTimeZone } from '@/lib/briefing/schedule';
+import type { LowEnergyCheckIn, TakeItEasy } from '@/lib/briefing/types';
 import { addDaysToDateOnly } from '@/lib/date-only';
 
 /**
@@ -557,7 +558,7 @@ function personalSuggestions(input: {
   /** The user just rated their energy as low (`LOW_ENERGY_RATING`). */
   lowNow: boolean;
   /** The daily briefing calls today a take-it-easy day. */
-  easyDay: boolean;
+  easyDay: TakeItEasy | null;
   /** No push for harder work (see `buildCircadianInsights`). */
   holdBack: boolean;
   slots: SlotEnergySummary;
@@ -575,14 +576,18 @@ function personalSuggestions(input: {
       title: 'Running low right now',
       body: `You rated your energy ${currentEnergy}/10 this ${SLOT_NAMES[slot]}. Something gentle, like a short walk, stretching or a lighter routine, may suit you better than a hard session. Sleep, stress and feeling unwell all affect energy, so listen to your body.`,
     });
-  } else if (easyDay) {
-    // In the words of the daily briefing's headline on the same dashboard.
-    result.push({
-      key: 'personal.easy-day',
-      kind: 'personal',
-      title: 'A gentler day may suit you',
-      body: 'Your recent logs point to an easier day, so harder training is left out for now.',
-    });
+  } else if (holdBack) {
+    // In the words of the daily briefing's headline on the same dashboard, when the recent
+    // logs are why. After a low check-in earlier today there is no note: that rating can
+    // be hours old, so it is not "right now".
+    if (easyDay?.fromLogs) {
+      result.push({
+        key: 'personal.easy-day',
+        kind: 'personal',
+        title: 'A gentler day may suit you',
+        body: 'Your recent logs point to an easier day, so harder training is left out for now.',
+      });
+    }
   } else if (
     currentEnergy !== null &&
     currentEnergy >= HIGH_ENERGY_RATING &&
@@ -688,6 +693,8 @@ export type CircadianInsights = {
   todayEnergy: Record<EnergySlot, number | null>;
   /** Today's check-in for the current slot (`energyNowFrom`). */
   currentEnergy: number | null;
+  /** Today's low check-in the card holds back on (`lowCheckInToday`). */
+  lowCheckIn: LowEnergyCheckIn | null;
   /** The daily briefing calls today a take-it-easy day (lib/easy-day). */
   easyDay: boolean;
   slots: SlotEnergySummary;
@@ -720,8 +727,7 @@ function todayEnergyOf(
 /**
  * How the user rated their energy right now: today's check-in for the time-of-day slot
  * `now` falls in, in `timeZone` (UTC when unknown). Null at night and until they check in
- * for this slot. The card's `currentEnergy` and, through lib/easy-day, the daily
- * briefing's `lowEnergyNow` both follow this rule.
+ * for this slot. This is the card's `currentEnergy`.
  */
 export function energyNowFrom(
   rows: readonly TimeOfDayEnergyRow[],
@@ -733,13 +739,39 @@ export function energyNowFrom(
   return slot ? todayEnergyOf(rows, local.dateKey)[slot] : null;
 }
 
+/**
+ * Today's low energy check-in: the one rule the circadian card and, through lib/easy-day,
+ * the daily briefing hold back on, in `timeZone` (UTC when unknown).
+ * - 'now': today's check-in for the current slot is at or below `LOW_ENERGY_RATING` (the
+ *   card's "Running low right now").
+ * - 'earlier': the current slot has no check-in yet and today's most recent check-in from
+ *   an earlier slot was low. Never called "right now": it can be hours old. Rating the
+ *   current slot replaces it.
+ * - null otherwise, and at night, which has no slot.
+ */
+export function lowCheckInToday(
+  rows: readonly TimeOfDayEnergyRow[],
+  now: Date,
+  timeZone: string
+): LowEnergyCheckIn | null {
+  const local = localTimeIn(now, timeZone);
+  const slot = slotForWindow(windowForHour(local.hour));
+  if (slot === null) return null;
+  const today = todayEnergyOf(rows, local.dateKey);
+  if (today[slot] !== null) return isLowEnergy(today[slot]) ? 'now' : null;
+  const earlier = ENERGY_SLOTS.slice(0, ENERGY_SLOTS.indexOf(slot))
+    .map((s) => today[s])
+    .filter((value): value is number => value !== null);
+  return isLowEnergy(earlier.at(-1) ?? null) ? 'earlier' : null;
+}
+
 export function buildCircadianInsights(input: {
   now: Date;
   timeZone: string;
   /** Check-in rows; only the last `ENERGY_HISTORY_DAYS` days count. */
   rows: readonly TimeOfDayEnergyRow[];
   /** The daily briefing calls today a take-it-easy day (lib/easy-day `loadEasyDay`). */
-  easyDay?: boolean;
+  easyDay?: TakeItEasy | null;
 }): CircadianInsights {
   const local = localTimeIn(input.now, input.timeZone);
   const window = windowForHour(local.hour);
@@ -747,25 +779,16 @@ export function buildCircadianInsights(input: {
   const slot = slotForWindow(window);
   const slots = summarizeSlotEnergy(input.rows, local.dateKey);
   const bestWindow = detectBestWindow(slots);
-  const easyDay = input.easyDay ?? false;
+  const easyDay = input.easyDay ?? null;
 
   const todayEnergy = todayEnergyOf(input.rows, local.dateKey);
   const currentEnergy = slot ? todayEnergy[slot] : null;
 
-  // Today's most recent check-in from an earlier slot.
-  const earlier = slot
-    ? ENERGY_SLOTS.slice(0, ENERGY_SLOTS.indexOf(slot))
-        .map((s) => todayEnergy[s])
-        .filter((value): value is number => value !== null)
-    : [];
-  const lastEarlier = earlier.length > 0 ? earlier[earlier.length - 1] : null;
-
-  const lowNow = isLowEnergy(currentEnergy);
-  // No push for harder work right after a low rating, on a day the daily briefing calls
-  // a take-it-easy day, or while this slot has no check-in yet and today's last one was
-  // low. That last one is not called "right now": it can be hours old.
-  const holdBack =
-    lowNow || easyDay || (currentEnergy === null && isLowEnergy(lastEarlier));
+  const lowCheckIn = lowCheckInToday(input.rows, input.now, input.timeZone);
+  const lowNow = lowCheckIn === 'now';
+  // No push for harder work after a low check-in today (the daily briefing takes it easy
+  // after the same one) or on a day the briefing calls a take-it-easy day.
+  const holdBack = lowCheckIn !== null || easyDay !== null;
 
   // How the user feels now: today's check-in, else their usual for this slot.
   const slotUsual =
@@ -805,7 +828,8 @@ export function buildCircadianInsights(input: {
     slot,
     todayEnergy,
     currentEnergy,
-    easyDay,
+    lowCheckIn,
+    easyDay: easyDay !== null,
     slots,
     bestWindow,
     intensityTarget,

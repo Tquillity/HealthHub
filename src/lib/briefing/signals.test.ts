@@ -327,15 +327,17 @@ describe('analyzeBriefing: journal', () => {
     expect(off.phase).toBeNull();
   });
 
-  it('uses a low energy check-in for right now only with the journal source on', () => {
-    expect(analyzeBriefing(input({ journal: [] })).lowEnergyNow).toBe(false);
-    expect(
-      analyzeBriefing(input({ journal: [], lowEnergyNow: true })).lowEnergyNow
-    ).toBe(true);
-    // The check-in is journal data: ignored with the journal source off.
-    expect(analyzeBriefing(input({ lowEnergyNow: true })).lowEnergyNow).toBe(
-      false
-    );
+  it("uses today's low energy check-in only with the journal source on", () => {
+    expect(analyzeBriefing(input({ journal: [] })).lowEnergyToday).toBeNull();
+    for (const lowEnergyToday of ['now', 'earlier'] as const) {
+      expect(
+        analyzeBriefing(input({ journal: [], lowEnergyToday })).lowEnergyToday
+      ).toBe(lowEnergyToday);
+      // The check-in is journal data: ignored with the journal source off.
+      expect(
+        analyzeBriefing(input({ lowEnergyToday })).lowEnergyToday
+      ).toBeNull();
+    }
   });
 });
 

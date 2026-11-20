@@ -395,10 +395,14 @@ export function phraseSuggestion(
  */
 export function buildHeadline(signals: BriefingSignals): string {
   if (isTakeItEasyDay(signals)) {
-    // A low check-in right now adds no suggestion of its own, so the headline says why.
-    return recentLogsSayTakeItEasy(signals)
-      ? "A gentler day may suit you. Here's what your recent logs suggest."
-      : 'You rated your energy as low right now, so this briefing keeps things gentle.';
+    if (recentLogsSayTakeItEasy(signals)) {
+      return "A gentler day may suit you. Here's what your recent logs suggest.";
+    }
+    // A low check-in adds no suggestion of its own, so the headline says why. Only the
+    // current slot's rating is "right now": an earlier one can be hours old.
+    return signals.lowEnergyToday === 'now'
+      ? 'You rated your energy as low right now, so this briefing keeps things gentle.'
+      : 'You rated your energy as low earlier today, so this briefing keeps things gentle.';
   }
   if ((signals.energy?.good ?? false) || (signals.recovery?.good ?? false)) {
     return "You've been doing well lately. Here's how to make the most of it.";

@@ -14,15 +14,14 @@ import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 import { addDaysToDateOnly } from './date-only';
-import { buildDailyBriefing, isTakeItEasyInput } from './briefing/engine';
+import { buildDailyBriefing, takeItEasyOf } from './briefing/engine';
 import type { BriefingJournalDay } from './briefing/types';
 import {
   bestWindowAdvice,
   buildCircadianInsights,
-  energyNowFrom,
   ENERGY_SLOTS,
-  isLowEnergy,
   localTimeIn,
+  lowCheckInToday,
   type TimeOfDayEnergyRow,
 } from './circadian-recommendations';
 
@@ -44,7 +43,10 @@ const GENTLER =
 /** The gentler headline when a low check-in right now is the only reason. */
 const LOW_NOW =
   'You rated your energy as low right now, so this briefing keeps things gentle.';
-const GENTLE_HEADLINES = [GENTLER, LOW_NOW];
+/** The same for a low check-in from an earlier slot, the current one not rated yet. */
+const LOW_EARLIER =
+  'You rated your energy as low earlier today, so this briefing keeps things gentle.';
+const GENTLE_HEADLINES = [GENTLER, LOW_NOW, LOW_EARLIER];
 const DOING_WELL =
   "You've been doing well lately. Here's how to make the most of it.";
 /** Circadian card suggestions that push harder work. */
@@ -91,25 +93,22 @@ const JOURNALS = {
   ),
 } satisfies Record<string, BriefingJournalDay[]>;
 
-/** A usual time-of-day pattern (afternoons best) and today's check-ins. */
-function checkIns(today: number | null): TimeOfDayEnergyRow[] {
+type TodayCheckIns = [number | null, number | null, number | null];
+
+/** A usual time-of-day pattern (afternoons best) and today's morning, afternoon and evening. */
+function checkIns(today: TodayCheckIns | null): TimeOfDayEnergyRow[] {
   const pattern = days('2026-11-14', '2026-11-19').map((date) => ({
     date,
     energyMorning: 5,
     energyAfternoon: 8,
     energyEvening: 4,
   }));
-  return today === null
-    ? pattern
-    : [
-        ...pattern,
-        {
-          date: TODAY,
-          energyMorning: today,
-          energyAfternoon: today,
-          energyEvening: today,
-        },
-      ];
+  if (today === null) return pattern;
+  const [energyMorning, energyAfternoon, energyEvening] = today;
+  return [
+    ...pattern,
+    { date: TODAY, energyMorning, energyAfternoon, energyEvening },
+  ];
 }
 
 /** The briefing and the circadian card for the same user, inputs and moment. */
@@ -124,7 +123,7 @@ function dashboard(
     journal: journalDays,
     cycle: null,
     vitals: null,
-    lowEnergyNow: isLowEnergy(energyNowFrom(rows, now, timeZone)),
+    lowEnergyToday: lowCheckInToday(rows, now, timeZone),
   };
   const briefing = buildDailyBriefing({
     ...inputs,
@@ -137,7 +136,7 @@ function dashboard(
     now,
     timeZone,
     rows,
-    easyDay: isTakeItEasyInput(inputs),
+    easyDay: takeItEasyOf(inputs),
   });
   return {
     briefing,
@@ -152,7 +151,7 @@ describe('the daily briefing and the circadian card agree', () => {
 
   it('fixes both directions on the same dashboard', () => {
     // A good week, then 2/10 on the circadian card at 10:30: the briefing goes gentle.
-    const lowNow = dashboard(JOURNALS.goodWeek, checkIns(2), at(10));
+    const lowNow = dashboard(JOURNALS.goodWeek, checkIns([2, 2, 2]), at(10));
     expect(lowNow.cardKeys[0]).toBe('personal.low-now');
     expect(lowNow.briefing.headline).toBe(LOW_NOW);
     expect(lowNow.keys).not.toContain('routine.go-for-it');
@@ -172,8 +171,18 @@ describe('the daily briefing and the circadian card agree', () => {
     ]).filter((text) => /demanding|harder/.test(text));
     let gentle = 0;
     let pushing = 0;
+    const todays: (TodayCheckIns | null)[] = [
+      null,
+      [2, 2, 2],
+      [6, 6, 6],
+      [9, 9, 9],
+      // A low morning, then the afternoon not rated yet, rated fine, or rated low.
+      [2, null, null],
+      [2, 7, null],
+      [9, 2, null],
+    ];
     for (const journalDays of Object.values(JOURNALS)) {
-      for (const today of [null, 2, 6, 9]) {
+      for (const today of todays) {
         for (const hour of [7, 10, 13, 16, 19, 23]) {
           const { briefing, keys, card, cardKeys } = dashboard(
             journalDays,
@@ -194,7 +203,10 @@ describe('the daily briefing and the circadian card agree', () => {
             }
             expect(card.recommendedIntensity, label).not.toBe('high');
           }
+          // The card holds back after a low check-in today or on a take-it-easy day.
           if (
+            card.lowCheckIn !== null ||
+            card.easyDay ||
             cardKeys.includes('personal.low-now') ||
             cardKeys.includes('personal.easy-day')
           ) {
@@ -203,6 +215,10 @@ describe('the daily briefing and the circadian card agree', () => {
               keys.filter((k) => BRIEFING_PUSH.includes(k)),
               label
             ).toEqual([]);
+          }
+          // "Right now" only for a rating of the current slot.
+          if (briefing.headline === LOW_NOW) {
+            expect(cardKeys[0], label).toBe('personal.low-now');
           }
           if (keys.includes('routine.go-for-it')) {
             pushing += 1;
@@ -284,11 +300,11 @@ describe.skipIf(!isolated)(
   () => {
     const run = randomUUID().slice(0, 8);
     const userId = `easy-${run}`;
-    // 09:30 UTC is 10:30 in Stockholm (morning), 14:30 UTC is 15:30 (afternoon) and
-    // 15:10 UTC is 16:10 (late afternoon).
-    const morning = new Date('2026-11-20T09:30:00Z');
-    const afternoon = new Date('2026-11-20T14:30:00Z');
-    const lateAfternoon = new Date('2026-11-20T15:10:00Z');
+    /** `HH:mm` today in Stockholm (UTC+1 in November). */
+    const stockholm = (time: string) => new Date(`${TODAY}T${time}:00+01:00`);
+    const morning = stockholm('10:30');
+    const afternoon = stockholm('15:30');
+    const lateAfternoon = stockholm('16:10');
     let pool: Pool;
     let client: PrismaClient;
     let easyDay: typeof import('./easy-day');
@@ -336,6 +352,20 @@ describe.skipIf(!isolated)(
       });
     }
 
+    /** Mornings usually 5, afternoons 8 and evenings 4 over the 6 days before today. */
+    async function writeCheckInPattern() {
+      await client.journalEntry.updateMany({
+        where: {
+          userId,
+          date: {
+            gte: new Date('2026-11-14T00:00:00Z'),
+            lte: new Date('2026-11-19T00:00:00Z'),
+          },
+        },
+        data: { energyMorning: 5, energyAfternoon: 8, energyEvening: 4 },
+      });
+    }
+
     /** What the dashboard's two cards load for the user at `now`. */
     async function loadDashboard(now: Date) {
       const state = await briefingData.loadBriefingState(userId, { now });
@@ -367,11 +397,58 @@ describe.skipIf(!isolated)(
       expect(after.briefing.headline).toBe(LOW_NOW);
       expect(after.keys).not.toContain('routine.go-for-it');
 
-      // The afternoon has its own check-in, not made yet: the morning's no longer counts
-      // as "right now" for either card.
+      // The afternoon has its own check-in, not made yet: the morning's is no longer
+      // "right now", but both cards still hold back on it.
       const later = await loadDashboard(afternoon);
       expect(later.cardKeys).not.toContain('personal.low-now');
-      expect(later.keys).toContain('routine.go-for-it');
+      expect(later.card.lowCheckIn).toBe('earlier');
+      expect(later.briefing.headline).toBe(LOW_EARLIER);
+      expect(later.keys).not.toContain('routine.go-for-it');
+    });
+
+    it('keeps both cards gentle after a low check-in until the next slot is rated', async () => {
+      await writeJournal(
+        { energy: 5, sleepHours: 8 },
+        { energy: 8, sleepHours: 8 }
+      );
+      await writeCheckInPattern();
+      await circadian.saveEnergyNow(userId, 2, stockholm('10:30'));
+
+      // The afternoon (from 12:00) and the evening (from 18:00) not rated yet.
+      for (const time of ['12:05', '15:30', '18:30']) {
+        const now = stockholm(time);
+        const { briefing, keys, card, cardKeys } = await loadDashboard(now);
+        expect(briefing.headline, time).toBe(LOW_EARLIER);
+        expect(
+          keys.filter((k) => BRIEFING_PUSH.includes(k)),
+          time
+        ).toEqual([]);
+        expect(card.lowCheckIn, time).toBe('earlier');
+        // Not "right now", and not "your recent logs" either.
+        expect(cardKeys, time).not.toContain('personal.low-now');
+        expect(cardKeys, time).not.toContain('personal.easy-day');
+        expect(
+          cardKeys.filter((k) => CARD_PUSH.includes(k)),
+          time
+        ).toEqual([]);
+        for (const suggestion of card.suggestions) {
+          expect(suggestion.body, time).not.toMatch(
+            /demanding|harder training/
+          );
+        }
+        expect(card.recommendedIntensity, time).not.toBe('high');
+        const target = await circadian.loadLotteryCircadianTarget(userId, now);
+        expect(target?.intensity, time).toBeLessThanOrEqual(1);
+      }
+
+      // Rating the afternoon fine brings the push back on both cards.
+      await circadian.saveEnergyNow(userId, 7, stockholm('15:30'));
+      const rated = await loadDashboard(stockholm('15:30'));
+      expect(rated.briefing.headline).toBe(DOING_WELL);
+      expect(rated.keys).toContain('routine.go-for-it');
+      expect(rated.card.lowCheckIn).toBeNull();
+      expect(rated.cardKeys).toContain('afternoon.training');
+      expect(rated.card.recommendedIntensity).toBe('high');
     });
 
     it('reads that check-in only with the journal source and circadian insights on', async () => {
@@ -380,13 +457,15 @@ describe.skipIf(!isolated)(
         { energy: 8, sleepHours: 8 }
       );
       await circadian.saveEnergyNow(userId, 2, morning);
-      expect(await easyDay.loadEasyDay(userId, morning)).toBe(true);
+      expect(await easyDay.loadEasyDay(userId, morning)).toEqual({
+        fromLogs: false,
+      });
 
       await client.user.update({
         where: { id: userId },
         data: { briefingSources: ['cycle', 'meals', 'vitals'] },
       });
-      expect(await easyDay.loadEasyDay(userId, morning)).toBe(false);
+      expect(await easyDay.loadEasyDay(userId, morning)).toBeNull();
 
       await client.user.update({
         where: { id: userId },
@@ -395,7 +474,7 @@ describe.skipIf(!isolated)(
           enableCircadianInsights: false,
         },
       });
-      expect(await easyDay.loadEasyDay(userId, morning)).toBe(false);
+      expect(await easyDay.loadEasyDay(userId, morning)).toBeNull();
       const state = await briefingData.loadBriefingState(userId, {
         now: morning,
       });

@@ -167,6 +167,25 @@ export type BriefingMealData = {
   cookedTracking: boolean;
 };
 
+/**
+ * Today's low time-of-day energy check-in (circadian insights): 'now' for the current
+ * slot, 'earlier' for an earlier slot while the current one is not rated yet (see
+ * lib/circadian-recommendations `lowCheckInToday`).
+ */
+export type LowEnergyCheckIn = 'now' | 'earlier';
+
+/**
+ * Why the briefing calls today a take-it-easy day (engine.ts `takeItEasyOf`), for the
+ * circadian card on the same dashboard (lib/easy-day).
+ */
+export type TakeItEasy = {
+  /**
+   * The recent logs say so (rules.ts `recentLogsSayTakeItEasy`), not only a low energy
+   * check-in today.
+   */
+  fromLogs: boolean;
+};
+
 export type BriefingFeedbackEntry = {
   /** `YYYY-MM-DD` */
   date: string;
@@ -189,11 +208,10 @@ export type BriefingEngineInput = {
   /** Recovery score inputs; null when the source or the vitals opt-in is off. */
   vitals: BriefingVitalsData | null;
   /**
-   * Today's time-of-day energy check-in for right now is at or below LOW_ENERGY_RATING,
-   * as the circadian card's "Running low right now" (lib/easy-day). False unless the
-   * journal source and circadian insights are on.
+   * Today's low time-of-day energy check-in, by the rule the circadian card holds back on
+   * (lib/easy-day). Null unless the journal source and circadian insights are on.
    */
-  lowEnergyNow?: boolean;
+  lowEnergyToday?: LowEnergyCheckIn | null;
   /** Feedback from the last weeks, including today. */
   feedback: BriefingFeedbackEntry[];
 };

@@ -7,6 +7,7 @@ import {
   toDateOnlyString,
 } from '@/lib/date-only';
 import { isValidTimeZone } from '@/lib/briefing/schedule';
+import type { TakeItEasy } from '@/lib/briefing/types';
 import { loadEasyDay } from '@/lib/easy-day';
 import {
   JOURNAL_LIST_FIELDS,
@@ -134,7 +135,10 @@ export async function loadTimeOfDayEnergyRows(
  * and the lottery hold back on harder training on the same days. Never throws: without
  * it the card works as before.
  */
-async function loadEasyDayOrFalse(userId: string, now: Date): Promise<boolean> {
+async function loadEasyDayOrNull(
+  userId: string,
+  now: Date
+): Promise<TakeItEasy | null> {
   try {
     return await loadEasyDay(userId, now);
   } catch (error) {
@@ -142,7 +146,7 @@ async function loadEasyDayOrFalse(userId: string, now: Date): Promise<boolean> {
       '[circadian] Failed to check for a take-it-easy day:',
       safeErrorLabel(error)
     );
-    return false;
+    return null;
   }
 }
 
@@ -156,7 +160,7 @@ export async function loadCircadianInsights(
   const today = localTimeIn(now, user.timezone).dateKey;
   const [rows, easyDay] = await Promise.all([
     loadTimeOfDayEnergyRows(userId, today),
-    loadEasyDayOrFalse(userId, now),
+    loadEasyDayOrNull(userId, now),
   ]);
   return buildCircadianInsights({
     now,

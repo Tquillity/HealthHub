@@ -10,6 +10,7 @@ import {
   leadingEarlyEstimate,
   LOW_ENERGY_RATING,
   localTimeIn,
+  lowCheckInToday,
   lotteryHintFromInsights,
   lotteryTargetFromInsights,
   MAX_SUGGESTIONS,
@@ -23,6 +24,7 @@ import {
   type SlotEnergySummary,
   type TimeOfDayEnergyRow,
 } from './circadian-recommendations';
+import type { TakeItEasy } from './briefing/types';
 import { addDaysToDateOnly } from './date-only';
 
 function row(
@@ -366,6 +368,8 @@ describe('mealFocusForMoment', () => {
 });
 
 describe('buildCircadianInsights', () => {
+  /** A take-it-easy day the daily briefing explains with the recent logs. */
+  const EASY_DAY: TakeItEasy = { fromLogs: true };
   // 09:30 UTC = 10:30 in Stockholm (late morning).
   const lateMorning = new Date('2026-11-20T09:30:00Z');
   const zone = 'Europe/Stockholm';
@@ -546,7 +550,7 @@ describe('buildCircadianInsights', () => {
       now: lateAfternoon,
       timeZone: zone,
       rows: [],
-      easyDay: true,
+      easyDay: EASY_DAY,
     });
     expect(easy.easyDay).toBe(true);
     expect(easy.suggestions.map((s) => s.key)).toEqual([
@@ -573,7 +577,7 @@ describe('buildCircadianInsights', () => {
       now: lateMorning,
       timeZone: zone,
       rows,
-      easyDay: true,
+      easyDay: EASY_DAY,
     });
     const keys = easy.suggestions.map((s) => s.key);
     expect(keys).toEqual([
@@ -592,7 +596,7 @@ describe('buildCircadianInsights', () => {
       now: lateMorning,
       timeZone: zone,
       rows: [row('2026-11-20', 2, null, null)],
-      easyDay: true,
+      easyDay: EASY_DAY,
     });
     expect(lowNow.suggestions.map((s) => s.key)).not.toContain(
       'personal.easy-day'
@@ -604,7 +608,7 @@ describe('buildCircadianInsights', () => {
       now: new Date('2026-11-20T18:30:00Z'),
       timeZone: zone,
       rows: [],
-      easyDay: true,
+      easyDay: EASY_DAY,
     });
     expect(evening.intensityTarget).toBe(0);
   });
@@ -696,6 +700,84 @@ describe('buildCircadianInsights', () => {
       row('2026-11-20', 6, null, null),
     ]);
     expect(pushes(fineMorning).length).toBeGreaterThan(0);
+
+    // The daily briefing takes it easy after the same check-in. The recent logs are not
+    // why, so the card adds no "your recent logs" note and holds back as before.
+    const withBriefing = buildCircadianInsights({
+      now: new Date('2026-11-20T15:30:00Z'),
+      timeZone: 'UTC',
+      rows,
+      easyDay: { fromLogs: false },
+    });
+    expect(withBriefing.suggestions).toEqual(lateAfternoon.suggestions);
+    expect(withBriefing.intensityTarget).toBe(lateAfternoon.intensityTarget);
+  });
+
+  it('has one rule for a low check-in today, "now" or "earlier", for the card and the briefing', () => {
+    const at = (time: string) => new Date(`2026-11-20T${time}:00Z`);
+    const today = (
+      morning: number | null,
+      afternoon: number | null,
+      evening: number | null
+    ) => [
+      row('2026-11-19', 1, 1, 1),
+      row('2026-11-20', morning, afternoon, evening),
+    ];
+
+    // The current slot's own rating decides, low or not.
+    expect(lowCheckInToday(today(9, 2, null), at('12:00'), 'UTC')).toBe('now');
+    expect(lowCheckInToday(today(2, 7, null), at('12:00'), 'UTC')).toBeNull();
+    // Until the current slot is rated, today's most recent earlier rating decides.
+    expect(lowCheckInToday(today(2, null, null), at('11:59'), 'UTC')).toBe(
+      'now'
+    );
+    expect(lowCheckInToday(today(2, null, null), at('12:00'), 'UTC')).toBe(
+      'earlier'
+    );
+    expect(lowCheckInToday(today(2, null, null), at('18:30'), 'UTC')).toBe(
+      'earlier'
+    );
+    expect(lowCheckInToday(today(2, 7, null), at('18:30'), 'UTC')).toBeNull();
+    expect(lowCheckInToday(today(7, 2, null), at('18:30'), 'UTC')).toBe(
+      'earlier'
+    );
+    expect(
+      lowCheckInToday(today(6, null, null), at('12:00'), 'UTC')
+    ).toBeNull();
+    // Yesterday's ratings never count, and the night has no slot.
+    expect(
+      lowCheckInToday([row('2026-11-19', 1, 1, 1)], at('12:00'), 'UTC')
+    ).toBeNull();
+    expect(lowCheckInToday(today(2, 2, 2), at('22:00'), 'UTC')).toBeNull();
+    expect(lowCheckInToday(today(2, 2, 2), at('05:59'), 'UTC')).toBeNull();
+    // The profile time zone decides the slot: 18:30 UTC is the UTC evening, but 10:30 in
+    // Los Angeles, the morning of the 20th.
+    expect(lowCheckInToday(today(2, null, 7), at('18:30'), 'UTC')).toBeNull();
+    expect(
+      lowCheckInToday(today(2, null, 7), at('18:30'), 'America/Los_Angeles')
+    ).toBe('now');
+
+    // The card holds back on exactly this rule, and says "right now" only for 'now'.
+    for (const rows of [
+      today(2, null, null),
+      today(2, 7, null),
+      today(7, 2, null),
+      today(9, null, 2),
+      today(null, null, null),
+    ]) {
+      for (let hour = 0; hour < 24; hour++) {
+        const now = new Date(Date.UTC(2026, 10, 20, hour, 30));
+        const insights = buildCircadianInsights({ now, timeZone: 'UTC', rows });
+        const kind = lowCheckInToday(rows, now, 'UTC');
+        expect(insights.lowCheckIn).toBe(kind);
+        expect(
+          insights.suggestions.some((s) => s.key === 'personal.low-now')
+        ).toBe(kind === 'now');
+        if (kind !== null) {
+          expect(insights.intensityTarget).toBeLessThanOrEqual(1);
+        }
+      }
+    }
   });
 
   it('never pushes hard training for an evening best window', () => {

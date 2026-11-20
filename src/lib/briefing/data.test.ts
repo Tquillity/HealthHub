@@ -521,7 +521,7 @@ describe.skipIf(!isolated)(
         );
         // The circadian card reads the same inputs, so it does not hold back either.
         const { loadEasyDay } = await import('@/lib/easy-day');
-        expect(await loadEasyDay(tod.id, NOW)).toBe(false);
+        expect(await loadEasyDay(tod.id, NOW)).toBeNull();
 
         await client.user.update({
           where: { id: tod.id },

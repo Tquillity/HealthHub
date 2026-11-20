@@ -11,6 +11,8 @@ import type { SuggestionKey } from './types';
 const GENTLER = "A gentler day may suit you. Here's what your recent logs suggest.";
 const LOW_NOW =
   'You rated your energy as low right now, so this briefing keeps things gentle.';
+const LOW_EARLIER =
+  'You rated your energy as low earlier today, so this briefing keeps things gentle.';
 const DOING_WELL = "You've been doing well lately. Here's how to make the most of it.";
 
 /** Suggestions that encourage harder training. */
@@ -94,7 +96,7 @@ function signals(overrides: Partial<BriefingSignals>): BriefingSignals {
     phase: null,
     checkInDays: 3,
     energyCheckInDays: 0,
-    lowEnergyNow: false,
+    lowEnergyToday: null,
     energy: null,
     mood: null,
     symptoms: null,
@@ -112,18 +114,22 @@ describe('headline and suggestions', () => {
       for (const recoveryValue of Object.values(RECOVERY)) {
         for (const symptoms of Object.values(SYMPTOMS)) {
           for (const sleepValue of Object.values(SLEEP)) {
-            for (const lowEnergyNow of [false, true]) {
+            for (const lowEnergyToday of [null, 'now', 'earlier'] as const) {
               const s = signals({
                 energy,
                 recovery: recoveryValue,
                 symptoms,
                 sleep: sleepValue,
-                lowEnergyNow,
+                lowEnergyToday,
               });
               const headline = buildHeadline(s);
               const keys = buildCandidates(s).map((c) => c.key);
               const label = JSON.stringify({ headline, keys });
-              if (headline === GENTLER || headline === LOW_NOW) {
+              if (
+                headline === GENTLER ||
+                headline === LOW_NOW ||
+                headline === LOW_EARLIER
+              ) {
                 gentlerDays += 1;
                 expect(isTakeItEasyDay(s)).toBe(true);
                 expect(
@@ -131,9 +137,11 @@ describe('headline and suggestions', () => {
                   label
                 ).toEqual([]);
                 // Every gentler headline says why: a suggestion from the logs, or the
-                // low check-in itself.
-                if (headline === LOW_NOW) {
-                  expect(s.lowEnergyNow, label).toBe(true);
+                // low check-in itself, called "right now" only for the current slot.
+                if (headline === LOW_NOW || headline === LOW_EARLIER) {
+                  expect(s.lowEnergyToday, label).toBe(
+                    headline === LOW_NOW ? 'now' : 'earlier'
+                  );
                   expect(recentLogsSayTakeItEasy(s), label).toBe(false);
                 } else {
                   expect(
@@ -169,18 +177,29 @@ describe('headline and suggestions', () => {
     const lowNow = signals({
       energy: ENERGY.good,
       recovery: RECOVERY.good,
-      lowEnergyNow: true,
+      lowEnergyToday: 'now',
     });
     expect(isTakeItEasyDay(lowNow)).toBe(true);
     // No suggestion explains it, so the headline names the check-in.
     expect(buildHeadline(lowNow)).toBe(LOW_NOW);
     expect(buildCandidates(lowNow)).toEqual([]);
 
+    // A low check-in from an earlier slot, the current one not rated yet: still gentle,
+    // but never called "right now", since it can be hours old.
+    const lowEarlier = signals({
+      energy: ENERGY.good,
+      recovery: RECOVERY.good,
+      lowEnergyToday: 'earlier',
+    });
+    expect(isTakeItEasyDay(lowEarlier)).toBe(true);
+    expect(buildHeadline(lowEarlier)).toBe(LOW_EARLIER);
+    expect(buildCandidates(lowEarlier)).toEqual([]);
+
     // With a reason in the logs as well, that reason's suggestion explains it.
     const alsoShortSleep = signals({
       energy: ENERGY.good,
       sleep: SLEEP.short,
-      lowEnergyNow: true,
+      lowEnergyToday: 'now',
     });
     expect(buildHeadline(alsoShortSleep)).toBe(GENTLER);
     expect(buildCandidates(alsoShortSleep).map((c) => c.key)).toEqual([

@@ -84,14 +84,15 @@ export function recentLogsSayTakeItEasy(signals: BriefingSignals): boolean {
 
 /**
  * Take it easy today: the recent logs say so (`recentLogsSayTakeItEasy`), or there is a
- * low time-of-day energy check-in for right now (circadian insights). The headline then
- * suggests a gentler day, and the suggestions that encourage harder training are left
- * out, so the card never says both (copy.ts `buildHeadline` uses this same check). The
- * circadian card holds back its training push on the same days (lib/easy-day), so the
+ * low time-of-day energy check-in today, for right now or for an earlier slot while the
+ * current one is not rated yet (circadian insights). The headline then suggests a gentler
+ * day, and the suggestions that encourage harder training are left out, so the card never
+ * says both (copy.ts `buildHeadline` uses this same check). The circadian card holds back
+ * its training push on the same days and after the same check-in (lib/easy-day), so the
  * dashboard does not either.
  */
 export function isTakeItEasyDay(signals: BriefingSignals): boolean {
-  return signals.lowEnergyNow || recentLogsSayTakeItEasy(signals);
+  return signals.lowEnergyToday !== null || recentLogsSayTakeItEasy(signals);
 }
 
 export function buildCandidates(
