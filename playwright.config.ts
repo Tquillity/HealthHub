@@ -49,12 +49,13 @@ export default defineConfig({
       },
     },
     {
-      // Turns circadian insights on for the shared signed-in user, which changes what
-      // other specs see (the routine lottery starts on "Match my rhythm"), so it runs
-      // only after the authenticated project has finished.
+      // Turns circadian insights on for the shared signed-in user (and off again after
+      // each test). No other spec depends on them being off (the routine lottery picks
+      // its energy level itself), so it needs only the signed-in state and runs whatever
+      // happens in the authenticated project.
       name: 'authenticated-settings',
       testMatch: /circadian-insights\.spec\.ts/,
-      dependencies: ['authenticated'],
+      dependencies: ['setup'],
       use: {
         ...devices['Desktop Chrome'],
         storageState: 'e2e/.auth/user.json',

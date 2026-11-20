@@ -11,9 +11,24 @@ async function drawOneRoutine(page: Page) {
   page.on('pageerror', (error) => errors.push(error.message));
 
   await page.goto('/routines');
+  // The cookie notice sits over the bottom of the page, where the dialog's Spin button
+  // ends up once the dialog grows (the circadian hint adds a line).
+  const notice = page.getByRole('dialog', { name: 'Cookie preferences' });
+  const manageCookies = page.getByRole('button', {
+    name: 'Manage cookie preferences',
+  });
+  await expect(notice.or(manageCookies)).toBeVisible();
+  if (await notice.isVisible()) {
+    await notice.getByRole('button', { name: 'Essential only' }).click();
+  }
   await page.getByRole('button', { name: 'Spin the Wheel' }).click();
   await expect(page.getByRole('heading', { name: 'Todo Lottery' })).toBeVisible();
-  await expect(page.getByLabel('Your Energy Level')).toHaveValue('medium');
+  // The fixture routine is medium. Chosen here rather than relying on the default, which
+  // is "Match my rhythm" while circadian insights are on (circadian-insights.spec.ts can
+  // turn them on for the shared user while this runs).
+  const energy = page.getByLabel('Your Energy Level');
+  await energy.selectOption('medium');
+  await expect(energy).toHaveValue('medium');
 
   // The page's own "Spin the Wheel" button comes first; the dialog's is last.
   const spin = page.getByRole('button', { name: 'Spin the Wheel' }).last();
